@@ -36,7 +36,11 @@ function lastOpenOutbound(state: StockState): LedgerLine | undefined {
   return undefined
 }
 
-export function suggestNextStockForm(state: StockState, orderId: string): NextStockForm | null {
+export function suggestNextStockForm(
+  state: StockState,
+  orderId: string,
+  item?: { assetManaged?: boolean },
+): NextStockForm | null {
   const order = state.orders.get(orderId)
   if (order?.status === 'draft') {
     return {
@@ -76,14 +80,14 @@ export function suggestNextStockForm(state: StockState, orderId: string): NextSt
     }
   }
 
-  if (itemId) {
+  if (itemId && item?.assetManaged) {
     const warehouseId = ['wh-main', 'wh-sub'].find((id) => onHand(state, itemId, id) > 0)
     if (warehouseId) {
       return {
         action: 'convert_to_asset',
         qty: '1',
         warehouseId,
-        hint: '자산화 1을 확정하면 현재고가 줄고 자산 목록에 1건이 생깁니다. 그다음 자산에서 배정하세요.',
+        hint: '노트북처럼 자산 관리 품목만 자산화합니다. 복사용지는 회사 재고로 남깁니다.',
       }
     }
   }

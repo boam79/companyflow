@@ -1,4 +1,5 @@
 import { loadAssets, type AssetRecord } from '../asset/book'
+import { heldIssuedAssets, loadItems, ISSUE_ITEMS, type ItemRecord } from '../master/book'
 
 export type EmployeeRecord = {
   id: string
@@ -32,12 +33,15 @@ export function applyLeave(
   employee: EmployeeRecord,
   assets: AssetRecord[],
   leftAt: string,
+  items: ItemRecord[] = ISSUE_ITEMS,
 ): EmployeeRecord {
   if (employee.leftAt) throw new Error('이미 퇴사했습니다.')
   if (!leftAt.trim()) throw new Error('퇴사일이 필요합니다.')
-  const held = assets.filter((asset) => asset.status === 'assigned' && asset.employeeId === employee.id)
+  const held = heldIssuedAssets(assets, employee.id, items)
   if (held.length) {
-    throw new Error(`미회수 자산 ${held.length}건이 있어 퇴사할 수 없습니다.`)
+    throw new Error(
+      `미회수 지급품 ${held.length}건이 있어 퇴사할 수 없습니다. 명찰·유니폼·노트북을 먼저 회수하세요.`,
+    )
   }
   return { ...employee, leftAt }
 }
@@ -121,10 +125,14 @@ export async function executeLeave(
   createdAt = new Date().toISOString(),
 ): Promise<{ status: 'applied' | 'duplicate' }> {
   return runEmployeeCommand(db, command.operationId, 'leave_employee', createdAt, async () => {
-    const [employees, assets] = await Promise.all([loadEmployees(db), loadAssets(db)])
+    const [employees, assets, items] = await Promise.all([
+      loadEmployees(db),
+      loadAssets(db),
+      loadItems(db),
+    ])
     const employee = employees.find((row) => row.id === command.employeeId)
     if (!employee) throw new Error('직원을 찾을 수 없습니다.')
-    const next = applyLeave(employee, assets, command.leftAt)
+    const next = applyLeave(employee, assets, command.leftAt, items)
     return [
       {
         sql: 'update employees set left_at = ? where id = ?',

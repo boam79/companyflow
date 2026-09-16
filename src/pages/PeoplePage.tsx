@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
-import { executeAssignAsset, executeReturnAsset, loadAssets, type AssetRecord } from '../lib/asset/book'
+import { executeAssignAsset, executeIssueAsset, executeReturnAsset, loadAssets, type AssetRecord } from '../lib/asset/book'
 import { suggestNextAssetAction } from '../lib/asset/nextAssign'
-import { writeDefaultMaster } from '../lib/master/book'
+import { heldIssuedAssets, loadItems, writeDefaultMaster, type ItemRecord } from '../lib/master/book'
 import {
   badgeLines,
   executeHire,
@@ -58,6 +58,7 @@ export function PeoplePage() {
   const [departments, setDepartments] = useState<NamedRow[]>([])
   const [employees, setEmployees] = useState<EmployeeRecord[]>([])
   const [assets, setAssets] = useState<AssetRecord[]>([])
+  const [items, setItems] = useState<ItemRecord[]>([])
   const [drafts, setDrafts] = useState<Record<string, { hiredAt: string; title: string; badgeName: string }>>(
     {},
   )
@@ -98,14 +99,16 @@ export function PeoplePage() {
         return
       }
       await writeDefaultMaster(sqlite)
-      const [deptRows, employeeRows, assetRows] = await Promise.all([
+      const [deptRows, employeeRows, assetRows, itemRows] = await Promise.all([
         sqlite.query<NamedRow>('select id, name from departments order by name'),
         loadEmployees(sqlite),
         loadAssets(sqlite),
+        loadItems(sqlite),
       ])
       setDepartments(deptRows)
       setEmployees(employeeRows)
       setAssets(assetRows)
+      setItems(itemRows)
       setDrafts(
         Object.fromEntries(
           employeeRows.map((row) => [
@@ -127,9 +130,14 @@ export function PeoplePage() {
   }
 
   async function refreshPeople() {
-    const [employeeRows, assetRows] = await Promise.all([loadEmployees(sqlite), loadAssets(sqlite)])
+    const [employeeRows, assetRows, itemRows] = await Promise.all([
+      loadEmployees(sqlite),
+      loadAssets(sqlite),
+      loadItems(sqlite),
+    ])
     setEmployees(employeeRows)
     setAssets(assetRows)
+    setItems(itemRows)
   }
 
   async function hire(employeeId: string) {
@@ -172,7 +180,7 @@ export function PeoplePage() {
       setNotice(
         result.status === 'duplicate'
           ? '같은 배정은 한 번만 반영됩니다.'
-          : `배정했습니다. ${employeeName}. 퇴사하려면 먼저 회수하세요.`,
+          : `지급했습니다. ${employeeName}. 퇴사하려면 명찰·유니폼·노트북을 먼저 회수하세요.`,
       )
       await refreshPeople()
     } catch (error) {
@@ -188,7 +196,27 @@ export function PeoplePage() {
         operationId: crypto.randomUUID(),
         assetId,
       })
-      setNotice(result.status === 'duplicate' ? '같은 회수는 한 번만 반영됩니다.' : '보관으로 회수했습니다.')
+      setNotice(result.status === 'duplicate' ? '같은 회수는 한 번만 반영됩니다.' : '지급품을 회수했습니다.')
+      await refreshPeople()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  async function issueNext(itemId: string, employeeId: string, itemName: string) {
+    setMessage('')
+    setNotice('')
+    try {
+      const result = await executeIssueAsset(sqlite, {
+        operationId: crypto.randomUUID(),
+        itemId,
+        employeeId,
+      })
+      setNotice(
+        result.status === 'duplicate'
+          ? '같은 지급은 한 번만 반영됩니다.'
+          : `${itemName}을 지급했습니다. 퇴사 전에 회수합니다.`,
+      )
       await refreshPeople()
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
@@ -229,7 +257,7 @@ export function PeoplePage() {
       <div>
         <h1 className="text-3xl font-semibold">직원·입퇴사</h1>
         <p className="mt-2 text-sm text-muted">
-          퇴사는 배정 자산을 먼저 회수한 뒤에만 됩니다. 명찰은 직원·부서·직위로 미리보기합니다.
+          퇴사는 직원에게 지급한 명찰·유니폼·노트북을 회수한 뒤에만 됩니다. 복사용지 같은 회사 재고는 대상이 아닙니다.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -259,19 +287,37 @@ export function PeoplePage() {
       {message ? <p className="text-sm text-danger">{message}</p> : null}
       {ready
         ? (() => {
-            const next = suggestNextAssetAction(assets, employees)
+            const next = suggestNextAssetAction(assets, employees, items)
+            if (next?.kind === 'issue') {
+              return (
+                <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
+                  <p className="text-sm text-accent">
+                    입사 지급은 명찰·유니폼·노트북 순서입니다. {next.employeeName}에게 {next.itemName}을
+                    지급하세요.
+                  </p>
+                  <button
+                    type="button"
+                    className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white"
+                    onClick={() => void issueNext(next.itemId, next.employeeId, next.itemName)}
+                  >
+                    {next.itemName} 지급 1
+                  </button>
+                </section>
+              )
+            }
             if (next?.kind === 'assign') {
               return (
                 <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
                   <p className="text-sm text-accent">
-                    보관 자산 {next.stored}건을 {next.employeeName}에게 배정하면 입퇴사와 연결됩니다.
+                    보관 중인 {next.itemName} {next.stored}건을 {next.employeeName}에게 지급하면 입퇴사와
+                    연결됩니다.
                   </p>
                   <button
                     type="button"
                     className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white"
                     onClick={() => void assignNext(next.assetId, next.employeeId)}
                   >
-                    {next.employeeName}에게 배정 1
+                    {next.itemName} 지급 1
                   </button>
                 </section>
               )
@@ -280,7 +326,7 @@ export function PeoplePage() {
               return (
                 <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
                   <p className="text-sm text-accent">
-                    미회수 자산 {next.held}건이 있으면 퇴사할 수 없습니다. 회수하면 보관으로 돌아갑니다.
+                    미회수 지급품 {next.held}건(명찰·유니폼·노트북)이 있으면 퇴사할 수 없습니다.
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <button
@@ -324,9 +370,7 @@ export function PeoplePage() {
                   title: '',
                   badgeName: employee.name,
                 }
-                const held = assets.filter(
-                  (asset) => asset.status === 'assigned' && asset.employeeId === employee.id,
-                ).length
+                const held = heldIssuedAssets(assets, employee.id, items).length
                 const deptName = departments.find((dept) => dept.id === employee.departmentId)?.name
                 return (
                   <tr key={employee.id} className="border-b border-line/70 align-top">

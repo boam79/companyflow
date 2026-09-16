@@ -1,4 +1,5 @@
 import { ProcessedOperations, type ProcessResult } from '../idempotency'
+import type { AssetRecord } from '../asset/book'
 
 export type MasterEntity = 'department' | 'employee' | 'item' | 'partner' | 'warehouse'
 
@@ -11,6 +12,46 @@ export type CustomFieldDef = {
 export type NamedRecord = {
   id: string
   name: string
+}
+
+export type ItemRecord = {
+  id: string
+  name: string
+  stockManaged: boolean
+  assetManaged: boolean
+}
+
+export const PAPER_ITEM: ItemRecord = {
+  id: 'item-paper',
+  name: '복사용지',
+  stockManaged: true,
+  assetManaged: false,
+}
+
+export const ISSUE_ITEMS: ItemRecord[] = [
+  { id: 'item-badge', name: '명찰', stockManaged: false, assetManaged: true },
+  { id: 'item-uniform', name: '유니폼', stockManaged: true, assetManaged: true },
+  { id: 'item-laptop', name: '노트북', stockManaged: true, assetManaged: true },
+]
+
+export function heldIssuedAssets(
+  assets: AssetRecord[],
+  employeeId: string,
+  items: ItemRecord[],
+): AssetRecord[] {
+  const issueIds = new Set(items.filter((item) => item.assetManaged).map((item) => item.id))
+  return assets.filter(
+    (asset) => asset.status === 'assigned' && asset.employeeId === employeeId && issueIds.has(asset.itemId),
+  )
+}
+
+export function assertConvertibleItem(item: ItemRecord | undefined): ItemRecord {
+  if (!item?.assetManaged) {
+    throw new Error(
+      `${item?.name ?? '이 품목'}은 회사 재고입니다. 자산화·지급은 명찰·유니폼·노트북만 합니다.`,
+    )
+  }
+  return item
 }
 
 export class CompanyMasterBook {
@@ -95,9 +136,12 @@ export function seedDefaultMaster(book: CompanyMasterBook): void {
     name: '부속창고',
   })
   book.upsertItem(`${book.companyId}:seed:item-paper`, {
-    id: 'item-paper',
-    name: '복사용지',
+    id: PAPER_ITEM.id,
+    name: PAPER_ITEM.name,
   })
+  for (const item of ISSUE_ITEMS) {
+    book.upsertItem(`${book.companyId}:seed:${item.id}`, { id: item.id, name: item.name })
+  }
   book.upsertEmployee(`${book.companyId}:seed:emp-kim`, {
     id: DEFAULT_EMPLOYEE.id,
     name: DEFAULT_EMPLOYEE.name,
@@ -128,11 +172,24 @@ export async function writeDefaultMaster(db: {
     '부속창고',
     now,
   ])
-  await db.exec('insert or ignore into items(id, name, created_at) values(?, ?, ?)', [
-    'item-paper',
-    '복사용지',
-    now,
-  ])
+  await db.exec(
+    'insert or ignore into items(id, name, stock_managed, asset_managed, created_at) values(?, ?, ?, ?, ?)',
+    [PAPER_ITEM.id, PAPER_ITEM.name, 1, 0, now],
+  )
+  for (const item of ISSUE_ITEMS) {
+    await db.exec(
+      'insert or ignore into items(id, name, stock_managed, asset_managed, created_at) values(?, ?, ?, ?, ?)',
+      [item.id, item.name, item.stockManaged ? 1 : 0, item.assetManaged ? 1 : 0, now],
+    )
+  }
+  await db.exec('update items set stock_managed = 1, asset_managed = 0 where id = ?', [PAPER_ITEM.id])
+  for (const item of ISSUE_ITEMS) {
+    await db.exec('update items set stock_managed = ?, asset_managed = ? where id = ?', [
+      item.stockManaged ? 1 : 0,
+      item.assetManaged ? 1 : 0,
+      item.id,
+    ])
+  }
   await db.exec(
     `insert or ignore into employees(id, name, department_id, title, hired_at, badge_name, created_at)
       values(?, ?, ?, ?, ?, ?, ?)`,
@@ -146,6 +203,23 @@ export async function writeDefaultMaster(db: {
       now,
     ],
   )
+}
+
+export async function loadItems(
+  db: { query: <T>(sql: string, params?: unknown[]) => Promise<T[]> },
+): Promise<ItemRecord[]> {
+  const rows = await db.query<{
+    id: string
+    name: string
+    stock_managed?: number | null
+    asset_managed?: number | null
+  }>('select id, name, stock_managed, asset_managed from items order by name')
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    stockManaged: row.stock_managed !== 0,
+    assetManaged: row.asset_managed === 1,
+  }))
 }
 
 export const MASTER_TABLE_SQL = [
@@ -175,6 +249,8 @@ export const MASTER_TABLE_SQL = [
   `create table if not exists items (
     id text primary key,
     name text not null,
+    stock_managed integer not null default 1,
+    asset_managed integer not null default 0,
     created_at text not null
   );`,
   `create table if not exists partners (

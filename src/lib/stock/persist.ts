@@ -1,5 +1,5 @@
 import { assetsFromConvert } from '../asset/book'
-import { writeDefaultMaster } from '../master/book'
+import { assertConvertibleItem, loadItems, writeDefaultMaster } from '../master/book'
 import type { CompanySqlite } from '../sqlite/client'
 import {
   applyStockCommand,
@@ -173,6 +173,10 @@ export async function executeStockCommand(
   command: StockCommand,
   createdAt = new Date().toISOString(),
 ): Promise<{ status: 'applied' | 'duplicate'; state: StockState }> {
+  if (command.type === 'convert_to_asset') {
+    const items = await loadItems(db)
+    assertConvertibleItem(items.find((item) => item.id === command.itemId))
+  }
   const prev = await loadStockState(db)
   const result = applyStockCommand(prev, command)
   if (result.status === 'duplicate') return result

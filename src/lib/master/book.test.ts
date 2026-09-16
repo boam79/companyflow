@@ -29,6 +29,8 @@ describe('회사별 기준정보 격리', () => {
     seedDefaultMaster(book)
     expect(book.employees.get('emp-kim')).toEqual({ id: 'emp-kim', name: '김담당' })
     expect(book.departments.get('dept-admin')?.name).toBe('총무')
+    expect(book.items.get('item-laptop')?.name).toBe('노트북')
+    expect(book.items.get('item-badge')?.name).toBe('명찰')
   })
 
   it('같은 operation_id 는 부서를 한 번만 만든다', () => {

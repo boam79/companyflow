@@ -189,3 +189,61 @@ export async function executeReturnAsset(
     throw error
   }
 }
+
+export async function executeIssueAsset(
+  db: {
+    query: <T>(sql: string, params?: unknown[]) => Promise<T[]>
+    batch: (statements: { sql: string; params?: unknown[] }[]) => Promise<void>
+  },
+  command: { operationId: string; itemId: string; employeeId: string; warehouseId?: string },
+  createdAt = new Date().toISOString(),
+): Promise<{ status: 'applied' | 'duplicate' }> {
+  const existing = await db.query<{ operation_id: string }>(
+    'select operation_id from processed_operations where operation_id = ?',
+    [command.operationId],
+  )
+  if (existing.length) return { status: 'duplicate' }
+  const employees = await db.query<{ left_at?: string | null }>(
+    'select left_at from employees where id = ?',
+    [command.employeeId],
+  )
+  if (!employees.length) throw new Error('직원을 찾을 수 없습니다.')
+  if (employees[0].left_at) throw new Error('퇴사한 직원에게는 지급할 수 없습니다.')
+  const assetId = `${command.operationId}:1`
+  const warehouseId = command.warehouseId ?? 'wh-main'
+  try {
+    await db.batch([
+      {
+        sql: 'insert into processed_operations(operation_id, result_json, created_at) values(?, ?, ?)',
+        params: [command.operationId, JSON.stringify({ type: 'issue_asset' }), createdAt],
+      },
+      {
+        sql: `insert into assets(id, item_id, warehouse_id, status, employee_id, source_operation_id, created_at)
+          values(?, ?, ?, ?, ?, ?, ?)`,
+        params: [
+          assetId,
+          command.itemId,
+          warehouseId,
+          'assigned',
+          command.employeeId,
+          command.operationId,
+          createdAt,
+        ],
+      },
+      {
+        sql: 'insert into audit_events(id, action, detail_json, created_at) values(?, ?, ?, ?)',
+        params: [
+          `${command.operationId}:audit`,
+          'issue_asset',
+          JSON.stringify({ assetId, itemId: command.itemId, employeeId: command.employeeId }),
+          createdAt,
+        ],
+      },
+    ])
+    return { status: 'applied' }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (/UNIQUE constraint failed/i.test(message)) return { status: 'duplicate' }
+    throw error
+  }
+}

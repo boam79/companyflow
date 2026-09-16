@@ -62,6 +62,7 @@ export function summarizeStock(
   assets: AssetRecord[],
   itemId: string,
   range: DateRange,
+  item?: { assetManaged?: boolean },
 ): StockSummary {
   return {
     receipt:
@@ -72,7 +73,10 @@ export function summarizeStock(
     convert: sumTxn(state.ledger, 'convert_out', range, itemId),
     onHand: companyOnHand(state, itemId),
     assets: assets.filter((asset) => asset.itemId === itemId).length,
-    assigned: assets.filter((asset) => asset.itemId === itemId && asset.status === 'assigned').length,
+    assigned:
+      item?.assetManaged === false
+        ? 0
+        : assets.filter((asset) => asset.itemId === itemId && asset.status === 'assigned').length,
   }
 }
 

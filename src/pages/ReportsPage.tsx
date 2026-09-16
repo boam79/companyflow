@@ -2,13 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { loadAssets } from '../lib/asset/book'
-import { writeDefaultMaster } from '../lib/master/book'
+import { loadItems, writeDefaultMaster, type ItemRecord } from '../lib/master/book'
 import { csvFromReport, reportDetails, summarizeStock, type DateRange, type ReportDetail } from '../lib/reports/summary'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { loadStockState } from '../lib/stock/persist'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
-
-type NamedRow = { id: string; name: string }
 
 const sqlite = getCompanySqlite()
 
@@ -20,7 +18,7 @@ export function ReportsPage() {
   const { configured, loading, user } = useAuth()
   const [companies, setCompanies] = useState<CompanyRow[]>([])
   const [companyId, setCompanyId] = useState('')
-  const [items, setItems] = useState<NamedRow[]>([])
+  const [items, setItems] = useState<ItemRecord[]>([])
   const [itemId, setItemId] = useState('item-paper')
   const [range, setRange] = useState<DateRange>({ from: '2026-09-01', to: todayStamp() })
   const [summary, setSummary] = useState<ReturnType<typeof summarizeStock> | null>(null)
@@ -62,7 +60,7 @@ export function ReportsPage() {
         return
       }
       await writeDefaultMaster(sqlite)
-      const itemRows = await sqlite.query<NamedRow>('select id, name from items order by name')
+      const itemRows = await loadItems(sqlite)
       setItems(itemRows)
       const nextItem = itemRows.some((row) => row.id === itemId) ? itemId : itemRows[0]?.id
       if (nextItem) setItemId(nextItem)
@@ -76,8 +74,13 @@ export function ReportsPage() {
   }
 
   async function refreshSummary(nextItemId = itemId, nextRange = range) {
-    const [state, assets] = await Promise.all([loadStockState(sqlite), loadAssets(sqlite)])
-    setSummary(summarizeStock(state, assets, nextItemId, nextRange))
+    const [state, assets, itemRows] = await Promise.all([
+      loadStockState(sqlite),
+      loadAssets(sqlite),
+      loadItems(sqlite),
+    ])
+    setItems(itemRows)
+    setSummary(summarizeStock(state, assets, nextItemId, nextRange, itemRows.find((row) => row.id === nextItemId)))
     setDetails(reportDetails(state.ledger, nextItemId, nextRange))
   }
 

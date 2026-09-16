@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
-import { executeAssignAsset, executeReturnAsset, assetNumber, loadAssets, type AssetRecord } from '../lib/asset/book'
-import { suggestNextAssetAction } from '../lib/asset/nextAssign'
-import { writeDefaultMaster } from '../lib/master/book'
+import { executeAssignAsset, executeIssueAsset, executeReturnAsset, assetNumber, loadAssets, type AssetRecord } from '../lib/asset/book'
+import { issuedAssets, suggestNextAssetAction } from '../lib/asset/nextAssign'
+import { loadItems, writeDefaultMaster, type ItemRecord } from '../lib/master/book'
 import { loadEmployees, type EmployeeRecord } from '../lib/people/employment'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
@@ -16,7 +16,7 @@ export function AssetsPage() {
   const { configured, loading, user } = useAuth()
   const [companies, setCompanies] = useState<CompanyRow[]>([])
   const [companyId, setCompanyId] = useState('')
-  const [items, setItems] = useState<NamedRow[]>([])
+  const [items, setItems] = useState<ItemRecord[]>([])
   const [warehouses, setWarehouses] = useState<NamedRow[]>([])
   const [employees, setEmployees] = useState<EmployeeRecord[]>([])
   const [assets, setAssets] = useState<AssetRecord[]>([])
@@ -59,7 +59,7 @@ export function AssetsPage() {
       }
       await writeDefaultMaster(sqlite)
       const [itemRows, warehouseRows, employeeRows, assetRows] = await Promise.all([
-        sqlite.query<NamedRow>('select id, name from items order by name'),
+        loadItems(sqlite),
         sqlite.query<NamedRow>('select id, name from warehouses order by name'),
         loadEmployees(sqlite),
         loadAssets(sqlite),
@@ -115,7 +115,27 @@ export function AssetsPage() {
         operationId: crypto.randomUUID(),
         assetId,
       })
-      setNotice(result.status === 'duplicate' ? '같은 회수는 한 번만 반영됩니다.' : '보관으로 회수했습니다.')
+      setNotice(result.status === 'duplicate' ? '같은 회수는 한 번만 반영됩니다.' : '지급품을 회수했습니다.')
+      setAssets(await loadAssets(sqlite))
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  async function issueAsset(itemId: string, employeeId: string, itemName: string) {
+    if (!ready || !employeeId) {
+      setMessage('기준정보에서 직원을 먼저 등록하세요.')
+      return
+    }
+    setMessage('')
+    setNotice('')
+    try {
+      const result = await executeIssueAsset(sqlite, {
+        operationId: crypto.randomUUID(),
+        itemId,
+        employeeId,
+      })
+      setNotice(result.status === 'duplicate' ? '같은 지급은 한 번만 반영됩니다.' : `${itemName}을 지급했습니다.`)
       setAssets(await loadAssets(sqlite))
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
@@ -140,7 +160,7 @@ export function AssetsPage() {
       <div>
         <h1 className="text-3xl font-semibold">자산</h1>
         <p className="mt-2 text-sm text-muted">
-          재고에서 자산화한 개별 자산입니다. 보관 중인 자산만 직원에게 배정할 수 있습니다.
+          재고에서 자산화한 회사 비품과, 직원에게 지급한 명찰·유니폼·노트북을 구분합니다. 퇴사 회수는 지급품만 해당합니다.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -173,19 +193,35 @@ export function AssetsPage() {
       {message ? <p className="text-sm text-danger">{message}</p> : null}
       {(() => {
         if (!ready) return null
-        const next = suggestNextAssetAction(assets, employees)
+        const next = suggestNextAssetAction(assets, employees, items)
+        if (next?.kind === 'issue') {
+          return (
+            <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
+              <p className="text-sm text-accent">
+                직원 지급은 명찰·유니폼·노트북입니다. {next.employeeName}에게 {next.itemName}을 지급하세요.
+              </p>
+              <button
+                type="button"
+                className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white"
+                onClick={() => void issueAsset(next.itemId, next.employeeId, next.itemName)}
+              >
+                {next.itemName} 지급 1
+              </button>
+            </section>
+          )
+        }
         if (next?.kind === 'assign') {
           return (
             <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
               <p className="text-sm text-accent">
-                보관 자산 {next.stored}건을 {next.employeeName}에게 배정하면 입퇴사와 연결됩니다.
+                보관 중인 {next.itemName} {next.stored}건을 {next.employeeName}에게 지급합니다.
               </p>
               <button
                 type="button"
                 className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white"
                 onClick={() => void assignAsset(next.assetId, next.employeeId)}
               >
-                {next.employeeName}에게 배정 1
+                {next.itemName} 지급 1
               </button>
             </section>
           )
@@ -194,7 +230,7 @@ export function AssetsPage() {
           return (
             <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
               <p className="text-sm text-accent">
-                배정 {next.held}건입니다. 회수하면 보관으로 돌아가고 퇴사를 이어갈 수 있습니다.
+                미회수 지급품 {next.held}건입니다. 명찰·유니폼·노트북을 회수하면 퇴사를 이어갈 수 있습니다.
               </p>
               <div className="flex flex-wrap gap-2">
                 <button
@@ -231,8 +267,8 @@ export function AssetsPage() {
       <section className="rounded-lg border border-line bg-card p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h2 className="text-lg font-semibold">
-            보관 {assets.filter((asset) => asset.status === 'in_storage').length} · 배정{' '}
-            {assets.filter((asset) => asset.status === 'assigned').length}
+            지급 보관 {issuedAssets(assets, items).filter((asset) => asset.status === 'in_storage').length} ·
+            지급 {issuedAssets(assets, items).filter((asset) => asset.status === 'assigned').length}
           </h2>
           <label className="text-sm">
             배정 직원
@@ -264,19 +300,27 @@ export function AssetsPage() {
               </tr>
             </thead>
             <tbody>
-              {assets.map((asset) => (
+              {assets.map((asset) => {
+                const item = items.find((row) => row.id === asset.itemId)
+                const issue = Boolean(item?.assetManaged)
+                return (
                 <tr key={asset.id} className="border-b border-line/70">
                   <td className="py-2 pr-3">{assetNumber(asset.id)}</td>
-                  <td className="py-2 pr-3">
-                    {items.find((item) => item.id === asset.itemId)?.name ?? asset.itemId}
-                  </td>
+                  <td className="py-2 pr-3">{item?.name ?? asset.itemId}</td>
                   <td className="py-2 pr-3">
                     {warehouses.find((warehouse) => warehouse.id === asset.warehouseId)?.name ??
                       asset.warehouseId}
                   </td>
-                  <td className="py-2 pr-3">{asset.status === 'in_storage' ? '보관' : '배정'}</td>
+                  <td className="py-2 pr-3">
+                    {issue
+                      ? asset.status === 'assigned'
+                        ? '지급'
+                        : '보관'
+                      : '회사 재고'}
+                  </td>
                   <td className="py-2">
-                    {asset.status === 'assigned' ? (
+                    {issue ? (
+                      asset.status === 'assigned' ? (
                       <span className="flex flex-wrap items-center gap-2">
                         {employees.find((employee) => employee.id === asset.employeeId)?.name ??
                           asset.employeeId}
@@ -289,25 +333,29 @@ export function AssetsPage() {
                           회수
                         </button>
                       </span>
-                    ) : (
+                      ) : (
                       <button
                         type="button"
                         disabled={!ready || !assignEmployeeId}
                         className="rounded bg-accent px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
                         onClick={() => void assignAsset(asset.id)}
                       >
-                        배정
+                        지급
                       </button>
+                      )
+                    ) : (
+                      <span className="text-muted">퇴사 회수 대상 아님</span>
                     )}
                   </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         ) : (
           <p className="mt-2 text-sm text-muted">
             {ready
-              ? '아직 자산이 없습니다. 구매·재고에서 자산화 1을 확정하세요.'
+              ? '아직 지급품이 없습니다. 입퇴사에서 명찰·유니폼·노트북을 지급하세요.'
               : '회사 DB를 여는 중입니다.'}
           </p>
         )}

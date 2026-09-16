@@ -7,7 +7,7 @@
 
 ## 지금 하는 일
 
-지정 Chrome에서 퇴사 → 미회수 3건 차단, https://companyflow-opal.vercel.app/reports 배정 3을 확인한다.
+지정 Chrome에서 명찰·유니폼·노트북 지급 후 퇴사 미회수 차단을 확인한다. 복사용지 배정은 회사 재고라 퇴사 회수 대상이 아니다.
 
 ## 보드
 

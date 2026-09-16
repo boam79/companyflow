@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { StockLedgerTable } from '../components/StockLedgerTable'
+import { loadItems, type ItemRecord } from '../lib/master/book'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { executeStockCommand, ensureDefaultStockMaster, loadStockState } from '../lib/stock/persist'
 import { companyOnHand, onHand, orderRemaining, type LedgerLine, type StockCommand, type StockState } from '../lib/stock/engine'
@@ -32,7 +33,7 @@ export function StockPage() {
   const { configured, loading, user } = useAuth()
   const [companies, setCompanies] = useState<CompanyRow[]>([])
   const [companyId, setCompanyId] = useState('')
-  const [items, setItems] = useState<NamedRow[]>([])
+  const [items, setItems] = useState<ItemRecord[]>([])
   const [warehouses, setWarehouses] = useState<NamedRow[]>([])
   const [departments, setDepartments] = useState<NamedRow[]>([])
   const [state, setState] = useState<StockState | null>(null)
@@ -106,7 +107,7 @@ export function StockPage() {
 
   async function reload() {
     const [itemRows, warehouseRows, deptRows, nextState] = await Promise.all([
-      sqlite.query<NamedRow>('select id, name from items order by name'),
+      loadItems(sqlite),
       sqlite.query<NamedRow>('select id, name from warehouses order by name'),
       sqlite.query<NamedRow>('select id, name from departments order by name'),
       loadStockState(sqlite),
@@ -122,7 +123,13 @@ export function StockPage() {
       }
       return nextState.ledger[nextState.ledger.length - 1] ?? null
     })
-    applySuggestedForm(suggestNextStockForm(nextState, orderId))
+    applySuggestedForm(
+      suggestNextStockForm(
+        nextState,
+        orderId,
+        itemRows.find((row) => row.id === itemId) ?? itemRows.find((row) => row.id === 'item-paper'),
+      ),
+    )
     if (!itemRows.some((row) => row.id === itemId) && itemRows[0]) setItemId(itemRows[0].id)
     if (!warehouseRows.some((row) => row.id === warehouseId) && warehouseRows[0]) {
       setWarehouseId(warehouseRows[0].id)
@@ -132,7 +139,7 @@ export function StockPage() {
 
   function applySuggestedForm(next: NextStockForm | null) {
     if (!next) {
-      setAction('convert_to_asset')
+      setAction('post_issue')
       setQty('1')
       return
     }
@@ -145,7 +152,11 @@ export function StockPage() {
   function onActionChange(nextAction: ActionType) {
     setAction(nextAction)
     if (!state) return
-    const suggested = suggestNextStockForm(state, orderId)
+    const suggested = suggestNextStockForm(
+      state,
+      orderId,
+      items.find((row) => row.id === itemId),
+    )
     if (suggested?.action === nextAction) {
       applySuggestedForm(suggested)
       return
@@ -302,7 +313,7 @@ export function StockPage() {
 
   const paperQty = state ? companyOnHand(state, itemId) : 0
   const remaining = state ? orderRemaining(state, orderId) : 0
-  const nextForm = state ? suggestNextStockForm(state, orderId) : null
+  const nextForm = state ? suggestNextStockForm(state, orderId, items.find((row) => row.id === itemId)) : null
   const warehouseBalances =
     state && items.length && warehouses.length
       ? items.flatMap((item) =>
