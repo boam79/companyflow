@@ -19,7 +19,8 @@
 - [x] T3 SQLite WASM Worker + OPFS + 탭 잠금 골격
 - [x] T4 회사 생성 RPC UI + 지정 PC 초기화 + `claim_company_device`
 - [ ] 최초 운영 관리자 `app_metadata.platform_operator` 지정 (가입 이메일 필요)
-- [ ] HTTPS 배포 URL에서 로그인·회사 생성·OPFS 실사용 재시험
+- [x] HTTPS 배포에 Supabase 환경 변수 연결 (홈이 ‘환경 변수 연결됨’)
+- [ ] HTTPS에서 실제 로그인·회사 생성·지정 PC OPFS 재시험
 - [ ] 사용자 수동 확인 T1~T4
 
 배포 URL: https://companyflow-opal.vercel.app  
