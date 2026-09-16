@@ -1,4 +1,11 @@
-import { companyOnHand, orderRemaining, type LedgerLine, type StockCommand, type StockState } from './engine'
+import {
+  applyStockCommand,
+  companyOnHand,
+  orderRemaining,
+  type LedgerLine,
+  type StockCommand,
+  type StockState,
+} from './engine'
 
 export function objectMarker(qty: number): '을' | '를' {
   const last = Math.abs(qty) % 10
@@ -68,4 +75,78 @@ export function suggestNextStockForm(state: StockState, orderId: string): NextSt
   }
 
   return null
+}
+
+export type SuggestionContext = {
+  orderId: string
+  itemId: string
+  warehouseId: string
+  fromWarehouseId: string
+  toWarehouseId: string
+}
+
+export function commandFromSuggestion(
+  suggestion: NextStockForm,
+  operationId: string,
+  ctx: SuggestionContext,
+): StockCommand {
+  const qty = Number(suggestion.qty)
+  switch (suggestion.action) {
+    case 'draft_order':
+    case 'confirm_order':
+      return {
+        type: suggestion.action,
+        operationId,
+        orderId: ctx.orderId,
+        itemId: ctx.itemId,
+        qty,
+      }
+    case 'post_receipt':
+      return {
+        type: 'post_receipt',
+        operationId,
+        orderId: ctx.orderId,
+        itemId: ctx.itemId,
+        warehouseId: ctx.warehouseId,
+        qty,
+      }
+    case 'post_return':
+      if (!suggestion.sourceOperationId) throw new Error('반납할 원거래가 없습니다.')
+      return {
+        type: 'post_return',
+        operationId,
+        itemId: ctx.itemId,
+        warehouseId: ctx.warehouseId,
+        qty,
+        sourceOperationId: suggestion.sourceOperationId,
+      }
+    case 'transfer_stock':
+      return {
+        type: 'transfer_stock',
+        operationId,
+        itemId: ctx.itemId,
+        fromWarehouseId: ctx.fromWarehouseId,
+        toWarehouseId: ctx.toWarehouseId,
+        qty,
+      }
+    default:
+      throw new Error('이어서 처리할 수 없는 거래입니다.')
+  }
+}
+
+export function applySuggestionChain(
+  state: StockState,
+  ctx: SuggestionContext,
+  nextOperationId: () => string,
+  limit = 8,
+): StockState {
+  let current = state
+  for (let step = 0; step < limit; step += 1) {
+    const next = suggestNextStockForm(current, ctx.orderId)
+    if (!next) return current
+    const result = applyStockCommand(current, commandFromSuggestion(next, nextOperationId(), ctx))
+    if (result.status !== 'applied') return current
+    current = result.state
+  }
+  return current
 }

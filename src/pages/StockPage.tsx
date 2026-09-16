@@ -7,7 +7,7 @@ import { getCompanySqlite } from '../lib/sqlite/instance'
 import { executeStockCommand, ensureDefaultStockMaster, loadStockState } from '../lib/stock/persist'
 import { companyOnHand, onHand, orderRemaining, type LedgerLine, type StockCommand, type StockState } from '../lib/stock/engine'
 import type { LedgerFilter } from '../lib/stock/ledgerView'
-import { suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
+import { commandFromSuggestion, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
 type NamedRow = { id: string; name: string }
@@ -52,6 +52,7 @@ export function StockPage() {
   const [lastOperationId, setLastOperationId] = useState('')
   const [ready, setReady] = useState(false)
   const [openFailed, setOpenFailed] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [ledgerFilter, setLedgerFilter] = useState<LedgerFilter>('all')
   const [selectedLine, setSelectedLine] = useState<LedgerLine | null>(null)
   const opening = useRef(false)
@@ -217,10 +218,46 @@ export function StockPage() {
     }
   }
 
+  async function applyRemaining() {
+    if (!ready || !companyId || !state) return
+    setMessage('')
+    setSaving(true)
+    const labels: string[] = []
+    let current = state
+    try {
+      for (let step = 0; step < 8; step += 1) {
+        const next = suggestNextStockForm(current, orderId)
+        if (!next) break
+        const nextOperationId = crypto.randomUUID()
+        const result = await executeStockCommand(
+          sqlite,
+          commandFromSuggestion(next, nextOperationId, {
+            orderId,
+            itemId,
+            warehouseId,
+            fromWarehouseId,
+            toWarehouseId,
+          }),
+        )
+        current = result.state
+        labels.push(`${ACTIONS.find((item) => item.id === next.action)?.label} ${next.qty}`)
+        setLastOperationId(nextOperationId)
+      }
+      setNotice(labels.length ? `이어서 확정했습니다. ${labels.join(' → ')}` : '이어서 처리할 거래가 없습니다.')
+      await reload()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+      await reload()
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
     if (!ready || !companyId) return
     setMessage('')
+    setSaving(true)
     const nextOperationId = operationId.trim() || crypto.randomUUID()
     try {
       const result = await executeStockCommand(sqlite, buildCommand(nextOperationId))
@@ -237,6 +274,8 @@ export function StockPage() {
       await reload()
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -399,23 +438,35 @@ export function StockPage() {
 
       {nextForm ? (
         <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
-          <p className="text-sm text-accent">{nextForm.hint}</p>
-          <button
-            type="submit"
-            form="stock-command"
-            disabled={!ready}
-            className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-            onClick={(event) => {
-              if (!nextForm) return
-              if (action === nextForm.action && qty === nextForm.qty) return
-              event.preventDefault()
-              flushSync(() => applySuggestedForm(nextForm))
-              const form = document.getElementById('stock-command')
-              if (form instanceof HTMLFormElement) form.requestSubmit()
-            }}
-          >
-            {ACTIONS.find((item) => item.id === nextForm.action)?.label} {nextForm.qty}
-          </button>
+          <p className="text-sm text-accent">
+            {nextForm.hint} 남은 수령·반납·이동은 한 번에 이어서 확정할 수 있습니다.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="submit"
+              form="stock-command"
+              disabled={!ready || saving}
+              className="rounded border border-accent px-4 py-2 text-sm font-semibold text-accent disabled:opacity-50"
+              onClick={(event) => {
+                if (!nextForm) return
+                if (action === nextForm.action && qty === nextForm.qty) return
+                event.preventDefault()
+                flushSync(() => applySuggestedForm(nextForm))
+                const form = document.getElementById('stock-command')
+                if (form instanceof HTMLFormElement) form.requestSubmit()
+              }}
+            >
+              {ACTIONS.find((item) => item.id === nextForm.action)?.label} {nextForm.qty}
+            </button>
+            <button
+              type="button"
+              disabled={!ready || saving}
+              className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              onClick={() => void applyRemaining()}
+            >
+              이어서 모두 확정
+            </button>
+          </div>
         </section>
       ) : null}
 
@@ -453,7 +504,7 @@ export function StockPage() {
           ) : null}
           <button
             type="submit"
-            disabled={!ready}
+            disabled={!ready || saving}
             className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
             {ACTIONS.find((item) => item.id === action)?.label ?? '확정'}

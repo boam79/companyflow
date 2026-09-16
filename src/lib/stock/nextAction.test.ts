@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { applyStockCommand, createStockState } from './engine'
-import { objectMarker, suggestNextStockForm } from './nextAction'
+import { applyStockCommand, companyOnHand, createStockState, onHand, orderRemaining } from './engine'
+import { applySuggestionChain, objectMarker, suggestNextStockForm } from './nextAction'
 
 const ITEM = 'item-paper'
 const MAIN = 'wh-main'
@@ -136,6 +136,45 @@ describe('다음 재고 거래', () => {
       qty: 2,
     }).state
 
+    expect(suggestNextStockForm(state, 'ord-paper')).toBeNull()
+  })
+
+  it('수령 6·반출 4 상태에서 이어서 처리하면 잔량 0·회사 7·본사 5·부속 2다', () => {
+    let state = paperState()
+    state = applyStockCommand(state, {
+      type: 'post_receipt',
+      operationId: 'op-recv-6',
+      orderId: 'ord-paper',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 6,
+    }).state
+    state = applyStockCommand(state, {
+      type: 'post_issue',
+      operationId: 'op-issue-4',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 4,
+      personName: '김담당',
+    }).state
+
+    let n = 0
+    state = applySuggestionChain(
+      state,
+      {
+        orderId: 'ord-paper',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        fromWarehouseId: MAIN,
+        toWarehouseId: SUB,
+      },
+      () => `op-chain-${n++}`,
+    )
+
+    expect(orderRemaining(state, 'ord-paper')).toBe(0)
+    expect(companyOnHand(state, ITEM)).toBe(7)
+    expect(onHand(state, ITEM, MAIN)).toBe(5)
+    expect(onHand(state, ITEM, SUB)).toBe(2)
     expect(suggestNextStockForm(state, 'ord-paper')).toBeNull()
   })
 })
