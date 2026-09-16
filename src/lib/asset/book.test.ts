@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { applyStockCommand, companyOnHand, createStockState, onHand } from '../stock/engine'
-import { assetIdsForConvert, assetsFromConvert } from './book'
+import { applyAssignAsset, assetIdsForConvert, assetsFromConvert } from './book'
 
 const ITEM = 'item-paper'
 const MAIN = 'wh-main'
@@ -29,5 +29,14 @@ describe('재고 자산화', () => {
       'in_storage',
       'in_storage',
     ])
+  })
+
+  it('보관 자산을 직원에게 배정하면 상태가 배정이 된다', () => {
+    const assets = assetsFromConvert('op-asset', ITEM, MAIN, 1, 't')
+    const assigned = applyAssignAsset(assets, { assetId: 'op-asset:1', employeeId: 'emp-1' })
+    expect(assigned[0]).toMatchObject({ status: 'assigned', employeeId: 'emp-1' })
+    expect(() => applyAssignAsset(assigned, { assetId: 'op-asset:1', employeeId: 'emp-2' })).toThrow(
+      /이미 배정/,
+    )
   })
 })

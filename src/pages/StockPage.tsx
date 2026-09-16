@@ -139,6 +139,7 @@ export function StockPage() {
     setAction(next.action)
     setQty(next.qty)
     if (next.sourceOperationId) setSourceOperationId(next.sourceOperationId)
+    if (next.warehouseId) setWarehouseId(next.warehouseId)
   }
 
   function onActionChange(nextAction: ActionType) {
@@ -161,6 +162,7 @@ export function StockPage() {
     }
     if (nextAction === 'post_return') setQty('1')
     if (nextAction === 'transfer_stock') setQty('2')
+    if (nextAction === 'convert_to_asset') setQty('1')
   }
 
   function buildCommand(nextOperationId: string): StockCommand {
@@ -444,15 +446,13 @@ export function StockPage() {
 
       {nextForm ? (
         <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
-          <p className="text-sm text-accent">
-            {nextForm.hint} 남은 수령·반납·이동은 한 번에 이어서 확정할 수 있습니다.
-          </p>
+          <p className="text-sm text-accent">{nextForm.hint}</p>
           <div className="flex flex-wrap gap-2">
             <button
               type="submit"
               form="stock-command"
               disabled={!ready || saving}
-              className="rounded border border-accent px-4 py-2 text-sm font-semibold text-accent disabled:opacity-50"
+              className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
               onClick={(event) => {
                 if (!nextForm) return
                 if (action === nextForm.action && qty === nextForm.qty) return
@@ -464,14 +464,16 @@ export function StockPage() {
             >
               {ACTIONS.find((item) => item.id === nextForm.action)?.label} {nextForm.qty}
             </button>
-            <button
-              type="button"
-              disabled={!ready || saving}
-              className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-              onClick={() => void applyRemaining()}
-            >
-              이어서 모두 확정
-            </button>
+            {nextForm.action === 'convert_to_asset' ? null : (
+              <button
+                type="button"
+                disabled={!ready || saving}
+                className="rounded border border-accent px-4 py-2 text-sm font-semibold text-accent disabled:opacity-50"
+                onClick={() => void applyRemaining()}
+              >
+                이어서 모두 확정
+              </button>
+            )}
           </div>
         </section>
       ) : null}

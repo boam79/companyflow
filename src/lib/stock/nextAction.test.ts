@@ -117,7 +117,7 @@ describe('다음 재고 거래', () => {
     })
   })
 
-  it('이동까지 끝나면 다음 거래를 비운다', () => {
+  it('이동까지 끝나면 다음 거래는 자산화 1이다', () => {
     let state = paperState()
     state = applyStockCommand(state, {
       type: 'post_receipt',
@@ -136,7 +136,11 @@ describe('다음 재고 거래', () => {
       qty: 2,
     }).state
 
-    expect(suggestNextStockForm(state, 'ord-paper')).toBeNull()
+    expect(suggestNextStockForm(state, 'ord-paper')).toMatchObject({
+      action: 'convert_to_asset',
+      qty: '1',
+      warehouseId: MAIN,
+    })
   })
 
   it('수령 6·반출 4 상태에서 이어서 처리하면 잔량 0·회사 7·본사 5·부속 2다', () => {
@@ -175,6 +179,9 @@ describe('다음 재고 거래', () => {
     expect(companyOnHand(state, ITEM)).toBe(7)
     expect(onHand(state, ITEM, MAIN)).toBe(5)
     expect(onHand(state, ITEM, SUB)).toBe(2)
-    expect(suggestNextStockForm(state, 'ord-paper')).toBeNull()
+    expect(suggestNextStockForm(state, 'ord-paper')).toMatchObject({
+      action: 'convert_to_asset',
+      qty: '1',
+    })
   })
 })

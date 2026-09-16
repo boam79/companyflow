@@ -1,6 +1,7 @@
 import {
   applyStockCommand,
   companyOnHand,
+  onHand,
   orderRemaining,
   type LedgerLine,
   type StockCommand,
@@ -16,6 +17,7 @@ export type NextStockForm = {
   action: StockCommand['type']
   qty: string
   sourceOperationId?: string
+  warehouseId?: string
   hint: string
 }
 
@@ -74,6 +76,18 @@ export function suggestNextStockForm(state: StockState, orderId: string): NextSt
     }
   }
 
+  if (itemId) {
+    const warehouseId = ['wh-main', 'wh-sub'].find((id) => onHand(state, itemId, id) > 0)
+    if (warehouseId) {
+      return {
+        action: 'convert_to_asset',
+        qty: '1',
+        warehouseId,
+        hint: '재고 1을 자산으로 전환하면 현재고와 자산이 겹치지 않습니다.',
+      }
+    }
+  }
+
   return null
 }
 
@@ -129,6 +143,14 @@ export function commandFromSuggestion(
         toWarehouseId: ctx.toWarehouseId,
         qty,
       }
+    case 'convert_to_asset':
+      return {
+        type: 'convert_to_asset',
+        operationId,
+        itemId: ctx.itemId,
+        warehouseId: suggestion.warehouseId ?? ctx.warehouseId,
+        qty,
+      }
     default:
       throw new Error('이어서 처리할 수 없는 거래입니다.')
   }
@@ -143,7 +165,7 @@ export function applySuggestionChain(
   let current = state
   for (let step = 0; step < limit; step += 1) {
     const next = suggestNextStockForm(current, ctx.orderId)
-    if (!next) return current
+    if (!next || next.action === 'convert_to_asset') return current
     const result = applyStockCommand(current, commandFromSuggestion(next, nextOperationId(), ctx))
     if (result.status !== 'applied') return current
     current = result.state
