@@ -172,24 +172,41 @@ export function AssetsPage() {
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
       {(() => {
+        if (!ready) return null
         const next = suggestNextAssign(assets, employees)
-        if (!next || !ready) return null
-        return (
-          <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
-            <p className="text-sm text-accent">
-              보관 자산 {assets.filter((asset) => asset.status === 'in_storage').length}건을 {next.employeeName}
-              에게 배정하면 입퇴사와 연결됩니다.
-            </p>
-            <button
-              type="button"
-              disabled={!ready}
-              className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-              onClick={() => void assignAsset(next.assetId, next.employeeId)}
-            >
-              {next.employeeName}에게 배정 1
-            </button>
-          </section>
-        )
+        const stored = assets.filter((asset) => asset.status === 'in_storage').length
+        if (next) {
+          return (
+            <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
+              <p className="text-sm text-accent">
+                보관 자산 {stored}건을 {next.employeeName}에게 배정하면 입퇴사와 연결됩니다.
+              </p>
+              <button
+                type="button"
+                className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white"
+                onClick={() => void assignAsset(next.assetId, next.employeeId)}
+              >
+                {next.employeeName}에게 배정 1
+              </button>
+            </section>
+          )
+        }
+        if (stored > 0 && employees.every((row) => row.leftAt)) {
+          return (
+            <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
+              <p className="text-sm text-accent">
+                보관 자산 {stored}건이 있지만 재직 직원이 없습니다. 퇴사자는 삭제하지 않고 재입사합니다.
+              </p>
+              <Link
+                className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white"
+                to="/people"
+              >
+                재입사
+              </Link>
+            </section>
+          )
+        }
+        return null
       })()}
       <section className="rounded-lg border border-line bg-card p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">

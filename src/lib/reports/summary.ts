@@ -1,13 +1,23 @@
 import type { AssetRecord } from '../asset/book'
-import { TXN_LABELS } from '../stock/ledgerView'
+import { isTransfer, TXN_LABELS } from '../stock/ledgerView'
 import type { LedgerLine, StockState } from '../stock/engine'
 import { companyOnHand } from '../stock/engine'
 
 export type DateRange = { from: string; to: string }
 
+export function businessDay(iso: string | undefined): string | null {
+  if (!iso) return null
+  const parsed = new Date(iso)
+  if (!Number.isNaN(parsed.getTime()) && /T/.test(iso) && iso.length >= 16) {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(parsed)
+  }
+  const day = iso.slice(0, 10)
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null
+}
+
 export function inInclusiveRange(iso: string | undefined, range: DateRange): boolean {
-  const day = (iso ?? '').slice(0, 10)
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return true
+  const day = businessDay(iso)
+  if (!day) return true
   return day >= range.from && day <= range.to
 }
 
@@ -67,12 +77,14 @@ export function summarizeStock(
 }
 
 export function reportDetails(ledger: LedgerLine[], itemId: string, range: DateRange): ReportDetail[] {
-  return linesInRange(ledger, itemId, range).map((line) => ({
-    day: (line.createdAt ?? '').slice(0, 10) || '-',
-    label: TXN_LABELS[line.txnType],
-    qty: Math.abs(line.qtyDelta),
-    direction: line.qtyDelta > 0 ? 'in' : 'out',
-  }))
+  return linesInRange(ledger, itemId, range)
+    .filter((line) => !isTransfer(line))
+    .map((line) => ({
+      day: businessDay(line.createdAt) ?? '-',
+      label: TXN_LABELS[line.txnType],
+      qty: Math.abs(line.qtyDelta),
+      direction: line.qtyDelta > 0 ? 'in' : 'out',
+    }))
 }
 
 export function csvFromSummary(itemName: string, summary: StockSummary, range: DateRange): string {

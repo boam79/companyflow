@@ -137,6 +137,7 @@ export function PeoplePage() {
     setMessage('')
     setNotice('')
     try {
+      const wasLeft = Boolean(employees.find((row) => row.id === employeeId)?.leftAt)
       const result = await executeHire(sqlite, {
         operationId: crypto.randomUUID(),
         employeeId,
@@ -144,7 +145,13 @@ export function PeoplePage() {
         title: draft.title,
         badgeName: draft.badgeName,
       })
-      setNotice(result.status === 'duplicate' ? '같은 입사는 한 번만 반영됩니다.' : '입사를 기록했습니다.')
+      setNotice(
+        result.status === 'duplicate'
+          ? '같은 입사는 한 번만 반영됩니다.'
+          : wasLeft
+            ? '재입사했습니다. 자산 배정을 이어갈 수 있습니다.'
+            : '입사를 기록했습니다.',
+      )
       await refreshPeople()
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
@@ -216,9 +223,13 @@ export function PeoplePage() {
       {assets.some((asset) => asset.status === 'in_storage') ? (
         <p className="text-sm text-accent">
           보관 자산 {assets.filter((asset) => asset.status === 'in_storage').length}건이 있습니다.{' '}
-          <Link className="underline" to="/assets">
-            {employees.find((row) => !row.leftAt)?.name ?? '직원'}에게 배정
-          </Link>
+          {employees.some((row) => !row.leftAt) ? (
+            <Link className="underline" to="/assets">
+              {employees.find((row) => !row.leftAt)?.name ?? '직원'}에게 배정
+            </Link>
+          ) : (
+            <span>재직 직원이 없으면 재입사 뒤에 배정합니다.</span>
+          )}
         </p>
       ) : null}
       <section className="rounded-lg border border-line bg-card p-5">
@@ -294,7 +305,16 @@ export function PeoplePage() {
                         {held ? ` · 미회수 ${held}` : ''}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {employee.leftAt ? null : (
+                        {employee.leftAt ? (
+                          <button
+                            type="button"
+                            disabled={!ready}
+                            className="rounded bg-accent px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                            onClick={() => void hire(employee.id)}
+                          >
+                            재입사
+                          </button>
+                        ) : (
                           <button
                             type="button"
                             disabled={!ready}

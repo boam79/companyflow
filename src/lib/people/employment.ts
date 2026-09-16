@@ -18,10 +18,10 @@ export function applyHire(
   employee: EmployeeRecord,
   command: { hiredAt: string; title?: string; badgeName?: string },
 ): EmployeeRecord {
-  if (employee.leftAt) throw new Error('퇴사한 직원은 다시 입사 처리할 수 없습니다.')
   if (!command.hiredAt.trim()) throw new Error('입사일이 필요합니다.')
   return {
     ...employee,
+    leftAt: undefined,
     hiredAt: command.hiredAt,
     title: command.title?.trim() || employee.title,
     badgeName: command.badgeName?.trim() || employee.badgeName || employee.name,
@@ -94,7 +94,7 @@ export async function executeHire(
     const next = applyHire(employee, command)
     return [
       {
-        sql: 'update employees set hired_at = ?, title = ?, badge_name = ? where id = ?',
+        sql: 'update employees set hired_at = ?, left_at = null, title = ?, badge_name = ? where id = ?',
         params: [next.hiredAt, next.title ?? null, next.badgeName ?? next.name, command.employeeId],
       },
       {
@@ -102,7 +102,7 @@ export async function executeHire(
         params: [
           command.operationId,
           command.employeeId,
-          'hire',
+          employee.leftAt ? 'rehire' : 'hire',
           command.hiredAt,
           JSON.stringify({ title: next.title, badgeName: next.badgeName }),
           createdAt,

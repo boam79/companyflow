@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { applyAssignAsset, assetsFromConvert } from '../asset/book'
 import { applyStockCommand, createStockState } from '../stock/engine'
-import { csvFromSummary, csvFromReport, inInclusiveRange, reportDetails, summarizeStock } from './summary'
+import { businessDay, csvFromSummary, csvFromReport, inInclusiveRange, reportDetails, summarizeStock } from './summary'
 
 const ITEM = 'item-paper'
 const MAIN = 'wh-main'
@@ -9,9 +9,14 @@ const RANGE = { from: '2026-09-01', to: '2026-09-17' }
 
 describe('통계 요약', () => {
   it('시작일과 종료일을 포함한다', () => {
-    expect(inInclusiveRange('2026-09-01T00:00:00.000Z', RANGE)).toBe(true)
-    expect(inInclusiveRange('2026-09-17T23:59:59.000Z', RANGE)).toBe(true)
-    expect(inInclusiveRange('2026-09-18T00:00:00.000Z', RANGE)).toBe(false)
+    expect(inInclusiveRange('2026-09-01T00:00:00+09:00', RANGE)).toBe(true)
+    expect(inInclusiveRange('2026-09-17T23:59:59+09:00', RANGE)).toBe(true)
+    expect(inInclusiveRange('2026-09-18T00:00:00+09:00', RANGE)).toBe(false)
+  })
+
+  it('통계 일자는 서울 날짜다', () => {
+    expect(businessDay('2026-09-16T15:48:00.000Z')).toBe('2026-09-17')
+    expect(inInclusiveRange('2026-09-16T15:48:00.000Z', RANGE)).toBe(true)
   })
 
   it('수령·반출·자산화와 자산 수가 같은 원본에서 나온다', () => {

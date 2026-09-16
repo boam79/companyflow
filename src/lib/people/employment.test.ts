@@ -29,4 +29,14 @@ describe('입퇴사', () => {
     const left = applyLeave(employee, [], '2026-09-17')
     expect(left.leftAt).toBe('2026-09-17')
   })
+
+  it('퇴사자는 삭제하지 않고 같은 직원으로 재입사한다', () => {
+    const left = applyLeave(
+      applyHire({ id: 'emp-1', name: '김담당' }, { hiredAt: '2026-03-01' }),
+      [],
+      '2026-09-17',
+    )
+    const hired = applyHire(left, { hiredAt: '2026-09-17', title: '주임' })
+    expect(hired).toMatchObject({ hiredAt: '2026-09-17', leftAt: undefined, title: '주임' })
+  })
 })

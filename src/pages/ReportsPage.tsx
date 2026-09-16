@@ -116,7 +116,7 @@ export function ReportsPage() {
       <div>
         <h1 className="text-3xl font-semibold">통계</h1>
         <p className="mt-2 text-sm text-muted">
-          일반 비품은 확정 원장과 자산 목록에서 집계합니다. 시작일·종료일을 포함합니다.
+          일반 비품은 확정 원장과 자산 목록에서 집계합니다. 일자는 서울 기준이고, 창고 이동은 회사 합계에서 빼 둡니다.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">
