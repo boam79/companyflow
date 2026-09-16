@@ -1,5 +1,10 @@
 import { companyOnHand, orderRemaining, type LedgerLine, type StockCommand, type StockState } from './engine'
 
+export function objectMarker(qty: number): '을' | '를' {
+  const last = Math.abs(qty) % 10
+  return last === 2 || last === 4 || last === 5 || last === 9 ? '를' : '을'
+}
+
 export type NextStockForm = {
   action: StockCommand['type']
   qty: string
@@ -38,7 +43,7 @@ export function suggestNextStockForm(state: StockState, orderId: string): NextSt
     return {
       action: 'post_receipt',
       qty: String(qty),
-      hint: `발주 잔량 ${remaining} 중 ${qty}을 수령하면 수불부에 입고로 이어집니다.`,
+      hint: `발주 잔량 ${remaining} 중 ${qty}${objectMarker(qty)} 수령하면 수불부에 입고로 이어집니다.`,
     }
   }
 

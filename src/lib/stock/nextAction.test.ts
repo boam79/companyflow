@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { applyStockCommand, createStockState } from './engine'
-import { suggestNextStockForm } from './nextAction'
+import { objectMarker, suggestNextStockForm } from './nextAction'
 
 const ITEM = 'item-paper'
 const MAIN = 'wh-main'
@@ -17,6 +17,12 @@ function paperState() {
 }
 
 describe('다음 재고 거래', () => {
+  it('4는 를, 6과 10은 을을 붙인다', () => {
+    expect(objectMarker(4)).toBe('를')
+    expect(objectMarker(6)).toBe('을')
+    expect(objectMarker(10)).toBe('을')
+  })
+
   it('수령 6·반출 4여도 발주 잔량 4가 있으면 다음 거래는 수령이다', () => {
     let state = paperState()
     state = applyStockCommand(state, {
@@ -39,6 +45,7 @@ describe('다음 재고 거래', () => {
     expect(suggestNextStockForm(state, 'ord-paper')).toMatchObject({
       action: 'post_receipt',
       qty: '4',
+      hint: '발주 잔량 4 중 4를 수령하면 수불부에 입고로 이어집니다.',
     })
   })
 

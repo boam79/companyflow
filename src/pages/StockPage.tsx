@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { flushSync } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { StockLedgerTable } from '../components/StockLedgerTable'
@@ -311,7 +312,6 @@ export function StockPage() {
           선택 품목 회사 합계 <strong>{paperQty}</strong>
           {state?.orders.get(orderId) ? ` · 발주 ${orderId} 잔량 ${remaining}` : ''}
         </p>
-        {nextForm ? <p className="mt-2 text-sm text-ok">{nextForm.hint}</p> : null}
         {warehouseBalances.length ? (
           <table className="mt-3 w-full text-left text-sm">
             <thead>
@@ -397,64 +397,98 @@ export function StockPage() {
         />
       </section>
 
-      <form className="grid max-w-3xl gap-3 rounded-lg border border-line bg-card p-5" onSubmit={onSubmit}>
-        <h2 className="text-lg font-semibold">거래 등록</h2>
-        <p className="text-sm text-muted">원장은 위에서 이어 보고, 여기서는 다음 거래만 확정합니다.</p>
-        {nextForm ? <p className="text-sm text-ok">{nextForm.hint}</p> : null}
-        {notice ? <p className="text-sm text-ok">{notice}</p> : null}
-        {message ? <p className="text-sm text-danger">{message}</p> : null}
-        <label className="text-sm">
-          명령
-          <select
-            className="mt-1 w-full rounded border border-line px-3 py-2"
-            value={action}
-            onChange={(e) => onActionChange(e.target.value as ActionType)}
+      {nextForm ? (
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
+          <p className="text-sm text-accent">{nextForm.hint}</p>
+          <button
+            type="submit"
+            form="stock-command"
+            disabled={!ready}
+            className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            onClick={(event) => {
+              if (!nextForm) return
+              if (action === nextForm.action && qty === nextForm.qty) return
+              event.preventDefault()
+              flushSync(() => applySuggestedForm(nextForm))
+              const form = document.getElementById('stock-command')
+              if (form instanceof HTMLFormElement) form.requestSubmit()
+            }}
           >
-            {ACTIONS.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm">
-          operation_id (비워 두면 새로 발급)
-          <input
-            className="mt-1 w-full rounded border border-line px-3 py-2"
-            value={operationId}
-            onChange={(e) => setOperationId(e.target.value)}
-            placeholder="새로 발급"
-          />
-        </label>
-        {lastOperationId ? (
-          <p className="text-xs text-muted">직전 거래: {lastOperationId}</p>
-        ) : null}
-        {action === 'draft_order' || action === 'confirm_order' || action === 'post_receipt' ? (
-          <label className="text-sm">
-            발주 번호
-            <input
-              className="mt-1 w-full rounded border border-line px-3 py-2"
-              value={orderId}
-              onChange={(e) => setOrderId(e.target.value)}
-            />
-          </label>
-        ) : null}
-        {action !== 'reverse_transaction' ? (
-          <label className="text-sm">
-            품목
+            {ACTIONS.find((item) => item.id === nextForm.action)?.label} {nextForm.qty}
+          </button>
+        </section>
+      ) : null}
+
+      <form
+        id="stock-command"
+        className="grid max-w-3xl gap-3 rounded-lg border border-line bg-card p-5"
+        onSubmit={onSubmit}
+      >
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="min-w-[10rem] flex-1 text-sm">
+            명령
             <select
               className="mt-1 w-full rounded border border-line px-3 py-2"
-              value={itemId}
-              onChange={(e) => setItemId(e.target.value)}
+              value={action}
+              onChange={(e) => onActionChange(e.target.value as ActionType)}
             >
-              {items.map((item) => (
+              {ACTIONS.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.name}
+                  {item.label}
                 </option>
               ))}
             </select>
           </label>
-        ) : null}
+          {action !== 'reverse_transaction' ? (
+            <label className="w-28 text-sm">
+              {action === 'adjust_stock' ? '실사 수량' : '수량'}
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                type="number"
+                min="0"
+                value={qty}
+                onChange={(e) => setQty(e.target.value)}
+              />
+            </label>
+          ) : null}
+          <button
+            type="submit"
+            disabled={!ready}
+            className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {ACTIONS.find((item) => item.id === action)?.label ?? '확정'}
+          </button>
+        </div>
+        {notice ? <p className="text-sm text-ok">{notice}</p> : null}
+        {message ? <p className="text-sm text-danger">{message}</p> : null}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {action === 'draft_order' || action === 'confirm_order' || action === 'post_receipt' ? (
+            <label className="text-sm">
+              발주 번호
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={orderId}
+                onChange={(e) => setOrderId(e.target.value)}
+              />
+            </label>
+          ) : null}
+          {action !== 'reverse_transaction' ? (
+            <label className="text-sm">
+              품목
+              <select
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={itemId}
+                onChange={(e) => setItemId(e.target.value)}
+              >
+                {items.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+        </div>
         {action === 'transfer_stock' ? (
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-sm">
@@ -504,18 +538,6 @@ export function StockPage() {
             </select>
           </label>
         ) : null}
-        {action !== 'reverse_transaction' ? (
-          <label className="text-sm">
-            {action === 'adjust_stock' ? '실사 수량' : '수량'}
-            <input
-              className="mt-1 w-full rounded border border-line px-3 py-2"
-              type="number"
-              min="0"
-              value={qty}
-              onChange={(e) => setQty(e.target.value)}
-            />
-          </label>
-        ) : null}
         {action === 'post_issue' ? (
           <>
             <label className="text-sm">
@@ -543,9 +565,16 @@ export function StockPage() {
             </label>
           </>
         ) : null}
-        {action === 'post_return' || action === 'reverse_transaction' ? (
+        {action === 'post_return' ? (
+          <p className="text-sm text-muted">
+            원거래:{' '}
+            {state?.ledger.find((line) => line.operationId === sourceOperationId)?.personName
+              ? `${state.ledger.find((line) => line.operationId === sourceOperationId)?.personName} 반출`
+              : sourceOperationId || '수불부에서 반출 줄을 고르세요.'}
+          </p>
+        ) : action === 'reverse_transaction' ? (
           <label className="text-sm">
-            원거래 operation_id
+            원거래
             <input
               className="mt-1 w-full rounded border border-line px-3 py-2"
               value={sourceOperationId}
@@ -564,13 +593,16 @@ export function StockPage() {
             />
           </label>
         ) : null}
-        <button
-          type="submit"
-          disabled={!ready}
-          className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-        >
-          {ACTIONS.find((item) => item.id === action)?.label ?? '확정'}
-        </button>
+        <details className="text-sm text-muted">
+          <summary className="cursor-pointer">거래 번호 (비워 두면 새로 발급)</summary>
+          <input
+            className="mt-2 w-full rounded border border-line px-3 py-2 text-ink"
+            value={operationId}
+            onChange={(e) => setOperationId(e.target.value)}
+            placeholder="새로 발급"
+          />
+          {lastOperationId ? <p className="mt-1 text-xs">직전 거래: {lastOperationId}</p> : null}
+        </details>
       </form>
     </div>
   )
