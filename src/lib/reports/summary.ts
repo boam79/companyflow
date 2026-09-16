@@ -1,4 +1,5 @@
 import type { AssetRecord } from '../asset/book'
+import { TXN_LABELS } from '../stock/ledgerView'
 import type { LedgerLine, StockState } from '../stock/engine'
 import { companyOnHand } from '../stock/engine'
 
@@ -10,9 +11,23 @@ export function inInclusiveRange(iso: string | undefined, range: DateRange): boo
   return day >= range.from && day <= range.to
 }
 
-export function sumTxn(ledger: LedgerLine[], txnType: LedgerLine['txnType'], range: DateRange): number {
+export function linesInRange(ledger: LedgerLine[], itemId: string, range: DateRange): LedgerLine[] {
+  return ledger.filter((line) => line.itemId === itemId && inInclusiveRange(line.createdAt, range))
+}
+
+export function sumTxn(
+  ledger: LedgerLine[],
+  txnType: LedgerLine['txnType'],
+  range: DateRange,
+  itemId?: string,
+): number {
   return ledger
-    .filter((line) => line.txnType === txnType && inInclusiveRange(line.createdAt, range))
+    .filter(
+      (line) =>
+        line.txnType === txnType &&
+        inInclusiveRange(line.createdAt, range) &&
+        (!itemId || line.itemId === itemId),
+    )
     .reduce((sum, line) => sum + Math.abs(line.qtyDelta), 0)
 }
 
@@ -25,6 +40,13 @@ export type StockSummary = {
   assigned: number
 }
 
+export type ReportDetail = {
+  day: string
+  label: string
+  qty: number
+  direction: 'in' | 'out'
+}
+
 export function summarizeStock(
   state: StockState,
   assets: AssetRecord[],
@@ -33,15 +55,24 @@ export function summarizeStock(
 ): StockSummary {
   return {
     receipt:
-      sumTxn(state.ledger, 'receipt', range) +
-      sumTxn(state.ledger, 'direct_in', range) +
-      sumTxn(state.ledger, 'return', range),
-    issue: sumTxn(state.ledger, 'issue', range) + sumTxn(state.ledger, 'outbound', range),
-    convert: sumTxn(state.ledger, 'convert_out', range),
+      sumTxn(state.ledger, 'receipt', range, itemId) +
+      sumTxn(state.ledger, 'direct_in', range, itemId) +
+      sumTxn(state.ledger, 'return', range, itemId),
+    issue: sumTxn(state.ledger, 'issue', range, itemId) + sumTxn(state.ledger, 'outbound', range, itemId),
+    convert: sumTxn(state.ledger, 'convert_out', range, itemId),
     onHand: companyOnHand(state, itemId),
     assets: assets.filter((asset) => asset.itemId === itemId).length,
     assigned: assets.filter((asset) => asset.itemId === itemId && asset.status === 'assigned').length,
   }
+}
+
+export function reportDetails(ledger: LedgerLine[], itemId: string, range: DateRange): ReportDetail[] {
+  return linesInRange(ledger, itemId, range).map((line) => ({
+    day: (line.createdAt ?? '').slice(0, 10) || '-',
+    label: TXN_LABELS[line.txnType],
+    qty: Math.abs(line.qtyDelta),
+    direction: line.qtyDelta > 0 ? 'in' : 'out',
+  }))
 }
 
 export function csvFromSummary(itemName: string, summary: StockSummary, range: DateRange): string {
@@ -60,4 +91,21 @@ export function csvFromSummary(itemName: string, summary: StockSummary, range: D
     ],
   ]
   return rows.map((row) => row.join(',')).join('\n')
+}
+
+export function csvFromReport(
+  itemName: string,
+  summary: StockSummary,
+  range: DateRange,
+  details: ReportDetail[],
+): string {
+  const detailLines = [
+    '',
+    '상세',
+    '일자,구분,방향,수량',
+    ...details.map((row) =>
+      [row.day, row.label, row.direction === 'in' ? '입고' : '출고', String(row.qty)].join(','),
+    ),
+  ]
+  return [csvFromSummary(itemName, summary, range), ...detailLines].join('\n')
 }

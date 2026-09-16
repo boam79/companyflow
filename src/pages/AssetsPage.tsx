@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { executeAssignAsset, executeReturnAsset, assetNumber, loadAssets, type AssetRecord } from '../lib/asset/book'
+import { suggestNextAssign } from '../lib/asset/nextAssign'
 import { writeDefaultMaster } from '../lib/master/book'
 import { loadEmployees, type EmployeeRecord } from '../lib/people/employment'
 import { getCompanySqlite } from '../lib/sqlite/instance'
@@ -80,8 +81,8 @@ export function AssetsPage() {
     }
   }
 
-  async function assignAsset(assetId: string) {
-    if (!ready || !assignEmployeeId) {
+  async function assignAsset(assetId: string, employeeId = assignEmployeeId) {
+    if (!ready || !employeeId) {
       setMessage('기준정보에서 직원을 먼저 등록하세요.')
       return
     }
@@ -91,12 +92,13 @@ export function AssetsPage() {
       const result = await executeAssignAsset(sqlite, {
         operationId: crypto.randomUUID(),
         assetId,
-        employeeId: assignEmployeeId,
+        employeeId,
       })
+      setAssignEmployeeId(employeeId)
       setNotice(
         result.status === 'duplicate'
           ? '같은 배정은 한 번만 반영됩니다.'
-          : `배정했습니다. ${employees.find((row) => row.id === assignEmployeeId)?.name ?? assignEmployeeId}`,
+          : `배정했습니다. ${employees.find((row) => row.id === employeeId)?.name ?? employeeId}`,
       )
       setAssets(await loadAssets(sqlite))
     } catch (error) {
@@ -163,9 +165,32 @@ export function AssetsPage() {
         <Link className="rounded border border-line px-3 py-2 text-sm" to="/people">
           직원·입퇴사
         </Link>
+        <Link className="rounded border border-line px-3 py-2 text-sm" to="/reports">
+          통계
+        </Link>
       </div>
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
+      {(() => {
+        const next = suggestNextAssign(assets, employees)
+        if (!next || !ready) return null
+        return (
+          <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
+            <p className="text-sm text-accent">
+              보관 자산 {assets.filter((asset) => asset.status === 'in_storage').length}건을 {next.employeeName}
+              에게 배정하면 입퇴사와 연결됩니다.
+            </p>
+            <button
+              type="button"
+              disabled={!ready}
+              className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              onClick={() => void assignAsset(next.assetId, next.employeeId)}
+            >
+              {next.employeeName}에게 배정 1
+            </button>
+          </section>
+        )
+      })()}
       <section className="rounded-lg border border-line bg-card p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <h2 className="text-lg font-semibold">

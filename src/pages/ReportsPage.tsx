@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { loadAssets } from '../lib/asset/book'
 import { writeDefaultMaster } from '../lib/master/book'
-import { csvFromSummary, summarizeStock, type DateRange } from '../lib/reports/summary'
+import { csvFromReport, reportDetails, summarizeStock, type DateRange, type ReportDetail } from '../lib/reports/summary'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { loadStockState } from '../lib/stock/persist'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
@@ -13,7 +13,7 @@ type NamedRow = { id: string; name: string }
 const sqlite = getCompanySqlite()
 
 function todayStamp() {
-  return new Date().toISOString().slice(0, 10)
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date())
 }
 
 export function ReportsPage() {
@@ -24,6 +24,7 @@ export function ReportsPage() {
   const [itemId, setItemId] = useState('item-paper')
   const [range, setRange] = useState<DateRange>({ from: '2026-09-01', to: todayStamp() })
   const [summary, setSummary] = useState<ReturnType<typeof summarizeStock> | null>(null)
+  const [details, setDetails] = useState<ReportDetail[]>([])
   const [notice, setNotice] = useState('')
   const [message, setMessage] = useState('')
   const [ready, setReady] = useState(false)
@@ -77,12 +78,13 @@ export function ReportsPage() {
   async function refreshSummary(nextItemId = itemId, nextRange = range) {
     const [state, assets] = await Promise.all([loadStockState(sqlite), loadAssets(sqlite)])
     setSummary(summarizeStock(state, assets, nextItemId, nextRange))
+    setDetails(reportDetails(state.ledger, nextItemId, nextRange))
   }
 
   function downloadCsv() {
     if (!summary) return
     const itemName = items.find((item) => item.id === itemId)?.name ?? itemId
-    const blob = new Blob([csvFromSummary(itemName, summary, range)], {
+    const blob = new Blob([csvFromReport(itemName, summary, range, details)], {
       type: 'text/csv;charset=utf-8',
     })
     const url = URL.createObjectURL(blob)
@@ -91,7 +93,7 @@ export function ReportsPage() {
     link.download = `비품통계-${itemName}-${range.from}-${range.to}.csv`
     link.click()
     URL.revokeObjectURL(url)
-    setNotice('같은 요약 숫자로 Excel용 CSV를 받았습니다.')
+    setNotice('같은 원본의 요약·상세로 Excel용 CSV를 받았습니다.')
   }
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
@@ -224,6 +226,28 @@ export function ReportsPage() {
         ) : (
           <p className="mt-3 text-sm text-muted">{ready ? '집계할 품목을 고르세요.' : '회사 DB를 여는 중입니다.'}</p>
         )}
+        {details.length ? (
+          <table className="mt-6 w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-line text-muted">
+                <th className="py-2 pr-3 font-medium">일자</th>
+                <th className="py-2 pr-3 font-medium">구분</th>
+                <th className="py-2 pr-3 font-medium">방향</th>
+                <th className="py-2 font-medium">수량</th>
+              </tr>
+            </thead>
+            <tbody>
+              {details.map((row, index) => (
+                <tr key={`${row.day}-${row.label}-${index}`} className="border-b border-line/70">
+                  <td className="py-2 pr-3">{row.day}</td>
+                  <td className="py-2 pr-3">{row.label}</td>
+                  <td className="py-2 pr-3">{row.direction === 'in' ? '입고' : '출고'}</td>
+                  <td className="py-2">{row.qty}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : null}
       </section>
     </div>
   )

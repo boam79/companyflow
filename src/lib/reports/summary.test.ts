@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { applyAssignAsset, assetsFromConvert } from '../asset/book'
 import { applyStockCommand, createStockState } from '../stock/engine'
-import { csvFromSummary, inInclusiveRange, summarizeStock } from './summary'
+import { csvFromSummary, csvFromReport, inInclusiveRange, reportDetails, summarizeStock } from './summary'
 
 const ITEM = 'item-paper'
 const MAIN = 'wh-main'
@@ -54,5 +54,8 @@ describe('통계 요약', () => {
       assigned: 1,
     })
     expect(csvFromSummary('복사용지', summary, RANGE)).toContain('복사용지,2026-09-01,2026-09-17,7,2,1,4,1,1')
+    const details = reportDetails(withDates.ledger, ITEM, RANGE)
+    expect(details.map((row) => row.label)).toEqual(['직접 입고', '반출', '자산화 출고'])
+    expect(csvFromReport('복사용지', summary, RANGE, details)).toContain('자산화 출고,출고,1')
   })
 })

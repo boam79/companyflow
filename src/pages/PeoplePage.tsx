@@ -18,7 +18,7 @@ type NamedRow = { id: string; name: string }
 const sqlite = getCompanySqlite()
 
 function todayStamp() {
-  return new Date().toISOString().slice(0, 10)
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date())
 }
 
 function escapeHtml(text: string) {
@@ -213,6 +213,14 @@ export function PeoplePage() {
       </div>
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
+      {assets.some((asset) => asset.status === 'in_storage') ? (
+        <p className="text-sm text-accent">
+          보관 자산 {assets.filter((asset) => asset.status === 'in_storage').length}건이 있습니다.{' '}
+          <Link className="underline" to="/assets">
+            {employees.find((row) => !row.leftAt)?.name ?? '직원'}에게 배정
+          </Link>
+        </p>
+      ) : null}
       <section className="rounded-lg border border-line bg-card p-5">
         {employees.length ? (
           <table className="w-full text-left text-sm">
