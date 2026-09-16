@@ -1,8 +1,9 @@
 # 진행 상태
 
 마지막 갱신: 2026-09-16  
-현재 역할: Executor (문서 폴더·GitHub 원격 구성)  
-구현 코드: 없음
+현재 역할: Executor (문서 폴더·GitHub 원격 구성) — 사용자 확인 대기  
+구현 코드: 없음  
+원격: https://github.com/boam79/companyflow.git (`main` 푸쉬 완료)
 
 ## 지금 하는 일
 
@@ -13,7 +14,7 @@
 - [x] PRD v1.3 원문 읽기
 - [x] Planner 분석 (`DOC/analysis.md`)
 - [x] 문서를 `DOC/`로 모음
-- [x] Git 초기화, origin=`https://github.com/boam79/companyflow.git`
+- [x] Git 초기화, origin=`https://github.com/boam79/companyflow.git`, `main` 푸쉬 완료
 - [ ] 사용자: 분석 결과와 첫 구현 범위(T1~T4) 확인
 - [ ] 사용자: 다음을 Planner / Executor(T1) 중 지정
 - [ ] T1 앱 골격 (확인 전 착수하지 않음)

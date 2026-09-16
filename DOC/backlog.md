@@ -7,7 +7,7 @@
 ## T0. 문서 기반 합의
 
 - 성공 기준: `DOC/`에 PRD·분석·계획·원격 규칙이 있고, GitHub origin이 `https://github.com/boam79/companyflow.git`이다.
-- 상태: 문서 폴더 구성 완료. GitHub 푸쉬 결과는 `status.md` 참고
+- 상태: 완료. origin `https://github.com/boam79/companyflow.git` 의 `main`에 문서가 있다.
 
 ## T1. 저장소·스택 잠금
 
