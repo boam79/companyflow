@@ -1,3 +1,4 @@
+import { assetsFromConvert } from '../asset/book'
 import type { CompanySqlite } from '../sqlite/client'
 import {
   applyStockCommand,
@@ -84,6 +85,29 @@ export function statementsForCommand(
   const prevIds = new Set(prev.ledger.map((line) => line.id))
   for (const line of next.ledger) {
     if (!prevIds.has(line.id)) statements.push(ledgerInsert(line, createdAt))
+  }
+  if (command.type === 'convert_to_asset') {
+    for (const asset of assetsFromConvert(
+      command.operationId,
+      command.itemId,
+      command.warehouseId,
+      command.qty,
+      createdAt,
+    )) {
+      statements.push({
+        sql: `insert into assets(id, item_id, warehouse_id, status, employee_id, source_operation_id, created_at)
+          values(?, ?, ?, ?, ?, ?, ?)`,
+        params: [
+          asset.id,
+          asset.itemId,
+          asset.warehouseId,
+          asset.status,
+          asset.employeeId ?? null,
+          asset.sourceOperationId,
+          createdAt,
+        ],
+      })
+    }
   }
   return statements
 }

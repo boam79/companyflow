@@ -1,5 +1,6 @@
 import { MASTER_TABLE_SQL } from '../master/book'
 import { STOCK_TABLE_SQL } from '../stock/engine'
+import { ASSET_TABLE_SQL } from '../asset/book'
 
 export const LOCAL_MIGRATIONS = [
   `create table if not exists meta (
@@ -32,4 +33,5 @@ export const LOCAL_MIGRATIONS = [
   );`,
   ...MASTER_TABLE_SQL,
   ...STOCK_TABLE_SQL,
+  ...ASSET_TABLE_SQL,
 ]

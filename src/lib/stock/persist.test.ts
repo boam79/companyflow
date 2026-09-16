@@ -96,4 +96,37 @@ describe('재고 영속 묶음', () => {
     )
     expect(isUniqueConstraintError(new Error('NOT NULL constraint failed'))).toBe(false)
   })
+
+  it('자산화는 원장 출고와 자산 행을 한 묶음으로 만든다', () => {
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'post_direct_in',
+      operationId: 'op-in',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 7,
+    }).state
+    const converted = applyStockCommand(state, {
+      type: 'convert_to_asset',
+      operationId: 'op-asset',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 2,
+    })
+    const statements = statementsForCommand(
+      {
+        type: 'convert_to_asset',
+        operationId: 'op-asset',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qty: 2,
+      },
+      state,
+      converted.state,
+      '2026-09-17T00:00:00.000Z',
+    )
+    expect(statements.filter((stmt) => stmt.sql.includes('stock_ledger'))).toHaveLength(1)
+    expect(statements.filter((stmt) => stmt.sql.includes('insert into assets'))).toHaveLength(2)
+    expect(companyOnHand(converted.state, ITEM)).toBe(5)
+  })
 })

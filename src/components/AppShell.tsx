@@ -6,6 +6,7 @@ const MENUS = [
   { to: '/setup', label: '초기 설정' },
   { to: '/master', label: '기준정보' },
   { to: '/stock', label: '구매·재고' },
+  { to: '/assets', label: '자산' },
   { to: '/ops/companies', label: '회사 관리' },
 ]
 

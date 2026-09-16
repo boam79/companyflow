@@ -106,6 +106,11 @@ export function HomePage() {
               구매·재고: 발주·수령·반출·이동
             </Link>
           </li>
+          <li>
+            <Link className="text-accent underline" to="/assets">
+              자산: 재고 자산화 목록
+            </Link>
+          </li>
         </ul>
       </section>
     </div>

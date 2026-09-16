@@ -20,6 +20,7 @@ const ACTIONS: { id: ActionType; label: string }[] = [
   { id: 'post_issue', label: '반출' },
   { id: 'post_return', label: '반납' },
   { id: 'transfer_stock', label: '창고 이동' },
+  { id: 'convert_to_asset', label: '자산화' },
   { id: 'draft_order', label: '발주 초안' },
   { id: 'post_direct_in', label: '직접 입고' },
   { id: 'post_outbound', label: '출고' },
@@ -130,7 +131,11 @@ export function StockPage() {
   }
 
   function applySuggestedForm(next: NextStockForm | null) {
-    if (!next) return
+    if (!next) {
+      setAction('convert_to_asset')
+      setQty('1')
+      return
+    }
     setAction(next.action)
     setQty(next.qty)
     if (next.sourceOperationId) setSourceOperationId(next.sourceOperationId)
@@ -175,6 +180,7 @@ export function StockPage() {
         }
       case 'post_direct_in':
       case 'post_outbound':
+      case 'convert_to_asset':
         return { type: action, operationId: nextOperationId, itemId, warehouseId, qty: quantity }
       case 'post_issue':
         return {

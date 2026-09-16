@@ -7,6 +7,7 @@ import { buildLedgerView, filterLedgerView, formatLedgerLink, rowsAreRelated } f
 
 const ITEM = 'item-paper'
 const MAIN = 'wh-main'
+const SUB = 'wh-sub'
 
 describe('입출고 수불부', () => {
   it('입고·출고를 한 줄씩 이으면 창고잔량이 6·10·7·8로 이어진다', () => {
@@ -82,5 +83,47 @@ describe('입출고 수불부', () => {
         { departments: [{ id: 'dept-admin', name: '총무' }] },
       ),
     ).toBe('김담당 · 총무')
+  })
+
+  it('창고 이동은 회사잔량을 바꾸지 않고 출고 다음에 입고를 둔다', () => {
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'post_direct_in',
+      operationId: 'op-in',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 8,
+    }).state
+    state = applyStockCommand(state, {
+      type: 'transfer_stock',
+      operationId: 'op-move',
+      itemId: ITEM,
+      fromWarehouseId: MAIN,
+      toWarehouseId: SUB,
+      qty: 2,
+    }).state
+    const stamped = {
+      ...state,
+      ledger: [
+        { ...state.ledger[0], createdAt: '2026-09-17T03:07:00.000Z' },
+        { ...state.ledger[2], createdAt: '2026-09-17T03:07:00.000Z' },
+        { ...state.ledger[1], createdAt: '2026-09-17T03:07:00.000Z' },
+      ],
+    }
+    const rows = buildLedgerView(stamped, {
+      warehouses: [
+        { id: MAIN, name: '본사창고' },
+        { id: SUB, name: '부속창고' },
+      ],
+    })
+    expect(
+      rows.map((row) => [row.label, row.inbound, row.outbound, row.warehouseBalance, row.companyBalance]),
+    ).toEqual([
+      ['직접 입고', 8, null, 8, 8],
+      ['이동 출고', null, 2, 6, 8],
+      ['이동 입고', 2, null, 2, 8],
+    ])
+    expect(rows[1].link).toContain('본사창고')
+    expect(rows[2].link).toContain('부속창고')
   })
 })

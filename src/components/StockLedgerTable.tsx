@@ -36,7 +36,7 @@ export function StockLedgerTable(props: {
         orders: new Map(),
         ledger: props.ledger,
       },
-      { departments: props.departments },
+      { departments: props.departments, warehouses: props.warehouses },
     ),
     props.filter,
   )

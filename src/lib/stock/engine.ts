@@ -64,6 +64,13 @@ export type StockCommand =
       reason: string
     }
   | {
+      type: 'convert_to_asset'
+      operationId: string
+      itemId: string
+      warehouseId: string
+      qty: number
+    }
+  | {
       type: 'reverse_transaction'
       operationId: string
       sourceOperationId: string
@@ -79,6 +86,7 @@ export type LedgerTxnType =
   | 'transfer_in'
   | 'adjust'
   | 'reversal'
+  | 'convert_out'
 
 export type LedgerLine = {
   id: string
@@ -308,6 +316,22 @@ export function applyStockCommand(
           reason: command.reason.trim(),
         })
       }
+      break
+    }
+    case 'convert_to_asset': {
+      requirePositive(command.qty)
+      if (command.qty > onHand(next, command.itemId, command.warehouseId)) {
+        throw new Error('현재고를 초과해 자산화할 수 없습니다.')
+      }
+      next.ledger.push({
+        id: `${command.operationId}:convert`,
+        operationId: command.operationId,
+        txnType: 'convert_out',
+        itemId: command.itemId,
+        warehouseId: command.warehouseId,
+        qtyDelta: -command.qty,
+        reason: '재고 자산화',
+      })
       break
     }
     case 'reverse_transaction': {
