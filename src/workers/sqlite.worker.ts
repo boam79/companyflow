@@ -18,8 +18,27 @@ type DbHandle = {
   close: () => void
 }
 
+type SahPool = {
+  OpfsSAHPoolDb: new (filename: string) => DbHandle
+}
+
+type Sqlite3Ns = {
+  installOpfsSAHPoolVfs: (options: {
+    name?: string
+    directory?: string
+    initialCapacity?: number
+    forceReinitIfPreviouslyFailed?: boolean
+  }) => Promise<SahPool>
+  oo1: {
+    OpfsDb?: new (filename: string) => DbHandle
+    DB: new (filename: string, flags?: string) => DbHandle
+  }
+  opfs?: unknown
+}
+
 let db: DbHandle | null = null
 let persistOk = false
+let vfsName = 'none'
 
 function reply(id: number, payload: unknown) {
   self.postMessage({ id, ok: true, payload })
@@ -29,16 +48,42 @@ function fail(id: number, message: string) {
   self.postMessage({ id, ok: false, error: message })
 }
 
-async function openDb(companyId: string) {
-  const sqlite3 = await sqlite3InitModule()
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
 
-  const fileName = `/${companyDbFileName(companyId)}`
-  if ('opfs' in sqlite3 && sqlite3.oo1.OpfsDb) {
-    db = new sqlite3.oo1.OpfsDb(fileName) as DbHandle
+async function openDb(companyId: string) {
+  if (!navigator.storage?.getDirectory) {
+    throw new Error('이 브라우저는 OPFS를 지원하지 않습니다. 지정 Chrome을 사용하세요.')
+  }
+
+  const sqlite3 = (await sqlite3InitModule()) as unknown as Sqlite3Ns
+  const fileName = companyDbFileName(companyId)
+  const sahErrors: string[] = []
+
+  try {
+    const pool = await sqlite3.installOpfsSAHPoolVfs({
+      name: 'companyflow',
+      directory: '.companyflow-sah',
+      initialCapacity: 8,
+      forceReinitIfPreviouslyFailed: true,
+    })
+    db = new pool.OpfsSAHPoolDb(fileName)
     persistOk = true
-  } else {
-    db = new sqlite3.oo1.DB(fileName, 'ct') as DbHandle
-    persistOk = false
+    vfsName = 'opfs-sahpool'
+  } catch (error) {
+    sahErrors.push(errorMessage(error))
+    if ('opfs' in sqlite3 && sqlite3.oo1.OpfsDb) {
+      db = new sqlite3.oo1.OpfsDb(`/${fileName}`)
+      persistOk = true
+      vfsName = 'opfs'
+    }
+  }
+
+  if (!db || !persistOk) {
+    throw new Error(
+      `OPFS 영속 DB를 열 수 없습니다. isolated=${String((self as unknown as { crossOriginIsolated?: boolean }).crossOriginIsolated)} sah=${sahErrors.join('; ') || '없음'} classicOpfs=${'opfs' in sqlite3}`,
+    )
   }
 
   for (const sql of LOCAL_MIGRATIONS) {
@@ -52,6 +97,10 @@ async function openDb(companyId: string) {
     sql: 'insert or replace into meta(key, value) values(?, ?)',
     bind: ['schema_version', String(LOCAL_MIGRATIONS.length)],
   })
+  db.exec({
+    sql: 'insert or replace into meta(key, value) values(?, ?)',
+    bind: ['vfs', vfsName],
+  })
 }
 
 self.onmessage = async (event: MessageEvent<Incoming>) => {
@@ -59,7 +108,7 @@ self.onmessage = async (event: MessageEvent<Incoming>) => {
   try {
     if (msg.type === 'open') {
       await openDb(msg.companyId)
-      reply(msg.id, { persistOk })
+      reply(msg.id, { persistOk, vfsName })
       return
     }
     if (!db) {
@@ -68,7 +117,7 @@ self.onmessage = async (event: MessageEvent<Incoming>) => {
     }
     if (msg.type === 'exec') {
       db.exec({ sql: msg.sql, bind: msg.params })
-      reply(msg.id, { persistOk })
+      reply(msg.id, { persistOk, vfsName })
       return
     }
     if (msg.type === 'query') {
@@ -78,16 +127,18 @@ self.onmessage = async (event: MessageEvent<Incoming>) => {
         rowMode: 'object',
         returnValue: 'resultRows',
       })
-      reply(msg.id, { rows: Array.isArray(rows) ? rows : [], persistOk })
+      reply(msg.id, { rows: Array.isArray(rows) ? rows : [], persistOk, vfsName })
       return
     }
     if (msg.type === 'close') {
       db.close()
       db = null
+      persistOk = false
+      vfsName = 'none'
       reply(msg.id, {})
     }
   } catch (error) {
-    fail(msg.id, error instanceof Error ? error.message : String(error))
+    fail(msg.id, errorMessage(error))
   }
 }
 

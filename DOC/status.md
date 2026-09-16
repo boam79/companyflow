@@ -21,7 +21,7 @@
 - [x] 최초 운영 관리자 `app_metadata.platform_operator` 지정 (`pjm7908@hanmail.net`)
 - [x] HTTPS에서 운영자 로그인·회사 생성(`본사` / HQ01)
 - [x] T5 기준정보 로컬 테이블·화면 골격
-- [ ] 지정 Chrome에서 OPFS 초기 설정·기준정보 실사용 확인
+- [ ] 지정 Chrome에서 OPFS 초기 설정 재시도 (SAH Pool VFS)
 
 배포 URL: https://companyflow-opal.vercel.app  
 Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, ap-northeast-2)

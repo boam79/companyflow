@@ -13,6 +13,7 @@ export class CompanySqlite {
   >()
   readonly operations = new ProcessedOperations()
   persistOk = false
+  vfsName = 'none'
 
   async open(companyId: string): Promise<void> {
     this.close()
@@ -26,8 +27,10 @@ export class CompanySqlite {
     }
     const payload = (await this.send('open', { companyId })) as {
       persistOk: boolean
+      vfsName?: string
     }
     this.persistOk = payload.persistOk
+    this.vfsName = payload.vfsName ?? 'unknown'
   }
 
   async exec(sql: string, params?: unknown[]): Promise<void> {

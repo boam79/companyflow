@@ -32,4 +32,6 @@
 - 운영 권한은 `app_metadata.platform_operator`만 본다. user_metadata 자가 승격은 무시한다.
 - `SECURITY DEFINER` RPC는 `anon` EXECUTE를 회수한다. 함수 본문에서 운영자 여부를 다시 검사한다.
 - sqlite-wasm OPFS 파일은 워커에서 중첩 디렉터리(`/companyflow/...`) 대신 `/company_*.sqlite3`처럼 평탄한 경로를 쓴다. 중첩 경로는 SQLITE_CANTOPEN이 난다.
+- sqlite-wasm 기본 `opfs` VFS는 중첩 워커(`sqlite3-opfs-async-proxy`)가 필요하다. Vite 번들·첫 방문에서 실패하면 메모리 DB로 넘어가 `persistOk=false`가 된다. 지정 PC 원본은 `installOpfsSAHPoolVfs`를 쓴다.
+- Chrome `navigator.storage.persist()`는 북마크·PWA 전에는 false인 경우가 많다. 실데이터 시작 기준은 persist()가 아니라 OPFS 파일 개방이다.
 - sqlite-wasm OPFS는 `COEP: require-corp`가 필요하다. GitHub Pages는 이 헤더를 못 넣으므로 호스팅으로 쓰지 않는다.

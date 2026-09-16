@@ -12,6 +12,7 @@ import {
   type SetupState,
 } from '../lib/setupMachine'
 import { CompanyMasterBook, seedDefaultMaster } from '../lib/master/book'
+import { canStartRealData } from '../lib/sqlite/durableStore'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 import { acquireCompanyWriteLock } from '../lib/tabLock'
 
@@ -81,14 +82,18 @@ export function DeviceSetupPage() {
       try {
         next = reduceSetup(next, { type: 'pc_claimed' })
         push(`원본 장치 예약: ${companyDbFileName(companyId)}`)
+        let persistGranted = false
         if (navigator.storage?.persist) {
-          const persisted = await navigator.storage.persist()
-          if (!persisted) {
-            push('영속 저장 권한이 거절되었습니다. 실데이터는 시작하지 않습니다.')
+          persistGranted = await navigator.storage.persist()
+          if (!persistGranted) {
+            push(
+              'Chrome 저장소 영속 권한은 아직 꺼져 있습니다. OPFS 파일이 열리면 계속 진행합니다. 이 사이트를 북마크하면 권한이 잘 붙습니다.',
+            )
           }
         }
         await sqlite.open(companyId)
-        if (!sqlite.persistOk) {
+        push(`로컬 VFS: ${sqlite.vfsName}`)
+        if (!canStartRealData({ opfsOpen: sqlite.persistOk, persistGranted })) {
           next = reduceSetup(next, {
             type: 'fail',
             reason: 'OPFS 영속 DB를 열 수 없습니다.',
@@ -169,7 +174,7 @@ export function DeviceSetupPage() {
       <div>
         <h1 className="text-3xl font-semibold">지정 PC 초기 설정</h1>
         <p className="mt-2 text-sm text-muted">
-          휴대폰 로그인은 원본 장치로 취급하지 않습니다. 영속 저장이 실패하면 사용 가능으로
+          휴대폰 로그인은 원본 장치로 취급하지 않습니다. OPFS 파일이 열리지 않으면 사용 가능으로
           표시하지 않습니다.
         </p>
       </div>
