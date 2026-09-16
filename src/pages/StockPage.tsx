@@ -1,16 +1,15 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
-import { CompanySqlite } from '../lib/sqlite/client'
+import { getCompanySqlite } from '../lib/sqlite/instance'
 import { executeStockCommand, ensureDefaultStockMaster, loadStockState } from '../lib/stock/persist'
 import { companyOnHand, onHand, type StockCommand, type StockState } from '../lib/stock/engine'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
-import { acquireCompanyWriteLock } from '../lib/tabLock'
 
 type NamedRow = { id: string; name: string }
 type ActionType = StockCommand['type']
 
-const sqlite = new CompanySqlite()
+const sqlite = getCompanySqlite()
 const ACTIONS: { id: ActionType; label: string }[] = [
   { id: 'confirm_order', label: '발주 확정' },
   { id: 'post_receipt', label: '수령' },
@@ -71,14 +70,14 @@ export function StockPage() {
     void openCompany(companyId)
   }, [companyId, ready, openFailed])
 
-  async function openCompany(nextId: string) {
+  async function openCompany(nextId: string, force = false) {
     opening.current = true
     setCompanyId(nextId)
     setMessage('')
     setNotice('')
     setOpenFailed(false)
     try {
-      await sqlite.open(nextId)
+      await sqlite.open(nextId, { force })
       setReady(sqlite.persistOk)
       if (!sqlite.persistOk) {
         setOpenFailed(true)
@@ -180,11 +179,6 @@ export function StockPage() {
     if (!ready || !companyId) return
     setMessage('')
     const nextOperationId = operationId.trim() || crypto.randomUUID()
-    const lock = await acquireCompanyWriteLock(companyId)
-    if (!lock.ok) {
-      setMessage('다른 탭이 이 회사 원본을 사용 중입니다.')
-      return
-    }
     try {
       const result = await executeStockCommand(sqlite, buildCommand(nextOperationId))
       setLastOperationId(nextOperationId)
@@ -197,8 +191,6 @@ export function StockPage() {
       await reload()
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
-    } finally {
-      lock.release()
     }
   }
 
@@ -243,7 +235,7 @@ export function StockPage() {
           onChange={(e) => {
             setReady(false)
             setOpenFailed(false)
-            void openCompany(e.target.value)
+            void openCompany(e.target.value, true)
           }}
         >
           <option value="">회사 선택</option>
@@ -260,7 +252,7 @@ export function StockPage() {
           onClick={() => {
             setReady(false)
             setOpenFailed(false)
-            void openCompany(companyId)
+            void openCompany(companyId, true)
           }}
         >
           이 회사 DB 다시 열기

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { companyDbFileName } from '../lib/companyPaths'
 import { localDeviceFingerprint } from '../lib/deviceFingerprint'
-import { CompanySqlite } from '../lib/sqlite/client'
+import { getCompanySqlite } from '../lib/sqlite/instance'
 import {
   canMarkUsable,
   initialSetupState,
@@ -14,9 +14,8 @@ import {
 import { CompanyMasterBook, seedDefaultMaster } from '../lib/master/book'
 import { canStartRealData } from '../lib/sqlite/durableStore'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
-import { acquireCompanyWriteLock } from '../lib/tabLock'
 
-const sqlite = new CompanySqlite()
+const sqlite = getCompanySqlite()
 
 export function DeviceSetupPage() {
   const { configured, loading, user, operator } = useAuth()
@@ -69,93 +68,79 @@ export function DeviceSetupPage() {
         }
         push('중앙에 원본 장치를 예약했습니다')
       }
-      const lock = await acquireCompanyWriteLock(companyId)
-      if (!lock.ok) {
-        next = reduceSetup(next, {
-          type: 'fail',
-          reason: '다른 탭이 이 회사 원본을 사용 중입니다.',
-        })
-        setState(next)
-        push(next.reason ?? '잠금 실패')
-        return
-      }
-      try {
-        next = reduceSetup(next, { type: 'pc_claimed' })
-        push(`원본 장치 예약: ${companyDbFileName(companyId)}`)
-        let persistGranted = false
-        if (navigator.storage?.persist) {
-          persistGranted = await navigator.storage.persist()
-          if (!persistGranted) {
-            push(
-              'Chrome 저장소 영속 권한은 아직 꺼져 있습니다. OPFS 파일이 열리면 계속 진행합니다. 이 사이트를 북마크하면 권한이 잘 붙습니다.',
-            )
-          }
-        }
-        await sqlite.open(companyId)
-        push(`로컬 VFS: ${sqlite.vfsName}`)
-        if (!canStartRealData({ opfsOpen: sqlite.persistOk, persistGranted })) {
-          next = reduceSetup(next, {
-            type: 'fail',
-            reason: 'OPFS 영속 DB를 열 수 없습니다.',
-          })
-          setState(next)
-          push(next.reason ?? '')
-          return
-        }
-        await sqlite.exec(
-          'insert or replace into setup_state(key, value) values(?, ?), (?, ?)',
-          ['phase', 'ready', 'copied_default_config', '1'],
-        )
-        const book = new CompanyMasterBook(companyId)
-        seedDefaultMaster(book)
-        const now = new Date().toISOString()
-        for (const dept of book.departments.values()) {
-          await sqlite.exec('insert or ignore into departments(id, name, created_at) values(?, ?, ?)', [
-            dept.id,
-            dept.name,
-            now,
-          ])
-        }
-        for (const warehouse of book.warehouses.values()) {
-          await sqlite.exec('insert or ignore into warehouses(id, name, created_at) values(?, ?, ?)', [
-            warehouse.id,
-            warehouse.name,
-            now,
-          ])
-        }
-        for (const item of book.items.values()) {
-          await sqlite.exec('insert or ignore into items(id, name, created_at) values(?, ?, ?)', [
-            item.id,
-            item.name,
-            now,
-          ])
-        }
-        for (const field of book.fields.values()) {
-          await sqlite.exec(
-            'insert or replace into custom_field_defs(entity, key, label) values(?, ?, ?)',
-            [field.entity, field.key, field.label],
+      next = reduceSetup(next, { type: 'pc_claimed' })
+      push(`원본 장치 예약: ${companyDbFileName(companyId)}`)
+      let persistGranted = false
+      if (navigator.storage?.persist) {
+        persistGranted = await navigator.storage.persist()
+        if (!persistGranted) {
+          push(
+            'Chrome 저장소 영속 권한은 아직 꺼져 있습니다. OPFS 파일이 열리면 계속 진행합니다. 이 사이트를 북마크하면 권한이 잘 붙습니다.',
           )
         }
-        const replay = sqlite.operations.run(`setup:${companyId}`, () => 'ok')
-        push(`기본 설정 복사 (${replay.status})`)
-        if (client) {
-          const fingerprint = await localDeviceFingerprint()
-          const { error } = await client.rpc('confirm_company_device', {
-            p_company_id: companyId,
-            p_device_fingerprint: fingerprint,
-          })
-          if (error) {
-            push(`원본 장치 확정은 보류했습니다: ${error.message}`)
-          } else {
-            push('중앙에 원본 장치를 확정했습니다')
-          }
-        }
-        next = reduceSetup(next, { type: 'persist_ok' })
-        setState(next)
-        push(canMarkUsable(next) ? '사용 가능' : '검증 부족')
-      } finally {
-        lock.release()
       }
+      await sqlite.open(companyId, { force: true })
+      push(`로컬 VFS: ${sqlite.vfsName}`)
+      if (!canStartRealData({ opfsOpen: sqlite.persistOk, persistGranted })) {
+        next = reduceSetup(next, {
+          type: 'fail',
+          reason: 'OPFS 영속 DB를 열 수 없습니다.',
+        })
+        setState(next)
+        push(next.reason ?? '')
+        return
+      }
+      await sqlite.exec(
+        'insert or replace into setup_state(key, value) values(?, ?), (?, ?)',
+        ['phase', 'ready', 'copied_default_config', '1'],
+      )
+      const book = new CompanyMasterBook(companyId)
+      seedDefaultMaster(book)
+      const now = new Date().toISOString()
+      for (const dept of book.departments.values()) {
+        await sqlite.exec('insert or ignore into departments(id, name, created_at) values(?, ?, ?)', [
+          dept.id,
+          dept.name,
+          now,
+        ])
+      }
+      for (const warehouse of book.warehouses.values()) {
+        await sqlite.exec('insert or ignore into warehouses(id, name, created_at) values(?, ?, ?)', [
+          warehouse.id,
+          warehouse.name,
+          now,
+        ])
+      }
+      for (const item of book.items.values()) {
+        await sqlite.exec('insert or ignore into items(id, name, created_at) values(?, ?, ?)', [
+          item.id,
+          item.name,
+          now,
+        ])
+      }
+      for (const field of book.fields.values()) {
+        await sqlite.exec(
+          'insert or replace into custom_field_defs(entity, key, label) values(?, ?, ?)',
+          [field.entity, field.key, field.label],
+        )
+      }
+      const replay = sqlite.operations.run(`setup:${companyId}`, () => 'ok')
+      push(`기본 설정 복사 (${replay.status})`)
+      if (client) {
+        const fingerprint = await localDeviceFingerprint()
+        const { error } = await client.rpc('confirm_company_device', {
+          p_company_id: companyId,
+          p_device_fingerprint: fingerprint,
+        })
+        if (error) {
+          push(`원본 장치 확정은 보류했습니다: ${error.message}`)
+        } else {
+          push('중앙에 원본 장치를 확정했습니다')
+        }
+      }
+      next = reduceSetup(next, { type: 'persist_ok' })
+      setState(next)
+      push(canMarkUsable(next) ? '사용 가능' : '검증 부족')
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error)
       setState((prev) => reduceSetup(prev, { type: 'fail', reason }))

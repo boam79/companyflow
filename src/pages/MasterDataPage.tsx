@@ -8,14 +8,14 @@ import {
   type MasterFieldEntity,
   type MasterTable,
 } from '../lib/master/commands'
-import { CompanySqlite } from '../lib/sqlite/client'
+import { getCompanySqlite } from '../lib/sqlite/instance'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
 type NamedRow = { id: string; name: string; department_id?: string | null }
 type FieldRow = { entity: string; key: string; label: string }
 type TabId = MasterTable | 'fields'
 
-const sqlite = new CompanySqlite()
+const sqlite = getCompanySqlite()
 const TABS: { id: TabId; label: string }[] = [
   { id: 'departments', label: '부서' },
   { id: 'employees', label: '직원' },
@@ -70,14 +70,14 @@ export function MasterDataPage() {
     void openCompany(companyId)
   }, [companyId, ready, openFailed])
 
-  async function openCompany(nextId: string) {
+  async function openCompany(nextId: string, force = false) {
     opening.current = true
     setCompanyId(nextId)
     setMessage('')
     setNotice('')
     setOpenFailed(false)
     try {
-      await sqlite.open(nextId)
+      await sqlite.open(nextId, { force })
       setReady(sqlite.persistOk)
       if (!sqlite.persistOk) {
         setOpenFailed(true)
@@ -196,7 +196,7 @@ export function MasterDataPage() {
           onChange={(e) => {
             setReady(false)
             setOpenFailed(false)
-            void openCompany(e.target.value)
+            void openCompany(e.target.value, true)
           }}
         >
           <option value="">회사 선택</option>
@@ -213,7 +213,7 @@ export function MasterDataPage() {
           onClick={() => {
             setReady(false)
             setOpenFailed(false)
-            void openCompany(companyId)
+            void openCompany(companyId, true)
           }}
         >
           이 회사 DB 다시 열기

@@ -35,4 +35,5 @@
 - sqlite-wasm 기본 `opfs` VFS는 중첩 워커(`sqlite3-opfs-async-proxy`)가 필요하다. Vite 번들·첫 방문에서 실패하면 메모리 DB로 넘어가 `persistOk=false`가 된다. 지정 PC 원본은 `installOpfsSAHPoolVfs`를 쓴다.
 - Chrome `navigator.storage.persist()`는 북마크·PWA 전에는 false인 경우가 많다. 실데이터 시작 기준은 persist()가 아니라 OPFS 파일 개방이다.
 - 재고는 상태 라벨이 아니라 확정 원장 `qty_delta` 합이다. 이동은 출고·입고 두 줄을 한 SQLite `BEGIN IMMEDIATE` 묶음으로 넣는다.
+- SAH Pool은 파일 Access Handle을 독점한다. 화면마다 Worker를 새로 만들면 `/master` → `/stock` 이동이나 여러 탭에서 `createSyncAccessHandle` 오류가 난다. 앱 전역 SQLite 연결 하나를 재사용한다.
 - sqlite-wasm OPFS는 `COEP: require-corp`가 필요하다. GitHub Pages는 이 헤더를 못 넣으므로 호스팅으로 쓰지 않는다.

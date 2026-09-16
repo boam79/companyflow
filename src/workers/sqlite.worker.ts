@@ -21,6 +21,9 @@ type DbHandle = {
 
 type SahPool = {
   OpfsSAHPoolDb: new (filename: string) => DbHandle
+  pauseVfs?: () => unknown
+  unpauseVfs?: () => unknown
+  removeVfs?: () => unknown
 }
 
 type Sqlite3Ns = {
@@ -38,8 +41,10 @@ type Sqlite3Ns = {
 }
 
 let db: DbHandle | null = null
+let pool: SahPool | null = null
 let persistOk = false
 let vfsName = 'none'
+let openCompanyId = ''
 
 function reply(id: number, payload: unknown) {
   self.postMessage({ id, ok: true, payload })
@@ -53,17 +58,38 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+async function closeDb() {
+  try {
+    db?.close()
+  } catch {
+    // 이미 닫힌 경우
+  }
+  db = null
+  persistOk = false
+  vfsName = 'none'
+  openCompanyId = ''
+  try {
+    pool?.pauseVfs?.()
+  } catch {
+    // pause를 지원하지 않거나 이미 멈춘 경우
+  }
+  pool = null
+}
+
 async function openDb(companyId: string) {
+  if (db && persistOk && openCompanyId === companyId) return
   if (!navigator.storage?.getDirectory) {
     throw new Error('이 브라우저는 OPFS를 지원하지 않습니다. 지정 Chrome을 사용하세요.')
   }
+
+  await closeDb()
 
   const sqlite3 = (await sqlite3InitModule()) as unknown as Sqlite3Ns
   const fileName = companyDbFileName(companyId)
   const sahErrors: string[] = []
 
   try {
-    const pool = await sqlite3.installOpfsSAHPoolVfs({
+    pool = await sqlite3.installOpfsSAHPoolVfs({
       name: 'companyflow',
       directory: '.companyflow-sah',
       initialCapacity: 8,
@@ -72,12 +98,15 @@ async function openDb(companyId: string) {
     db = new pool.OpfsSAHPoolDb(fileName)
     persistOk = true
     vfsName = 'opfs-sahpool'
+    openCompanyId = companyId
   } catch (error) {
     sahErrors.push(errorMessage(error))
+    pool = null
     if ('opfs' in sqlite3 && sqlite3.oo1.OpfsDb) {
       db = new sqlite3.oo1.OpfsDb(`/${fileName}`)
       persistOk = true
       vfsName = 'opfs'
+      openCompanyId = companyId
     }
   }
 
@@ -110,6 +139,11 @@ self.onmessage = async (event: MessageEvent<Incoming>) => {
     if (msg.type === 'open') {
       await openDb(msg.companyId)
       reply(msg.id, { persistOk, vfsName })
+      return
+    }
+    if (msg.type === 'close') {
+      await closeDb()
+      reply(msg.id, {})
       return
     }
     if (!db) {
@@ -148,13 +182,6 @@ self.onmessage = async (event: MessageEvent<Incoming>) => {
       })
       reply(msg.id, { rows: Array.isArray(rows) ? rows : [], persistOk, vfsName })
       return
-    }
-    if (msg.type === 'close') {
-      db.close()
-      db = null
-      persistOk = false
-      vfsName = 'none'
-      reply(msg.id, {})
     }
   } catch (error) {
     fail(msg.id, errorMessage(error))

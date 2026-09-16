@@ -1,8 +1,14 @@
 import SqliteWorker from '@/workers/sqlite.worker.ts?worker'
 import { ProcessedOperations } from '../idempotency'
+import { acquireCompanyWriteLock } from '../tabLock'
+import { explainSqliteOpenError, isSahHandleBusy } from './openError'
 
 type WorkerOk = { id: number; ok: true; payload: unknown }
 type WorkerErr = { id: number; ok: false; error: string }
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
 
 export class CompanySqlite {
   private worker: Worker | null = null
@@ -11,9 +17,15 @@ export class CompanySqlite {
     number,
     { resolve: (value: unknown) => void; reject: (error: Error) => void }
   >()
+  private lockRelease: (() => void) | null = null
   readonly operations = new ProcessedOperations()
   persistOk = false
   vfsName = 'none'
+  companyId = ''
+
+  isOpen(companyId: string): boolean {
+    return Boolean(this.worker && this.persistOk && this.companyId === companyId)
+  }
 
   async runOnce<T>(operationId: string, work: () => Promise<T>): Promise<{ status: 'applied' | 'duplicate'; value: T }> {
     const existing = await this.query<{ result_json: string }>(
@@ -31,22 +43,31 @@ export class CompanySqlite {
     return { status: 'applied', value }
   }
 
-  async open(companyId: string): Promise<void> {
+  async open(companyId: string, options?: { force?: boolean }): Promise<void> {
+    if (!options?.force && this.isOpen(companyId)) return
     this.close()
-    this.worker = new SqliteWorker()
-    this.worker.onmessage = (event: MessageEvent<WorkerOk | WorkerErr>) => {
-      const pending = this.pending.get(event.data.id)
-      if (!pending) return
-      this.pending.delete(event.data.id)
-      if (event.data.ok) pending.resolve(event.data.payload)
-      else pending.reject(new Error(event.data.error))
+    const lock = await acquireCompanyWriteLock(companyId)
+    if (!lock.ok) {
+      throw new Error('다른 탭이 이 회사 원본을 사용 중입니다. 그 탭을 닫고 다시 여세요.')
     }
-    const payload = (await this.send('open', { companyId })) as {
-      persistOk: boolean
-      vfsName?: string
+    this.lockRelease = lock.release
+    try {
+      await this.startWorker(companyId)
+    } catch (error) {
+      if (isSahHandleBusy(error instanceof Error ? error.message : String(error))) {
+        this.detachWorker()
+        await sleep(300)
+        try {
+          await this.startWorker(companyId)
+          return
+        } catch (retryError) {
+          this.close()
+          throw new Error(explainSqliteOpenError(retryError))
+        }
+      }
+      this.close()
+      throw new Error(explainSqliteOpenError(error))
     }
-    this.persistOk = payload.persistOk
-    this.vfsName = payload.vfsName ?? 'unknown'
   }
 
   async exec(sql: string, params?: unknown[]): Promise<void> {
@@ -65,6 +86,34 @@ export class CompanySqlite {
   }
 
   close() {
+    this.detachWorker()
+    this.lockRelease?.()
+    this.lockRelease = null
+    this.persistOk = false
+    this.vfsName = 'none'
+    this.companyId = ''
+  }
+
+  private async startWorker(companyId: string): Promise<void> {
+    this.detachWorker()
+    this.worker = new SqliteWorker()
+    this.worker.onmessage = (event: MessageEvent<WorkerOk | WorkerErr>) => {
+      const pending = this.pending.get(event.data.id)
+      if (!pending) return
+      this.pending.delete(event.data.id)
+      if (event.data.ok) pending.resolve(event.data.payload)
+      else pending.reject(new Error(event.data.error))
+    }
+    const payload = (await this.send('open', { companyId })) as {
+      persistOk: boolean
+      vfsName?: string
+    }
+    this.persistOk = payload.persistOk
+    this.vfsName = payload.vfsName ?? 'unknown'
+    this.companyId = companyId
+  }
+
+  private detachWorker() {
     this.worker?.terminate()
     this.worker = null
     this.pending.clear()

@@ -41,5 +41,6 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 
 ## 최근 변경
 
+- 2026-09-16: SAH Pool Access Handle 충돌 수정. 앱 전역 SQLite 1개. 지정 Chrome은 탭 하나만 남기고 새로고침.
 - 2026-09-16: T6 구매·재고 공통 명령. 확정 원장만 현재고. `/stock` 화면. SAH Pool 트랜잭션 묶음.
 - 2026-09-16: 지정 PC 사용 가능 확인 후 T5 기준정보 추가·장치 확정 RPC.
