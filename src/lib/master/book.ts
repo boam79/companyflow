@@ -74,6 +74,13 @@ export class CompanyMasterBook {
   }
 }
 
+export const DEFAULT_EMPLOYEE = {
+  id: 'emp-kim',
+  name: '김담당',
+  departmentId: 'dept-admin',
+  title: '주임',
+}
+
 export function seedDefaultMaster(book: CompanyMasterBook): void {
   book.upsertDepartment(`${book.companyId}:seed:dept-admin`, {
     id: 'dept-admin',
@@ -91,11 +98,54 @@ export function seedDefaultMaster(book: CompanyMasterBook): void {
     id: 'item-paper',
     name: '복사용지',
   })
+  book.upsertEmployee(`${book.companyId}:seed:emp-kim`, {
+    id: DEFAULT_EMPLOYEE.id,
+    name: DEFAULT_EMPLOYEE.name,
+  })
   book.defineField(`${book.companyId}:seed:field-emp-no`, {
     entity: 'employee',
     key: 'employee_no',
     label: '사원번호',
   })
+}
+
+export async function writeDefaultMaster(db: {
+  exec: (sql: string, params?: unknown[]) => Promise<void>
+}): Promise<void> {
+  const now = new Date().toISOString()
+  await db.exec('insert or ignore into departments(id, name, created_at) values(?, ?, ?)', [
+    'dept-admin',
+    '총무',
+    now,
+  ])
+  await db.exec('insert or ignore into warehouses(id, name, created_at) values(?, ?, ?)', [
+    'wh-main',
+    '본사창고',
+    now,
+  ])
+  await db.exec('insert or ignore into warehouses(id, name, created_at) values(?, ?, ?)', [
+    'wh-sub',
+    '부속창고',
+    now,
+  ])
+  await db.exec('insert or ignore into items(id, name, created_at) values(?, ?, ?)', [
+    'item-paper',
+    '복사용지',
+    now,
+  ])
+  await db.exec(
+    `insert or ignore into employees(id, name, department_id, title, hired_at, badge_name, created_at)
+      values(?, ?, ?, ?, ?, ?, ?)`,
+    [
+      DEFAULT_EMPLOYEE.id,
+      DEFAULT_EMPLOYEE.name,
+      DEFAULT_EMPLOYEE.departmentId,
+      DEFAULT_EMPLOYEE.title,
+      now.slice(0, 10),
+      DEFAULT_EMPLOYEE.name,
+      now,
+    ],
+  )
 }
 
 export const MASTER_TABLE_SQL = [

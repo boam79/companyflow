@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { applyStockCommand, companyOnHand, createStockState, onHand } from '../stock/engine'
-import { applyAssignAsset, applyReturnAsset, assetIdsForConvert, assetsFromConvert } from './book'
+import { applyAssignAsset, applyReturnAsset, assetIdsForConvert, assetNumber, assetsFromConvert } from './book'
 
 const ITEM = 'item-paper'
 const MAIN = 'wh-main'
@@ -25,6 +25,7 @@ describe('재고 자산화', () => {
     expect(onHand(state, ITEM, MAIN)).toBe(5)
     expect(companyOnHand(state, ITEM)).toBe(5)
     expect(assetIdsForConvert('op-asset', 2)).toEqual(['op-asset:1', 'op-asset:2'])
+    expect(assetNumber('c269b67f-c44f-4015-9e3a-86af05a45077:1')).toBe('AST-C269B67F-1')
     expect(assetsFromConvert('op-asset', ITEM, MAIN, 2, 't').map((row) => row.status)).toEqual([
       'in_storage',
       'in_storage',

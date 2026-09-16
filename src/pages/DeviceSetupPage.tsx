@@ -11,7 +11,7 @@ import {
   setupLabel,
   type SetupState,
 } from '../lib/setupMachine'
-import { CompanyMasterBook, seedDefaultMaster } from '../lib/master/book'
+import { CompanyMasterBook, seedDefaultMaster, writeDefaultMaster } from '../lib/master/book'
 import { canStartRealData } from '../lib/sqlite/durableStore'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
@@ -96,28 +96,7 @@ export function DeviceSetupPage() {
       )
       const book = new CompanyMasterBook(companyId)
       seedDefaultMaster(book)
-      const now = new Date().toISOString()
-      for (const dept of book.departments.values()) {
-        await sqlite.exec('insert or ignore into departments(id, name, created_at) values(?, ?, ?)', [
-          dept.id,
-          dept.name,
-          now,
-        ])
-      }
-      for (const warehouse of book.warehouses.values()) {
-        await sqlite.exec('insert or ignore into warehouses(id, name, created_at) values(?, ?, ?)', [
-          warehouse.id,
-          warehouse.name,
-          now,
-        ])
-      }
-      for (const item of book.items.values()) {
-        await sqlite.exec('insert or ignore into items(id, name, created_at) values(?, ?, ?)', [
-          item.id,
-          item.name,
-          now,
-        ])
-      }
+      await writeDefaultMaster(sqlite)
       for (const field of book.fields.values()) {
         await sqlite.exec(
           'insert or replace into custom_field_defs(entity, key, label) values(?, ?, ?)',

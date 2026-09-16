@@ -1,4 +1,5 @@
 import { assetsFromConvert } from '../asset/book'
+import { writeDefaultMaster } from '../master/book'
 import type { CompanySqlite } from '../sqlite/client'
 import {
   applyStockCommand,
@@ -206,20 +207,5 @@ export async function executeStockCommand(
 }
 
 export async function ensureDefaultStockMaster(db: Pick<CompanySqlite, 'exec'>): Promise<void> {
-  const now = new Date().toISOString()
-  await db.exec('insert or ignore into items(id, name, created_at) values(?, ?, ?)', [
-    'item-paper',
-    '복사용지',
-    now,
-  ])
-  await db.exec('insert or ignore into warehouses(id, name, created_at) values(?, ?, ?)', [
-    'wh-main',
-    '본사창고',
-    now,
-  ])
-  await db.exec('insert or ignore into warehouses(id, name, created_at) values(?, ?, ?)', [
-    'wh-sub',
-    '부속창고',
-    now,
-  ])
+  await writeDefaultMaster(db)
 }

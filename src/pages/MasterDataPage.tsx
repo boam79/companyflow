@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
+import { writeDefaultMaster } from '../lib/master/book'
 import {
   assertMasterTable,
   fieldEntityFromTable,
@@ -84,6 +85,7 @@ export function MasterDataPage() {
         setMessage('이 브라우저에서 영속 DB를 열 수 없습니다. 지정 Chrome에서 초기 설정을 먼저 하세요.')
         return
       }
+      await writeDefaultMaster(sqlite)
       setNotice(`로컬 원본이 열렸습니다. VFS ${sqlite.vfsName}`)
       await reload(tab)
     } catch (error) {

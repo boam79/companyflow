@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { loadAssets } from '../lib/asset/book'
+import { writeDefaultMaster } from '../lib/master/book'
 import { csvFromSummary, summarizeStock, type DateRange } from '../lib/reports/summary'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { loadStockState } from '../lib/stock/persist'
@@ -59,6 +60,7 @@ export function ReportsPage() {
         setMessage('이 브라우저에서 영속 DB를 열 수 없습니다. 지정 Chrome에서 초기 설정을 먼저 하세요.')
         return
       }
+      await writeDefaultMaster(sqlite)
       const itemRows = await sqlite.query<NamedRow>('select id, name from items order by name')
       setItems(itemRows)
       const nextItem = itemRows.some((row) => row.id === itemId) ? itemId : itemRows[0]?.id

@@ -24,6 +24,13 @@ describe('회사별 기준정보 격리', () => {
     expect(a.companyId).not.toBe(b.companyId)
   })
 
+  it('기본 시드는 반출·배정에 쓰는 김담당을 만든다', () => {
+    const book = new CompanyMasterBook('hq')
+    seedDefaultMaster(book)
+    expect(book.employees.get('emp-kim')).toEqual({ id: 'emp-kim', name: '김담당' })
+    expect(book.departments.get('dept-admin')?.name).toBe('총무')
+  })
+
   it('같은 operation_id 는 부서를 한 번만 만든다', () => {
     const book = new CompanyMasterBook('aaa')
     const first = book.upsertDepartment('op-dept', { id: 'd1', name: '총무' })

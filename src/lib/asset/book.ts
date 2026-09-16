@@ -20,6 +20,12 @@ export type AssetRecord = {
   createdAt?: string
 }
 
+export function assetNumber(id: string): string {
+  const [operationId, seq] = id.split(':')
+  const short = operationId.replace(/-/g, '').slice(0, 8).toUpperCase()
+  return `AST-${short}-${seq || '1'}`
+}
+
 export function assetIdsForConvert(operationId: string, qty: number): string[] {
   return Array.from({ length: qty }, (_, index) => `${operationId}:${index + 1}`)
 }
