@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
+import { StockLedgerTable } from '../components/StockLedgerTable'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { executeStockCommand, ensureDefaultStockMaster, loadStockState } from '../lib/stock/persist'
-import { companyOnHand, onHand, orderRemaining, type StockCommand, type StockState } from '../lib/stock/engine'
+import { companyOnHand, onHand, orderRemaining, type LedgerLine, type StockCommand, type StockState } from '../lib/stock/engine'
+import type { LedgerFilter } from '../lib/stock/ledgerView'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
 type NamedRow = { id: string; name: string }
@@ -48,6 +50,8 @@ export function StockPage() {
   const [lastOperationId, setLastOperationId] = useState('')
   const [ready, setReady] = useState(false)
   const [openFailed, setOpenFailed] = useState(false)
+  const [ledgerFilter, setLedgerFilter] = useState<LedgerFilter>('all')
+  const [selectedLine, setSelectedLine] = useState<LedgerLine | null>(null)
   const opening = useRef(false)
   const stepped = useRef(false)
 
@@ -109,6 +113,13 @@ export function StockPage() {
     setWarehouses(warehouseRows)
     setDepartments(deptRows)
     setState(nextState)
+    setSelectedLine((prev) => {
+      if (prev) {
+        const found = nextState.ledger.find((line) => line.id === prev.id)
+        if (found) return found
+      }
+      return nextState.ledger[nextState.ledger.length - 1] ?? null
+    })
     if (!itemRows.some((row) => row.id === itemId) && itemRows[0]) setItemId(itemRows[0].id)
     if (!warehouseRows.some((row) => row.id === warehouseId) && warehouseRows[0]) {
       setWarehouseId(warehouseRows[0].id)
@@ -265,8 +276,7 @@ export function StockPage() {
       <div>
         <h1 className="text-3xl font-semibold">구매·재고</h1>
         <p className="mt-2 text-sm text-muted">
-          확정 원장만 현재고에 반영합니다. 복사용지 10 발주 → 수령 6+4 → 반출 3 → 반납 1 이면 회사
-          현재고는 8이어야 합니다.
+          확정 원장을 수불부로 보여 줍니다. 입고·출고가 같은 표에서 잔량으로 이어집니다.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -308,8 +318,8 @@ export function StockPage() {
         </p>
         {state?.orders.get(orderId)?.status === 'confirmed' && remaining > 0 ? (
           <p className="mt-2 text-sm text-ok">
-            발주는 현재고에 안 들어갔습니다. 명령을 수령으로 두고 {remaining >= 10 ? '6' : remaining}을
-            확정하세요.
+            발주는 현재고에 안 들어갔습니다. 아래 거래 등록에서 수령 {remaining >= 10 ? '6' : remaining}을
+            확정하면 수불부에 입고로 이어집니다.
           </p>
         ) : null}
         {warehouseBalances.length ? (
@@ -338,7 +348,69 @@ export function StockPage() {
         )}
       </section>
 
+      <section className="rounded-lg border border-line bg-card p-5">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">입출고 수불부</h2>
+            <p className="mt-1 text-sm text-muted">
+              줄을 고르면 같은 발주·원거래가 함께 표시됩니다. 반출 줄을 고르면 반납 원거래가 채워집니다.
+            </p>
+          </div>
+          <div className="flex rounded border border-line text-sm">
+            {(
+              [
+                ['all', '전체'],
+                ['in', '입고만'],
+                ['out', '출고만'],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                aria-pressed={ledgerFilter === id}
+                className={`px-3 py-1.5 ${
+                  ledgerFilter === id ? 'bg-accent-soft font-semibold text-accent' : 'text-muted'
+                }`}
+                onClick={() => setLedgerFilter(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {state?.orders.size ? (
+          <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
+            {[...state.orders.values()].map((order) => (
+              <li key={order.id}>
+                발주 {order.id} · {items.find((item) => item.id === order.itemId)?.name ?? order.itemId}{' '}
+                {order.qty} · {order.status === 'draft' ? '초안' : '확정'} · 잔량{' '}
+                {orderRemaining(state, order.id)}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <StockLedgerTable
+          ledger={state?.ledger ?? []}
+          items={items}
+          warehouses={warehouses}
+          filter={ledgerFilter}
+          selected={selectedLine}
+          onSelect={(line) => {
+            setSelectedLine(line)
+            if (line.txnType === 'issue' || line.txnType === 'outbound') {
+              setSourceOperationId(line.operationId)
+            } else if (line.sourceOperationId) {
+              setSourceOperationId(line.sourceOperationId)
+            }
+          }}
+        />
+      </section>
+
       <form className="grid max-w-3xl gap-3 rounded-lg border border-line bg-card p-5" onSubmit={onSubmit}>
+        <h2 className="text-lg font-semibold">거래 등록</h2>
+        <p className="text-sm text-muted">원장은 위에서 이어 보고, 여기서는 다음 거래만 확정합니다.</p>
+        {notice ? <p className="text-sm text-ok">{notice}</p> : null}
+        {message ? <p className="text-sm text-danger">{message}</p> : null}
         <label className="text-sm">
           명령
           <select
@@ -508,42 +580,6 @@ export function StockPage() {
           확정
         </button>
       </form>
-      {notice ? <p className="text-sm text-ok">{notice}</p> : null}
-      {message ? <p className="text-sm text-danger">{message}</p> : null}
-
-      <section className="grid gap-6 md:grid-cols-2">
-        <div>
-          <h2 className="text-lg font-semibold">발주</h2>
-          {state?.orders.size ? (
-            <ul className="mt-2 space-y-1 text-sm">
-              {[...state.orders.values()].map((order) => (
-                <li key={order.id}>
-                  {order.id} · {items.find((item) => item.id === order.itemId)?.name ?? order.itemId} ·{' '}
-                  {order.qty} · {order.status === 'draft' ? '초안' : '확정'}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-2 text-sm text-muted">아직 발주가 없습니다.</p>
-          )}
-        </div>
-        <div>
-          <h2 className="text-lg font-semibold">원장</h2>
-          {state?.ledger.length ? (
-            <ul className="mt-2 space-y-1 text-sm">
-              {state.ledger.map((line) => (
-                <li key={line.id}>
-                  {line.txnType} · {line.qtyDelta > 0 ? '+' : ''}
-                  {line.qtyDelta} · {line.operationId}
-                  {line.personName ? ` · ${line.personName}` : ''}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-2 text-sm text-muted">아직 원장이 없습니다.</p>
-          )}
-        </div>
-      </section>
     </div>
   )
 }

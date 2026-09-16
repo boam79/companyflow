@@ -92,6 +92,7 @@ export type LedgerLine = {
   sourceOperationId?: string
   orderId?: string
   reason?: string
+  createdAt?: string
 }
 
 export type StockOrder = {

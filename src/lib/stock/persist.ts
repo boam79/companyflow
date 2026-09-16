@@ -23,6 +23,7 @@ export type LedgerRow = {
   source_operation_id?: string | null
   order_id?: string | null
   reason?: string | null
+  created_at?: string | null
 }
 
 export type OrderRow = {
@@ -117,6 +118,7 @@ export function stateFromRows(
       sourceOperationId: row.source_operation_id ?? undefined,
       orderId: row.order_id ?? undefined,
       reason: row.reason ?? undefined,
+      createdAt: row.created_at ?? undefined,
     }
     state.ledger.push(line)
     state.processed.set(row.operation_id, 'applied')
@@ -129,7 +131,7 @@ export async function loadStockState(db: Pick<CompanySqlite, 'query'>): Promise<
     db.query<OrderRow>('select id, item_id, qty, status, operation_id from stock_orders'),
     db.query<LedgerRow>(
       `select id, operation_id, txn_type, item_id, warehouse_id, qty_delta,
-        person_name, department_id, source_operation_id, order_id, reason
+        person_name, department_id, source_operation_id, order_id, reason, created_at
        from stock_ledger order by created_at, id`,
     ),
     db.query<{ operation_id: string }>('select operation_id from processed_operations'),
