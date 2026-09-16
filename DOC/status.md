@@ -7,7 +7,7 @@
 
 ## 지금 하는 일
 
-지정 Chrome에서 https://companyflow-opal.vercel.app/stock 수불부(입고|출고|잔량)로 복사용지 시나리오를 확인한다.
+지정 Chrome에서 https://companyflow-opal.vercel.app/stock 을 새로고침한 뒤 수령 잔량 4를 확정한다.
 
 ## 보드
 
@@ -41,6 +41,7 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 
 ## 최근 변경
 
+- 2026-09-16: 발주 잔량이 있으면 `/stock` 다음 거래를 수령으로 맞추고, 연결란에 부서 이름을 표시.
 - 2026-09-16: `/stock` 입출고를 수불부 한 표로 이어 보이게 바꿈. 명령 폼은 표 아래.
 - 2026-09-16: SAH Pool Access Handle 충돌 수정. 앱 전역 SQLite 1개. 지정 Chrome은 탭 하나만 남기고 새로고침.
 - 2026-09-16: T6 구매·재고 공통 명령. 확정 원장만 현재고. `/stock` 화면. SAH Pool 트랜잭션 묶음.

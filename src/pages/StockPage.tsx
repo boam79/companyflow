@@ -6,6 +6,7 @@ import { getCompanySqlite } from '../lib/sqlite/instance'
 import { executeStockCommand, ensureDefaultStockMaster, loadStockState } from '../lib/stock/persist'
 import { companyOnHand, onHand, orderRemaining, type LedgerLine, type StockCommand, type StockState } from '../lib/stock/engine'
 import type { LedgerFilter } from '../lib/stock/ledgerView'
+import { suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
 type NamedRow = { id: string; name: string }
@@ -53,7 +54,6 @@ export function StockPage() {
   const [ledgerFilter, setLedgerFilter] = useState<LedgerFilter>('all')
   const [selectedLine, setSelectedLine] = useState<LedgerLine | null>(null)
   const opening = useRef(false)
-  const stepped = useRef(false)
 
   useEffect(() => {
     if (!user) return
@@ -77,7 +77,6 @@ export function StockPage() {
 
   async function openCompany(nextId: string, force = false) {
     opening.current = true
-    stepped.current = false
     setCompanyId(nextId)
     setMessage('')
     setNotice('')
@@ -120,6 +119,7 @@ export function StockPage() {
       }
       return nextState.ledger[nextState.ledger.length - 1] ?? null
     })
+    applySuggestedForm(suggestNextStockForm(nextState, orderId))
     if (!itemRows.some((row) => row.id === itemId) && itemRows[0]) setItemId(itemRows[0].id)
     if (!warehouseRows.some((row) => row.id === warehouseId) && warehouseRows[0]) {
       setWarehouseId(warehouseRows[0].id)
@@ -127,40 +127,34 @@ export function StockPage() {
     if (!departmentId && deptRows[0]) setDepartmentId(deptRows[0].id)
   }
 
-  function advanceScenario(applied: ActionType, next: StockState, opId: string) {
-    const rem = orderRemaining(next, orderId)
-    if (applied === 'confirm_order' || (applied === 'post_receipt' && rem > 0)) {
-      setAction('post_receipt')
-      setQty(applied === 'confirm_order' && rem >= 6 ? '6' : String(rem))
-      return
-    }
-    if (applied === 'post_receipt') {
-      setAction('post_issue')
-      setQty('3')
-      return
-    }
-    if (applied === 'post_issue') {
-      setAction('post_return')
-      setQty('1')
-      setSourceOperationId(opId)
-      return
-    }
-    if (applied === 'post_return') {
-      setAction('transfer_stock')
-      setQty('2')
-    }
+  function applySuggestedForm(next: NextStockForm | null) {
+    if (!next) return
+    setAction(next.action)
+    setQty(next.qty)
+    if (next.sourceOperationId) setSourceOperationId(next.sourceOperationId)
   }
 
-  useEffect(() => {
-    if (!state || stepped.current) return
-    const rem = orderRemaining(state, orderId)
-    const order = state.orders.get(orderId)
-    if (order?.status === 'confirmed' && rem > 0) {
-      setAction('post_receipt')
-      setQty(rem >= 10 ? '6' : String(rem))
+  function onActionChange(nextAction: ActionType) {
+    setAction(nextAction)
+    if (!state) return
+    const suggested = suggestNextStockForm(state, orderId)
+    if (suggested?.action === nextAction) {
+      applySuggestedForm(suggested)
+      return
     }
-    stepped.current = true
-  }, [state, orderId])
+    if (nextAction === 'post_receipt') {
+      const remainingQty = orderRemaining(state, orderId)
+      setQty(String(remainingQty > 0 ? remainingQty : 1))
+      return
+    }
+    if (nextAction === 'post_issue' || nextAction === 'post_outbound') {
+      const onHandQty = onHand(state, itemId, warehouseId)
+      setQty(String(onHandQty > 0 ? Math.min(1, onHandQty) : 1))
+      return
+    }
+    if (nextAction === 'post_return') setQty('1')
+    if (nextAction === 'transfer_stock') setQty('2')
+  }
 
   function buildCommand(nextOperationId: string): StockCommand {
     const quantity = Number(qty)
@@ -237,7 +231,7 @@ export function StockPage() {
           : `저장했습니다. (${ACTIONS.find((item) => item.id === action)?.label} · ${nextOperationId})`,
       )
       if (result.status === 'applied') {
-        advanceScenario(action, result.state, nextOperationId)
+        applySuggestedForm(suggestNextStockForm(result.state, orderId))
       }
       await reload()
     } catch (error) {
@@ -260,6 +254,7 @@ export function StockPage() {
 
   const paperQty = state ? companyOnHand(state, itemId) : 0
   const remaining = state ? orderRemaining(state, orderId) : 0
+  const nextForm = state ? suggestNextStockForm(state, orderId) : null
   const warehouseBalances =
     state && items.length && warehouses.length
       ? items.flatMap((item) =>
@@ -316,12 +311,7 @@ export function StockPage() {
           선택 품목 회사 합계 <strong>{paperQty}</strong>
           {state?.orders.get(orderId) ? ` · 발주 ${orderId} 잔량 ${remaining}` : ''}
         </p>
-        {state?.orders.get(orderId)?.status === 'confirmed' && remaining > 0 ? (
-          <p className="mt-2 text-sm text-ok">
-            발주는 현재고에 안 들어갔습니다. 아래 거래 등록에서 수령 {remaining >= 10 ? '6' : remaining}을
-            확정하면 수불부에 입고로 이어집니다.
-          </p>
-        ) : null}
+        {nextForm ? <p className="mt-2 text-sm text-ok">{nextForm.hint}</p> : null}
         {warehouseBalances.length ? (
           <table className="mt-3 w-full text-left text-sm">
             <thead>
@@ -393,6 +383,7 @@ export function StockPage() {
           ledger={state?.ledger ?? []}
           items={items}
           warehouses={warehouses}
+          departments={departments}
           filter={ledgerFilter}
           selected={selectedLine}
           onSelect={(line) => {
@@ -409,6 +400,7 @@ export function StockPage() {
       <form className="grid max-w-3xl gap-3 rounded-lg border border-line bg-card p-5" onSubmit={onSubmit}>
         <h2 className="text-lg font-semibold">거래 등록</h2>
         <p className="text-sm text-muted">원장은 위에서 이어 보고, 여기서는 다음 거래만 확정합니다.</p>
+        {nextForm ? <p className="text-sm text-ok">{nextForm.hint}</p> : null}
         {notice ? <p className="text-sm text-ok">{notice}</p> : null}
         {message ? <p className="text-sm text-danger">{message}</p> : null}
         <label className="text-sm">
@@ -416,7 +408,7 @@ export function StockPage() {
           <select
             className="mt-1 w-full rounded border border-line px-3 py-2"
             value={action}
-            onChange={(e) => setAction(e.target.value as ActionType)}
+            onChange={(e) => onActionChange(e.target.value as ActionType)}
           >
             {ACTIONS.map((item) => (
               <option key={item.id} value={item.id}>
@@ -577,7 +569,7 @@ export function StockPage() {
           disabled={!ready}
           className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
         >
-          확정
+          {ACTIONS.find((item) => item.id === action)?.label ?? '확정'}
         </button>
       </form>
     </div>

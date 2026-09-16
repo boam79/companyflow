@@ -3,7 +3,7 @@ import {
   applyStockCommand,
   createStockState,
 } from './engine'
-import { buildLedgerView, filterLedgerView, rowsAreRelated } from './ledgerView'
+import { buildLedgerView, filterLedgerView, formatLedgerLink, rowsAreRelated } from './ledgerView'
 
 const ITEM = 'item-paper'
 const MAIN = 'wh-main'
@@ -64,5 +64,23 @@ describe('입출고 수불부', () => {
     expect(rowsAreRelated(rows[2].line, rows[3].line)).toBe(true)
     expect(filterLedgerView(rows, 'out')).toHaveLength(1)
     expect(filterLedgerView(rows, 'in')).toHaveLength(3)
+  })
+
+  it('연결란은 부서 id 대신 이름을 쓴다', () => {
+    expect(
+      formatLedgerLink(
+        {
+          id: 'l1',
+          operationId: 'op-issue',
+          txnType: 'issue',
+          itemId: ITEM,
+          warehouseId: MAIN,
+          qtyDelta: -4,
+          personName: '김담당',
+          departmentId: 'dept-admin',
+        },
+        { departments: [{ id: 'dept-admin', name: '총무' }] },
+      ),
+    ).toBe('김담당 · 총무')
   })
 })

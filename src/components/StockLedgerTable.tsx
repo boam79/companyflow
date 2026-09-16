@@ -24,16 +24,20 @@ export function StockLedgerTable(props: {
   ledger: LedgerLine[]
   items: NamedRow[]
   warehouses: NamedRow[]
+  departments?: NamedRow[]
   filter: LedgerFilter
   selected?: LedgerLine | null
   onSelect: (line: LedgerLine) => void
 }) {
   const rows = filterLedgerView(
-    buildLedgerView({
-      processed: new Map(),
-      orders: new Map(),
-      ledger: props.ledger,
-    }),
+    buildLedgerView(
+      {
+        processed: new Map(),
+        orders: new Map(),
+        ledger: props.ledger,
+      },
+      { departments: props.departments },
+    ),
     props.filter,
   )
 

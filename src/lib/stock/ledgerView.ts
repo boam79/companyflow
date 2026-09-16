@@ -39,17 +39,24 @@ export function rowsAreRelated(a: LedgerLine, b: LedgerLine): boolean {
   return relatedKeys(b).some((key) => keys.has(key))
 }
 
-export function formatLedgerLink(line: LedgerLine): string {
+export type LedgerNameMaps = {
+  departments?: { id: string; name: string }[]
+}
+
+export function formatLedgerLink(line: LedgerLine, names?: LedgerNameMaps): string {
   const parts: string[] = []
   if (line.orderId) parts.push(`발주 ${line.orderId}`)
   if (line.sourceOperationId) parts.push(`원거래 ${line.sourceOperationId.slice(0, 8)}`)
   if (line.personName) parts.push(line.personName)
-  if (line.departmentId) parts.push(line.departmentId)
+  if (line.departmentId) {
+    const department = names?.departments?.find((row) => row.id === line.departmentId)
+    parts.push(department?.name ?? line.departmentId)
+  }
   if (line.reason) parts.push(line.reason)
   return parts.join(' · ')
 }
 
-export function buildLedgerView(state: StockState): LedgerViewRow[] {
+export function buildLedgerView(state: StockState, names?: LedgerNameMaps): LedgerViewRow[] {
   const warehouse = new Map<string, number>()
   const company = new Map<string, number>()
   return state.ledger.map((line) => {
@@ -63,7 +70,7 @@ export function buildLedgerView(state: StockState): LedgerViewRow[] {
       outbound: line.qtyDelta < 0 ? -line.qtyDelta : null,
       warehouseBalance: warehouse.get(warehouseKey) ?? 0,
       companyBalance: company.get(line.itemId) ?? 0,
-      link: formatLedgerLink(line),
+      link: formatLedgerLink(line, names),
     }
   })
 }
