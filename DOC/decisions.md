@@ -54,6 +54,6 @@
 | D-23 | 2026-09-16 | Git 원격은 `https://github.com/boam79/companyflow.git`만 사용. origin.cursor.com 금지 | 사용자 지정. hem과 동일한 운영 |
 | D-24 | 2026-09-16 | 요구사항·분석·계획·교훈은 `DOC/`에만 둔다. 이후 작업은 이 폴더를 읽고 이어 간다 | 사용자 지정 |
 | D-25 | 2026-09-16 | PRD 11.2 첫날은 일정이 아니라 백로그 초안. 실행 순서는 11.1이며 첫 구현은 단계 1(T1~T4) | Planner 분석. 사용자 미확인이면 구현 착수 전 재확인 |
-| D-26 | 2026-09-16 | 전용 Supabase 프로젝트는 다른 제품 DB를 재사용하지 않는다. 무료 활성 한도(2) 때문에 생성 실패. 스키마는 저장소 SQL로 보관 | Executor + Supabase MCP |
+| D-26 | 2026-09-16 | 전용 Supabase 프로젝트 `companyflow`(vswvkypdjizldieenapx, ap-northeast-2)만 사용. 다른 제품 DB에 스키마를 넣지 않는다 | Executor + Supabase MCP. `boam79_patient_data` 일시정지 후 생성 |
 | D-27 | 2026-09-16 | 운영 관리자 표시는 `app_metadata.platform_operator`만 사용. user_metadata 금지 | PRD 9.4, Supabase 보안 가이드 |
 | D-28 | 2026-09-16 | SQLite WASM OPFS는 COOP same-origin + COEP require-corp 헤더를 사용 | sqlite-wasm 공식 README |

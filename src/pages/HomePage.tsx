@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getSupabase } from '../lib/supabase'
+import { useAuth } from '../lib/AuthContext'
 
 type StoreStatus = {
   persisted: boolean | null
@@ -8,9 +8,7 @@ type StoreStatus = {
 }
 
 export function HomePage() {
-  const supabaseConfigured = Boolean(
-    import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY,
-  )
+  const { configured, user, operator } = useAuth()
   const [store, setStore] = useState<StoreStatus>({
     persisted: null,
     quota: '확인 전',
@@ -41,8 +39,6 @@ export function HomePage() {
     }
   }, [])
 
-  const client = useMemo(() => getSupabase(), [])
-
   return (
     <div className="space-y-8">
       <section>
@@ -57,9 +53,9 @@ export function HomePage() {
       <section className="grid gap-4 md:grid-cols-3">
         <StatusCard
           title="중앙 운영"
-          value={supabaseConfigured ? '환경 변수 연결됨' : '미연결'}
+          value={configured ? '환경 변수 연결됨' : '미연결'}
           detail={
-            supabaseConfigured
+            configured
               ? 'Supabase Auth·회사 등록을 사용할 수 있습니다.'
               : 'VITE_SUPABASE_URL / ANON_KEY가 없습니다. 로컬 미리보기만 가능합니다.'
           }
@@ -76,8 +72,8 @@ export function HomePage() {
           detail={store.quota}
         />
         <StatusCard
-          title="인증 클라이언트"
-          value={client ? '준비됨' : '없음'}
+          title="로그인"
+          value={user ? (operator ? '운영 관리자' : user.email ?? '로그인됨') : '로그아웃'}
           detail="권한은 user_metadata가 아니라 app_metadata만 봅니다."
         />
       </section>
@@ -85,6 +81,11 @@ export function HomePage() {
       <section className="rounded-lg border border-line bg-card p-6">
         <h2 className="text-lg font-semibold">다음 작업</h2>
         <ul className="mt-4 space-y-2 text-sm">
+          <li>
+            <Link className="text-accent underline" to="/login">
+              로그인 / 회원가입
+            </Link>
+          </li>
           <li>
             <Link className="text-accent underline" to="/ops/companies">
               운영 관리자: 새 회사 등록

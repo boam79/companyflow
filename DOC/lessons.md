@@ -28,5 +28,8 @@
 - 파일을 고치기 전에 읽는다.
 - 터미널에 취약점이 보이면 진행 전 `npm audit`을 한다. `--force` 없이  hoisting 가능한 패치(예: vitest 5)를 우선한다.
 - `git`의 `-force`는 쓰기 전에 사용자에게 묻는다.
-- 다른 제품의 활성 Supabase 프로젝트에 CompanyFlow 스키마를 섞지 않는다. 무료 한도면 사용자에게 일시정지/업그레이드를 요청한다.
+- 다른 제품의 활성 Supabase 프로젝트에 CompanyFlow 스키마를 섞지 않는다. 무료 활성 한도 2개면 사용하지 않는 프로젝트를 일시정지한 뒤 전용 프로젝트를 만든다.
+- 운영 권한은 `app_metadata.platform_operator`만 본다. user_metadata 자가 승격은 무시한다.
+- `SECURITY DEFINER` RPC는 `anon` EXECUTE를 회수한다. 함수 본문에서 운영자 여부를 다시 검사한다.
+- sqlite-wasm OPFS 파일은 워커에서 중첩 디렉터리(`/companyflow/...`) 대신 `/company_*.sqlite3`처럼 평탄한 경로를 쓴다. 중첩 경로는 SQLITE_CANTOPEN이 난다.
 - sqlite-wasm OPFS는 `COEP: require-corp`가 필요하다. GitHub Pages는 이 헤더를 못 넣으므로 호스팅으로 쓰지 않는다.

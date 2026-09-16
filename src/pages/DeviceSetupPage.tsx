@@ -1,5 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../lib/AuthContext'
 import { companyDbFileName } from '../lib/companyPaths'
+import { localDeviceFingerprint } from '../lib/deviceFingerprint'
 import { CompanySqlite } from '../lib/sqlite/client'
 import {
   canMarkUsable,
@@ -8,15 +11,37 @@ import {
   setupLabel,
   type SetupState,
 } from '../lib/setupMachine'
+import { getSupabase, type CompanyRow } from '../lib/supabase'
 import { acquireCompanyWriteLock } from '../lib/tabLock'
 
 const sqlite = new CompanySqlite()
 
 export function DeviceSetupPage() {
-  const [companyId, setCompanyId] = useState('demo-a')
+  const { configured, loading, user, operator } = useAuth()
+  const [companyId, setCompanyId] = useState('')
+  const [companies, setCompanies] = useState<CompanyRow[]>([])
   const [state, setState] = useState<SetupState>(initialSetupState())
   const [log, setLog] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (!user) return
+    const client = getSupabase()
+    if (!client) return
+    let cancelled = false
+    void client
+      .from('companies')
+      .select('id, display_name, company_code, registration_status')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (cancelled || !data?.length) return
+        setCompanies(data as CompanyRow[])
+        setCompanyId((prev) => prev || data[0].id)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [user])
 
   function push(line: string) {
     setLog((prev) => [...prev, line])
@@ -26,7 +51,22 @@ export function DeviceSetupPage() {
     setBusy(true)
     try {
       let next = reduceSetup(initialSetupState(), { type: 'admin_linked' })
-      push('관리자 연결 확인')
+      push(operator ? '운영 권한으로 장치 예약을 시도합니다' : '관리자 연결 확인')
+      const client = getSupabase()
+      if (client && companyId) {
+        const fingerprint = await localDeviceFingerprint()
+        const { error } = await client.rpc('claim_company_device', {
+          p_company_id: companyId,
+          p_device_fingerprint: fingerprint,
+        })
+        if (error) {
+          next = reduceSetup(next, { type: 'fail', reason: error.message })
+          setState(next)
+          push(error.message)
+          return
+        }
+        push('중앙에 원본 장치를 예약했습니다')
+      }
       const lock = await acquireCompanyWriteLock(companyId)
       if (!lock.ok) {
         next = reduceSetup(next, {
@@ -77,6 +117,29 @@ export function DeviceSetupPage() {
     }
   }
 
+  if (loading) {
+    return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
+  }
+
+  if (!configured) {
+    return (
+      <p className="text-sm text-muted">
+        중앙 프로젝트가 연결되지 않아 장치 예약을 서버에 기록할 수 없습니다.
+      </p>
+    )
+  }
+
+  if (!user) {
+    return (
+      <p className="text-sm">
+        지정 PC 설정은 로그인 후 진행합니다.{' '}
+        <Link className="text-accent underline" to="/login">
+          로그인
+        </Link>
+      </p>
+    )
+  }
+
   return (
     <div className="max-w-2xl space-y-6">
       <div>
@@ -91,12 +154,27 @@ export function DeviceSetupPage() {
           현재 단계: <strong>{setupLabel(state.phase)}</strong>
         </p>
         <label className="block text-sm">
-          회사 ID
-          <input
-            className="mt-1 w-full rounded border border-line px-3 py-2"
-            value={companyId}
-            onChange={(e) => setCompanyId(e.target.value.trim())}
-          />
+          회사
+          {companies.length > 0 ? (
+            <select
+              className="mt-1 w-full rounded border border-line px-3 py-2"
+              value={companyId}
+              onChange={(e) => setCompanyId(e.target.value)}
+            >
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.display_name} ({company.company_code})
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              className="mt-1 w-full rounded border border-line px-3 py-2"
+              placeholder="회사 UUID"
+              value={companyId}
+              onChange={(e) => setCompanyId(e.target.value.trim())}
+            />
+          )}
         </label>
         <button
           type="button"
