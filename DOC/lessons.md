@@ -26,5 +26,7 @@
 - 미정 항목(OPFS VFS, Relay 키, 백업 암호, 호스팅)은 관련 실사용만 막고, 공통 인터페이스·로컬 모델·직접 입력 화면은 진행할 수 있다.
 - 회사별 예외 코드(`if company_id == B`)를 만들지 않는다.
 - 파일을 고치기 전에 읽는다.
-- 터미널에 취약점이 보이면 진행 전 `npm audit`을 한다.
+- 터미널에 취약점이 보이면 진행 전 `npm audit`을 한다. `--force` 없이  hoisting 가능한 패치(예: vitest 5)를 우선한다.
 - `git`의 `-force`는 쓰기 전에 사용자에게 묻는다.
+- 다른 제품의 활성 Supabase 프로젝트에 CompanyFlow 스키마를 섞지 않는다. 무료 한도면 사용자에게 일시정지/업그레이드를 요청한다.
+- sqlite-wasm OPFS는 `COEP: require-corp`가 필요하다. GitHub Pages는 이 헤더를 못 넣으므로 호스팅으로 쓰지 않는다.

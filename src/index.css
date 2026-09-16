@@ -1,0 +1,29 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Apple SD Gothic Neo', 'Noto Sans KR', 'Pretendard', system-ui,
+    sans-serif;
+  --color-ink: #1c2430;
+  --color-muted: #5c6775;
+  --color-line: #d8dee6;
+  --color-paper: #f4f6f8;
+  --color-card: #ffffff;
+  --color-accent: #1f4e79;
+  --color-accent-soft: #e8eef4;
+  --color-ok: #1f7a4d;
+  --color-warn: #9a6b12;
+  --color-danger: #9b2c2c;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
