@@ -6,6 +6,7 @@ type Incoming =
   | { id: number; type: 'open'; companyId: string }
   | { id: number; type: 'exec'; sql: string; params?: unknown[] }
   | { id: number; type: 'query'; sql: string; params?: unknown[] }
+  | { id: number; type: 'batch'; statements: { sql: string; params?: unknown[] }[] }
   | { id: number; type: 'close' }
 
 type DbHandle = {
@@ -118,6 +119,24 @@ self.onmessage = async (event: MessageEvent<Incoming>) => {
     if (msg.type === 'exec') {
       db.exec({ sql: msg.sql, bind: msg.params })
       reply(msg.id, { persistOk, vfsName })
+      return
+    }
+    if (msg.type === 'batch') {
+      db.exec({ sql: 'BEGIN IMMEDIATE' })
+      try {
+        for (const statement of msg.statements) {
+          db.exec({ sql: statement.sql, bind: statement.params })
+        }
+        db.exec({ sql: 'COMMIT' })
+      } catch (error) {
+        try {
+          db.exec({ sql: 'ROLLBACK' })
+        } catch {
+          // 이미 롤백됐거나 BEGIN이 실패한 경우
+        }
+        throw error
+      }
+      reply(msg.id, { persistOk, vfsName, count: msg.statements.length })
       return
     }
     if (msg.type === 'query') {

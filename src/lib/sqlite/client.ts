@@ -60,6 +60,10 @@ export class CompanySqlite {
     return payload.rows
   }
 
+  async batch(statements: { sql: string; params?: unknown[] }[]): Promise<void> {
+    await this.send('batch', { statements })
+  }
+
   close() {
     this.worker?.terminate()
     this.worker = null

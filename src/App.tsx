@@ -6,6 +6,7 @@ import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { MasterDataPage } from './pages/MasterDataPage'
 import { OperatorCompaniesPage } from './pages/OperatorCompaniesPage'
+import { StockPage } from './pages/StockPage'
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
             <Route path="/ops/companies" element={<OperatorCompaniesPage />} />
             <Route path="/setup" element={<DeviceSetupPage />} />
             <Route path="/master" element={<MasterDataPage />} />
+            <Route path="/stock" element={<StockPage />} />
           </Route>
         </Routes>
       </AuthProvider>

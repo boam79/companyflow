@@ -1,0 +1,99 @@
+import { describe, expect, it } from 'vitest'
+import {
+  applyStockCommand,
+  createStockState,
+  companyOnHand,
+  onHand,
+} from './engine'
+import {
+  isUniqueConstraintError,
+  statementsForCommand,
+  stateFromRows,
+} from './persist'
+
+const ITEM = 'item-paper'
+const MAIN = 'wh-main'
+const SUB = 'wh-sub'
+
+describe('재고 영속 묶음', () => {
+  it('이동은 출고·입고 두 줄을 한 묶음으로 만든다', () => {
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'post_direct_in',
+      operationId: 'op-in',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 8,
+    }).state
+    const moved = applyStockCommand(state, {
+      type: 'transfer_stock',
+      operationId: 'op-move',
+      itemId: ITEM,
+      fromWarehouseId: MAIN,
+      toWarehouseId: SUB,
+      qty: 2,
+    })
+    const statements = statementsForCommand(
+      {
+        type: 'transfer_stock',
+        operationId: 'op-move',
+        itemId: ITEM,
+        fromWarehouseId: MAIN,
+        toWarehouseId: SUB,
+        qty: 2,
+      },
+      state,
+      moved.state,
+      '2026-09-16T00:00:00.000Z',
+    )
+    expect(statements).toHaveLength(2)
+    expect(statements.every((stmt) => stmt.sql.includes('insert into stock_ledger'))).toBe(true)
+    expect(statements[0].params[5]).toBe(-2)
+    expect(statements[1].params[5]).toBe(2)
+    expect(companyOnHand(moved.state, ITEM)).toBe(8)
+  })
+
+  it('원장 행에서 현재고를 다시 계산한다', () => {
+    const state = stateFromRows(
+      [],
+      [
+        {
+          id: 'a',
+          operation_id: 'op-1',
+          txn_type: 'direct_in',
+          item_id: ITEM,
+          warehouse_id: MAIN,
+          qty_delta: 10,
+        },
+        {
+          id: 'b',
+          operation_id: 'op-2',
+          txn_type: 'issue',
+          item_id: ITEM,
+          warehouse_id: MAIN,
+          qty_delta: -3,
+          person_name: '김담당',
+        },
+        {
+          id: 'c',
+          operation_id: 'op-3',
+          txn_type: 'return',
+          item_id: ITEM,
+          warehouse_id: MAIN,
+          qty_delta: 1,
+          source_operation_id: 'op-2',
+        },
+      ],
+      ['op-1', 'op-2', 'op-3'],
+    )
+    expect(onHand(state, ITEM, MAIN)).toBe(8)
+    expect(state.processed.has('op-2')).toBe(true)
+  })
+
+  it('UNIQUE 오류만 중복으로 본다', () => {
+    expect(isUniqueConstraintError(new Error('UNIQUE constraint failed: processed_operations.operation_id'))).toBe(
+      true,
+    )
+    expect(isUniqueConstraintError(new Error('NOT NULL constraint failed'))).toBe(false)
+  })
+})

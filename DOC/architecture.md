@@ -29,12 +29,16 @@ Supabase에 직원 명부·발주·재고·계약 원본 등 평문 업무 데�
 
 ## 내부 명령 (예시)
 
-- `confirm_order`
+- `confirm_order` / `draft_order`
 - `post_receipt`
-- `post_stock_transaction`
-- `transfer_stock`
-- `convert_to_asset`
+- `post_direct_in`
+- `post_issue` (반출, 성명 또는 부서)
+- `post_outbound` (출고)
+- `post_return`
+- `transfer_stock` (출고·입고 한 트랜잭션)
+- `adjust_stock` (실사)
 - `reverse_transaction`
+- `convert_to_asset` (T7)
 
 실행 순서: 회사·사용자·모듈·설정 버전·revision 확인 → `operation_id` 중복 확인 → 검증 → 업무·원장·자산·감사·중복방지·outbox를 한 SQLite 트랜잭션으로 저장 → 커밋된 대기 작업에서 문서·알림.
 

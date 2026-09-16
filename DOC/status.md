@@ -2,12 +2,12 @@
 
 마지막 갱신: 2026-09-16  
 현재 역할: Executor  
-구현: T1~T4 완료 + T5 기준정보 화면  
+구현: T1~T5 완료 + T6 구매·재고 원장 화면  
 원격: https://github.com/boam79/companyflow.git
 
 ## 지금 하는 일
 
-지정 Chrome에서 `/master` 로 본사 DB를 열어 부서·직원·품목을 추가하는지 확인한다.
+지정 Chrome에서 https://companyflow-opal.vercel.app/stock 로 본사 원본을 열어 복사용지 시나리오를 확인한다.
 
 ## 보드
 
@@ -21,7 +21,8 @@
 - [x] 최초 운영 관리자 `app_metadata.platform_operator` 지정 (`pjm7908@hanmail.net`)
 - [x] HTTPS에서 운영자 로그인·회사 생성(`본사` / HQ01)
 - [x] T5 기준정보 화면 (부서·직원·품목·거래처·창고·필드, operation_id)
-- [ ] 사용자: `/master` 에서 본사 원본 데이터 확인
+- [x] 사용자: `/master` 에서 본사 `총무` 확인
+- [ ] T6 구매·재고 화면 (`/stock`, 복사용지 현재고 8)
 
 배포 URL: https://companyflow-opal.vercel.app  
 Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, ap-northeast-2)
@@ -40,4 +41,5 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 
 ## 최근 변경
 
+- 2026-09-16: T6 구매·재고 공통 명령. 확정 원장만 현재고. `/stock` 화면. SAH Pool 트랜잭션 묶음.
 - 2026-09-16: 지정 PC 사용 가능 확인 후 T5 기준정보 추가·장치 확정 RPC.

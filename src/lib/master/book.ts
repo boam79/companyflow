@@ -83,6 +83,14 @@ export function seedDefaultMaster(book: CompanyMasterBook): void {
     id: 'wh-main',
     name: '본사창고',
   })
+  book.upsertWarehouse(`${book.companyId}:seed:wh-sub`, {
+    id: 'wh-sub',
+    name: '부속창고',
+  })
+  book.upsertItem(`${book.companyId}:seed:item-paper`, {
+    id: 'item-paper',
+    name: '복사용지',
+  })
   book.defineField(`${book.companyId}:seed:field-emp-no`, {
     entity: 'employee',
     key: 'employee_no',

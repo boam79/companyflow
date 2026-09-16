@@ -46,7 +46,7 @@ export function HomePage() {
         <h1 className="mt-1 text-3xl font-semibold">홈</h1>
         <p className="mt-3 max-w-2xl text-muted">
           결재 대기, 수령 대기, 재고 부족, 계약 만료는 단계 3 이후 연결됩니다. 지금은 지정 PC
-          원본에서 기준정보를 등록합니다.
+          원본에서 기준정보와 복사용지 재고 거래를 등록합니다.
         </p>
       </section>
 
@@ -99,6 +99,11 @@ export function HomePage() {
           <li>
             <Link className="text-accent underline" to="/master">
               기준정보: 부서·직원·품목·거래처·창고
+            </Link>
+          </li>
+          <li>
+            <Link className="text-accent underline" to="/stock">
+              구매·재고: 발주·수령·반출·이동
             </Link>
           </li>
         </ul>

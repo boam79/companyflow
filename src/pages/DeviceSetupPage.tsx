@@ -123,6 +123,13 @@ export function DeviceSetupPage() {
             now,
           ])
         }
+        for (const item of book.items.values()) {
+          await sqlite.exec('insert or ignore into items(id, name, created_at) values(?, ?, ?)', [
+            item.id,
+            item.name,
+            now,
+          ])
+        }
         for (const field of book.fields.values()) {
           await sqlite.exec(
             'insert or replace into custom_field_defs(entity, key, label) values(?, ?, ?)',
