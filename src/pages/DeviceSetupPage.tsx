@@ -131,6 +131,18 @@ export function DeviceSetupPage() {
         }
         const replay = sqlite.operations.run(`setup:${companyId}`, () => 'ok')
         push(`기본 설정 복사 (${replay.status})`)
+        if (client) {
+          const fingerprint = await localDeviceFingerprint()
+          const { error } = await client.rpc('confirm_company_device', {
+            p_company_id: companyId,
+            p_device_fingerprint: fingerprint,
+          })
+          if (error) {
+            push(`원본 장치 확정은 보류했습니다: ${error.message}`)
+          } else {
+            push('중앙에 원본 장치를 확정했습니다')
+          }
+        }
         next = reduceSetup(next, { type: 'persist_ok' })
         setState(next)
         push(canMarkUsable(next) ? '사용 가능' : '검증 부족')

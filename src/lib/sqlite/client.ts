@@ -15,6 +15,22 @@ export class CompanySqlite {
   persistOk = false
   vfsName = 'none'
 
+  async runOnce<T>(operationId: string, work: () => Promise<T>): Promise<{ status: 'applied' | 'duplicate'; value: T }> {
+    const existing = await this.query<{ result_json: string }>(
+      'select result_json from processed_operations where operation_id = ?',
+      [operationId],
+    )
+    if (existing[0]) {
+      return { status: 'duplicate', value: JSON.parse(existing[0].result_json) as T }
+    }
+    const value = await work()
+    await this.exec(
+      'insert into processed_operations(operation_id, result_json, created_at) values(?, ?, ?)',
+      [operationId, JSON.stringify(value), new Date().toISOString()],
+    )
+    return { status: 'applied', value }
+  }
+
   async open(companyId: string): Promise<void> {
     this.close()
     this.worker = new SqliteWorker()

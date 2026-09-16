@@ -45,8 +45,8 @@ export function HomePage() {
         <p className="text-sm text-muted">지정 PC 로컬 원본 · 한글 업무 화면</p>
         <h1 className="mt-1 text-3xl font-semibold">홈</h1>
         <p className="mt-3 max-w-2xl text-muted">
-          결재 대기, 수령 대기, 재고 부족, 계약 만료는 단계 3 이후 연결됩니다. 지금은 회사
-          생성과 지정 PC 초기화 기반만 사용합니다.
+          결재 대기, 수령 대기, 재고 부족, 계약 만료는 단계 3 이후 연결됩니다. 지금은 지정 PC
+          원본에서 기준정보를 등록합니다.
         </p>
       </section>
 
@@ -94,6 +94,11 @@ export function HomePage() {
           <li>
             <Link className="text-accent underline" to="/setup">
               회사 관리자: 이 PC를 업무 원본 장치로 설정
+            </Link>
+          </li>
+          <li>
+            <Link className="text-accent underline" to="/master">
+              기준정보: 부서·직원·품목·거래처·창고
             </Link>
           </li>
         </ul>
