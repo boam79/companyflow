@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
-import { executeAssignAsset, loadAssets, type AssetRecord } from '../lib/asset/book'
+import { executeAssignAsset, executeReturnAsset, loadAssets, type AssetRecord } from '../lib/asset/book'
+import { loadEmployees, type EmployeeRecord } from '../lib/people/employment'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
@@ -15,7 +16,7 @@ export function AssetsPage() {
   const [companyId, setCompanyId] = useState('')
   const [items, setItems] = useState<NamedRow[]>([])
   const [warehouses, setWarehouses] = useState<NamedRow[]>([])
-  const [employees, setEmployees] = useState<NamedRow[]>([])
+  const [employees, setEmployees] = useState<EmployeeRecord[]>([])
   const [assets, setAssets] = useState<AssetRecord[]>([])
   const [assignEmployeeId, setAssignEmployeeId] = useState('')
   const [notice, setNotice] = useState('')
@@ -57,14 +58,18 @@ export function AssetsPage() {
       const [itemRows, warehouseRows, employeeRows, assetRows] = await Promise.all([
         sqlite.query<NamedRow>('select id, name from items order by name'),
         sqlite.query<NamedRow>('select id, name from warehouses order by name'),
-        sqlite.query<NamedRow>('select id, name from employees order by name'),
+        loadEmployees(sqlite),
         loadAssets(sqlite),
       ])
       setItems(itemRows)
       setWarehouses(warehouseRows)
       setEmployees(employeeRows)
       setAssets(assetRows)
-      setAssignEmployeeId((current) => current || employeeRows[0]?.id || '')
+      setAssignEmployeeId((current) => {
+        const active = employeeRows.filter((row) => !row.leftAt)
+        if (current && active.some((row) => row.id === current)) return current
+        return active[0]?.id || ''
+      })
     } catch (error) {
       setReady(false)
       setMessage(error instanceof Error ? error.message : String(error))
@@ -91,6 +96,22 @@ export function AssetsPage() {
           ? '같은 배정은 한 번만 반영됩니다.'
           : `배정했습니다. ${employees.find((row) => row.id === assignEmployeeId)?.name ?? assignEmployeeId}`,
       )
+      setAssets(await loadAssets(sqlite))
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  async function returnAsset(assetId: string) {
+    if (!ready) return
+    setMessage('')
+    setNotice('')
+    try {
+      const result = await executeReturnAsset(sqlite, {
+        operationId: crypto.randomUUID(),
+        assetId,
+      })
+      setNotice(result.status === 'duplicate' ? '같은 회수는 한 번만 반영됩니다.' : '보관으로 회수했습니다.')
       setAssets(await loadAssets(sqlite))
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
@@ -137,6 +158,9 @@ export function AssetsPage() {
         <Link className="rounded border border-line px-3 py-2 text-sm" to="/stock">
           구매·재고에서 자산화
         </Link>
+        <Link className="rounded border border-line px-3 py-2 text-sm" to="/people">
+          직원·입퇴사
+        </Link>
       </div>
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
@@ -154,11 +178,13 @@ export function AssetsPage() {
               onChange={(e) => setAssignEmployeeId(e.target.value)}
             >
               <option value="">선택</option>
-              {employees.map((employee) => (
-                <option key={employee.id} value={employee.id}>
-                  {employee.name}
-                </option>
-              ))}
+              {employees
+                .filter((employee) => !employee.leftAt)
+                .map((employee) => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.name}
+                  </option>
+                ))}
             </select>
           </label>
         </div>
@@ -187,8 +213,18 @@ export function AssetsPage() {
                   <td className="py-2 pr-3">{asset.status === 'in_storage' ? '보관' : '배정'}</td>
                   <td className="py-2">
                     {asset.status === 'assigned' ? (
-                      employees.find((employee) => employee.id === asset.employeeId)?.name ??
-                      asset.employeeId
+                      <span className="flex flex-wrap items-center gap-2">
+                        {employees.find((employee) => employee.id === asset.employeeId)?.name ??
+                          asset.employeeId}
+                        <button
+                          type="button"
+                          disabled={!ready}
+                          className="rounded border border-line px-3 py-1 text-xs font-semibold disabled:opacity-50"
+                          onClick={() => void returnAsset(asset.id)}
+                        >
+                          회수
+                        </button>
+                      </span>
                     ) : (
                       <button
                         type="button"

@@ -7,6 +7,8 @@ import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
 import { MasterDataPage } from './pages/MasterDataPage'
 import { OperatorCompaniesPage } from './pages/OperatorCompaniesPage'
+import { PeoplePage } from './pages/PeoplePage'
+import { ReportsPage } from './pages/ReportsPage'
 import { StockPage } from './pages/StockPage'
 
 export default function App() {
@@ -22,6 +24,8 @@ export default function App() {
             <Route path="/master" element={<MasterDataPage />} />
             <Route path="/stock" element={<StockPage />} />
             <Route path="/assets" element={<AssetsPage />} />
+            <Route path="/people" element={<PeoplePage />} />
+            <Route path="/reports" element={<ReportsPage />} />
           </Route>
         </Routes>
       </AuthProvider>

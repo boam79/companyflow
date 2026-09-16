@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { applyStockCommand, companyOnHand, createStockState, onHand } from '../stock/engine'
-import { applyAssignAsset, assetIdsForConvert, assetsFromConvert } from './book'
+import { applyAssignAsset, applyReturnAsset, assetIdsForConvert, assetsFromConvert } from './book'
 
 const ITEM = 'item-paper'
 const MAIN = 'wh-main'
@@ -38,5 +38,25 @@ describe('재고 자산화', () => {
     expect(() => applyAssignAsset(assigned, { assetId: 'op-asset:1', employeeId: 'emp-2' })).toThrow(
       /이미 배정/,
     )
+  })
+
+  it('배정 자산을 회수하면 다시 보관이 된다', () => {
+    const assets = applyAssignAsset(assetsFromConvert('op-asset', ITEM, MAIN, 1, 't'), {
+      assetId: 'op-asset:1',
+      employeeId: 'emp-1',
+    })
+    const returned = applyReturnAsset(assets, { assetId: 'op-asset:1' })
+    expect(returned[0]).toMatchObject({ status: 'in_storage', employeeId: undefined })
+  })
+
+  it('퇴사한 직원에게는 배정할 수 없다', () => {
+    const assets = assetsFromConvert('op-asset', ITEM, MAIN, 1, 't')
+    expect(() =>
+      applyAssignAsset(
+        assets,
+        { assetId: 'op-asset:1', employeeId: 'emp-1' },
+        { leftAt: '2026-09-17' },
+      ),
+    ).toThrow(/퇴사/)
   })
 })

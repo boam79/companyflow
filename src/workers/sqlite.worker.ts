@@ -1,6 +1,6 @@
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm'
 import { companyDbFileName } from '../lib/companyPaths'
-import { LOCAL_MIGRATIONS } from '../lib/sqlite/schema'
+import { LOCAL_MIGRATIONS, SCHEMA_PATCHES } from '../lib/sqlite/schema'
 
 type Incoming =
   | { id: number; type: 'open'; companyId: string }
@@ -118,6 +118,13 @@ async function openDb(companyId: string) {
 
   for (const sql of LOCAL_MIGRATIONS) {
     db.exec({ sql })
+  }
+  for (const sql of SCHEMA_PATCHES) {
+    try {
+      db.exec({ sql })
+    } catch (error) {
+      if (!/duplicate column/i.test(errorMessage(error))) throw error
+    }
   }
   db.exec({
     sql: 'insert or replace into meta(key, value) values(?, ?)',

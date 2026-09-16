@@ -83,7 +83,7 @@ export function suggestNextStockForm(state: StockState, orderId: string): NextSt
         action: 'convert_to_asset',
         qty: '1',
         warehouseId,
-        hint: '재고 1을 자산으로 전환하면 현재고와 자산이 겹치지 않습니다.',
+        hint: '자산화 1을 확정하면 현재고가 줄고 자산 목록에 1건이 생깁니다. 그다음 자산에서 배정하세요.',
       }
     }
   }

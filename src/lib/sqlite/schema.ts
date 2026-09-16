@@ -35,3 +35,10 @@ export const LOCAL_MIGRATIONS = [
   ...STOCK_TABLE_SQL,
   ...ASSET_TABLE_SQL,
 ]
+
+export const SCHEMA_PATCHES = [
+  'alter table employees add column title text',
+  'alter table employees add column hired_at text',
+  'alter table employees add column left_at text',
+  'alter table employees add column badge_name text',
+]

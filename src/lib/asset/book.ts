@@ -67,15 +67,29 @@ export async function loadAssets(
 export function applyAssignAsset(
   assets: AssetRecord[],
   command: { assetId: string; employeeId: string },
+  employee?: { leftAt?: string },
 ): AssetRecord[] {
   const asset = assets.find((row) => row.id === command.assetId)
   if (!asset) throw new Error('자산을 찾을 수 없습니다.')
   if (asset.status === 'assigned') throw new Error('이미 배정된 자산입니다.')
   if (!command.employeeId.trim()) throw new Error('배정할 직원이 필요합니다.')
+  if (employee?.leftAt) throw new Error('퇴사한 직원에게는 배정할 수 없습니다.')
   return assets.map((row) =>
     row.id === command.assetId
       ? { ...row, status: 'assigned' as const, employeeId: command.employeeId }
       : row,
+  )
+}
+
+export function applyReturnAsset(
+  assets: AssetRecord[],
+  command: { assetId: string },
+): AssetRecord[] {
+  const asset = assets.find((row) => row.id === command.assetId)
+  if (!asset) throw new Error('자산을 찾을 수 없습니다.')
+  if (asset.status !== 'assigned') throw new Error('배정된 자산만 회수할 수 있습니다.')
+  return assets.map((row) =>
+    row.id === command.assetId ? { ...row, status: 'in_storage' as const, employeeId: undefined } : row,
   )
 }
 
@@ -93,7 +107,12 @@ export async function executeAssignAsset(
   )
   if (existing.length) return { status: 'duplicate' }
   const assets = await loadAssets(db)
-  applyAssignAsset(assets, command)
+  const employees = await db.query<{ left_at?: string | null }>(
+    'select left_at from employees where id = ?',
+    [command.employeeId],
+  )
+  if (!employees.length) throw new Error('직원을 찾을 수 없습니다.')
+  applyAssignAsset(assets, command, { leftAt: employees[0].left_at ?? undefined })
   try {
     await db.batch([
       {
@@ -110,6 +129,49 @@ export async function executeAssignAsset(
           `${command.operationId}:audit`,
           'assign_asset',
           JSON.stringify({ assetId: command.assetId, employeeId: command.employeeId }),
+          createdAt,
+        ],
+      },
+    ])
+    return { status: 'applied' }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (/UNIQUE constraint failed/i.test(message)) return { status: 'duplicate' }
+    throw error
+  }
+}
+
+export async function executeReturnAsset(
+  db: {
+    query: <T>(sql: string, params?: unknown[]) => Promise<T[]>
+    batch: (statements: { sql: string; params?: unknown[] }[]) => Promise<void>
+  },
+  command: { operationId: string; assetId: string },
+  createdAt = new Date().toISOString(),
+): Promise<{ status: 'applied' | 'duplicate' }> {
+  const existing = await db.query<{ operation_id: string }>(
+    'select operation_id from processed_operations where operation_id = ?',
+    [command.operationId],
+  )
+  if (existing.length) return { status: 'duplicate' }
+  const assets = await loadAssets(db)
+  applyReturnAsset(assets, command)
+  try {
+    await db.batch([
+      {
+        sql: 'insert into processed_operations(operation_id, result_json, created_at) values(?, ?, ?)',
+        params: [command.operationId, JSON.stringify({ type: 'return_asset' }), createdAt],
+      },
+      {
+        sql: 'update assets set status = ?, employee_id = ? where id = ?',
+        params: ['in_storage', null, command.assetId],
+      },
+      {
+        sql: 'insert into audit_events(id, action, detail_json, created_at) values(?, ?, ?, ?)',
+        params: [
+          `${command.operationId}:audit`,
+          'return_asset',
+          JSON.stringify({ assetId: command.assetId }),
           createdAt,
         ],
       },

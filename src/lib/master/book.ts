@@ -108,6 +108,18 @@ export const MASTER_TABLE_SQL = [
     id text primary key,
     name text not null,
     department_id text,
+    title text,
+    hired_at text,
+    left_at text,
+    badge_name text,
+    created_at text not null
+  );`,
+  `create table if not exists employment_events (
+    id text primary key,
+    employee_id text not null,
+    kind text not null,
+    occurred_at text not null,
+    detail_json text not null,
     created_at text not null
   );`,
   `create table if not exists items (

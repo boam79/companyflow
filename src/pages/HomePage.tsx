@@ -108,7 +108,17 @@ export function HomePage() {
           </li>
           <li>
             <Link className="text-accent underline" to="/assets">
-              자산: 재고 자산화 목록
+              자산: 자산화·배정·회수
+            </Link>
+          </li>
+          <li>
+            <Link className="text-accent underline" to="/people">
+              직원: 입사·퇴사·명찰
+            </Link>
+          </li>
+          <li>
+            <Link className="text-accent underline" to="/reports">
+              통계: 일반 비품·Excel
             </Link>
           </li>
         </ul>

@@ -464,7 +464,14 @@ export function StockPage() {
             >
               {ACTIONS.find((item) => item.id === nextForm.action)?.label} {nextForm.qty}
             </button>
-            {nextForm.action === 'convert_to_asset' ? null : (
+            {nextForm.action === 'convert_to_asset' ? (
+              <Link
+                className="rounded border border-accent px-4 py-2 text-sm font-semibold text-accent"
+                to="/assets"
+              >
+                자산 목록
+              </Link>
+            ) : (
               <button
                 type="button"
                 disabled={!ready || saving}
