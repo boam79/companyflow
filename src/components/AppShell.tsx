@@ -22,6 +22,7 @@ export function AppShell() {
                 className={({ isActive }) =>
                   isActive ? 'font-semibold text-accent' : 'text-muted'
                 }
+                end={menu.to === '/'}
               >
                 {menu.label}
               </NavLink>

@@ -32,7 +32,7 @@ function fail(id: number, message: string) {
 async function openDb(companyId: string) {
   const sqlite3 = await sqlite3InitModule()
 
-  const fileName = `/companyflow/${companyDbFileName(companyId)}`
+  const fileName = `/${companyDbFileName(companyId)}`
   if ('opfs' in sqlite3 && sqlite3.oo1.OpfsDb) {
     db = new sqlite3.oo1.OpfsDb(fileName) as DbHandle
     persistOk = true

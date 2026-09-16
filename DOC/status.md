@@ -19,8 +19,10 @@
 - [x] T3 SQLite WASM Worker + OPFS + 탭 잠금 골격
 - [x] T4 회사 생성 요청 UI + 지정 PC 초기화 상태기계
 - [ ] 전용 Supabase 프로젝트 (무료 활성 프로젝트 한도 2개로 생성 실패)
-- [ ] HTTPS 배포 URL에서 E2E
+- [ ] HTTPS 배포 URL에서 OPFS 실사용 재시험 (첫 배포에서 SQLITE_CANTOPEN, 경로 수정 후 재배포)
 - [ ] 사용자 수동 확인
+
+배포 URL: https://companyflow-opal.vercel.app
 
 ## 열린 질문 / 차단
 
