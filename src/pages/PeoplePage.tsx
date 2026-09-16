@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
-import { loadAssets, type AssetRecord } from '../lib/asset/book'
+import { executeAssignAsset, executeReturnAsset, loadAssets, type AssetRecord } from '../lib/asset/book'
+import { suggestNextAssign, suggestNextReturn } from '../lib/asset/nextAssign'
 import { writeDefaultMaster } from '../lib/master/book'
 import {
   badgeLines,
@@ -158,6 +159,42 @@ export function PeoplePage() {
     }
   }
 
+  async function assignNext(assetId: string, employeeId: string) {
+    setMessage('')
+    setNotice('')
+    try {
+      const result = await executeAssignAsset(sqlite, {
+        operationId: crypto.randomUUID(),
+        assetId,
+        employeeId,
+      })
+      const employeeName = employees.find((row) => row.id === employeeId)?.name ?? employeeId
+      setNotice(
+        result.status === 'duplicate'
+          ? '같은 배정은 한 번만 반영됩니다.'
+          : `배정했습니다. ${employeeName}. 퇴사하려면 먼저 회수하세요.`,
+      )
+      await refreshPeople()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  async function returnNext(assetId: string) {
+    setMessage('')
+    setNotice('')
+    try {
+      const result = await executeReturnAsset(sqlite, {
+        operationId: crypto.randomUUID(),
+        assetId,
+      })
+      setNotice(result.status === 'duplicate' ? '같은 회수는 한 번만 반영됩니다.' : '보관으로 회수했습니다.')
+      await refreshPeople()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
   async function leave(employeeId: string) {
     setMessage('')
     setNotice('')
@@ -220,18 +257,47 @@ export function PeoplePage() {
       </div>
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
-      {assets.some((asset) => asset.status === 'in_storage') ? (
-        <p className="text-sm text-accent">
-          보관 자산 {assets.filter((asset) => asset.status === 'in_storage').length}건이 있습니다.{' '}
-          {employees.some((row) => !row.leftAt) ? (
-            <Link className="underline" to="/assets">
-              {employees.find((row) => !row.leftAt)?.name ?? '직원'}에게 배정
-            </Link>
-          ) : (
-            <span>재직 직원이 없으면 재입사 뒤에 배정합니다.</span>
-          )}
-        </p>
-      ) : null}
+      {ready
+        ? (() => {
+            const next = suggestNextAssign(assets, employees)
+            const stored = assets.filter((asset) => asset.status === 'in_storage').length
+            if (next) {
+              return (
+                <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
+                  <p className="text-sm text-accent">
+                    보관 자산 {stored}건을 {next.employeeName}에게 배정하면 입퇴사와 연결됩니다.
+                  </p>
+                  <button
+                    type="button"
+                    className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white"
+                    onClick={() => void assignNext(next.assetId, next.employeeId)}
+                  >
+                    {next.employeeName}에게 배정 1
+                  </button>
+                </section>
+              )
+            }
+            const nextReturn = suggestNextReturn(assets)
+            if (nextReturn) {
+              const held = assets.filter((asset) => asset.status === 'assigned').length
+              return (
+                <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
+                  <p className="text-sm text-accent">
+                    미회수 자산 {held}건이 있으면 퇴사할 수 없습니다. 회수하면 보관으로 돌아갑니다.
+                  </p>
+                  <button
+                    type="button"
+                    className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white"
+                    onClick={() => void returnNext(nextReturn.assetId)}
+                  >
+                    회수 1
+                  </button>
+                </section>
+              )
+            }
+            return null
+          })()
+        : null}
       <section className="rounded-lg border border-line bg-card p-5">
         {employees.length ? (
           <table className="w-full text-left text-sm">

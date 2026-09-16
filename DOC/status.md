@@ -1,13 +1,13 @@
 # 진행 상태
 
-마지막 갱신: 2026-09-16  
+마지막 갱신: 2026-09-17  
 현재 역할: Executor  
-구현: T1~T6 완료 + T7 재고 자산화 시작  
+구현: T1~T6 완료 + T7 자산화·입퇴사·통계 진행 중 (배정 미확인)  
 원격: https://github.com/boam79/companyflow.git
 
 ## 지금 하는 일
 
-지정 Chrome에서 https://companyflow-opal.vercel.app/stock 자산화 후 /assets 목록을 확인한다.
+지정 Chrome에서 https://companyflow-opal.vercel.app/people **김담당에게 배정 1** 후 보관 2·배정 1, 통계 배정 1, 퇴사 미회수 차단을 확인한다.
 
 ## 보드
 
@@ -23,7 +23,7 @@
 - [x] T5 기준정보 화면 (부서·직원·품목·거래처·창고·필드, operation_id)
 - [x] 사용자: `/master` 에서 본사 `총무` 확인
 - [x] T6 구매·재고 수불부 (반출 4 → 회사 합계 7, 본사 5, 부속 2)
-- [ ] T7 재고 자산화 (`/assets`)
+- [ ] T7 자산 배정·회수·퇴사 미회수 (`/people` `/assets` `/reports`)
 
 배포 URL: https://companyflow-opal.vercel.app  
 Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, ap-northeast-2)
@@ -42,7 +42,7 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 
 ## 최근 변경
 
-- 2026-09-17: T6 수불부 확인. 이동 회사잔량 표시 수정. 재고 자산화·`/assets` 시작.
+- 2026-09-17: 재입사·서울 일자 통계 확인. 입퇴사에 배정 1 막대.
 - 2026-09-16: `/stock` 입출고를 수불부 한 표로 이어 보이게 바꿈. 명령 폼은 표 아래.
 - 2026-09-16: SAH Pool Access Handle 충돌 수정. 앱 전역 SQLite 1개. 지정 Chrome은 탭 하나만 남기고 새로고침.
 - 2026-09-16: T6 구매·재고 공통 명령. 확정 원장만 현재고. `/stock` 화면. SAH Pool 트랜잭션 묶음.

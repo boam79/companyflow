@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { executeAssignAsset, executeReturnAsset, assetNumber, loadAssets, type AssetRecord } from '../lib/asset/book'
-import { suggestNextAssign } from '../lib/asset/nextAssign'
+import { suggestNextAssign, suggestNextReturn } from '../lib/asset/nextAssign'
 import { writeDefaultMaster } from '../lib/master/book'
 import { loadEmployees, type EmployeeRecord } from '../lib/people/employment'
 import { getCompanySqlite } from '../lib/sqlite/instance'
@@ -175,6 +175,7 @@ export function AssetsPage() {
         if (!ready) return null
         const next = suggestNextAssign(assets, employees)
         const stored = assets.filter((asset) => asset.status === 'in_storage').length
+        const nextReturn = suggestNextReturn(assets)
         if (next) {
           return (
             <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
@@ -187,6 +188,23 @@ export function AssetsPage() {
                 onClick={() => void assignAsset(next.assetId, next.employeeId)}
               >
                 {next.employeeName}에게 배정 1
+              </button>
+            </section>
+          )
+        }
+        if (nextReturn) {
+          const held = assets.filter((asset) => asset.status === 'assigned').length
+          return (
+            <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
+              <p className="text-sm text-accent">
+                배정 {held}건입니다. 회수하면 보관으로 돌아가고 퇴사를 이어갈 수 있습니다.
+              </p>
+              <button
+                type="button"
+                className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white"
+                onClick={() => void returnAsset(nextReturn.assetId)}
+              >
+                회수 1
               </button>
             </section>
           )

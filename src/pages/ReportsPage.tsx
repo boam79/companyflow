@@ -84,7 +84,7 @@ export function ReportsPage() {
   function downloadCsv() {
     if (!summary) return
     const itemName = items.find((item) => item.id === itemId)?.name ?? itemId
-    const blob = new Blob([csvFromReport(itemName, summary, range, details)], {
+    const blob = new Blob(['\uFEFF' + csvFromReport(itemName, summary, range, details)], {
       type: 'text/csv;charset=utf-8',
     })
     const url = URL.createObjectURL(blob)

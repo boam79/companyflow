@@ -16,3 +16,8 @@ export function suggestNextAssign(
   if (!employee || !asset) return null
   return { assetId: asset.id, employeeId: employee.id, employeeName: employee.name }
 }
+
+export function suggestNextReturn(assets: AssetRecord[]): { assetId: string } | null {
+  const asset = assets.find((row) => row.status === 'assigned')
+  return asset ? { assetId: asset.id } : null
+}
