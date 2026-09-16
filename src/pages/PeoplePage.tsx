@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { executeAssignAsset, executeReturnAsset, loadAssets, type AssetRecord } from '../lib/asset/book'
-import { suggestNextAssign, suggestNextReturn } from '../lib/asset/nextAssign'
+import { suggestNextAssetAction } from '../lib/asset/nextAssign'
 import { writeDefaultMaster } from '../lib/master/book'
 import {
   badgeLines,
@@ -259,13 +259,12 @@ export function PeoplePage() {
       {message ? <p className="text-sm text-danger">{message}</p> : null}
       {ready
         ? (() => {
-            const next = suggestNextAssign(assets, employees)
-            const stored = assets.filter((asset) => asset.status === 'in_storage').length
-            if (next) {
+            const next = suggestNextAssetAction(assets, employees)
+            if (next?.kind === 'assign') {
               return (
                 <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
                   <p className="text-sm text-accent">
-                    보관 자산 {stored}건을 {next.employeeName}에게 배정하면 입퇴사와 연결됩니다.
+                    보관 자산 {next.stored}건을 {next.employeeName}에게 배정하면 입퇴사와 연결됩니다.
                   </p>
                   <button
                     type="button"
@@ -277,21 +276,30 @@ export function PeoplePage() {
                 </section>
               )
             }
-            const nextReturn = suggestNextReturn(assets)
-            if (nextReturn) {
-              const held = assets.filter((asset) => asset.status === 'assigned').length
+            if (next?.kind === 'return') {
               return (
                 <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
                   <p className="text-sm text-accent">
-                    미회수 자산 {held}건이 있으면 퇴사할 수 없습니다. 회수하면 보관으로 돌아갑니다.
+                    미회수 자산 {next.held}건이 있으면 퇴사할 수 없습니다. 회수하면 보관으로 돌아갑니다.
                   </p>
-                  <button
-                    type="button"
-                    className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white"
-                    onClick={() => void returnNext(nextReturn.assetId)}
-                  >
-                    회수 1
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white"
+                      onClick={() => void returnNext(next.assetId)}
+                    >
+                      회수 1
+                    </button>
+                    {next.employeeId ? (
+                      <button
+                        type="button"
+                        className="rounded border border-accent px-4 py-2 text-sm font-semibold text-accent"
+                        onClick={() => void leave(next.employeeId)}
+                      >
+                        퇴사
+                      </button>
+                    ) : null}
+                  </div>
                 </section>
               )
             }

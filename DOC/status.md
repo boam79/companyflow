@@ -7,7 +7,7 @@
 
 ## 지금 하는 일
 
-지정 Chrome에서 https://companyflow-opal.vercel.app/people **김담당에게 배정 1** 후 보관 2·배정 1, 통계 배정 1, 퇴사 미회수 차단을 확인한다.
+지정 Chrome에서 퇴사 → 미회수 3건 차단, https://companyflow-opal.vercel.app/reports 배정 3을 확인한다.
 
 ## 보드
 
