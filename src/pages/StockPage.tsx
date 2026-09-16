@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { executeStockCommand, ensureDefaultStockMaster, loadStockState } from '../lib/stock/persist'
-import { companyOnHand, onHand, type StockCommand, type StockState } from '../lib/stock/engine'
+import { companyOnHand, onHand, orderRemaining, type StockCommand, type StockState } from '../lib/stock/engine'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
 type NamedRow = { id: string; name: string }
@@ -49,6 +49,7 @@ export function StockPage() {
   const [ready, setReady] = useState(false)
   const [openFailed, setOpenFailed] = useState(false)
   const opening = useRef(false)
+  const stepped = useRef(false)
 
   useEffect(() => {
     if (!user) return
@@ -72,6 +73,7 @@ export function StockPage() {
 
   async function openCompany(nextId: string, force = false) {
     opening.current = true
+    stepped.current = false
     setCompanyId(nextId)
     setMessage('')
     setNotice('')
@@ -113,6 +115,41 @@ export function StockPage() {
     }
     if (!departmentId && deptRows[0]) setDepartmentId(deptRows[0].id)
   }
+
+  function advanceScenario(applied: ActionType, next: StockState, opId: string) {
+    const rem = orderRemaining(next, orderId)
+    if (applied === 'confirm_order' || (applied === 'post_receipt' && rem > 0)) {
+      setAction('post_receipt')
+      setQty(applied === 'confirm_order' && rem >= 6 ? '6' : String(rem))
+      return
+    }
+    if (applied === 'post_receipt') {
+      setAction('post_issue')
+      setQty('3')
+      return
+    }
+    if (applied === 'post_issue') {
+      setAction('post_return')
+      setQty('1')
+      setSourceOperationId(opId)
+      return
+    }
+    if (applied === 'post_return') {
+      setAction('transfer_stock')
+      setQty('2')
+    }
+  }
+
+  useEffect(() => {
+    if (!state || stepped.current) return
+    const rem = orderRemaining(state, orderId)
+    const order = state.orders.get(orderId)
+    if (order?.status === 'confirmed' && rem > 0) {
+      setAction('post_receipt')
+      setQty(rem >= 10 ? '6' : String(rem))
+    }
+    stepped.current = true
+  }, [state, orderId])
 
   function buildCommand(nextOperationId: string): StockCommand {
     const quantity = Number(qty)
@@ -188,6 +225,9 @@ export function StockPage() {
           ? `같은 operation_id 는 한 번만 반영됩니다. (${nextOperationId})`
           : `저장했습니다. (${ACTIONS.find((item) => item.id === action)?.label} · ${nextOperationId})`,
       )
+      if (result.status === 'applied') {
+        advanceScenario(action, result.state, nextOperationId)
+      }
       await reload()
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
@@ -208,6 +248,7 @@ export function StockPage() {
   }
 
   const paperQty = state ? companyOnHand(state, itemId) : 0
+  const remaining = state ? orderRemaining(state, orderId) : 0
   const warehouseBalances =
     state && items.length && warehouses.length
       ? items.flatMap((item) =>
@@ -263,7 +304,14 @@ export function StockPage() {
         <h2 className="text-lg font-semibold">현재고</h2>
         <p className="mt-1 text-sm text-muted">
           선택 품목 회사 합계 <strong>{paperQty}</strong>
+          {state?.orders.get(orderId) ? ` · 발주 ${orderId} 잔량 ${remaining}` : ''}
         </p>
+        {state?.orders.get(orderId)?.status === 'confirmed' && remaining > 0 ? (
+          <p className="mt-2 text-sm text-ok">
+            발주는 현재고에 안 들어갔습니다. 명령을 수령으로 두고 {remaining >= 10 ? '6' : remaining}을
+            확정하세요.
+          </p>
+        ) : null}
         {warehouseBalances.length ? (
           <table className="mt-3 w-full text-left text-sm">
             <thead>
@@ -306,14 +354,17 @@ export function StockPage() {
           </select>
         </label>
         <label className="text-sm">
-          operation_id (비우면 새로 발급, 같게 넣으면 중복 확인)
+          operation_id (비워 두면 새로 발급)
           <input
             className="mt-1 w-full rounded border border-line px-3 py-2"
             value={operationId}
             onChange={(e) => setOperationId(e.target.value)}
-            placeholder={lastOperationId || '자동 발급'}
+            placeholder="새로 발급"
           />
         </label>
+        {lastOperationId ? (
+          <p className="text-xs text-muted">직전 거래: {lastOperationId}</p>
+        ) : null}
         {action === 'draft_order' || action === 'confirm_order' || action === 'post_receipt' ? (
           <label className="text-sm">
             발주 번호

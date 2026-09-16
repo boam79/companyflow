@@ -4,6 +4,7 @@ import {
   companyOnHand,
   createStockState,
   onHand,
+  orderRemaining,
 } from './engine'
 
 const ITEM = 'item-paper'
@@ -21,6 +22,7 @@ describe('복사용지 재고 원장', () => {
       qty: 10,
     }).state
     expect(companyOnHand(state, ITEM)).toBe(0)
+    expect(orderRemaining(state, 'ord-1')).toBe(10)
 
     state = applyStockCommand(state, {
       type: 'post_receipt',
@@ -30,6 +32,7 @@ describe('복사용지 재고 원장', () => {
       warehouseId: MAIN,
       qty: 6,
     }).state
+    expect(orderRemaining(state, 'ord-1')).toBe(4)
     state = applyStockCommand(state, {
       type: 'post_receipt',
       operationId: 'op-recv-4',

@@ -137,6 +137,12 @@ function receivedQty(state: StockState, orderId: string): number {
     .reduce((sum, line) => sum + line.qtyDelta, 0)
 }
 
+export function orderRemaining(state: StockState, orderId: string): number {
+  const order = state.orders.get(orderId)
+  if (!order || order.status !== 'confirmed') return 0
+  return Math.max(0, order.qty - receivedQty(state, orderId))
+}
+
 export function applyStockCommand(
   state: StockState,
   command: StockCommand,
