@@ -2,12 +2,12 @@
 
 마지막 갱신: 2026-09-16  
 현재 역할: Executor  
-구현: T1~T4 골격 + 전용 Supabase 연결  
+구현: T1~T4 + 운영자 계정 + T5 기준정보 골격  
 원격: https://github.com/boam79/companyflow.git
 
 ## 지금 하는 일
 
-로그인·`create_company` RPC를 배포 HTTPS에서 확인한다. 최초 운영 관리자는 app_metadata로 지정해야 한다.
+로그인·회사 생성은 배포 HTTPS에서 확인했다. 지정 Chrome에서 OPFS 초기 설정과 기준정보를 이어서 본다.
 
 ## 보드
 
@@ -18,19 +18,19 @@
 - [x] T2 전용 Supabase `companyflow` + RLS + `create_company`
 - [x] T3 SQLite WASM Worker + OPFS + 탭 잠금 골격
 - [x] T4 회사 생성 RPC UI + 지정 PC 초기화 + `claim_company_device`
-- [ ] 최초 운영 관리자 `app_metadata.platform_operator` 지정 (가입 이메일 필요)
-- [x] HTTPS 배포에 Supabase 환경 변수 연결 (홈이 ‘환경 변수 연결됨’)
-- [ ] HTTPS에서 실제 로그인·회사 생성·지정 PC OPFS 재시험
-- [ ] 사용자 수동 확인 T1~T4
+- [x] 최초 운영 관리자 `app_metadata.platform_operator` 지정 (`pjm7908@hanmail.net`)
+- [x] HTTPS에서 운영자 로그인·회사 생성(`본사` / HQ01)
+- [x] T5 기준정보 로컬 테이블·화면 골격
+- [ ] 지정 Chrome에서 OPFS 초기 설정·기준정보 실사용 확인
 
 배포 URL: https://companyflow-opal.vercel.app  
 Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, ap-northeast-2)
 
 ## 열린 질문 / 차단
 
-1. 운영 관리자 최초 부여는 `auth.users.raw_app_meta_data.platform_operator = true` 다. 회원가입한 이메일을 알려 주면 SQL로 지정한다.
+1. 지정 Chrome에서 https://companyflow-opal.vercel.app 로그인 후 `/setup` 으로 본사 PC를 원본 장치로 설정한다. 자동화 브라우저는 persist를 거절할 수 있다.
 2. Playwright는 `PLAYWRIGHT_BASE_URL`이 배포 HTTPS일 때만 실행된다.
-3. 자동화 브라우저에서는 OPFS persist가 거절될 수 있다. 지정 Chrome에서 다시 본다.
+3. 운영 권한은 `app_metadata.platform_operator`만 본다. 비밀번호는 저장소에 적지 않는다.
 
 ## MCP에서 확인한 것
 
@@ -41,4 +41,4 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 
 ## 최근 변경
 
-- 2026-09-16: 전용 companyflow 프로젝트 생성, 중앙 마이그레이션 적용, 로그인 UI·회사 생성 RPC·장치 예약 RPC 연결.
+- 2026-09-16: 운영자 `pjm7908@hanmail.net` 지정, 본사(HQ01) 생성, T5 기준정보 골격.

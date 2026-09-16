@@ -1,3 +1,5 @@
+import { MASTER_TABLE_SQL } from '../master/book'
+
 export const LOCAL_MIGRATIONS = [
   `create table if not exists meta (
     key text primary key,
@@ -27,4 +29,5 @@ export const LOCAL_MIGRATIONS = [
     key text primary key,
     value text not null
   );`,
+  ...MASTER_TABLE_SQL,
 ]

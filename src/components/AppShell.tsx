@@ -4,6 +4,7 @@ import { useAuth } from '../lib/AuthContext'
 const MENUS = [
   { to: '/', label: '홈' },
   { to: '/setup', label: '초기 설정' },
+  { to: '/master', label: '기준정보' },
   { to: '/ops/companies', label: '회사 관리' },
 ]
 

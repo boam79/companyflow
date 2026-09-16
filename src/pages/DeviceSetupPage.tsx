@@ -11,6 +11,7 @@ import {
   setupLabel,
   type SetupState,
 } from '../lib/setupMachine'
+import { CompanyMasterBook, seedDefaultMaster } from '../lib/master/book'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 import { acquireCompanyWriteLock } from '../lib/tabLock'
 
@@ -100,6 +101,29 @@ export function DeviceSetupPage() {
           'insert or replace into setup_state(key, value) values(?, ?), (?, ?)',
           ['phase', 'ready', 'copied_default_config', '1'],
         )
+        const book = new CompanyMasterBook(companyId)
+        seedDefaultMaster(book)
+        const now = new Date().toISOString()
+        for (const dept of book.departments.values()) {
+          await sqlite.exec('insert or ignore into departments(id, name, created_at) values(?, ?, ?)', [
+            dept.id,
+            dept.name,
+            now,
+          ])
+        }
+        for (const warehouse of book.warehouses.values()) {
+          await sqlite.exec('insert or ignore into warehouses(id, name, created_at) values(?, ?, ?)', [
+            warehouse.id,
+            warehouse.name,
+            now,
+          ])
+        }
+        for (const field of book.fields.values()) {
+          await sqlite.exec(
+            'insert or replace into custom_field_defs(entity, key, label) values(?, ?, ?)',
+            [field.entity, field.key, field.label],
+          )
+        }
         const replay = sqlite.operations.run(`setup:${companyId}`, () => 'ok')
         push(`기본 설정 복사 (${replay.status})`)
         next = reduceSetup(next, { type: 'persist_ok' })
