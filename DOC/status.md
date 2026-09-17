@@ -1,13 +1,13 @@
 # 진행 상태
 
-마지막 갱신: 2026-09-17  
+마지막 갱신: 2026-09-18  
 현재 역할: Executor  
 구현: T1~T6 완료. T7 입퇴사·회사 자산 사용자 확인. T8 계약 초안 진행 중.  
 원격: https://github.com/boam79/companyflow.git
 
 ## 지금 하는 일
 
-지정 Chrome에서 `/contracts` 직접 입력 초안 저장을 확인한다. OCR 자동추출은 꺼 둔다.
+지정 Chrome에서 `/contracts`에 PDF·PNG·JPEG 원본을 붙여 초안을 저장하고, 같은 파일을 다시 올리면 막히는지, 목록에서 원본 받기가 되는지 확인한다.
 
 ## 보드
 
@@ -43,7 +43,7 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 
 ## 최근 변경
 
-- 2026-09-17: T8 `/contracts` 직접 입력 초안. OCR 어댑터는 꺼 둠.
+- 2026-09-18: 계약 원본 파일 보존·8MB·PDF/PNG/JPEG·같은 해시 중복 차단.
 - 2026-09-17: 명찰·유니폼·노트북을 입퇴사 프로세스로 분리. `/assets`는 회사 재산만.
 - 2026-09-16: `/stock` 입출고를 수불부 한 표로 이어 보이게 바꿈. 명령 폼은 표 아래.
 - 2026-09-16: SAH Pool Access Handle 충돌 수정. 앱 전역 SQLite 1개. 지정 Chrome은 탭 하나만 남기고 새로고침.

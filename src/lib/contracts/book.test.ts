@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyDraftContract } from './book'
+import { applyDraftContract, assertContractFile, base64ToBytes, bytesToBase64 } from './book'
 import { DISABLED_OCR, assertOcrCannotConfirm } from './ocr'
 
 const BASE = {
@@ -21,16 +21,38 @@ describe('계약 초안', () => {
   })
 
   it('같은 원본 해시는 계약을 한 번만 만든다', () => {
-    const first = applyDraftContract([], { ...BASE, fileHash: 'abc' })
+    const first = applyDraftContract([], { ...BASE, fileHash: 'abc', fileName: 'lease.pdf' })
+    expect(first.fileName).toBe('lease.pdf')
     expect(() => applyDraftContract([first], { ...BASE, id: 'con-2', fileHash: 'abc' })).toThrow(
       /같은 원본 파일/,
     )
+  })
+
+  it('원본은 PDF·PNG·JPEG 8MB까지 받는다', () => {
+    expect(() => assertContractFile(9 * 1024 * 1024, 'application/pdf')).toThrow(/8MB/)
+    expect(() => assertContractFile(12, 'text/plain')).toThrow(/PDF/)
+    expect(assertContractFile(12, 'application/pdf')).toBe('application/pdf')
+    expect(assertContractFile(12, 'image/png', 'scan.PNG')).toBe('image/png')
   })
 
   it('종료일이 시작일보다 빠르면 막힌다', () => {
     expect(() => applyDraftContract([], { ...BASE, startAt: '2026-09-17', endAt: '2026-09-01' })).toThrow(
       /종료일/,
     )
+  })
+
+  it('원본 바이트가 있으면 초안에 원본 있음으로 남긴다', () => {
+    const bytes = new Uint8Array([1, 2, 3])
+    const draft = applyDraftContract([], {
+      ...BASE,
+      fileName: 'lease.pdf',
+      fileMime: 'application/pdf',
+      fileHash: 'abc',
+      fileBytes: bytes,
+    })
+    expect(draft.hasOriginal).toBe(true)
+    expect(draft.fileMime).toBe('application/pdf')
+    expect(base64ToBytes(bytesToBase64(bytes))).toEqual(bytes)
   })
 
   it('OCR이 꺼져 있으면 후보 없이 직접 입력한다', async () => {

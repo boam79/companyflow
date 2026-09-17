@@ -2,6 +2,15 @@ import { DISABLED_OCR, type OcrAdapter } from './ocr'
 
 export type ContractStatus = 'draft'
 
+export const MAX_CONTRACT_FILE_BYTES = 8 * 1024 * 1024
+
+const MIME_BY_EXT: Record<string, string> = {
+  pdf: 'application/pdf',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+}
+
 export type ContractDraft = {
   id: string
   title: string
@@ -15,6 +24,8 @@ export type ContractDraft = {
   ownerName?: string
   fileName?: string
   fileHash?: string
+  fileMime?: string
+  hasOriginal: boolean
   status: ContractStatus
   ocrStatus: 'off'
 }
@@ -32,6 +43,46 @@ export type DraftContractInput = {
   ownerName?: string
   fileName?: string
   fileHash?: string
+  fileMime?: string
+  fileBytes?: Uint8Array
+}
+
+export type ContractOriginal = {
+  id: string
+  fileName: string
+  fileMime: string
+  bytes: Uint8Array
+}
+
+export function mimeFromName(name?: string): string | undefined {
+  const ext = name?.split('.').pop()?.toLowerCase()
+  return ext ? MIME_BY_EXT[ext] : undefined
+}
+
+export function assertContractFile(size: number, mime?: string, fileName?: string): string {
+  if (size > MAX_CONTRACT_FILE_BYTES) throw new Error('원본 파일은 8MB까지입니다.')
+  const resolved =
+    (mime && mime !== 'application/octet-stream' ? mime : undefined) || mimeFromName(fileName) || mime || ''
+  if (!['application/pdf', 'image/png', 'image/jpeg'].includes(resolved)) {
+    throw new Error('원본은 PDF·PNG·JPEG만 받습니다.')
+  }
+  return resolved
+}
+
+export function bytesToBase64(bytes: Uint8Array): string {
+  let binary = ''
+  const chunk = 0x8000
+  for (let index = 0; index < bytes.length; index += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunk))
+  }
+  return btoa(binary)
+}
+
+export function base64ToBytes(text: string): Uint8Array {
+  const binary = atob(text)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index)
+  return bytes
 }
 
 export function applyDraftContract(
@@ -47,6 +98,9 @@ export function applyDraftContract(
     throw new Error('종료일이 시작일보다 빠를 수 없습니다.')
   }
   if (input.amount != null && input.amount < 0) throw new Error('금액은 0 이상이어야 합니다.')
+  if (input.fileBytes) {
+    assertContractFile(input.fileBytes.byteLength, input.fileMime, input.fileName)
+  }
   if (input.fileHash) {
     const dup = existing.find((row) => row.fileHash === input.fileHash)
     if (dup) throw new Error('같은 원본 파일은 계약을 한 번만 만듭니다.')
@@ -67,6 +121,10 @@ export function applyDraftContract(
     ownerName: input.ownerName?.trim() || undefined,
     fileName: input.fileName?.trim() || undefined,
     fileHash: input.fileHash || undefined,
+    fileMime: input.fileBytes
+      ? assertContractFile(input.fileBytes.byteLength, input.fileMime, input.fileName)
+      : input.fileMime,
+    hasOriginal: Boolean(input.fileBytes?.byteLength),
     status: 'draft',
     ocrStatus: 'off',
   }
@@ -86,10 +144,13 @@ export const CONTRACT_TABLE_SQL = [
     owner_name text,
     file_name text,
     file_hash text,
+    file_mime text,
+    file_base64 text,
     status text not null,
     ocr_status text not null,
     created_at text not null
   );`,
+  `create unique index if not exists contracts_file_hash on contracts(file_hash) where file_hash is not null`,
 ]
 
 export async function loadContracts(
@@ -108,9 +169,17 @@ export async function loadContracts(
     owner_name?: string | null
     file_name?: string | null
     file_hash?: string | null
+    file_mime?: string | null
+    has_original?: number | null
     status: ContractStatus
     ocr_status: 'off'
-  }>('select * from contracts order by created_at desc, title')
+  }>(
+    `select id, title, contract_no, counterparty, signed_at, start_at, end_at, amount, currency,
+      owner_name, file_name, file_hash, file_mime,
+      case when file_base64 is not null and length(file_base64) > 0 then 1 else 0 end as has_original,
+      status, ocr_status
+      from contracts order by created_at desc, title`,
+  )
   return rows.map((row) => ({
     id: row.id,
     title: row.title,
@@ -124,9 +193,31 @@ export async function loadContracts(
     ownerName: row.owner_name ?? undefined,
     fileName: row.file_name ?? undefined,
     fileHash: row.file_hash ?? undefined,
+    fileMime: row.file_mime ?? undefined,
+    hasOriginal: row.has_original === 1,
     status: row.status,
     ocrStatus: row.ocr_status,
   }))
+}
+
+export async function loadContractOriginal(
+  db: { query: <T>(sql: string, params?: unknown[]) => Promise<T[]> },
+  id: string,
+): Promise<ContractOriginal> {
+  const rows = await db.query<{
+    id: string
+    file_name?: string | null
+    file_mime?: string | null
+    file_base64?: string | null
+  }>('select id, file_name, file_mime, file_base64 from contracts where id = ?', [id])
+  const row = rows[0]
+  if (!row?.file_base64 || !row.file_name) throw new Error('원본 파일이 없습니다.')
+  return {
+    id: row.id,
+    fileName: row.file_name,
+    fileMime: row.file_mime || mimeFromName(row.file_name) || 'application/octet-stream',
+    bytes: base64ToBytes(row.file_base64),
+  }
 }
 
 export async function executeDraftContract(
@@ -143,6 +234,7 @@ export async function executeDraftContract(
   )
   if (existingOps.length) return { status: 'duplicate' }
   const draft = applyDraftContract(await loadContracts(db), command)
+  const fileBase64 = command.fileBytes ? bytesToBase64(command.fileBytes) : null
   try {
     await db.batch([
       {
@@ -152,8 +244,8 @@ export async function executeDraftContract(
       {
         sql: `insert into contracts(
           id, title, contract_no, counterparty, signed_at, start_at, end_at, amount, currency,
-          owner_name, file_name, file_hash, status, ocr_status, created_at
-        ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          owner_name, file_name, file_hash, file_mime, file_base64, status, ocr_status, created_at
+        ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         params: [
           draft.id,
           draft.title,
@@ -167,6 +259,8 @@ export async function executeDraftContract(
           draft.ownerName ?? null,
           draft.fileName ?? null,
           draft.fileHash ?? null,
+          draft.fileMime ?? null,
+          fileBase64,
           draft.status,
           draft.ocrStatus,
           createdAt,
@@ -177,7 +271,7 @@ export async function executeDraftContract(
         params: [
           `${command.operationId}:audit`,
           'draft_contract',
-          JSON.stringify({ id: draft.id, title: draft.title }),
+          JSON.stringify({ id: draft.id, title: draft.title, hasOriginal: draft.hasOriginal }),
           createdAt,
         ],
       },
@@ -185,12 +279,15 @@ export async function executeDraftContract(
     return { status: 'applied' }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    if (/UNIQUE constraint failed/i.test(message)) return { status: 'duplicate' }
+    if (/UNIQUE constraint failed/i.test(message)) {
+      throw new Error('같은 원본 파일은 계약을 한 번만 만듭니다.')
+    }
     throw error
   }
 }
 
-export async function hashFileBytes(bytes: ArrayBuffer): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', bytes)
+export async function hashFileBytes(bytes: ArrayBuffer | Uint8Array): Promise<string> {
+  const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
+  const digest = await crypto.subtle.digest('SHA-256', data)
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 }

@@ -71,4 +71,7 @@ export const SCHEMA_PATCHES = [
     ocr_status text not null,
     created_at text not null
   )`,
+  'alter table contracts add column file_mime text',
+  'alter table contracts add column file_base64 text',
+  `create unique index if not exists contracts_file_hash on contracts(file_hash) where file_hash is not null`,
 ]

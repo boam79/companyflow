@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
-import { executeDraftContract, hashFileBytes, loadContracts, type ContractDraft } from '../lib/contracts/book'
+import { executeDraftContract, hashFileBytes, loadContractOriginal, loadContracts, type ContractDraft } from '../lib/contracts/book'
 import { DISABLED_OCR } from '../lib/contracts/ocr'
 import { writeDefaultMaster } from '../lib/master/book'
 import { getCompanySqlite } from '../lib/sqlite/instance'
@@ -27,6 +27,8 @@ export function ContractsPage() {
   const [amount, setAmount] = useState('')
   const [ownerName, setOwnerName] = useState('김담당')
   const [file, setFile] = useState<File | null>(null)
+  const [fileKey, setFileKey] = useState(0)
+  const [selectedId, setSelectedId] = useState('')
   const [ocrMessage, setOcrMessage] = useState('')
   const [notice, setNotice] = useState('')
   const [message, setMessage] = useState('')
@@ -84,9 +86,14 @@ export function ContractsPage() {
     try {
       let fileName: string | undefined
       let fileHash: string | undefined
+      let fileMime: string | undefined
+      let fileBytes: Uint8Array | undefined
       if (file) {
+        const bytes = new Uint8Array(await file.arrayBuffer())
         fileName = file.name
-        fileHash = await hashFileBytes(await file.arrayBuffer())
+        fileHash = await hashFileBytes(bytes)
+        fileMime = file.type
+        fileBytes = bytes
       }
       const result = await executeDraftContract(sqlite, {
         operationId: crypto.randomUUID(),
@@ -101,18 +108,41 @@ export function ContractsPage() {
         ownerName,
         fileName,
         fileHash,
+        fileMime,
+        fileBytes,
       })
       setNotice(
         result.status === 'duplicate'
           ? '같은 초안은 한 번만 반영됩니다.'
-          : '계약 초안을 저장했습니다. OCR로 체결하지 않았습니다.',
+          : fileBytes
+            ? '계약 초안과 원본 파일을 저장했습니다. OCR로 체결하지 않았습니다.'
+            : '계약 초안을 저장했습니다. OCR로 체결하지 않았습니다.',
       )
       setRows(await loadContracts(sqlite))
       setFile(null)
+      setFileKey((key) => key + 1)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     }
   }
+
+  async function downloadOriginal(id: string) {
+    setMessage('')
+    try {
+      const original = await loadContractOriginal(sqlite, id)
+      const url = URL.createObjectURL(new Blob([original.bytes.buffer], { type: original.fileMime }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = original.fileName
+      link.click()
+      URL.revokeObjectURL(url)
+      setNotice(`원본 ${original.fileName}을 이 PC에서 받았습니다.`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  const selected = rows.find((row) => row.id === selectedId)
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
   if (!configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
@@ -132,7 +162,8 @@ export function ContractsPage() {
       <div>
         <h1 className="text-3xl font-semibold">계약</h1>
         <p className="mt-2 text-sm text-muted">
-          직접 입력으로 초안만 만듭니다. OCR 자동추출은 꺼져 있고, 확인 전에는 체결하지 않습니다.
+          직접 입력으로 초안만 만듭니다. 원본은 PDF·PNG·JPEG 8MB까지 이 PC에 남기고, 같은 파일은 한 번만
+          받습니다. OCR은 꺼져 있습니다.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -195,9 +226,11 @@ export function ContractsPage() {
           <input type="number" min="0" className="mt-1 w-full rounded border border-line px-3 py-2" value={amount} onChange={(e) => setAmount(e.target.value)} />
         </label>
         <label className="text-sm sm:col-span-2">
-          원본 파일(선택)
+          원본 파일(선택, PDF·PNG·JPEG 8MB)
           <input
+            key={fileKey}
             type="file"
+            accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
             className="mt-1 w-full text-sm"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           />
@@ -216,16 +249,20 @@ export function ContractsPage() {
               <tr className="border-b border-line text-muted">
                 <th className="py-2 pr-3 font-medium">계약</th>
                 <th className="py-2 pr-3 font-medium">상대방</th>
-                <th className="py-2 pr-3 font-medium">기간</th>
+                <th className="py-2 pr-3 font-medium">원본</th>
                 <th className="py-2 font-medium">상태</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.id} className="border-b border-line/70">
+                <tr
+                  key={row.id}
+                  className={`cursor-pointer border-b border-line/70 ${selectedId === row.id ? 'bg-accent-soft' : ''}`}
+                  onClick={() => setSelectedId(row.id)}
+                >
                   <td className="py-2 pr-3">{row.title}</td>
                   <td className="py-2 pr-3">{row.counterparty}</td>
-                  <td className="py-2 pr-3">{[row.startAt, row.endAt].filter(Boolean).join(' ~ ') || '-'}</td>
+                  <td className="py-2 pr-3">{row.hasOriginal ? row.fileName : '없음'}</td>
                   <td className="py-2">초안 · OCR 꺼짐</td>
                 </tr>
               ))}
@@ -234,6 +271,29 @@ export function ContractsPage() {
         ) : (
           <p className="mt-2 text-sm text-muted">{ready ? '저장된 초안이 없습니다.' : '회사 DB를 여는 중입니다.'}</p>
         )}
+        {selected ? (
+          <div className="mt-4 space-y-2 border-t border-line pt-4 text-sm">
+            <p>
+              {selected.title} · {selected.counterparty}
+              {selected.ownerName ? ` · ${selected.ownerName}` : ''}
+            </p>
+            <p className="text-muted">
+              {[selected.startAt, selected.endAt].filter(Boolean).join(' ~ ') || '기간 없음'}
+              {selected.amount != null ? ` · ${selected.amount.toLocaleString('ko-KR')}원` : ''}
+            </p>
+            {selected.hasOriginal ? (
+              <button
+                type="button"
+                className="rounded border border-line px-3 py-1 text-xs font-semibold"
+                onClick={() => void downloadOriginal(selected.id)}
+              >
+                원본 받기
+              </button>
+            ) : (
+              <p className="text-muted">이 초안에는 원본 파일이 없습니다.</p>
+            )}
+          </div>
+        ) : null}
       </section>
     </div>
   )
