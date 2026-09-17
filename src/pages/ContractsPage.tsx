@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
-import { executeDraftContract, hashFileBytes, loadContractOriginal, loadContracts, type ContractDraft } from '../lib/contracts/book'
+import { executeDraftContract, hashFileBytes, loadContractOriginal, loadContracts, toArrayBuffer, type ContractDraft } from '../lib/contracts/book'
 import { DISABLED_OCR } from '../lib/contracts/ocr'
 import { writeDefaultMaster } from '../lib/master/book'
 import { getCompanySqlite } from '../lib/sqlite/instance'
@@ -131,7 +131,7 @@ export function ContractsPage() {
     setMessage('')
     try {
       const original = await loadContractOriginal(sqlite, id)
-      const url = URL.createObjectURL(new Blob([original.bytes.buffer], { type: original.fileMime }))
+      const url = URL.createObjectURL(new Blob([toArrayBuffer(original.bytes)], { type: original.fileMime }))
       const link = document.createElement('a')
       link.href = url
       link.download = original.fileName
