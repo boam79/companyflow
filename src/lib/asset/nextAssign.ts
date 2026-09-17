@@ -70,6 +70,29 @@ export function missingIssueItem(
   ) ?? null
 }
 
+export type IssueCheckRow = {
+  itemId: string
+  itemName: string
+  held?: AssetRecord
+  stored?: AssetRecord
+}
+
+export function issueChecklist(
+  assets: AssetRecord[],
+  employeeId: string,
+  catalog: ItemRecord[] = ISSUE_ITEMS,
+): IssueCheckRow[] {
+  return catalog.map((item) => ({
+    itemId: item.id,
+    itemName: item.name,
+    held: assets.find(
+      (asset) =>
+        asset.itemId === item.id && asset.status === 'assigned' && asset.employeeId === employeeId,
+    ),
+    stored: assets.find((asset) => asset.itemId === item.id && asset.status === 'in_storage'),
+  }))
+}
+
 export function suggestNextAssetAction(
   assets: AssetRecord[],
   employees: EmployeeRecord[],

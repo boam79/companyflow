@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { applyAssignAsset, assetsFromConvert } from './book'
 import { ISSUE_ITEMS, PAPER_ITEM } from '../master/book'
-import { suggestNextAssign, suggestNextAssetAction, suggestNextReturn } from './nextAssign'
+import { suggestNextAssign, suggestNextAssetAction, suggestNextReturn, issueChecklist } from './nextAssign'
 
 const EMPLOYEES = [{ id: 'emp-kim', name: '김담당' }]
 const ITEMS = [PAPER_ITEM, ...ISSUE_ITEMS]
@@ -59,5 +59,20 @@ describe('다음 자산 배정', () => {
       assetId: 'op-badge:1',
       itemName: '명찰',
     })
+  })
+
+  it('지급 체크리스트는 명찰·유니폼·노트북을 한 번에 보여 준다', () => {
+    const assets = [
+      ...applyAssignAsset(assetsFromConvert('op-badge', 'item-badge', 'wh-main', 1, 't'), {
+        assetId: 'op-badge:1',
+        employeeId: 'emp-kim',
+      }),
+      ...assetsFromConvert('op-laptop', 'item-laptop', 'wh-main', 1, 't'),
+    ]
+    expect(issueChecklist(assets, 'emp-kim')).toEqual([
+      expect.objectContaining({ itemName: '명찰', held: expect.objectContaining({ id: 'op-badge:1' }) }),
+      expect.objectContaining({ itemName: '유니폼', held: undefined, stored: undefined }),
+      expect.objectContaining({ itemName: '노트북', stored: expect.objectContaining({ id: 'op-laptop:1' }) }),
+    ])
   })
 })

@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { executeAssignAsset, executeIssueAsset, executeReturnAsset, loadAssets, type AssetRecord } from '../lib/asset/book'
-import { suggestNextAssetAction } from '../lib/asset/nextAssign'
-import { heldIssuedAssets, loadItems, writeDefaultMaster, type ItemRecord } from '../lib/master/book'
+import { issueChecklist } from '../lib/asset/nextAssign'
+import { ISSUE_ITEMS, writeDefaultMaster } from '../lib/master/book'
 import {
   badgeLines,
   executeHire,
@@ -58,7 +58,6 @@ export function PeoplePage() {
   const [departments, setDepartments] = useState<NamedRow[]>([])
   const [employees, setEmployees] = useState<EmployeeRecord[]>([])
   const [assets, setAssets] = useState<AssetRecord[]>([])
-  const [items, setItems] = useState<ItemRecord[]>([])
   const [drafts, setDrafts] = useState<Record<string, { hiredAt: string; title: string; badgeName: string }>>(
     {},
   )
@@ -99,16 +98,14 @@ export function PeoplePage() {
         return
       }
       await writeDefaultMaster(sqlite)
-      const [deptRows, employeeRows, assetRows, itemRows] = await Promise.all([
+      const [deptRows, employeeRows, assetRows] = await Promise.all([
         sqlite.query<NamedRow>('select id, name from departments order by name'),
         loadEmployees(sqlite),
         loadAssets(sqlite),
-        loadItems(sqlite),
       ])
       setDepartments(deptRows)
       setEmployees(employeeRows)
       setAssets(assetRows)
-      setItems(itemRows)
       setDrafts(
         Object.fromEntries(
           employeeRows.map((row) => [
@@ -130,14 +127,9 @@ export function PeoplePage() {
   }
 
   async function refreshPeople() {
-    const [employeeRows, assetRows, itemRows] = await Promise.all([
-      loadEmployees(sqlite),
-      loadAssets(sqlite),
-      loadItems(sqlite),
-    ])
+    const [employeeRows, assetRows] = await Promise.all([loadEmployees(sqlite), loadAssets(sqlite)])
     setEmployees(employeeRows)
     setAssets(assetRows)
-    setItems(itemRows)
   }
 
   async function hire(employeeId: string) {
@@ -223,6 +215,23 @@ export function PeoplePage() {
     }
   }
 
+  async function toggleIssue(
+    employeeId: string,
+    row: { itemId: string; itemName: string; held?: AssetRecord; stored?: AssetRecord },
+    checked: boolean,
+  ) {
+    if (checked) {
+      if (row.held) return
+      if (row.stored) {
+        await assignNext(row.stored.id, employeeId)
+        return
+      }
+      await issueNext(row.itemId, employeeId, row.itemName)
+      return
+    }
+    if (row.held) await returnNext(row.held.id)
+  }
+
   async function leave(employeeId: string) {
     setMessage('')
     setNotice('')
@@ -257,7 +266,7 @@ export function PeoplePage() {
       <div>
         <h1 className="text-3xl font-semibold">직원·입퇴사</h1>
         <p className="mt-2 text-sm text-muted">
-          퇴사는 직원에게 지급한 명찰·유니폼·노트북을 회수한 뒤에만 됩니다. 복사용지 같은 회사 재고는 대상이 아닙니다.
+          입사·퇴사 지급품은 명찰·유니폼·노트북 체크리스트로 봅니다. 복사용지 같은 회사 재고는 대상이 아닙니다.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -285,73 +294,6 @@ export function PeoplePage() {
       </div>
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
-      {ready
-        ? (() => {
-            const next = suggestNextAssetAction(assets, employees, items)
-            if (next?.kind === 'issue') {
-              return (
-                <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
-                  <p className="text-sm text-accent">
-                    입사 지급은 명찰·유니폼·노트북 순서입니다. {next.employeeName}에게 {next.itemName}을
-                    지급하세요.
-                  </p>
-                  <button
-                    type="button"
-                    className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white"
-                    onClick={() => void issueNext(next.itemId, next.employeeId, next.itemName)}
-                  >
-                    {next.itemName} 지급 1
-                  </button>
-                </section>
-              )
-            }
-            if (next?.kind === 'assign') {
-              return (
-                <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
-                  <p className="text-sm text-accent">
-                    보관 중인 {next.itemName} {next.stored}건을 {next.employeeName}에게 지급하면 입퇴사와
-                    연결됩니다.
-                  </p>
-                  <button
-                    type="button"
-                    className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white"
-                    onClick={() => void assignNext(next.assetId, next.employeeId)}
-                  >
-                    {next.itemName} 지급 1
-                  </button>
-                </section>
-              )
-            }
-            if (next?.kind === 'return') {
-              return (
-                <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
-                  <p className="text-sm text-accent">
-                    미회수 지급품 {next.held}건(명찰·유니폼·노트북)이 있으면 퇴사할 수 없습니다.
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white"
-                      onClick={() => void returnNext(next.assetId)}
-                    >
-                      회수 1
-                    </button>
-                    {next.employeeId ? (
-                      <button
-                        type="button"
-                        className="rounded border border-accent px-4 py-2 text-sm font-semibold text-accent"
-                        onClick={() => void leave(next.employeeId)}
-                      >
-                        퇴사
-                      </button>
-                    ) : null}
-                  </div>
-                </section>
-              )
-            }
-            return null
-          })()
-        : null}
       <section className="rounded-lg border border-line bg-card p-5">
         {employees.length ? (
           <table className="w-full text-left text-sm">
@@ -359,7 +301,8 @@ export function PeoplePage() {
               <tr className="border-b border-line text-muted">
                 <th className="py-2 pr-3 font-medium">이름</th>
                 <th className="py-2 pr-3 font-medium">부서</th>
-                <th className="py-2 pr-3 font-medium">입사·명찰</th>
+                <th className="py-2 pr-3 font-medium">입사</th>
+                <th className="py-2 pr-3 font-medium">지급품</th>
                 <th className="py-2 font-medium">상태</th>
               </tr>
             </thead>
@@ -370,7 +313,8 @@ export function PeoplePage() {
                   title: '',
                   badgeName: employee.name,
                 }
-                const held = heldIssuedAssets(assets, employee.id, items).length
+                const checks = issueChecklist(assets, employee.id, ISSUE_ITEMS)
+                const held = checks.filter((row) => row.held).length
                 const deptName = departments.find((dept) => dept.id === employee.departmentId)?.name
                 return (
                   <tr key={employee.id} className="border-b border-line/70 align-top">
@@ -412,6 +356,31 @@ export function PeoplePage() {
                           }
                         />
                       </div>
+                    </td>
+                    <td className="py-3 pr-3">
+                      <ul className="space-y-1.5">
+                        {checks.map((row) => (
+                          <li key={row.itemId}>
+                            <label className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                className="size-4 accent-accent"
+                                checked={Boolean(row.held)}
+                                disabled={!ready || Boolean(employee.leftAt)}
+                                onChange={(e) => void toggleIssue(employee.id, row, e.target.checked)}
+                              />
+                              <span className={row.held ? 'font-medium' : 'text-muted'}>{row.itemName}</span>
+                              <span className="text-xs text-muted">
+                                {row.held ? '지급' : row.stored ? '보관' : '미지급'}
+                              </span>
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="mt-1 text-xs text-muted">
+                        {held}/{checks.length} 지급
+                        {held ? ' · 퇴사 전 체크 해제(회수)' : ' · 퇴사 가능'}
+                      </p>
                     </td>
                     <td className="py-3">
                       <p className="text-muted">
