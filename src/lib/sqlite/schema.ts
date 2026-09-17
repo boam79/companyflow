@@ -1,6 +1,7 @@
 import { MASTER_TABLE_SQL } from '../master/book'
 import { STOCK_TABLE_SQL } from '../stock/engine'
 import { ASSET_TABLE_SQL } from '../asset/book'
+import { CONTRACT_TABLE_SQL } from '../contracts/book'
 
 export const LOCAL_MIGRATIONS = [
   `create table if not exists meta (
@@ -34,6 +35,7 @@ export const LOCAL_MIGRATIONS = [
   ...MASTER_TABLE_SQL,
   ...STOCK_TABLE_SQL,
   ...ASSET_TABLE_SQL,
+  ...CONTRACT_TABLE_SQL,
 ]
 
 export const SCHEMA_PATCHES = [
@@ -51,5 +53,22 @@ export const SCHEMA_PATCHES = [
     returned_at text,
     updated_at text not null,
     primary key (employee_id, item_key)
+  )`,
+  `create table if not exists contracts (
+    id text primary key,
+    title text not null,
+    contract_no text,
+    counterparty text not null,
+    signed_at text,
+    start_at text,
+    end_at text,
+    amount integer,
+    currency text not null default 'KRW',
+    owner_name text,
+    file_name text,
+    file_hash text,
+    status text not null,
+    ocr_status text not null,
+    created_at text not null
   )`,
 ]

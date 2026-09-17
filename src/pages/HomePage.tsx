@@ -45,8 +45,7 @@ export function HomePage() {
         <p className="text-sm text-muted">지정 PC 로컬 원본 · 한글 업무 화면</p>
         <h1 className="mt-1 text-3xl font-semibold">홈</h1>
         <p className="mt-3 max-w-2xl text-muted">
-          결재 대기, 수령 대기, 재고 부족, 계약 만료는 단계 3 이후 연결됩니다. 지금은 지정 PC
-          원본에서 기준정보와 복사용지 재고 거래를 등록합니다.
+          지금은 지정 PC 원본에서 기준정보, 재고, 입퇴사, 계약 초안을 등록합니다.
         </p>
       </section>
 
@@ -114,6 +113,11 @@ export function HomePage() {
           <li>
             <Link className="text-accent underline" to="/people">
               직원: 입사·퇴사·명찰
+            </Link>
+          </li>
+          <li>
+            <Link className="text-accent underline" to="/contracts">
+              계약: 직접 등록 초안
             </Link>
           </li>
           <li>

@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
 import { AuthProvider } from './lib/AuthContext'
 import { AssetsPage } from './pages/AssetsPage'
+import { ContractsPage } from './pages/ContractsPage'
 import { DeviceSetupPage } from './pages/DeviceSetupPage'
 import { HomePage } from './pages/HomePage'
 import { LoginPage } from './pages/LoginPage'
@@ -25,6 +26,7 @@ export default function App() {
             <Route path="/stock" element={<StockPage />} />
             <Route path="/assets" element={<AssetsPage />} />
             <Route path="/people" element={<PeoplePage />} />
+            <Route path="/contracts" element={<ContractsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
           </Route>
         </Routes>

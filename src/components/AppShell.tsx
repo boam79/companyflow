@@ -8,6 +8,7 @@ const MENUS = [
   { to: '/stock', label: '구매·재고' },
   { to: '/assets', label: '자산' },
   { to: '/people', label: '입퇴사' },
+  { to: '/contracts', label: '계약' },
   { to: '/reports', label: '통계' },
   { to: '/ops/companies', label: '회사 관리' },
 ]
