@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CompanyMasterBook, seedDefaultMaster } from './book'
+import { CompanyMasterBook, ISSUE_ITEMS, PAPER_ITEM, assertConvertibleItem, seedDefaultMaster } from './book'
 
 describe('회사별 기준정보 격리', () => {
   it('A회사 필드 라벨을 바꿔도 B회사는 유지된다', () => {
@@ -29,8 +29,7 @@ describe('회사별 기준정보 격리', () => {
     seedDefaultMaster(book)
     expect(book.employees.get('emp-kim')).toEqual({ id: 'emp-kim', name: '김담당' })
     expect(book.departments.get('dept-admin')?.name).toBe('총무')
-    expect(book.items.get('item-laptop')?.name).toBe('노트북')
-    expect(book.items.get('item-badge')?.name).toBe('명찰')
+    expect(book.items.get('item-paper')?.name).toBe('복사용지')
   })
 
   it('같은 operation_id 는 부서를 한 번만 만든다', () => {
@@ -40,5 +39,13 @@ describe('회사별 기준정보 격리', () => {
     expect(first.status).toBe('applied')
     expect(second.status).toBe('duplicate')
     expect(book.departments.get('d1')?.name).toBe('총무')
+  })
+
+  it('명찰·유니폼·노트북은 자산화할 수 없다', () => {
+    expect(() => assertConvertibleItem(ISSUE_ITEMS[0])).toThrow(/입퇴사 프로세스/)
+    expect(() => assertConvertibleItem(PAPER_ITEM)).toThrow(/회사 재고/)
+    expect(
+      assertConvertibleItem({ id: 'item-desk', name: '책상', stockManaged: true, assetManaged: true }).id,
+    ).toBe('item-desk')
   })
 })

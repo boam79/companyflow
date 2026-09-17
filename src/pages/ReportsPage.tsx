@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { loadAssets } from '../lib/asset/book'
 import { loadItems, writeDefaultMaster, type ItemRecord } from '../lib/master/book'
+import { migrateProcessAssetsToChecks } from '../lib/people/onboarding'
 import { csvFromReport, reportDetails, summarizeStock, type DateRange, type ReportDetail } from '../lib/reports/summary'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { loadStockState } from '../lib/stock/persist'
@@ -60,6 +61,7 @@ export function ReportsPage() {
         return
       }
       await writeDefaultMaster(sqlite)
+      await migrateProcessAssetsToChecks(sqlite)
       const itemRows = await loadItems(sqlite)
       setItems(itemRows)
       const nextItem = itemRows.some((row) => row.id === itemId) ? itemId : itemRows[0]?.id

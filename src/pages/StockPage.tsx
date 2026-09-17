@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { StockLedgerTable } from '../components/StockLedgerTable'
 import { loadItems, type ItemRecord } from '../lib/master/book'
+import { migrateProcessAssetsToChecks } from '../lib/people/onboarding'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { executeStockCommand, ensureDefaultStockMaster, loadStockState } from '../lib/stock/persist'
 import { companyOnHand, onHand, orderRemaining, type LedgerLine, type StockCommand, type StockState } from '../lib/stock/engine'
@@ -94,6 +95,7 @@ export function StockPage() {
         return
       }
       await ensureDefaultStockMaster(sqlite)
+      await migrateProcessAssetsToChecks(sqlite)
       await reload()
       setNotice(`로컬 원본이 열렸습니다. VFS ${sqlite.vfsName}`)
     } catch (error) {

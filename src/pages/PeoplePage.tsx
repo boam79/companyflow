@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
-import { executeAssignAsset, executeIssueAsset, executeReturnAsset, loadAssets, type AssetRecord } from '../lib/asset/book'
-import { issueChecklist } from '../lib/asset/nextAssign'
-import { ISSUE_ITEMS, writeDefaultMaster } from '../lib/master/book'
+import { writeDefaultMaster } from '../lib/master/book'
 import {
   badgeLines,
   executeHire,
@@ -11,6 +9,16 @@ import {
   loadEmployees,
   type EmployeeRecord,
 } from '../lib/people/employment'
+import {
+  executeOnboardingToggle,
+  loadOnboardingChecks,
+  migrateProcessAssetsToChecks,
+  onboardingView,
+  outstandingOnboarding,
+  type CheckRow,
+  type OnboardingCheck,
+  type OnboardingKey,
+} from '../lib/people/onboarding'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
@@ -57,7 +65,7 @@ export function PeoplePage() {
   const [companyId, setCompanyId] = useState('')
   const [departments, setDepartments] = useState<NamedRow[]>([])
   const [employees, setEmployees] = useState<EmployeeRecord[]>([])
-  const [assets, setAssets] = useState<AssetRecord[]>([])
+  const [checks, setChecks] = useState<CheckRow[]>([])
   const [drafts, setDrafts] = useState<Record<string, { hiredAt: string; title: string; badgeName: string }>>(
     {},
   )
@@ -98,14 +106,15 @@ export function PeoplePage() {
         return
       }
       await writeDefaultMaster(sqlite)
-      const [deptRows, employeeRows, assetRows] = await Promise.all([
+      await migrateProcessAssetsToChecks(sqlite)
+      const [deptRows, employeeRows, checkRows] = await Promise.all([
         sqlite.query<NamedRow>('select id, name from departments order by name'),
         loadEmployees(sqlite),
-        loadAssets(sqlite),
+        loadOnboardingChecks(sqlite),
       ])
       setDepartments(deptRows)
       setEmployees(employeeRows)
-      setAssets(assetRows)
+      setChecks(checkRows)
       setDrafts(
         Object.fromEntries(
           employeeRows.map((row) => [
@@ -127,9 +136,9 @@ export function PeoplePage() {
   }
 
   async function refreshPeople() {
-    const [employeeRows, assetRows] = await Promise.all([loadEmployees(sqlite), loadAssets(sqlite)])
+    const [employeeRows, checkRows] = await Promise.all([loadEmployees(sqlite), loadOnboardingChecks(sqlite)])
     setEmployees(employeeRows)
-    setAssets(assetRows)
+    setChecks(checkRows)
   }
 
   async function hire(employeeId: string) {
@@ -150,7 +159,7 @@ export function PeoplePage() {
         result.status === 'duplicate'
           ? '같은 입사는 한 번만 반영됩니다.'
           : wasLeft
-            ? '재입사했습니다. 자산 배정을 이어갈 수 있습니다.'
+            ? '재입사했습니다. 입사 프로세스를 이어갈 수 있습니다.'
             : '입사를 기록했습니다.',
       )
       await refreshPeople()
@@ -159,77 +168,27 @@ export function PeoplePage() {
     }
   }
 
-  async function assignNext(assetId: string, employeeId: string) {
+  async function toggleCheck(employeeId: string, row: OnboardingCheck, issued: boolean) {
     setMessage('')
     setNotice('')
     try {
-      const result = await executeAssignAsset(sqlite, {
+      const result = await executeOnboardingToggle(sqlite, {
         operationId: crypto.randomUUID(),
-        assetId,
         employeeId,
+        itemKey: row.key as OnboardingKey,
+        issued,
       })
-      const employeeName = employees.find((row) => row.id === employeeId)?.name ?? employeeId
       setNotice(
         result.status === 'duplicate'
-          ? '같은 배정은 한 번만 반영됩니다.'
-          : `지급했습니다. ${employeeName}. 퇴사하려면 명찰·유니폼·노트북을 먼저 회수하세요.`,
+          ? '같은 처리는 한 번만 반영됩니다.'
+          : issued
+            ? `입사 프로세스: ${row.hireLabel} 완료`
+            : `퇴사 프로세스: ${row.leaveLabel} 완료`,
       )
       await refreshPeople()
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     }
-  }
-
-  async function returnNext(assetId: string) {
-    setMessage('')
-    setNotice('')
-    try {
-      const result = await executeReturnAsset(sqlite, {
-        operationId: crypto.randomUUID(),
-        assetId,
-      })
-      setNotice(result.status === 'duplicate' ? '같은 회수는 한 번만 반영됩니다.' : '지급품을 회수했습니다.')
-      await refreshPeople()
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
-    }
-  }
-
-  async function issueNext(itemId: string, employeeId: string, itemName: string) {
-    setMessage('')
-    setNotice('')
-    try {
-      const result = await executeIssueAsset(sqlite, {
-        operationId: crypto.randomUUID(),
-        itemId,
-        employeeId,
-      })
-      setNotice(
-        result.status === 'duplicate'
-          ? '같은 지급은 한 번만 반영됩니다.'
-          : `${itemName}을 지급했습니다. 퇴사 전에 회수합니다.`,
-      )
-      await refreshPeople()
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
-    }
-  }
-
-  async function toggleIssue(
-    employeeId: string,
-    row: { itemId: string; itemName: string; held?: AssetRecord; stored?: AssetRecord },
-    checked: boolean,
-  ) {
-    if (checked) {
-      if (row.held) return
-      if (row.stored) {
-        await assignNext(row.stored.id, employeeId)
-        return
-      }
-      await issueNext(row.itemId, employeeId, row.itemName)
-      return
-    }
-    if (row.held) await returnNext(row.held.id)
   }
 
   async function leave(employeeId: string) {
@@ -266,7 +225,7 @@ export function PeoplePage() {
       <div>
         <h1 className="text-3xl font-semibold">직원·입퇴사</h1>
         <p className="mt-2 text-sm text-muted">
-          입사·퇴사 지급품은 명찰·유니폼·노트북 체크리스트로 봅니다. 복사용지 같은 회사 재고는 대상이 아닙니다.
+          명찰·유니폼·노트북은 자산이 아니라 입사·퇴사 프로세스입니다. 회사 재고·자산과 섞지 않습니다.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -286,7 +245,7 @@ export function PeoplePage() {
           ))}
         </select>
         <Link className="rounded border border-line px-3 py-2 text-sm" to="/assets">
-          자산 배정·회수
+          회사 자산
         </Link>
         <Link className="rounded border border-line px-3 py-2 text-sm" to="/master">
           기준정보
@@ -302,7 +261,8 @@ export function PeoplePage() {
                 <th className="py-2 pr-3 font-medium">이름</th>
                 <th className="py-2 pr-3 font-medium">부서</th>
                 <th className="py-2 pr-3 font-medium">입사</th>
-                <th className="py-2 pr-3 font-medium">지급품</th>
+                <th className="py-2 pr-3 font-medium">입사 프로세스</th>
+                <th className="py-2 pr-3 font-medium">퇴사 프로세스</th>
                 <th className="py-2 font-medium">상태</th>
               </tr>
             </thead>
@@ -313,8 +273,8 @@ export function PeoplePage() {
                   title: '',
                   badgeName: employee.name,
                 }
-                const checks = issueChecklist(assets, employee.id, ISSUE_ITEMS)
-                const held = checks.filter((row) => row.held).length
+                const process = onboardingView(employee.id, checks)
+                const held = outstandingOnboarding(process).length
                 const deptName = departments.find((dept) => dept.id === employee.departmentId)?.name
                 return (
                   <tr key={employee.id} className="border-b border-line/70 align-top">
@@ -359,27 +319,60 @@ export function PeoplePage() {
                     </td>
                     <td className="py-3 pr-3">
                       <ul className="space-y-1.5">
-                        {checks.map((row) => (
-                          <li key={row.itemId}>
+                        {process.map((row) => (
+                          <li key={`hire-${row.key}`}>
                             <label className="flex items-center gap-2">
                               <input
                                 type="checkbox"
                                 className="size-4 accent-accent"
-                                checked={Boolean(row.held)}
-                                disabled={!ready || Boolean(employee.leftAt)}
-                                onChange={(e) => void toggleIssue(employee.id, row, e.target.checked)}
+                                checked={row.issued}
+                                disabled={!ready || Boolean(employee.leftAt) || row.issued}
+                                onChange={(e) => {
+                                  if (e.target.checked) void toggleCheck(employee.id, row, true)
+                                }}
                               />
-                              <span className={row.held ? 'font-medium' : 'text-muted'}>{row.itemName}</span>
-                              <span className="text-xs text-muted">
-                                {row.held ? '지급' : row.stored ? '보관' : '미지급'}
-                              </span>
+                              <span className={row.issued ? 'font-medium' : 'text-muted'}>{row.hireLabel}</span>
+                              {row.key === 'badge' ? (
+                                <button
+                                  type="button"
+                                  disabled={!ready}
+                                  className="rounded border border-line px-2 py-0.5 text-xs disabled:opacity-50"
+                                  onClick={() =>
+                                    printBadge(
+                                      badgeLines({ ...employee, ...draft, name: employee.name }, deptName),
+                                    )
+                                  }
+                                >
+                                  출력
+                                </button>
+                              ) : null}
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="mt-1 text-xs text-muted">{held}/3 지급</p>
+                    </td>
+                    <td className="py-3 pr-3">
+                      <ul className="space-y-1.5">
+                        {process.map((row) => (
+                          <li key={`leave-${row.key}`}>
+                            <label className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                className="size-4 accent-accent"
+                                checked={!row.issued}
+                                disabled={!ready || Boolean(employee.leftAt) || !row.issued}
+                                onChange={(e) => {
+                                  if (e.target.checked) void toggleCheck(employee.id, row, false)
+                                }}
+                              />
+                              <span className={!row.issued ? 'text-muted' : 'font-medium'}>{row.leaveLabel}</span>
                             </label>
                           </li>
                         ))}
                       </ul>
                       <p className="mt-1 text-xs text-muted">
-                        {held}/{checks.length} 지급
-                        {held ? ' · 퇴사 전 체크 해제(회수)' : ' · 퇴사 가능'}
+                        {held ? `미회수 ${held} · 퇴사 전 회수` : '회수 완료 · 퇴사 가능'}
                       </p>
                     </td>
                     <td className="py-3">

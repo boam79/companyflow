@@ -87,7 +87,7 @@ export function suggestNextStockForm(
         action: 'convert_to_asset',
         qty: '1',
         warehouseId,
-        hint: '노트북처럼 자산 관리 품목만 자산화합니다. 복사용지는 회사 재고로 남깁니다.',
+        hint: '자산관리 품목만 자산화합니다. 명찰·유니폼·노트북은 입퇴사 프로세스입니다.',
       }
     }
   }

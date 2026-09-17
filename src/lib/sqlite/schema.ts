@@ -43,4 +43,13 @@ export const SCHEMA_PATCHES = [
   'alter table employees add column badge_name text',
   'alter table items add column stock_managed integer not null default 1',
   'alter table items add column asset_managed integer not null default 0',
+  `create table if not exists employment_checks (
+    employee_id text not null,
+    item_key text not null,
+    issued integer not null default 0,
+    issued_at text,
+    returned_at text,
+    updated_at text not null,
+    primary key (employee_id, item_key)
+  )`,
 ]

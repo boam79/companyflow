@@ -46,10 +46,11 @@ export function heldIssuedAssets(
 }
 
 export function assertConvertibleItem(item: ItemRecord | undefined): ItemRecord {
+  if (item && ISSUE_ITEMS.some((row) => row.id === item.id)) {
+    throw new Error('명찰·유니폼·노트북은 자산이 아닙니다. 입퇴사 프로세스에서 지급·회수하세요.')
+  }
   if (!item?.assetManaged) {
-    throw new Error(
-      `${item?.name ?? '이 품목'}은 회사 재고입니다. 자산화·지급은 명찰·유니폼·노트북만 합니다.`,
-    )
+    throw new Error(`${item?.name ?? '이 품목'}은 회사 재고입니다. 자산관리 품목만 자산화하세요.`)
   }
   return item
 }
@@ -139,9 +140,6 @@ export function seedDefaultMaster(book: CompanyMasterBook): void {
     id: PAPER_ITEM.id,
     name: PAPER_ITEM.name,
   })
-  for (const item of ISSUE_ITEMS) {
-    book.upsertItem(`${book.companyId}:seed:${item.id}`, { id: item.id, name: item.name })
-  }
   book.upsertEmployee(`${book.companyId}:seed:emp-kim`, {
     id: DEFAULT_EMPLOYEE.id,
     name: DEFAULT_EMPLOYEE.name,
@@ -176,20 +174,8 @@ export async function writeDefaultMaster(db: {
     'insert or ignore into items(id, name, stock_managed, asset_managed, created_at) values(?, ?, ?, ?, ?)',
     [PAPER_ITEM.id, PAPER_ITEM.name, 1, 0, now],
   )
-  for (const item of ISSUE_ITEMS) {
-    await db.exec(
-      'insert or ignore into items(id, name, stock_managed, asset_managed, created_at) values(?, ?, ?, ?, ?)',
-      [item.id, item.name, item.stockManaged ? 1 : 0, item.assetManaged ? 1 : 0, now],
-    )
-  }
   await db.exec('update items set stock_managed = 1, asset_managed = 0 where id = ?', [PAPER_ITEM.id])
-  for (const item of ISSUE_ITEMS) {
-    await db.exec('update items set stock_managed = ?, asset_managed = ? where id = ?', [
-      item.stockManaged ? 1 : 0,
-      item.assetManaged ? 1 : 0,
-      item.id,
-    ])
-  }
+  await db.exec(`delete from items where id in ('item-badge', 'item-uniform', 'item-laptop')`)
   await db.exec(
     `insert or ignore into employees(id, name, department_id, title, hired_at, badge_name, created_at)
       values(?, ?, ?, ?, ?, ?, ?)`,
@@ -214,12 +200,14 @@ export async function loadItems(
     stock_managed?: number | null
     asset_managed?: number | null
   }>('select id, name, stock_managed, asset_managed from items order by name')
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    stockManaged: row.stock_managed !== 0,
-    assetManaged: row.asset_managed === 1,
-  }))
+  return rows
+    .filter((row) => !ISSUE_ITEMS.some((item) => item.id === row.id))
+    .map((row) => ({
+      id: row.id,
+      name: row.name,
+      stockManaged: row.stock_managed !== 0,
+      assetManaged: row.asset_managed === 1,
+    }))
 }
 
 export const MASTER_TABLE_SQL = [
@@ -245,6 +233,15 @@ export const MASTER_TABLE_SQL = [
     occurred_at text not null,
     detail_json text not null,
     created_at text not null
+  );`,
+  `create table if not exists employment_checks (
+    employee_id text not null,
+    item_key text not null,
+    issued integer not null default 0,
+    issued_at text,
+    returned_at text,
+    updated_at text not null,
+    primary key (employee_id, item_key)
   );`,
   `create table if not exists items (
     id text primary key,
