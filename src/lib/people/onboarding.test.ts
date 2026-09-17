@@ -24,6 +24,8 @@ describe('입퇴사 프로세스', () => {
   it('퇴사는 지급 중인 입사 항목이 있으면 막힌다', () => {
     const issued = applyIssueCheck(onboardingView('emp-1', []), 'laptop', '2026-09-17')
     expect(() => assertOffboardingClear(issued)).toThrow(/노트북 회수/)
+    expect(() => assertOffboardingClear(issued)).toThrow(/먼저 하세요/)
+    expect(() => assertOffboardingClear(issued)).not.toThrow(/명찰 회수/)
   })
 
   it('퇴사 프로세스에서 회수하면 퇴사할 수 있다', () => {

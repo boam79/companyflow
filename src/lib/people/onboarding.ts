@@ -89,9 +89,7 @@ export function applyReturnCheck(checks: OnboardingCheck[], key: OnboardingKey, 
 export function assertOffboardingClear(checks: OnboardingCheck[]): void {
   const held = outstandingOnboarding(checks)
   if (held.length) {
-    throw new Error(
-      `퇴사 프로세스 미완료: ${held.map((row) => row.leaveLabel).join(', ')}. 명찰·유니폼·노트북을 먼저 회수하세요.`,
-    )
+    throw new Error(`퇴사 프로세스 미완료: ${held.map((row) => row.leaveLabel).join(', ')}를 먼저 하세요.`)
   }
 }
 
