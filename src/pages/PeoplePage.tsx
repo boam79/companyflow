@@ -11,6 +11,8 @@ import {
 } from '../lib/people/employment'
 import {
   executeOnboardingToggle,
+  leavePhase,
+  leaveSummary,
   loadOnboardingChecks,
   migrateProcessAssetsToChecks,
   onboardingView,
@@ -354,26 +356,29 @@ export function PeoplePage() {
                     </td>
                     <td className="py-3 pr-3">
                       <ul className="space-y-1.5">
-                        {process.map((row) => (
+                        {process.map((row) => {
+                          const phase = leavePhase(row, Boolean(employee.leftAt))
+                          return (
                           <li key={`leave-${row.key}`}>
                             <label className="flex items-center gap-2">
                               <input
                                 type="checkbox"
                                 className="size-4 accent-accent"
-                                checked={!row.issued}
-                                disabled={!ready || Boolean(employee.leftAt) || !row.issued}
+                                checked={phase === 'returned'}
+                                disabled={!ready || Boolean(employee.leftAt) || phase !== 'held'}
                                 onChange={(e) => {
                                   if (e.target.checked) void toggleCheck(employee.id, row, false)
                                 }}
                               />
-                              <span className={!row.issued ? 'text-muted' : 'font-medium'}>{row.leaveLabel}</span>
+                              <span className={phase === 'held' ? 'font-medium' : 'text-muted'}>
+                                {phase === 'pending' ? `${row.name} 지급 전` : row.leaveLabel}
+                              </span>
                             </label>
                           </li>
-                        ))}
+                          )
+                        })}
                       </ul>
-                      <p className="mt-1 text-xs text-muted">
-                        {held ? `미회수 ${held} · 퇴사 전 회수` : '회수 완료 · 퇴사 가능'}
-                      </p>
+                      <p className="mt-1 text-xs text-muted">{leaveSummary(process, Boolean(employee.leftAt))}</p>
                     </td>
                     <td className="py-3">
                       <p className="text-muted">

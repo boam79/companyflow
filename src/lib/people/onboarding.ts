@@ -57,6 +57,21 @@ export function outstandingOnboarding(checks: OnboardingCheck[]): OnboardingChec
   return checks.filter((row) => row.issued)
 }
 
+export type LeavePhase = 'pending' | 'held' | 'returned'
+
+export function leavePhase(row: OnboardingCheck, left: boolean): LeavePhase {
+  if (row.issued) return 'held'
+  if (left && row.returnedAt) return 'returned'
+  return 'pending'
+}
+
+export function leaveSummary(checks: OnboardingCheck[], left: boolean): string {
+  const held = outstandingOnboarding(checks).length
+  if (held) return `미회수 ${held} · 퇴사 전 회수`
+  if (left) return '회수 완료 · 퇴사 기록됨'
+  return '지급 전 · 입사 프로세스부터'
+}
+
 export function applyIssueCheck(checks: OnboardingCheck[], key: OnboardingKey, at: string): OnboardingCheck[] {
   return checks.map((row) =>
     row.key === key ? { ...row, issued: true, issuedAt: at, returnedAt: undefined } : row,
@@ -212,5 +227,10 @@ export async function migrateProcessAssetsToChecks(db: {
   }
   await db.exec(
     `delete from assets where item_id in ('item-badge', 'item-uniform', 'item-laptop')`,
+  )
+  await db.exec(
+    `delete from employment_checks
+      where issued = 0
+        and employee_id in (select id from employees where left_at is null)`,
   )
 }

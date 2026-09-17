@@ -84,7 +84,7 @@ export async function executeHire(
     const employee = employees.find((row) => row.id === command.employeeId)
     if (!employee) throw new Error('직원을 찾을 수 없습니다.')
     const next = applyHire(employee, command)
-    return [
+    const statements = [
       {
         sql: 'update employees set hired_at = ?, left_at = null, title = ?, badge_name = ? where id = ?',
         params: [next.hiredAt, next.title ?? null, next.badgeName ?? next.name, command.employeeId],
@@ -101,6 +101,13 @@ export async function executeHire(
         ],
       },
     ]
+    if (employee.leftAt) {
+      statements.push({
+        sql: 'delete from employment_checks where employee_id = ?',
+        params: [command.employeeId],
+      })
+    }
+    return statements
   })
 }
 

@@ -4,6 +4,8 @@ import {
   applyReturnCheck,
   assertOffboardingClear,
   isProcessItemId,
+  leavePhase,
+  leaveSummary,
   migrateProcessAssetsToChecks,
   onboardingView,
   outstandingOnboarding,
@@ -29,6 +31,20 @@ describe('입퇴사 프로세스', () => {
     checks = applyReturnCheck(checks, 'uniform', '2026-09-17')
     expect(() => assertOffboardingClear(checks)).not.toThrow()
     expect(outstandingOnboarding(checks)).toHaveLength(0)
+  })
+
+  it('재직 중에는 이전 회수를 퇴사 완료로 보여 주지 않는다', () => {
+    const returned = applyReturnCheck(
+      applyIssueCheck(onboardingView('emp-1', []), 'badge', '2026-09-17'),
+      'badge',
+      '2026-09-17',
+    )
+    expect(leavePhase(returned[0], false)).toBe('pending')
+    expect(leavePhase(returned[0], true)).toBe('returned')
+    expect(leaveSummary(onboardingView('emp-1', []), false)).toBe('지급 전 · 입사 프로세스부터')
+    expect(leaveSummary(applyIssueCheck(onboardingView('emp-1', []), 'laptop', '2026-09-17'), false)).toBe(
+      '미회수 1 · 퇴사 전 회수',
+    )
   })
 
   it('명찰·유니폼·노트북은 회사 자산 품목이 아니다', () => {
