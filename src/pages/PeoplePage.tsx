@@ -246,9 +246,6 @@ export function PeoplePage() {
             </option>
           ))}
         </select>
-        <Link className="rounded border border-line px-3 py-2 text-sm" to="/assets">
-          회사 자산
-        </Link>
         <Link className="rounded border border-line px-3 py-2 text-sm" to="/master">
           기준정보
         </Link>

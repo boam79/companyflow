@@ -34,6 +34,7 @@ export function ContractsPage() {
   const [message, setMessage] = useState('')
   const [ready, setReady] = useState(false)
   const opening = useRef(false)
+  const fileInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!user) return
@@ -225,16 +226,24 @@ export function ContractsPage() {
           금액(원)
           <input type="number" min="0" className="mt-1 w-full rounded border border-line px-3 py-2" value={amount} onChange={(e) => setAmount(e.target.value)} />
         </label>
-        <label className="text-sm sm:col-span-2">
-          원본 파일(선택, PDF·PNG·JPEG 8MB)
+        <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
           <input
             key={fileKey}
+            ref={fileInput}
             type="file"
             accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
-            className="mt-1 w-full text-sm"
+            className="sr-only"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           />
-        </label>
+          <button
+            type="button"
+            className="rounded border border-line px-4 py-2 text-sm font-semibold"
+            onClick={() => fileInput.current?.click()}
+          >
+            첨부파일
+          </button>
+          <span className="text-sm text-muted">{file ? file.name : '선택된 파일 없음 · PDF·PNG·JPEG 8MB'}</span>
+        </div>
         <div className="sm:col-span-2">
           <button type="submit" disabled={!ready} className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
             초안 저장

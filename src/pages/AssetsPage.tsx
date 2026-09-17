@@ -113,9 +113,6 @@ export function AssetsPage() {
         <Link className="rounded border border-line px-3 py-2 text-sm" to="/stock">
           구매·재고에서 자산화
         </Link>
-        <Link className="rounded border border-line px-3 py-2 text-sm" to="/people">
-          직원·입퇴사
-        </Link>
         <Link className="rounded border border-line px-3 py-2 text-sm" to="/reports">
           통계
         </Link>
