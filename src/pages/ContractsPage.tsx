@@ -57,6 +57,7 @@ export function ContractsPage() {
   const [ready, setReady] = useState(false)
   const opening = useRef(false)
   const fileInput = useRef<HTMLInputElement>(null)
+  const ocrPanel = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!user) return
@@ -128,7 +129,8 @@ export function ContractsPage() {
       }
       setFile(next)
       setOcrBusy(true)
-      setOcrMessage('원본에서 글자를 읽는 중입니다.')
+      setOcrMessage('원본에서 글자를 읽는 중입니다. 처음이면 1분 정도 걸릴 수 있습니다.')
+      ocrPanel.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       const { extractLocalContract } = await import('../lib/contracts/localOcr')
       const result = await extractLocalContract({
         bytes,
@@ -145,6 +147,7 @@ export function ContractsPage() {
       setFileKey((key) => key + 1)
       setMessage(error instanceof Error ? error.message : String(error))
       setOcrMessage('')
+      ocrPanel.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     } finally {
       setOcrBusy(false)
     }
@@ -467,18 +470,27 @@ export function ContractsPage() {
               </button>
               <span className="text-sm text-muted">{file ? file.name : '선택된 파일 없음 · PDF·PNG·JPEG 8MB'}</span>
             </div>
-            {ocrBusy ? <p className="text-sm text-muted sm:col-span-2">원본을 읽는 중입니다. 초안 저장은 글자를 읽은 뒤에 하세요.</p> : null}
-            {ocrText ? (
-              <label className="text-sm sm:col-span-2">
-                읽은 글자 (확인하고 위 칸을 고치세요)
-                <textarea
-                  readOnly
-                  rows={6}
-                  className="mt-1 w-full rounded border border-line px-3 py-2 font-mono text-xs"
-                  value={ocrText}
-                />
-              </label>
-            ) : null}
+            <div ref={ocrPanel} className="space-y-2 sm:col-span-2">
+              {message ? <p className="text-sm text-danger">{message}</p> : null}
+              {ocrBusy ? (
+                <p className="text-sm text-muted">
+                  {ocrMessage || '원본을 읽는 중입니다. 처음이면 1분 정도 걸릴 수 있습니다.'} 초안 저장은 글자를 읽은 뒤에 하세요.
+                </p>
+              ) : ocrMessage ? (
+                <p className="text-sm text-accent">{ocrMessage}</p>
+              ) : null}
+              {ocrText ? (
+                <label className="text-sm">
+                  읽은 글자 (확인하고 위 칸을 고치세요)
+                  <textarea
+                    readOnly
+                    rows={6}
+                    className="mt-1 w-full rounded border border-line px-3 py-2 font-mono text-xs"
+                    value={ocrText}
+                  />
+                </label>
+              ) : null}
+            </div>
             <div className="sm:col-span-2">
               <button type="submit" disabled={!ready || ocrBusy} className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
                 초안 저장

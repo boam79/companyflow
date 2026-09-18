@@ -43,6 +43,23 @@ describe('계약 OCR 필드 추출', () => {
     expect(found.amount).toBe('1500000')
     expect(found.title).toMatch(/HQ 3F lease/i)
   })
+  it('한글을 한 글자씩 떨어뜨린 OCR도 칸을 채운다', () => {
+    const found = Object.fromEntries(
+      parseContractText(`계 약 명 본 사 3 층 임 대
+계 약 번 호 CON-OCR-PNG-02
+상 대 방 한 국 리 스
+담 당 자 김 담 당
+체 결 일 2026년 9월 19일
+계 약 금 액 2500000원`).map((row) => [row.field, row.value]),
+    )
+    expect(found.contractNo).toBe('CON-OCR-PNG-02')
+    expect(found.counterparty).toBe('한국리스')
+    expect(found.ownerName).toBe('김담당')
+    expect(found.title).toMatch(/본사/)
+    expect(found.amount).toBe('2500000')
+    expect(found.signedAt).toBe('2026-09-19')
+  })
+
   it('OCR 후보로 칸을 채운다', () => {
     const filled = applyOcrCandidates(
       {

@@ -33,18 +33,39 @@ export function toIsoDate(raw: string): string | undefined {
 const NEXT_FIELD =
   '계약명|건명|계약번호|상대방|거래처|담당자|체결일|시작일|종료일|계약금액|금액|Amount|Contract\\s*No\\.?|Contract\\s*title|Counterparty|Title'
 
+function flexLabels(labels: string): string {
+  return labels.replace(/[가-힣]/g, (ch) => `${ch}\\s*`)
+}
+
+export function tidyOcrValue(value: string): string {
+  const tokens = value.trim().split(/\s+/)
+  const singleHangul = tokens.filter((token) => /^[\uAC00-\uD7A3]$/.test(token)).length
+  let next = value
+  if (singleHangul >= 3 && singleHangul >= tokens.length / 2) {
+    let prev = ''
+    while (next !== prev) {
+      prev = next
+      next = next
+        .replace(/([\uAC00-\uD7A3])[ \t]+(?=[\uAC00-\uD7A3])/g, '$1')
+        .replace(/([\uAC00-\uD7A3])[ \t]+(?=\d)/g, '$1')
+        .replace(/(\d)[ \t]+(?=[\uAC00-\uD7A3])/g, '$1')
+    }
+  }
+  return next.replace(/\s+/g, ' ').trim()
+}
+
 function labeledValue(text: string, labels: string): string | undefined {
   const pattern = new RegExp(
-    `(?:${labels})\\s*[:：]?\\s*(.+?)(?=\\s+(?:${NEXT_FIELD})(?:\\s|[:：]|$)|$)`,
+    `(?:${flexLabels(labels)})\\s*[:：]?\\s*(.+?)(?=\\s+(?:${flexLabels(NEXT_FIELD)})(?:\\s|[:：]|$)|$)`,
     'is',
   )
   const match = text.match(pattern)
-  const value = match?.[1]?.replace(/\s+/g, ' ').trim()
+  const value = match?.[1] ? tidyOcrValue(match[1]) : undefined
   return value || undefined
 }
 
 function add(candidates: OcrCandidate[], field: string, value: string | undefined, confidence = FIELD_CONFIDENCE[field] ?? 0.5) {
-  const next = value?.replace(/\s+/g, ' ').trim()
+  const next = value ? tidyOcrValue(value) : ''
   if (!next) return
   if (candidates.some((row) => row.field === field)) return
   candidates.push({ field, value: next, confidence })

@@ -2,8 +2,8 @@ import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist'
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { createWorker } from 'tesseract.js'
 import { mimeFromName, toArrayBuffer } from './book'
+import { describeOcrResult, type OcrExtractResult } from './ocr'
 import { parseContractText } from './parseFields'
-import type { OcrExtractResult } from './ocr'
 
 GlobalWorkerOptions.workerSrc = workerSrc
 
@@ -75,15 +75,18 @@ async function tessWorkerInstance(onProgress?: (message: string) => void) {
       corePath: '/tesseract-core',
       langPath: '/tessdata',
       gzip: true,
-      workerBlobURL: true,
+      workerBlobURL: false,
       logger: (info) => {
         if (!onProgress) return
         if (info.status === 'recognizing text' && typeof info.progress === 'number') {
           onProgress(`글자를 읽는 중 ${Math.round(info.progress * 100)}%`)
         } else if (info.status) {
-          onProgress('OCR 엔진을 준비하는 중입니다.')
+          onProgress('OCR 엔진을 준비하는 중입니다. 처음이면 1분 정도 걸릴 수 있습니다.')
         }
       },
+    }).then(async (worker) => {
+      await worker.setParameters({ tessedit_pageseg_mode: '6' })
+      return worker
     })
   }
   tessWorker = await tessLoading
@@ -131,29 +134,22 @@ export async function extractLocalContract(input: {
       source = 'ocr'
     }
     const candidates = parseContractText(text)
-    if (!text.trim()) {
-      return {
-        status: 'empty',
-        candidates: [],
-        text: '',
-        message: '글자를 찾지 못했습니다. 직접 입력하세요. 원본은 이 PC에 남습니다.',
-      }
-    }
     return {
-      status: 'ready',
+      status: text.trim() && candidates.length ? 'ready' : 'empty',
       candidates,
       text,
-      message:
-        source === 'pdf-text'
-          ? 'PDF 글자로 후보를 채웠습니다. 확인하고 고친 뒤 초안을 저장하세요. OCR만으로 체결하지 않습니다.'
-          : '이 PC에서 OCR로 후보를 채웠습니다. 확인하고 고친 뒤 초안을 저장하세요. OCR만으로 체결하지 않습니다.',
+      message: describeOcrResult({ text, candidateCount: candidates.length, source }),
     }
   } catch (error) {
     return {
       status: 'empty',
       candidates: [],
       text: '',
-      message: `OCR을 끝내지 못했습니다. 직접 입력하세요. (${error instanceof Error ? error.message : String(error)})`,
+      message: describeOcrResult({
+        error: error instanceof Error ? error.message : String(error),
+        text: '',
+        candidateCount: 0,
+      }),
     }
   }
 }
