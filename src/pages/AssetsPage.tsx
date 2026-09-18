@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { assetNumber, loadAssets, type AssetRecord } from '../lib/asset/book'
+import { assetQrDataUrl, assetQrFileName } from '../lib/asset/qr'
 import { loadItems, writeDefaultMaster, type ItemRecord } from '../lib/master/book'
 import { isProcessItemId, migrateProcessAssetsToChecks } from '../lib/people/onboarding'
 import { getCompanySqlite } from '../lib/sqlite/instance'
@@ -18,6 +19,8 @@ export function AssetsPage() {
   const [items, setItems] = useState<ItemRecord[]>([])
   const [warehouses, setWarehouses] = useState<NamedRow[]>([])
   const [assets, setAssets] = useState<AssetRecord[]>([])
+  const [qrUrls, setQrUrls] = useState<Record<string, string>>({})
+  const [notice, setNotice] = useState('')
   const [message, setMessage] = useState('')
   const [ready, setReady] = useState(false)
   const opening = useRef(false)
@@ -63,6 +66,14 @@ export function AssetsPage() {
       setItems(itemRows)
       setWarehouses(warehouseRows)
       setAssets(assetRows)
+      const companyOnly = assetRows.filter((asset) => !isProcessItemId(asset.itemId))
+      const urls = await Promise.all(
+        companyOnly.map(async (asset) => {
+          const number = assetNumber(asset.id)
+          return [asset.id, await assetQrDataUrl(number)] as const
+        }),
+      )
+      setQrUrls(Object.fromEntries(urls))
     } catch (error) {
       setReady(false)
       setMessage(error instanceof Error ? error.message : String(error))
@@ -91,7 +102,7 @@ export function AssetsPage() {
       <div>
         <h1 className="text-3xl font-semibold">자산</h1>
         <p className="mt-2 text-sm text-muted">
-          재고에서 자산화한 회사 재산만 봅니다. 명찰·유니폼·노트북은 입퇴사 프로세스입니다.
+          재고에서 자산화한 회사 재산만 봅니다. 명찰·유니폼·노트북은 입퇴사 프로세스입니다. QR을 받아 자산에 붙이면 번호로 찾습니다.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -117,6 +128,7 @@ export function AssetsPage() {
           통계
         </Link>
       </div>
+      {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
       <section className="rounded-lg border border-line bg-card p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
@@ -127,6 +139,7 @@ export function AssetsPage() {
             <thead>
               <tr className="border-b border-line text-muted">
                 <th className="py-2 pr-3 font-medium">자산</th>
+                <th className="py-2 pr-3 font-medium">QR</th>
                 <th className="py-2 pr-3 font-medium">품목</th>
                 <th className="py-2 pr-3 font-medium">위치</th>
                 <th className="py-2 pr-3 font-medium">상태</th>
@@ -136,9 +149,33 @@ export function AssetsPage() {
             <tbody>
               {companyAssets.map((asset) => {
                 const item = items.find((row) => row.id === asset.itemId)
+                const number = assetNumber(asset.id)
+                const qr = qrUrls[asset.id]
                 return (
                   <tr key={asset.id} className="border-b border-line/70">
-                    <td className="py-2 pr-3">{assetNumber(asset.id)}</td>
+                    <td className="py-2 pr-3">{number}</td>
+                    <td className="py-2 pr-3">
+                      {qr ? (
+                        <div className="flex items-center gap-2">
+                          <img src={qr} alt={`${number} QR`} className="h-16 w-16 bg-white p-1" />
+                          <button
+                            type="button"
+                            className="rounded border border-line px-2 py-1 text-xs font-semibold"
+                            onClick={() => {
+                              const link = document.createElement('a')
+                              link.href = qr
+                              link.download = assetQrFileName(number)
+                              link.click()
+                              setNotice(`${assetQrFileName(number)}을 이 PC에서 받았습니다. 인쇄해 자산에 붙이세요.`)
+                            }}
+                          >
+                            QR 받기
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-muted">그리는 중</span>
+                      )}
+                    </td>
                     <td className="py-2 pr-3">{item?.name ?? asset.itemId}</td>
                     <td className="py-2 pr-3">
                       {warehouses.find((warehouse) => warehouse.id === asset.warehouseId)?.name ??

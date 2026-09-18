@@ -7,7 +7,7 @@
 
 ## 지금 하는 일
 
-지정 Chrome에서 `/people` 입사 칸을 바꾸면 명찰 미리보기가 채워지는지, 이메일·슬랙 보내기가 되는지 확인한다.
+자산 목록에서 고유번호 QR을 만들고 PNG로 받아 붙인다. 지정 Chrome `/assets`에서 확인한다.
 
 ## 보드
 
@@ -25,7 +25,8 @@
 - [x] T6 구매·재고 수불부 (반출 4 → 회사 합계 7, 본사 5, 부속 2)
 - [ ] T7 입퇴사 프로세스·회사 자산(복사용지 AST 3) 사용자 확인. Planner 완료 선언 전.
 - [ ] T8 계약 직접 등록 초안 (`/contracts`). OCR OFF.
-- [ ] 명찰 템플릿 PDF·AI 업로드·칸 파악. 지정 Chrome `/people` 확인 전.
+- [x] 명찰 템플릿 미리보기·PDF 받기 (지정 Chrome에서 명찰-김담당.pdf 확인)
+- [ ] 자산 QR PNG. 지정 Chrome `/assets` 확인 전.
 
 배포 URL: https://companyflow-opal.vercel.app  
 Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, ap-northeast-2)
@@ -42,9 +43,8 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 - Supabase 활성: `companyflow`, `boardroom`. 정지: `boam79_patient_data`, `qr-asset-manager`, `policyfund-ai-v2`.
 - `confirm_company_device` RPC 추가. 초기 설정 성공 후 원본 장치를 confirmed 로 올린다.
 
-## 최근 변경
-
-- 2026-09-18: 입사 정보로 명찰을 채우고, 관리자 이메일·슬랙으로 보낸다.
+- 2026-09-18: 채워진 명찰을 템플릿 크기 PDF로 받음. 이메일 보내기 삭제.
+- 2026-09-18: 자산 QR(AST-01/06) PNG 받기.
 - 2026-09-18: 올린 명찰 PDF·AI를 화면 미리보기로 보여 줌.
 - 2026-09-18: `/people`에 명찰 PDF·AI 원본 업로드. 글자에서 성명·부서·직위 칸을 읽고 원본은 로컬 보존.
 - 2026-09-18: 계약 원본 파일 보존·8MB·PDF/PNG/JPEG·같은 해시 중복 차단.
