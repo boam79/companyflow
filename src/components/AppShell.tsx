@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 
 const MENUS = [
@@ -15,6 +15,8 @@ const MENUS = [
 
 export function AppShell() {
   const { loading, user, operator, signOut } = useAuth()
+  const location = useLocation()
+  const scanMode = location.pathname.startsWith('/q/')
 
   return (
     <div className="min-h-svh">
@@ -24,18 +26,20 @@ export function AppShell() {
             CompanyFlow
           </Link>
           <nav className="flex flex-wrap items-center gap-4 text-sm">
-            {MENUS.map((menu) => (
-              <NavLink
-                key={menu.to}
-                to={menu.to}
-                className={({ isActive }) =>
-                  isActive ? 'font-semibold text-accent' : 'text-muted'
-                }
-                end={menu.to === '/'}
-              >
-                {menu.label}
-              </NavLink>
-            ))}
+            {scanMode
+              ? null
+              : MENUS.map((menu) => (
+                  <NavLink
+                    key={menu.to}
+                    to={menu.to}
+                    className={({ isActive }) =>
+                      isActive ? 'font-semibold text-accent' : 'text-muted'
+                    }
+                    end={menu.to === '/'}
+                  >
+                    {menu.label}
+                  </NavLink>
+                ))}
             {loading ? null : user ? (
               <>
                 <span className="text-muted">{user.email}</span>
@@ -48,7 +52,7 @@ export function AppShell() {
               </>
             ) : (
               <NavLink
-                to="/login"
+                to={scanMode ? `/login?next=${location.pathname}` : '/login'}
                 className={({ isActive }) =>
                   isActive ? 'font-semibold text-accent' : 'text-muted'
                 }

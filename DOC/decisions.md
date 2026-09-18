@@ -57,3 +57,4 @@
 | D-26 | 2026-09-16 | 전용 Supabase 프로젝트 `companyflow`(vswvkypdjizldieenapx, ap-northeast-2)만 사용. 다른 제품 DB에 스키마를 넣지 않는다 | Executor + Supabase MCP. `boam79_patient_data` 일시정지 후 생성 |
 | D-27 | 2026-09-16 | 운영 관리자 표시는 `app_metadata.platform_operator`만 사용. user_metadata 금지 | PRD 9.4, Supabase 보안 가이드 |
 | D-28 | 2026-09-16 | SQLite WASM OPFS는 COOP same-origin + COEP require-corp 헤더를 사용 | sqlite-wasm 공식 README |
+| D-29 | 2026-09-18 | 자산 QR은 빈 표식만 인쇄한다. 직원이 스마트폰으로 읽어 AST-01 항목을 입력·저장하고, 지정 PC가 수신한 뒤 로컬 원본에 반영한다. 기존 자산번호(`AST-…`)를 QR에 넣지 않는다. Relay 암호는 미정이라 수신함은 반영 후 비운다. 휴대폰은 원본 SQLite를 열지 않는다 | PRD 2.2, AST-01/02/06, AC-20, AC-34. 사용자 확인 |

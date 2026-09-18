@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { assetNumber, loadAssets, type AssetRecord } from '../lib/asset/book'
-import { assetQrDataUrl, assetQrFileName } from '../lib/asset/qr'
+import { assertQrAssetPayload, executeQrRegistration, type QrAssetPayload } from '../lib/asset/register'
+import { fetchPendingQrInbox, importAssetQr, insertBlankQrLabels, type AssetQrInboxRow } from '../lib/asset/relay'
+import { assertBlankQrCount, blankQrDataUrl, blankQrFileName, blankQrScanUrl } from '../lib/asset/qr'
 import { isCompanyAssetItem, loadItems, writeDefaultMaster, type ItemRecord } from '../lib/master/book'
 import { migrateProcessAssetsToChecks } from '../lib/people/onboarding'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
@@ -10,8 +12,22 @@ import { getCompanySqlite } from '../lib/sqlite/instance'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
 type NamedRow = { id: string; name: string }
+type PrintedQr = { id: string; url: string; dataUrl: string }
 
 const sqlite = getCompanySqlite()
+
+function payloadFromUnknown(value: unknown): QrAssetPayload {
+  const row = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+  return assertQrAssetPayload({
+    itemName: String(row.itemName ?? ''),
+    model: String(row.model ?? ''),
+    serialNo: String(row.serialNo ?? ''),
+    location: String(row.location ?? ''),
+    departmentName: String(row.departmentName ?? ''),
+    ownerName: String(row.ownerName ?? ''),
+    acquiredAt: String(row.acquiredAt ?? ''),
+  })
+}
 
 export function AssetsPage() {
   const { configured, loading, user } = useAuth()
@@ -20,10 +36,13 @@ export function AssetsPage() {
   const [items, setItems] = useState<ItemRecord[]>([])
   const [warehouses, setWarehouses] = useState<NamedRow[]>([])
   const [assets, setAssets] = useState<AssetRecord[]>([])
-  const [qrUrls, setQrUrls] = useState<Record<string, string>>({})
+  const [inbox, setInbox] = useState<AssetQrInboxRow[]>([])
+  const [printed, setPrinted] = useState<PrintedQr[]>([])
+  const [blankCount, setBlankCount] = useState(4)
   const [notice, setNotice] = useState('')
   const [message, setMessage] = useState('')
   const [ready, setReady] = useState(false)
+  const [busy, setBusy] = useState(false)
   const opening = useRef(false)
 
   useEffect(() => {
@@ -45,6 +64,12 @@ export function AssetsPage() {
     if (!companyId || ready || opening.current) return
     void openCompany(companyId)
   }, [companyId, ready])
+
+  async function refreshInbox(nextId: string) {
+    const client = getSupabase()
+    if (!client) return
+    setInbox(await fetchPendingQrInbox(client, nextId))
+  }
 
   async function openCompany(nextId: string, force = false) {
     opening.current = true
@@ -68,22 +93,96 @@ export function AssetsPage() {
       setItems(itemRows)
       setWarehouses(warehouseRows)
       setAssets(assetRows)
-      const companyOnly = assetRows.filter((asset) =>
-        isCompanyAssetItem(itemRows.find((item) => item.id === asset.itemId)),
-      )
-      const urls = await Promise.all(
-        companyOnly.map(async (asset) => {
-          const number = assetNumber(asset.id)
-          return [asset.id, await assetQrDataUrl(number)] as const
-        }),
-      )
-      setQrUrls(Object.fromEntries(urls))
+      await refreshInbox(nextId)
     } catch (error) {
       setReady(false)
       setMessage(error instanceof Error ? error.message : String(error))
     } finally {
       opening.current = false
     }
+  }
+
+  async function makeBlankQrs() {
+    const client = getSupabase()
+    if (!client || !companyId || !ready) {
+      setMessage('지정 PC에서 회사를 연 뒤에 빈 QR을 만듭니다.')
+      return
+    }
+    setBusy(true)
+    setMessage('')
+    setNotice('')
+    try {
+      const count = assertBlankQrCount(blankCount)
+      const ids = Array.from({ length: count }, () => crypto.randomUUID())
+      const origin = window.location.origin
+      await insertBlankQrLabels(client, companyId, ids)
+      const createdAt = new Date().toISOString()
+      await sqlite.batch(
+        ids.map((id) => ({
+          sql: 'insert or ignore into qr_labels(id, status, created_at) values(?, ?, ?)',
+          params: [id, 'blank', createdAt],
+        })),
+      )
+      const urls = await Promise.all(
+        ids.map(async (id) => ({
+          id,
+          url: blankQrScanUrl(origin, id),
+          dataUrl: await blankQrDataUrl(origin, id),
+        })),
+      )
+      setPrinted(urls)
+      setNotice(`빈 QR ${count}장을 만들었습니다. 인쇄해 책상·컴퓨터에 붙인 뒤 스마트폰으로 읽으세요.`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function importOne(row: AssetQrInboxRow) {
+    const client = getSupabase()
+    if (!client || !ready) return
+    setBusy(true)
+    setMessage('')
+    try {
+      const payload = payloadFromUnknown(row.payload)
+      const result = await executeQrRegistration(sqlite, { labelId: row.label_id, payload })
+      await importAssetQr(client, row.label_id)
+      const assetRows = await loadAssets(sqlite)
+      setAssets(assetRows)
+      await refreshInbox(companyId)
+      setNotice(
+        result.status === 'duplicate'
+          ? '이미 원본에 반영된 QR입니다.'
+          : `${result.assetNumber ?? '자산'}을 원본에 반영했습니다.`,
+      )
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function printSheet() {
+    if (!printed.length) return
+    const page = window.open('', '_blank')
+    if (!page) {
+      setMessage('인쇄 창을 열 수 없습니다.')
+      return
+    }
+    page.document.write(`<!doctype html><title>빈 QR</title><body style="font-family:sans-serif">`)
+    page.document.write(
+      printed
+        .map(
+          (row, index) =>
+            `<div style="display:inline-block;text-align:center;margin:12px"><img src="${row.dataUrl}" width="180" height="180"><div>빈QR-${String(index + 1).padStart(2, '0')}</div></div>`,
+        )
+        .join(''),
+    )
+    page.document.write(`</body>`)
+    page.document.close()
+    page.focus()
+    page.print()
   }
 
   const companyAssets = assets.filter((asset) =>
@@ -108,7 +207,8 @@ export function AssetsPage() {
       <div>
         <h1 className="text-3xl font-semibold">자산</h1>
         <p className="mt-2 text-sm text-muted">
-          책상·컴퓨터처럼 고유번호가 필요한 물건만 회사 자산입니다. 복사용지 같은 비품은 재고이며 QR을 붙이지 않습니다.
+          빈 QR을 만들어 책상·컴퓨터에 붙입니다. 직원이 스마트폰으로 읽고 자산 정보를 넣으면, 이 PC가 원본에 반영합니다.
+          복사용지 같은 비품은 재고이며 QR을 붙이지 않습니다.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -130,65 +230,125 @@ export function AssetsPage() {
         <Link className="rounded border border-line px-3 py-2 text-sm" to="/stock">
           구매·재고에서 자산화
         </Link>
-        <Link className="rounded border border-line px-3 py-2 text-sm" to="/reports">
-          통계
-        </Link>
       </div>
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
+
       <section className="rounded-lg border border-line bg-card p-5">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 className="text-lg font-semibold">회사 자산 {companyAssets.length}</h2>
+        <h2 className="text-lg font-semibold">빈 QR 만들기</h2>
+        <p className="mt-1 text-sm text-muted">자산번호는 넣지 않습니다. 스티커를 붙인 뒤 스마트폰으로 정보를 입력합니다.</p>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <label className="text-sm">
+            장수
+            <input
+              type="number"
+              min={1}
+              max={40}
+              className="ml-2 w-20 rounded border border-line px-2 py-2"
+              value={blankCount}
+              onChange={(e) => setBlankCount(Number(e.target.value))}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={busy || !ready}
+            className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            onClick={() => void makeBlankQrs()}
+          >
+            빈 QR 만들기
+          </button>
+          {printed.length ? (
+            <button type="button" className="rounded border border-line px-3 py-2 text-sm" onClick={printSheet}>
+              인쇄
+            </button>
+          ) : null}
         </div>
+        {printed.length ? (
+          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {printed.map((row, index) => (
+              <div key={row.id} className="rounded border border-line p-3 text-center">
+                <img src={row.dataUrl} alt={`빈 QR ${index + 1}`} className="mx-auto h-28 w-28 bg-white p-1" />
+                <p className="mt-1 text-xs text-muted">빈QR-{String(index + 1).padStart(2, '0')}</p>
+                <button
+                  type="button"
+                  className="mt-2 rounded border border-line px-2 py-1 text-xs font-semibold"
+                  onClick={() => {
+                    const link = document.createElement('a')
+                    link.href = row.dataUrl
+                    link.download = blankQrFileName(index + 1)
+                    link.click()
+                  }}
+                >
+                  PNG 받기
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      <section className="rounded-lg border border-line bg-card p-5">
+        <h2 className="text-lg font-semibold">스마트폰에서 저장 {inbox.length}</h2>
+        {inbox.length ? (
+          <ul className="mt-3 space-y-2 text-sm">
+            {inbox.map((row) => {
+              const payload = row.payload as Partial<QrAssetPayload>
+              return (
+                <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-line/70 py-2">
+                  <span>
+                    {String(payload.itemName ?? '자산')} · {String(payload.location ?? '위치 없음')} ·{' '}
+                    {String(payload.ownerName || payload.departmentName || '담당 없음')}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    className="rounded bg-accent px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                    onClick={() => void importOne(row)}
+                  >
+                    원본에 반영
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <p className="mt-2 text-sm text-muted">
+            {ready ? '스마트폰에서 저장한 빈 QR이 없습니다.' : '회사 DB를 여는 중입니다.'}
+          </p>
+        )}
+      </section>
+
+      <section className="rounded-lg border border-line bg-card p-5">
+        <h2 className="text-lg font-semibold">회사 자산 {companyAssets.length}</h2>
         {companyAssets.length ? (
           <table className="mt-3 w-full text-left text-sm">
             <thead>
               <tr className="border-b border-line text-muted">
                 <th className="py-2 pr-3 font-medium">자산</th>
-                <th className="py-2 pr-3 font-medium">QR</th>
                 <th className="py-2 pr-3 font-medium">품목</th>
-                <th className="py-2 pr-3 font-medium">위치</th>
-                <th className="py-2 pr-3 font-medium">상태</th>
-                <th className="py-2 font-medium">비고</th>
+                <th className="py-2 pr-3 font-medium">모델·일련번호</th>
+                <th className="py-2 pr-3 font-medium">위치·부서·담당</th>
+                <th className="py-2 font-medium">취득</th>
               </tr>
             </thead>
             <tbody>
               {companyAssets.map((asset) => {
                 const item = items.find((row) => row.id === asset.itemId)
-                const number = assetNumber(asset.id)
-                const qr = qrUrls[asset.id]
                 return (
                   <tr key={asset.id} className="border-b border-line/70">
-                    <td className="py-2 pr-3">{number}</td>
-                    <td className="py-2 pr-3">
-                      {qr ? (
-                        <div className="flex items-center gap-2">
-                          <img src={qr} alt={`${number} QR`} className="h-16 w-16 bg-white p-1" />
-                          <button
-                            type="button"
-                            className="rounded border border-line px-2 py-1 text-xs font-semibold"
-                            onClick={() => {
-                              const link = document.createElement('a')
-                              link.href = qr
-                              link.download = assetQrFileName(number)
-                              link.click()
-                              setNotice(`${assetQrFileName(number)}을 이 PC에서 받았습니다. 인쇄해 자산에 붙이세요.`)
-                            }}
-                          >
-                            QR 받기
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-muted">그리는 중</span>
-                      )}
-                    </td>
+                    <td className="py-2 pr-3">{assetNumber(asset.id)}</td>
                     <td className="py-2 pr-3">{item?.name ?? asset.itemId}</td>
-                    <td className="py-2 pr-3">
-                      {warehouses.find((warehouse) => warehouse.id === asset.warehouseId)?.name ??
-                        asset.warehouseId}
+                    <td className="py-2 pr-3 text-muted">
+                      {[asset.model, asset.serialNo].filter(Boolean).join(' · ') || '—'}
                     </td>
-                    <td className="py-2 pr-3">회사 보관</td>
-                    <td className="py-2 text-muted">고유번호·QR</td>
+                    <td className="py-2 pr-3">
+                      {asset.locationText ||
+                        warehouses.find((warehouse) => warehouse.id === asset.warehouseId)?.name ||
+                        asset.warehouseId}
+                      {asset.departmentName ? ` · ${asset.departmentName}` : ''}
+                      {asset.ownerName ? ` · ${asset.ownerName}` : ''}
+                    </td>
+                    <td className="py-2 text-muted">{asset.acquiredAt || '—'}</td>
                   </tr>
                 )
               })}
@@ -197,7 +357,7 @@ export function AssetsPage() {
         ) : (
           <p className="mt-2 text-sm text-muted">
             {ready
-              ? '회사 자산이 없습니다. 책상·컴퓨터를 재고에서 자산화하세요. 복사용지는 비품 재고라 여기에 두지 않습니다.'
+              ? '회사 자산이 없습니다. 빈 QR을 붙인 뒤 스마트폰에서 입력하거나, 재고에서 책상·컴퓨터를 자산화하세요.'
               : '회사 DB를 여는 중입니다.'}
           </p>
         )}

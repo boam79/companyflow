@@ -18,6 +18,13 @@ export type AssetRecord = {
   employeeId?: string
   sourceOperationId: string
   createdAt?: string
+  qrToken?: string
+  model?: string
+  serialNo?: string
+  locationText?: string
+  departmentName?: string
+  ownerName?: string
+  acquiredAt?: string
 }
 
 export function assetNumber(id: string): string {
@@ -58,7 +65,18 @@ export async function loadAssets(
     employee_id?: string | null
     source_operation_id: string
     created_at?: string | null
-  }>('select id, item_id, warehouse_id, status, employee_id, source_operation_id, created_at from assets order by created_at, id')
+    qr_token?: string | null
+    model?: string | null
+    serial_no?: string | null
+    location_text?: string | null
+    department_name?: string | null
+    owner_name?: string | null
+    acquired_at?: string | null
+  }>(
+    `select id, item_id, warehouse_id, status, employee_id, source_operation_id, created_at,
+      qr_token, model, serial_no, location_text, department_name, owner_name, acquired_at
+      from assets order by created_at, id`,
+  )
   return rows.map((row) => ({
     id: row.id,
     itemId: row.item_id,
@@ -67,6 +85,13 @@ export async function loadAssets(
     employeeId: row.employee_id ?? undefined,
     sourceOperationId: row.source_operation_id,
     createdAt: row.created_at ?? undefined,
+    qrToken: row.qr_token ?? undefined,
+    model: row.model ?? undefined,
+    serialNo: row.serial_no ?? undefined,
+    locationText: row.location_text ?? undefined,
+    departmentName: row.department_name ?? undefined,
+    ownerName: row.owner_name ?? undefined,
+    acquiredAt: row.acquired_at ?? undefined,
   }))
 }
 
