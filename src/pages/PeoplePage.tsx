@@ -416,15 +416,15 @@ export function PeoplePage() {
           <p className="mt-3 text-sm text-muted">템플릿 미리보기를 그리는 중입니다.</p>
         ) : null}
         {previewStatus === 'ready' && badgePreviewImages.length ? (
-          <div className="mt-4 rounded border border-line bg-white p-3">
+          <div className="mt-4 w-fit max-w-full rounded border border-line bg-white p-3">
             <p className="mb-2 text-sm font-medium">미리보기</p>
-            <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-wrap items-start gap-3">
               {badgePreviewImages.map((src, index) => (
                 <img
                   key={`${index}-${src.slice(-24)}`}
                   src={src}
                   alt={`명찰 템플릿 미리보기 ${index + 1}`}
-                  className="max-h-[520px] w-auto max-w-full"
+                  className="h-auto w-[240px] max-w-full"
                 />
               ))}
             </div>

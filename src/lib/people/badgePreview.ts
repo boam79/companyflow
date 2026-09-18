@@ -2,6 +2,7 @@ import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist'
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { toArrayBuffer } from '../contracts/book'
 import { previewableBadgePdfBytes } from './badgeTemplate'
+import { cropCanvasToContent } from './badgePreviewCrop'
 
 GlobalWorkerOptions.workerSrc = workerSrc
 
@@ -25,7 +26,7 @@ export async function renderBadgeTemplatePreview(bytes: Uint8Array): Promise<str
       canvas.width = Math.ceil(viewport.width)
       canvas.height = Math.ceil(viewport.height)
       await page.render({ canvas, viewport }).promise
-      images.push(canvas.toDataURL('image/png'))
+      images.push(cropCanvasToContent(canvas).toDataURL('image/png'))
     }
     return images
   } catch {
