@@ -88,7 +88,13 @@ export function parseContractText(text: string): OcrCandidate[] {
     const line = source
       .split('\n')
       .map((row) => row.trim())
-      .find((row) => row.length >= 4 && /계약|임대|유지보수|보험|용역|lease/i.test(row) && !/계약서$/.test(row) && !/계약번호|Contract\\s*No/i.test(row))
+      .find(
+        (row) =>
+          row.length >= 4 &&
+          /계약|임대|유지보수|보험|용역|lease/i.test(row) &&
+          !/계약서$/.test(row) &&
+          !/계약번호|계약금액|계약일|체결일|시작일|종료일|담당자|상대방|Contract\\s*No/i.test(row),
+      )
     add(candidates, 'title', line, 0.45)
   }
 

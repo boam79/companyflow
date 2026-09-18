@@ -1,6 +1,6 @@
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist'
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
-import { createWorker, PSM } from 'tesseract.js'
+import { createWorker } from 'tesseract.js'
 import { mimeFromName, toArrayBuffer } from './book'
 import { describeOcrResult, type OcrExtractResult } from './ocr'
 import { parseContractText } from './parseFields'
@@ -84,16 +84,11 @@ async function tessWorkerInstance(onProgress?: (message: string) => void) {
           onProgress('OCR 엔진을 준비하는 중입니다. 처음이면 1분 정도 걸릴 수 있습니다.')
         }
       },
+    }).catch((error) => {
+      tessLoading = null
+      tessWorker = null
+      throw error
     })
-      .then(async (worker) => {
-        await worker.setParameters({ tessedit_pageseg_mode: PSM.AUTO })
-        return worker
-      })
-      .catch((error) => {
-        tessLoading = null
-        tessWorker = null
-        throw error
-      })
   }
   tessWorker = await tessLoading
   return tessWorker
@@ -122,7 +117,7 @@ async function rasterizeForOcr(bytes: Uint8Array, mime: string): Promise<Blob> {
   }
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, canvas.width, canvas.height)
-  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingEnabled = scale > 1
   ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
   bitmap.close()
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
@@ -166,8 +161,15 @@ export async function extractLocalContract(input: {
       }
     } else {
       input.onProgress?.('이미지에서 글자를 읽는 중입니다.')
-      const prepared = await rasterizeForOcr(input.bytes, mime || 'image/png')
-      text = await recognizeImages([prepared], input.onProgress)
+      const original = new Blob([toArrayBuffer(input.bytes)], { type: mime || 'image/png' })
+      try {
+        text = await recognizeImages([original], input.onProgress)
+      } catch (error) {
+        const failed = error instanceof Error ? error.message : String(error)
+        if (!/attempting to read image|read image/i.test(failed)) throw error
+        input.onProgress?.('그림을 바꿔서 다시 읽는 중입니다.')
+        text = await recognizeImages([await rasterizeForOcr(input.bytes, mime || 'image/png')], input.onProgress)
+      }
       source = 'ocr'
     }
     const candidates = parseContractText(text)
