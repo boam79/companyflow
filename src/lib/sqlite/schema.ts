@@ -3,6 +3,7 @@ import { STOCK_TABLE_SQL } from '../stock/engine'
 import { ASSET_TABLE_SQL } from '../asset/book'
 import { CONTRACT_TABLE_SQL } from '../contracts/book'
 import { BADGE_TEMPLATE_TABLE_SQL } from '../people/badgeTemplate'
+import { NOTIFY_TABLE_SQL } from '../people/badgeNotify'
 
 export const LOCAL_MIGRATIONS = [
   `create table if not exists meta (
@@ -38,6 +39,7 @@ export const LOCAL_MIGRATIONS = [
   ...ASSET_TABLE_SQL,
   ...CONTRACT_TABLE_SQL,
   ...BADGE_TEMPLATE_TABLE_SQL,
+  ...NOTIFY_TABLE_SQL,
 ]
 
 export const SCHEMA_PATCHES = [
@@ -77,4 +79,5 @@ export const SCHEMA_PATCHES = [
   'alter table contracts add column file_base64 text',
   `create unique index if not exists contracts_file_hash on contracts(file_hash) where file_hash is not null`,
   ...BADGE_TEMPLATE_TABLE_SQL,
+  ...NOTIFY_TABLE_SQL,
 ]

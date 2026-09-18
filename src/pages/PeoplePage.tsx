@@ -11,6 +11,15 @@ import {
   loadBadgeTemplateOriginal,
   type BadgeTemplateRecord,
 } from '../lib/people/badgeTemplate'
+import { badgeFillValues, isBadgeFilled, type BadgeFillValues, type BadgeSlot } from '../lib/people/badgeFill'
+import {
+  badgeNotifyMessage,
+  executeSaveNotifySettings,
+  loadNotifySettings,
+  mailtoHref,
+  sendSlackWebhook,
+  type NotifySettings,
+} from '../lib/people/badgeNotify'
 import {
   executeHire,
   executeLeave,
@@ -86,7 +95,10 @@ export function PeoplePage() {
   const [badgeFile, setBadgeFile] = useState<File | null>(null)
   const [badgePreview, setBadgePreview] = useState('')
   const [badgePreviewImages, setBadgePreviewImages] = useState<string[]>([])
+  const [badgePages, setBadgePages] = useState<{ image: string; slots: BadgeSlot[] }[]>([])
   const [previewStatus, setPreviewStatus] = useState<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
+  const [badgeEmployeeId, setBadgeEmployeeId] = useState('')
+  const [notify, setNotify] = useState<NotifySettings>({ adminEmail: '', slackWebhook: '' })
   const opening = useRef(false)
   const badgeInput = useRef<HTMLInputElement>(null)
   const previewSeq = useRef(0)
@@ -111,6 +123,11 @@ export function PeoplePage() {
     void openCompany(companyId)
   }, [companyId, ready])
 
+  useEffect(() => {
+    if (!badgePages.length || !badgeEmployeeId) return
+    void paintFilledPages(badgePages, currentFillValues())
+  }, [badgePages, badgeEmployeeId, drafts, employees, departments])
+
   async function openCompany(nextId: string, force = false) {
     opening.current = true
     setCompanyId(nextId)
@@ -124,21 +141,25 @@ export function PeoplePage() {
       }
       await writeDefaultMaster(sqlite)
       await migrateProcessAssetsToChecks(sqlite)
-      const [deptRows, employeeRows, checkRows, template] = await Promise.all([
+      const [deptRows, employeeRows, checkRows, template, notifyRow] = await Promise.all([
         sqlite.query<NamedRow>('select id, name from departments order by name'),
         loadEmployees(sqlite),
         loadOnboardingChecks(sqlite),
         loadBadgeTemplate(sqlite),
+        loadNotifySettings(sqlite),
       ])
       setDepartments(deptRows)
       setEmployees(employeeRows)
       setChecks(checkRows)
       setBadgeTemplate(template)
+      setNotify(notifyRow)
+      setBadgeEmployeeId((prev) => prev || employeeRows.find((row) => !row.leftAt)?.id || employeeRows[0]?.id || '')
       if (template) {
         const original = await loadBadgeTemplateOriginal(sqlite)
         await showBadgePreview(original.bytes)
       } else {
         setBadgePreviewImages([])
+        setBadgePages([])
         setPreviewStatus('idle')
       }
       setDrafts(
@@ -165,10 +186,64 @@ export function PeoplePage() {
     const seq = (previewSeq.current += 1)
     setPreviewStatus('loading')
     const { renderBadgeTemplatePreview } = await import('../lib/people/badgePreview')
-    const images = await renderBadgeTemplatePreview(bytes)
+    const pages = await renderBadgeTemplatePreview(bytes)
     if (seq !== previewSeq.current) return
-    setBadgePreviewImages(images)
-    setPreviewStatus(images.length ? 'ready' : 'unavailable')
+    setBadgePages(pages)
+    setBadgePreviewImages(pages.map((page) => page.image))
+    setPreviewStatus(pages.length ? 'ready' : 'unavailable')
+  }
+
+  function currentFillValues(): BadgeFillValues {
+    const employee = employees.find((row) => row.id === badgeEmployeeId)
+    if (!employee) return {}
+    const draft = drafts[employee.id]
+    const deptName = departments.find((dept) => dept.id === employee.departmentId)?.name
+    return badgeFillValues(
+      { name: employee.name, badgeName: draft?.badgeName || employee.badgeName, title: draft?.title || employee.title },
+      deptName,
+    )
+  }
+
+  async function paintFilledPages(pages: { image: string; slots: BadgeSlot[] }[], values: BadgeFillValues) {
+    if (!pages.length) return
+    const { paintFilledBadge } = await import('../lib/people/badgePreview')
+    const filled = await Promise.all(pages.map((page) => paintFilledBadge(page.image, page.slots, values)))
+    setBadgePreviewImages(filled)
+  }
+
+  async function saveNotify() {
+    setMessage('')
+    setNotice('')
+    try {
+      const saved = await executeSaveNotifySettings(sqlite, notify)
+      setNotify(saved)
+      setNotice('명찰 보낼 곳(이메일·슬랙)을 저장했습니다.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  async function sendFilledBadge(channel: 'email' | 'slack') {
+    setMessage('')
+    setNotice('')
+    const values = currentFillValues()
+    if (!isBadgeFilled(values)) {
+      setMessage('입사 칸에 명찰 이름과 직위 또는 부서를 먼저 넣으세요.')
+      return
+    }
+    const text = badgeNotifyMessage(values)
+    try {
+      if (channel === 'email') {
+        const href = mailtoHref(notify.adminEmail, `명찰 · ${values.name}`, text)
+        window.location.href = href
+        setNotice('관리자 메일 창을 열었습니다. 미리보기 그림은 이 화면에서 확인하세요.')
+        return
+      }
+      await sendSlackWebhook(notify.slackWebhook, text)
+      setNotice('슬랙으로 채워진 명찰 정보를 보냈습니다.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
   }
 
   async function refreshPeople() {
@@ -259,7 +334,22 @@ export function PeoplePage() {
             ? '재입사했습니다. 입사 프로세스를 이어갈 수 있습니다.'
             : '입사를 기록했습니다.',
       )
+      setBadgeEmployeeId(employeeId)
       await refreshPeople()
+      const values = badgeFillValues(
+        { name: employees.find((row) => row.id === employeeId)?.name || draft.badgeName, badgeName: draft.badgeName, title: draft.title },
+        departments.find((dept) => dept.id === employees.find((row) => row.id === employeeId)?.departmentId)?.name,
+      )
+      if (result.status === 'applied' && isBadgeFilled(values)) {
+        const text = badgeNotifyMessage(values)
+        if (notify.slackWebhook) {
+          await sendSlackWebhook(notify.slackWebhook, text)
+          setNotice((prev) => `${prev} 슬랙으로 명찰 정보를 보냈습니다.`)
+        } else if (notify.adminEmail) {
+          window.location.href = mailtoHref(notify.adminEmail, `명찰 · ${values.name}`, text)
+          setNotice((prev) => `${prev} 관리자 메일 창을 열었습니다.`)
+        }
+      }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     }
@@ -417,7 +507,7 @@ export function PeoplePage() {
         ) : null}
         {previewStatus === 'ready' && badgePreviewImages.length ? (
           <div className="mt-4 w-fit max-w-full rounded border border-line bg-white p-3">
-            <p className="mb-2 text-sm font-medium">미리보기</p>
+            <p className="mb-2 text-sm font-medium">미리보기 · 입사 칸 값이 자동으로 들어갑니다</p>
             <div className="flex flex-wrap items-start gap-3">
               {badgePreviewImages.map((src, index) => (
                 <img
@@ -427,6 +517,54 @@ export function PeoplePage() {
                   className="h-auto w-[240px] max-w-full"
                 />
               ))}
+            </div>
+          </div>
+        ) : null}
+        {previewStatus === 'ready' && badgePreviewImages.length ? (
+          <div className="mt-4 space-y-3 text-sm">
+            <p className="text-muted">
+              지금 채우는 직원:{' '}
+              <span className="font-medium">
+                {employees.find((row) => row.id === badgeEmployeeId)?.name ?? '직원을 고르세요'}
+              </span>
+            </p>
+            <div className="flex max-w-xl flex-wrap gap-2">
+              <input
+                className="min-w-48 flex-1 rounded border border-line px-3 py-2"
+                placeholder="관리자 이메일"
+                value={notify.adminEmail}
+                onChange={(e) => setNotify((prev) => ({ ...prev, adminEmail: e.target.value }))}
+              />
+              <input
+                className="min-w-64 flex-1 rounded border border-line px-3 py-2"
+                placeholder="슬랙 Incoming Webhook"
+                value={notify.slackWebhook}
+                onChange={(e) => setNotify((prev) => ({ ...prev, slackWebhook: e.target.value }))}
+              />
+              <button
+                type="button"
+                disabled={!ready}
+                className="rounded border border-line px-3 py-2 font-semibold disabled:opacity-50"
+                onClick={() => void saveNotify()}
+              >
+                보낼 곳 저장
+              </button>
+              <button
+                type="button"
+                disabled={!ready}
+                className="rounded border border-line px-3 py-2 font-semibold disabled:opacity-50"
+                onClick={() => void sendFilledBadge('email')}
+              >
+                이메일 보내기
+              </button>
+              <button
+                type="button"
+                disabled={!ready}
+                className="rounded border border-line px-3 py-2 font-semibold disabled:opacity-50"
+                onClick={() => void sendFilledBadge('slack')}
+              >
+                슬랙 보내기
+              </button>
             </div>
           </div>
         ) : null}
@@ -462,7 +600,11 @@ export function PeoplePage() {
                 const held = outstandingOnboarding(process).length
                 const deptName = departments.find((dept) => dept.id === employee.departmentId)?.name
                 return (
-                  <tr key={employee.id} className="border-b border-line/70 align-top">
+                  <tr
+                    key={employee.id}
+                    className={`border-b border-line/70 align-top ${badgeEmployeeId === employee.id ? 'bg-accent-soft' : ''}`}
+                    onClick={() => setBadgeEmployeeId(employee.id)}
+                  >
                     <td className="py-3 pr-3">{employee.name}</td>
                     <td className="py-3 pr-3">{deptName ?? '-'}</td>
                     <td className="py-3 pr-3">
@@ -482,23 +624,25 @@ export function PeoplePage() {
                           className="w-24 rounded border border-line px-2 py-1"
                           placeholder="직위"
                           value={draft.title}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            setBadgeEmployeeId(employee.id)
                             setDrafts((prev) => ({
                               ...prev,
                               [employee.id]: { ...draft, title: e.target.value },
                             }))
-                          }
+                          }}
                         />
                         <input
                           className="w-28 rounded border border-line px-2 py-1"
                           placeholder="명찰 이름"
                           value={draft.badgeName}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            setBadgeEmployeeId(employee.id)
                             setDrafts((prev) => ({
                               ...prev,
                               [employee.id]: { ...draft, badgeName: e.target.value },
                             }))
-                          }
+                          }}
                         />
                       </div>
                     </td>

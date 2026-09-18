@@ -33,18 +33,22 @@ export function contentBounds(
   return { x, y, width: right - x, height: bottom - y }
 }
 
-export function cropCanvasToContent(canvas: HTMLCanvasElement, padding = 12): HTMLCanvasElement {
+export function cropCanvasToContent(
+  canvas: HTMLCanvasElement,
+  padding = 12,
+): { canvas: HTMLCanvasElement; bounds: CropRect } {
+  const full = { x: 0, y: 0, width: canvas.width, height: canvas.height }
   const ctx = canvas.getContext('2d')
-  if (!ctx) return canvas
+  if (!ctx) return { canvas, bounds: full }
   const image = ctx.getImageData(0, 0, canvas.width, canvas.height)
   const bounds = contentBounds(image.data, image.width, image.height, padding)
-  if (!bounds) return canvas
-  if (bounds.width >= canvas.width - 2 && bounds.height >= canvas.height - 2) return canvas
+  if (!bounds) return { canvas, bounds: full }
+  if (bounds.width >= canvas.width - 2 && bounds.height >= canvas.height - 2) return { canvas, bounds: full }
   const cropped = document.createElement('canvas')
   cropped.width = bounds.width
   cropped.height = bounds.height
   const next = cropped.getContext('2d')
-  if (!next) return canvas
+  if (!next) return { canvas, bounds: full }
   next.drawImage(
     canvas,
     bounds.x,
@@ -56,5 +60,5 @@ export function cropCanvasToContent(canvas: HTMLCanvasElement, padding = 12): HT
     bounds.width,
     bounds.height,
   )
-  return cropped
+  return { canvas: cropped, bounds }
 }
