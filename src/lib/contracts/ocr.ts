@@ -7,6 +7,7 @@ export type OcrCandidate = {
 export type OcrExtractResult = {
   status: 'disabled' | 'empty' | 'ready'
   candidates: OcrCandidate[]
+  text?: string
   message: string
 }
 

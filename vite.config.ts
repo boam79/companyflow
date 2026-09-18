@@ -1,10 +1,32 @@
+import { cpSync, mkdirSync, readdirSync } from 'node:fs'
 import { fileURLToPath, URL } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
+
+function copyTesseractAssets(): Plugin {
+  const copy = () => {
+    const coreDir = fileURLToPath(new URL('./node_modules/tesseract.js-core', import.meta.url))
+    const destDir = fileURLToPath(new URL('./public/tesseract-core', import.meta.url))
+    mkdirSync(destDir, { recursive: true })
+    for (const name of readdirSync(coreDir)) {
+      if (!/-lstm\.(wasm|wasm\.js)$/.test(name)) continue
+      cpSync(`${coreDir}/${name}`, `${destDir}/${name}`)
+    }
+    cpSync(
+      fileURLToPath(new URL('./node_modules/tesseract.js/dist/worker.min.js', import.meta.url)),
+      fileURLToPath(new URL('./public/tesseract-worker.min.js', import.meta.url)),
+    )
+  }
+  return {
+    name: 'copy-tesseract-assets',
+    buildStart: copy,
+    configureServer: copy,
+  }
+}
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), copyTesseractAssets()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

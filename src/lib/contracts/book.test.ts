@@ -90,6 +90,25 @@ describe('계약 초안', () => {
     expect(contractLife('2026-12-31', '2026-09-19')).toBe('진행')
   })
 
+  it('OCR 후보를 확인한 뒤에만 원본 첨부 초안을 만든다', () => {
+    const enabled = { ...DISABLED_OCR, enabled: true }
+    expect(() =>
+      applyDraftContract([], { ...BASE, fileBytes: new Uint8Array([1]), fileMime: 'application/pdf', fileName: 'a.pdf' }, enabled),
+    ).toThrow(/OCR 후보/)
+    const draft = applyDraftContract(
+      [],
+      {
+        ...BASE,
+        fileBytes: new Uint8Array([1]),
+        fileMime: 'application/pdf',
+        fileName: 'a.pdf',
+        ocrReviewed: true,
+      },
+      enabled,
+    )
+    expect(draft.ocrStatus).toBe('reviewed')
+  })
+
   it('OCR이 꺼져 있으면 후보 없이 직접 입력한다', async () => {
     const result = await DISABLED_OCR.extract({})
     expect(result.status).toBe('disabled')

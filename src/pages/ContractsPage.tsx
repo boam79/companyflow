@@ -14,7 +14,7 @@ import {
   toArrayBuffer,
   type ContractDraft,
 } from '../lib/contracts/book'
-import { DISABLED_OCR } from '../lib/contracts/ocr'
+import { applyOcrCandidates } from '../lib/contracts/parseFields'
 import { writeDefaultMaster } from '../lib/master/book'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
@@ -49,6 +49,9 @@ export function ContractsPage() {
   const [fileKey, setFileKey] = useState(0)
   const [selectedId, setSelectedId] = useState('')
   const [ocrMessage, setOcrMessage] = useState('')
+  const [ocrText, setOcrText] = useState('')
+  const [ocrReviewed, setOcrReviewed] = useState(false)
+  const [ocrBusy, setOcrBusy] = useState(false)
   const [notice, setNotice] = useState('')
   const [message, setMessage] = useState('')
   const [ready, setReady] = useState(false)
@@ -90,8 +93,6 @@ export function ContractsPage() {
       const nextRows = await loadContracts(sqlite)
       setRows(nextRows)
       setSelectedId((prev) => (nextRows.some((row) => row.id === prev) ? prev : nextRows[0]?.id ?? ''))
-      const ocr = await DISABLED_OCR.extract({})
-      setOcrMessage(ocr.message)
     } catch (error) {
       setReady(false)
       setMessage(error instanceof Error ? error.message : String(error))
@@ -104,26 +105,48 @@ export function ContractsPage() {
     setForm(emptyForm())
     setFile(null)
     setFileKey((key) => key + 1)
+    setOcrText('')
+    setOcrReviewed(false)
+    setOcrMessage('')
   }
 
   async function pickFile(next: File | null) {
     setMessage('')
     setNotice('')
+    setOcrText('')
+    setOcrReviewed(false)
     if (!next) {
       setFile(null)
       return
     }
     try {
       assertContractFile(next.size, next.type, next.name)
-      const hash = await hashFileBytes(new Uint8Array(await next.arrayBuffer()))
+      const bytes = new Uint8Array(await next.arrayBuffer())
+      const hash = await hashFileBytes(bytes)
       if (rows.some((row) => row.fileHash === hash)) {
         throw new Error('같은 원본 파일은 계약을 한 번만 만듭니다.')
       }
       setFile(next)
+      setOcrBusy(true)
+      setOcrMessage('원본에서 글자를 읽는 중입니다.')
+      const { extractLocalContract } = await import('../lib/contracts/localOcr')
+      const result = await extractLocalContract({
+        bytes,
+        fileName: next.name,
+        fileMime: next.type,
+        onProgress: setOcrMessage,
+      })
+      setForm((prev) => applyOcrCandidates(prev, result.candidates))
+      setOcrText(result.text ?? '')
+      setOcrReviewed(true)
+      setOcrMessage(result.message)
     } catch (error) {
       setFile(null)
       setFileKey((key) => key + 1)
       setMessage(error instanceof Error ? error.message : String(error))
+      setOcrMessage('')
+    } finally {
+      setOcrBusy(false)
     }
   }
 
@@ -160,12 +183,13 @@ export function ContractsPage() {
         fileHash,
         fileMime,
         fileBytes,
+        ocrReviewed: Boolean(fileBytes) && ocrReviewed,
       })
       setNotice(
         result.status === 'duplicate'
           ? '같은 초안은 한 번만 반영됩니다.'
           : fileBytes
-            ? '계약 초안과 원본 파일을 저장했습니다. OCR로 체결하지 않았습니다.'
+            ? '확인한 값으로 초안과 원본을 저장했습니다. OCR만으로 체결하지 않았습니다.'
             : '계약 초안을 저장했습니다. OCR로 체결하지 않았습니다.',
       )
       const nextRows = await loadContracts(sqlite)
@@ -214,8 +238,8 @@ export function ContractsPage() {
       <div>
         <h1 className="text-3xl font-semibold">계약</h1>
         <p className="mt-2 text-sm text-muted">
-          직접 입력으로 초안만 만듭니다. 원본은 PDF·PNG·JPEG 8MB까지 이 PC에 남기고, 같은 파일은 한 번만
-          받습니다. OCR은 꺼져 있습니다.
+          원본 PDF·PNG·JPEG를 올리면 이 PC에서 글자를 읽어 칸을 채웁니다. 확인하고 고친 뒤 초안만 저장합니다.
+          같은 파일은 한 번만 받습니다. OCR만으로 체결하지 않습니다.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -287,6 +311,7 @@ export function ContractsPage() {
                 <span className="mt-0.5 text-xs text-muted">
                   {contractPeriod(row)} · {contractAmountText(row.amount)}
                   {row.hasOriginal ? ` · ${row.fileName}` : ' · 원본 없음'}
+                  {row.ocrStatus === 'reviewed' ? ' · OCR 확인' : ''}
                 </span>
               </button>
             ))
@@ -330,7 +355,7 @@ export function ContractsPage() {
                 </div>
                 <div className="sm:col-span-2">
                   <dt className="text-muted">상태</dt>
-                  <dd>초안 · OCR 꺼짐</dd>
+                  <dd>{selected.ocrStatus === 'reviewed' ? '초안 · OCR 확인' : '초안'}</dd>
                 </div>
               </dl>
               {selected.hasOriginal ? (
@@ -442,8 +467,20 @@ export function ContractsPage() {
               </button>
               <span className="text-sm text-muted">{file ? file.name : '선택된 파일 없음 · PDF·PNG·JPEG 8MB'}</span>
             </div>
+            {ocrBusy ? <p className="text-sm text-muted sm:col-span-2">원본을 읽는 중입니다. 초안 저장은 글자를 읽은 뒤에 하세요.</p> : null}
+            {ocrText ? (
+              <label className="text-sm sm:col-span-2">
+                읽은 글자 (확인하고 위 칸을 고치세요)
+                <textarea
+                  readOnly
+                  rows={6}
+                  className="mt-1 w-full rounded border border-line px-3 py-2 font-mono text-xs"
+                  value={ocrText}
+                />
+              </label>
+            ) : null}
             <div className="sm:col-span-2">
-              <button type="submit" disabled={!ready} className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+              <button type="submit" disabled={!ready || ocrBusy} className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
                 초안 저장
               </button>
             </div>

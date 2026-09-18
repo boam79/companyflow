@@ -27,7 +27,7 @@ export type ContractDraft = {
   fileMime?: string
   hasOriginal: boolean
   status: ContractStatus
-  ocrStatus: 'off'
+  ocrStatus: 'off' | 'reviewed'
 }
 
 export type DraftContractInput = {
@@ -45,6 +45,7 @@ export type DraftContractInput = {
   fileHash?: string
   fileMime?: string
   fileBytes?: Uint8Array
+  ocrReviewed?: boolean
 }
 
 export type ContractOriginal = {
@@ -132,7 +133,7 @@ export function applyDraftContract(
     const dup = existing.find((row) => row.fileHash === input.fileHash)
     if (dup) throw new Error('같은 원본 파일은 계약을 한 번만 만듭니다.')
   }
-  if (ocr.enabled) {
+  if (ocr.enabled && input.fileBytes && !input.ocrReviewed) {
     throw new Error('OCR 후보를 확인한 뒤에만 초안을 저장하세요.')
   }
   return {
@@ -153,7 +154,7 @@ export function applyDraftContract(
       : input.fileMime,
     hasOriginal: Boolean(input.fileBytes?.byteLength),
     status: 'draft',
-    ocrStatus: 'off',
+    ocrStatus: input.ocrReviewed ? 'reviewed' : 'off',
   }
 }
 
@@ -199,7 +200,7 @@ export async function loadContracts(
     file_mime?: string | null
     has_original?: number | null
     status: ContractStatus
-    ocr_status: 'off'
+    ocr_status: 'off' | 'reviewed'
   }>(
     `select id, title, contract_no, counterparty, signed_at, start_at, end_at, amount, currency,
       owner_name, file_name, file_hash, file_mime,
