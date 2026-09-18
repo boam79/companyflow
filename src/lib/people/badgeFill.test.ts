@@ -6,6 +6,7 @@ import {
   matchTemplateSpacing,
   nameplateOverlay,
   overlayFromRuns,
+  overlayPaintFromRuns,
   slotsFromRuns,
 } from './badgeFill'
 
@@ -96,12 +97,6 @@ describe('명찰 채우기', () => {
     expect(name?.sample).toBe('김 슬 기')
   })
 
-  it('템플릿처럼 글자 사이를 띄운다', () => {
-    expect(matchTemplateSpacing('박재민', '김 슬 기')).toBe('박 재 민')
-    expect(matchTemplateSpacing('주임', '주 임')).toBe('주 임')
-    expect(matchTemplateSpacing('마케팅팀', '이름')).toBe('마케팅팀')
-  })
-
   it('부서 글자가 파일에 먼저 나와도 왼쪽 큰 글자를 이름으로 둔다', () => {
     const boxes = overlayFromRuns(
       [
@@ -145,5 +140,46 @@ describe('명찰 채우기', () => {
     expect(title?.sample).toBe('주 임')
     expect(department?.sample).toBe('마 케 팅 팀')
     expect(Number.parseFloat(name?.left || '99')).toBeLessThan(Number.parseFloat(department?.left || '0'))
+  })
+
+  it('템플릿처럼 글자 사이를 띄운다', () => {
+    expect(matchTemplateSpacing('박재민', '김 슬 기')).toBe('박 재 민')
+    expect(matchTemplateSpacing('주임', '주 임')).toBe('주 임')
+    expect(matchTemplateSpacing('마케팅팀', '이름')).toBe('마케팅팀')
+  })
+
+  it('인쇄용 칸은 템플릿 포인트 크기를 그대로 둔다', () => {
+    const paints = overlayPaintFromRuns([
+      {
+        str: '김 슬 기',
+        x: 20,
+        y: 40,
+        width: 80,
+        height: 17,
+        fontSize: 27,
+        fontName: 'OLYHUB+NanumGothicBold',
+      },
+      {
+        str: '주 임',
+        x: 120,
+        y: 30,
+        width: 40,
+        height: 10,
+        fontSize: 16.5,
+        fontName: 'EJAZKV+NanumGothic',
+      },
+      {
+        str: '마 케 팅 팀',
+        x: 120,
+        y: 55,
+        width: 50,
+        height: 9,
+        fontSize: 14.4,
+        fontName: 'EJAZKV+NanumGothic',
+      },
+    ])
+    expect(paints.find((row) => row.key === 'name')?.fontSize).toBe(27)
+    expect(paints.find((row) => row.key === 'title')?.fontSize).toBe(16.5)
+    expect(paints.find((row) => row.key === 'department')?.fontSize).toBe(14.4)
   })
 })

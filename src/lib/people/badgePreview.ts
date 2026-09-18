@@ -3,7 +3,7 @@ import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { toArrayBuffer } from '../contracts/book'
 import { previewableBadgePdfBytes } from './badgeTemplate'
 import { cropCanvasToContent } from './badgePreviewCrop'
-import { slotsForPage, nameplateOverlay, type BadgeFillValues, type BadgeSlot, type OverlayBox, type TextRun } from './badgeFill'
+import { slotsForPage, nameplateOverlay, overlayPaintFromRuns, matchTemplateSpacing, type BadgeFillValues, type BadgeSlot, type OverlayBox, type OverlayPaint, type TextRun } from './badgeFill'
 
 GlobalWorkerOptions.workerSrc = workerSrc
 
@@ -125,4 +125,78 @@ export async function paintFilledBadge(
     ctx.fillText(text, slot.x, slot.y + Math.max(0, (slot.height - slot.fontSize) / 5), slot.width)
   }
   return canvas.toDataURL('image/png')
+}
+
+async function canvasPngBytes(canvas: HTMLCanvasElement) {
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((next) => {
+      if (next) resolve(next)
+      else reject(new Error('명찰 그림을 만들지 못했습니다.'))
+    }, 'image/png')
+  })
+  return new Uint8Array(await blob.arrayBuffer())
+}
+
+async function ensureOverlayFonts(paints: OverlayPaint[]) {
+  if (typeof document === 'undefined' || !document.fonts?.load) return
+  await Promise.all(
+    paints.map((paint) =>
+      document.fonts.load(`${paint.fontWeight} ${Math.ceil(paint.fontSize)}px ${paint.fontFamily}`),
+    ),
+  )
+}
+
+function paintOverlay(canvas: HTMLCanvasElement, paints: OverlayPaint[], values: BadgeFillValues) {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+  ctx.textBaseline = 'middle'
+  for (const paint of paints) {
+    const text = values[paint.key]?.trim()
+    if (!text) continue
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(paint.x, paint.y, paint.width, paint.height)
+    ctx.fillStyle = '#111111'
+    ctx.font = `${paint.fontWeight} ${paint.fontSize}px ${paint.fontFamily}`
+    ctx.textAlign = paint.textAlign === 'left' ? 'left' : 'center'
+    const x = paint.textAlign === 'left' ? paint.x + 1 : paint.x + paint.width / 2
+    ctx.fillText(matchTemplateSpacing(text, paint.sample), x, paint.y + paint.height / 2)
+  }
+}
+
+export async function renderFilledNameplate(bytes: Uint8Array, values: BadgeFillValues) {
+  const pdfBytes = previewableBadgePdfBytes(bytes)
+  if (!pdfBytes || typeof document === 'undefined') {
+    throw new Error('명찰 템플릿 미리보기를 그릴 수 없습니다.')
+  }
+  const scale = 300 / 72
+  const task = getDocument({
+    data: toArrayBuffer(pdfBytes),
+    useWasm: false,
+    useWorkerFetch: false,
+    disableAutoFetch: true,
+  })
+  try {
+    const pdf = await task.promise
+    const page = await pdf.getPage(1)
+    const viewport = page.getViewport({ scale })
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.ceil(viewport.width)
+    canvas.height = Math.ceil(viewport.height)
+    await page.render({ canvas, viewport }).promise
+    const cropped = cropCanvasToContent(canvas, Math.max(8, Math.round(scale * 4)))
+    const text = await page.getTextContent()
+    const runs = runsFromPage(text.items, viewport, cropped.bounds, page)
+    const paints = overlayPaintFromRuns(runs)
+    if (!paints.length) throw new Error('명찰에서 이름·직위·부서 칸을 찾지 못했습니다.')
+    await ensureOverlayFonts(paints)
+    paintOverlay(cropped.canvas, paints, values)
+    return {
+      png: await canvasPngBytes(cropped.canvas),
+      widthPx: cropped.canvas.width,
+      heightPx: cropped.canvas.height,
+      scale,
+    }
+  } finally {
+    await task.destroy()
+  }
 }

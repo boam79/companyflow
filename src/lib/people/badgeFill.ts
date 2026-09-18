@@ -29,6 +29,19 @@ export type OverlayBox = {
   sample?: string
 }
 
+export type OverlayPaint = {
+  key: keyof BadgeFillValues
+  x: number
+  y: number
+  width: number
+  height: number
+  fontSize: number
+  fontFamily: string
+  fontWeight: number
+  textAlign: 'left' | 'center'
+  sample?: string
+}
+
 export type BadgeSlot = {
   key: BadgeFieldKey
   x: number
@@ -196,23 +209,18 @@ function classifyRuns(runs: TextRun[]) {
   return classified
 }
 
-function boxFromRun(
-  key: keyof BadgeFillValues,
-  run: TextRun,
-  cropWidth: number,
-  cropHeight: number,
-): OverlayBox {
+function paintFromRun(key: keyof BadgeFillValues, run: TextRun): OverlayPaint {
   const font = cssFontFromPdfName(run.fontName)
   const size = run.fontSize || run.height
   const padX = Math.max(run.width * 0.08, 4)
   const padY = Math.max(size * 0.18, 2)
   return {
     key,
-    left: pct(run.x - padX, cropWidth),
-    top: pct(run.y - padY, cropHeight),
-    width: pct(run.width + padX * 2, cropWidth),
-    height: pct(Math.max(run.height, size) + padY * 2, cropHeight),
-    fontSize: toCqw(size, cropWidth),
+    x: run.x - padX,
+    y: run.y - padY,
+    width: run.width + padX * 2,
+    height: Math.max(run.height, size) + padY * 2,
+    fontSize: size,
     fontFamily: font.fontFamily,
     fontWeight: font.fontWeight,
     textAlign: key === 'name' ? 'left' : 'center',
@@ -257,13 +265,28 @@ function fallbackOverlay(): OverlayBox[] {
   ]
 }
 
-export function overlayFromRuns(runs: TextRun[], cropWidth: number, cropHeight: number): OverlayBox[] {
+export function overlayPaintFromRuns(runs: TextRun[]): OverlayPaint[] {
   const classified = classifyRuns(runs)
   const keys: (keyof BadgeFillValues)[] = ['name', 'title', 'department']
   return keys.flatMap((key) => {
     const run = classified[key]
-    return run ? [boxFromRun(key, run, cropWidth, cropHeight)] : []
+    return run ? [paintFromRun(key, run)] : []
   })
+}
+
+export function overlayFromRuns(runs: TextRun[], cropWidth: number, cropHeight: number): OverlayBox[] {
+  return overlayPaintFromRuns(runs).map((paint) => ({
+    key: paint.key,
+    left: pct(paint.x, cropWidth),
+    top: pct(paint.y, cropHeight),
+    width: pct(paint.width, cropWidth),
+    height: pct(paint.height, cropHeight),
+    fontSize: toCqw(paint.fontSize, cropWidth),
+    fontFamily: paint.fontFamily,
+    fontWeight: paint.fontWeight,
+    textAlign: paint.textAlign,
+    sample: paint.sample,
+  }))
 }
 
 export function nameplateOverlay(

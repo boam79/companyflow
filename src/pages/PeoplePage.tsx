@@ -17,7 +17,6 @@ import {
   badgeNotifyMessage,
   executeSaveNotifySettings,
   loadNotifySettings,
-  mailtoHref,
   sendSlackWebhook,
   type NotifySettings,
 } from '../lib/people/badgeNotify'
@@ -206,13 +205,13 @@ export function PeoplePage() {
     try {
       const saved = await executeSaveNotifySettings(sqlite, notify)
       setNotify(saved)
-      setNotice('명찰 보낼 곳(이메일·슬랙)을 저장했습니다.')
+      setNotice('슬랙 보낼 곳을 저장했습니다.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     }
   }
 
-  async function sendFilledBadge(channel: 'email' | 'slack') {
+  async function sendFilledBadgeSlack() {
     setMessage('')
     setNotice('')
     const values = currentFillValues()
@@ -222,14 +221,34 @@ export function PeoplePage() {
     }
     const text = badgeNotifyMessage(values)
     try {
-      if (channel === 'email') {
-        const href = mailtoHref(notify.adminEmail, `명찰 · ${values.name}`, text)
-        window.location.href = href
-        setNotice('관리자 메일 창을 열었습니다. 미리보기 그림은 이 화면에서 확인하세요.')
-        return
-      }
       await sendSlackWebhook(notify.slackWebhook, text)
       setNotice('슬랙으로 채워진 명찰 정보를 보냈습니다.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  async function downloadFilledBadgePdf() {
+    setMessage('')
+    setNotice('')
+    const values = currentFillValues()
+    if (!isBadgeFilled(values)) {
+      setMessage('입사 칸에 명찰 이름과 직위 또는 부서를 먼저 넣으세요.')
+      return
+    }
+    try {
+      const original = await loadBadgeTemplateOriginal(sqlite)
+      const { buildFilledBadgePdf, ptsToMm } = await import('../lib/people/badgePdf')
+      const file = await buildFilledBadgePdf(original.bytes, values)
+      const url = URL.createObjectURL(new Blob([toArrayBuffer(file.pdf)], { type: 'application/pdf' }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = file.fileName
+      link.click()
+      URL.revokeObjectURL(url)
+      setNotice(
+        `${file.fileName}을 받았습니다. ${ptsToMm(file.widthPt).toFixed(1)}×${ptsToMm(file.heightPt).toFixed(1)}mm · 인쇄는 배율 100%(실제 크기)로 한 뒤 잘라 붙이세요.`,
+      )
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     }
@@ -335,9 +354,6 @@ export function PeoplePage() {
         if (notify.slackWebhook) {
           await sendSlackWebhook(notify.slackWebhook, text)
           setNotice((prev) => `${prev} 슬랙으로 명찰 정보를 보냈습니다.`)
-        } else if (notify.adminEmail) {
-          window.location.href = mailtoHref(notify.adminEmail, `명찰 · ${values.name}`, text)
-          setNotice((prev) => `${prev} 관리자 메일 창을 열었습니다.`)
         }
       }
     } catch (error) {
@@ -546,12 +562,14 @@ export function PeoplePage() {
               </span>
             </p>
             <div className="flex max-w-xl flex-wrap gap-2">
-              <input
-                className="min-w-48 flex-1 rounded border border-line px-3 py-2"
-                placeholder="관리자 이메일"
-                value={notify.adminEmail}
-                onChange={(e) => setNotify((prev) => ({ ...prev, adminEmail: e.target.value }))}
-              />
+              <button
+                type="button"
+                disabled={!ready}
+                className="rounded bg-accent px-3 py-2 font-semibold text-white disabled:opacity-50"
+                onClick={() => void downloadFilledBadgePdf()}
+              >
+                명찰 PDF 받기
+              </button>
               <input
                 className="min-w-64 flex-1 rounded border border-line px-3 py-2"
                 placeholder="슬랙 Incoming Webhook"
@@ -570,19 +588,14 @@ export function PeoplePage() {
                 type="button"
                 disabled={!ready}
                 className="rounded border border-line px-3 py-2 font-semibold disabled:opacity-50"
-                onClick={() => void sendFilledBadge('email')}
-              >
-                이메일 보내기
-              </button>
-              <button
-                type="button"
-                disabled={!ready}
-                className="rounded border border-line px-3 py-2 font-semibold disabled:opacity-50"
-                onClick={() => void sendFilledBadge('slack')}
+                onClick={() => void sendFilledBadgeSlack()}
               >
                 슬랙 보내기
               </button>
             </div>
+            <p className="text-muted">
+              PDF는 템플릿 명찰 크기·나눔고딕 글자 크기 그대로입니다. 인쇄 배율 100%(실제 크기)로 출력한 뒤 잘라 붙이세요.
+            </p>
           </div>
         ) : null}
         {previewStatus === 'unavailable' ? (
