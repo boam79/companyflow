@@ -34,7 +34,10 @@ export function applyLeave(employee: EmployeeRecord, leftAt: string): EmployeeRe
   return { ...employee, leftAt }
 }
 
-export function badgeLines(employee: EmployeeRecord, departmentName?: string): string[] {
+export function badgeLines(
+  employee: Pick<EmployeeRecord, 'name' | 'badgeName' | 'title'>,
+  departmentName?: string,
+): string[] {
   return [employee.badgeName || employee.name, departmentName, employee.title].filter(
     (line): line is string => Boolean(line?.trim()),
   )

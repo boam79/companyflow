@@ -7,7 +7,7 @@
 
 ## 지금 하는 일
 
-지정 Chrome에서 `/contracts`에 PDF·PNG·JPEG 원본을 붙여 초안을 저장하고, 같은 파일을 다시 올리면 막히는지, 목록에서 원본 받기가 되는지 확인한다.
+지정 Chrome에서 `/people`에 명찰 PDF 또는 AI(.ai) 템플릿을 올려 칸이 읽히는지 확인한다.
 
 ## 보드
 
@@ -25,6 +25,7 @@
 - [x] T6 구매·재고 수불부 (반출 4 → 회사 합계 7, 본사 5, 부속 2)
 - [ ] T7 입퇴사 프로세스·회사 자산(복사용지 AST 3) 사용자 확인. Planner 완료 선언 전.
 - [ ] T8 계약 직접 등록 초안 (`/contracts`). OCR OFF.
+- [ ] 명찰 템플릿 PDF·AI 업로드·칸 파악. 지정 Chrome `/people` 확인 전.
 
 배포 URL: https://companyflow-opal.vercel.app  
 Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, ap-northeast-2)
@@ -43,6 +44,7 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 
 ## 최근 변경
 
+- 2026-09-18: `/people`에 명찰 PDF·AI 원본 업로드. 글자에서 성명·부서·직위 칸을 읽고 원본은 로컬 보존.
 - 2026-09-18: 계약 원본 파일 보존·8MB·PDF/PNG/JPEG·같은 해시 중복 차단.
 - 2026-09-17: 명찰·유니폼·노트북을 입퇴사 프로세스로 분리. `/assets`는 회사 재산만.
 - 2026-09-16: `/stock` 입출고를 수불부 한 표로 이어 보이게 바꿈. 명령 폼은 표 아래.

@@ -1,9 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
+import { toArrayBuffer } from '../lib/contracts/book'
 import { writeDefaultMaster } from '../lib/master/book'
 import {
-  badgeLines,
+  applyBadgeLines,
+  executeSaveBadgeTemplate,
+  inspectBadgeTemplate,
+  loadBadgeTemplate,
+  loadBadgeTemplateOriginal,
+  type BadgeTemplateRecord,
+} from '../lib/people/badgeTemplate'
+import {
   executeHire,
   executeLeave,
   loadEmployees,
@@ -74,7 +82,11 @@ export function PeoplePage() {
   const [notice, setNotice] = useState('')
   const [message, setMessage] = useState('')
   const [ready, setReady] = useState(false)
+  const [badgeTemplate, setBadgeTemplate] = useState<BadgeTemplateRecord | undefined>()
+  const [badgeFile, setBadgeFile] = useState<File | null>(null)
+  const [badgePreview, setBadgePreview] = useState('')
   const opening = useRef(false)
+  const badgeInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!user) return
@@ -109,14 +121,16 @@ export function PeoplePage() {
       }
       await writeDefaultMaster(sqlite)
       await migrateProcessAssetsToChecks(sqlite)
-      const [deptRows, employeeRows, checkRows] = await Promise.all([
+      const [deptRows, employeeRows, checkRows, template] = await Promise.all([
         sqlite.query<NamedRow>('select id, name from departments order by name'),
         loadEmployees(sqlite),
         loadOnboardingChecks(sqlite),
+        loadBadgeTemplate(sqlite),
       ])
       setDepartments(deptRows)
       setEmployees(employeeRows)
       setChecks(checkRows)
+      setBadgeTemplate(template)
       setDrafts(
         Object.fromEntries(
           employeeRows.map((row) => [
@@ -138,9 +152,69 @@ export function PeoplePage() {
   }
 
   async function refreshPeople() {
-    const [employeeRows, checkRows] = await Promise.all([loadEmployees(sqlite), loadOnboardingChecks(sqlite)])
+    const [employeeRows, checkRows, template] = await Promise.all([
+      loadEmployees(sqlite),
+      loadOnboardingChecks(sqlite),
+      loadBadgeTemplate(sqlite),
+    ])
     setEmployees(employeeRows)
     setChecks(checkRows)
+    setBadgeTemplate(template)
+  }
+
+  function printEmployeeBadge(employee: EmployeeRecord, departmentName?: string) {
+    printBadge(applyBadgeLines({ ...employee, name: employee.name }, departmentName, badgeTemplate?.fields ?? []))
+  }
+
+  async function saveBadgeTemplate() {
+    if (!badgeFile) {
+      setMessage('명찰 템플릿 PDF 또는 AI 파일을 선택하세요.')
+      return
+    }
+    setMessage('')
+    setNotice('')
+    try {
+      const fileBytes = new Uint8Array(await badgeFile.arrayBuffer())
+      const inspected = await inspectBadgeTemplate(fileBytes, badgeFile.name)
+      setBadgePreview(inspected.extractedText)
+      const result = await executeSaveBadgeTemplate(sqlite, {
+        operationId: crypto.randomUUID(),
+        fileName: badgeFile.name,
+        fileMime: badgeFile.type,
+        fileBytes,
+      })
+      setBadgeTemplate(result.template)
+      setBadgeFile(null)
+      if (badgeInput.current) badgeInput.current.value = ''
+      const fieldLabels = result.template.fields.map((field) => field.label).join(' · ')
+      setNotice(
+        result.status === 'duplicate'
+          ? '같은 명찰 템플릿은 이미 올려 두었습니다.'
+          : fieldLabels
+            ? `명찰 템플릿을 올렸습니다. 파악한 칸: ${fieldLabels}`
+            : result.template.sourceKind === 'ai-binary'
+              ? 'Illustrator 원본은 보존했습니다. 칸을 읽으려면 PDF로 저장해 올리세요.'
+              : '명찰 템플릿 원본은 보존했습니다. 이름·부서·직위 칸 글자를 찾지 못했습니다.',
+      )
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  async function downloadBadgeTemplate() {
+    setMessage('')
+    try {
+      const original = await loadBadgeTemplateOriginal(sqlite)
+      const url = URL.createObjectURL(new Blob([toArrayBuffer(original.bytes)], { type: original.fileMime }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = original.fileName
+      link.click()
+      URL.revokeObjectURL(url)
+      setNotice(`원본 ${original.fileName}을 이 PC에서 받았습니다.`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
   }
 
   async function hire(employeeId: string) {
@@ -253,6 +327,67 @@ export function PeoplePage() {
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
       <section className="rounded-lg border border-line bg-card p-5">
+        <h2 className="text-lg font-semibold">명찰 템플릿</h2>
+        <p className="mt-1 text-sm text-muted">
+          PDF 또는 Illustrator(.ai) 원본을 올리면 이름·부서·직위 칸을 읽습니다. 브라우저에서 AI를 직접 고치지 않고 원본은 이 PC에 남깁니다.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <input
+            ref={badgeInput}
+            type="file"
+            accept=".ai,.pdf,application/pdf,application/postscript,application/illustrator"
+            className="sr-only"
+            onChange={(e) => setBadgeFile(e.target.files?.[0] ?? null)}
+          />
+          <button
+            type="button"
+            className="rounded border border-line px-4 py-2 text-sm font-semibold"
+            onClick={() => badgeInput.current?.click()}
+          >
+            첨부파일
+          </button>
+          <span className="text-sm text-muted">
+            {badgeFile ? badgeFile.name : '선택된 파일 없음 · PDF·AI 8MB'}
+          </span>
+          <button
+            type="button"
+            disabled={!ready}
+            className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            onClick={() => void saveBadgeTemplate()}
+          >
+            템플릿 올리기
+          </button>
+          {badgeTemplate ? (
+            <button
+              type="button"
+              disabled={!ready}
+              className="rounded border border-line px-4 py-2 text-sm font-semibold disabled:opacity-50"
+              onClick={() => void downloadBadgeTemplate()}
+            >
+              원본 받기
+            </button>
+          ) : null}
+        </div>
+        {badgeTemplate ? (
+          <div className="mt-3 space-y-1 text-sm">
+            <p>
+              올린 파일: <span className="font-medium">{badgeTemplate.fileName}</span>
+            </p>
+            <p>
+              파악한 칸:{' '}
+              {badgeTemplate.fields.length
+                ? badgeTemplate.fields.map((field) => field.label).join(' · ')
+                : '이름·부서·직위 글자를 찾지 못했습니다'}
+            </p>
+            {badgePreview || badgeTemplate.extractedText ? (
+              <p className="text-muted">읽은 글자: {badgePreview || badgeTemplate.extractedText}</p>
+            ) : null}
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-muted">아직 올린 명찰 템플릿이 없습니다.</p>
+        )}
+      </section>
+      <section className="rounded-lg border border-line bg-card p-5">
         {employees.length ? (
           <table className="w-full text-left text-sm">
             <thead>
@@ -337,9 +472,7 @@ export function PeoplePage() {
                                   disabled={!ready}
                                   className="rounded border border-line px-2 py-0.5 text-xs disabled:opacity-50"
                                   onClick={() =>
-                                    printBadge(
-                                      badgeLines({ ...employee, ...draft, name: employee.name }, deptName),
-                                    )
+                                    printEmployeeBadge({ ...employee, ...draft, name: employee.name }, deptName)
                                   }
                                 >
                                   출력
@@ -411,7 +544,7 @@ export function PeoplePage() {
                           disabled={!ready}
                           className="rounded border border-line px-3 py-1 text-xs font-semibold disabled:opacity-50"
                           onClick={() =>
-                            printBadge(badgeLines({ ...employee, ...draft, name: employee.name }, deptName))
+                            printEmployeeBadge({ ...employee, ...draft, name: employee.name }, deptName)
                           }
                         >
                           명찰
