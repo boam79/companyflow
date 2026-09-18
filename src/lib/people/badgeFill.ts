@@ -110,10 +110,12 @@ function slotFromRun(key: BadgeFieldKey, run: TextRun, beside = false): BadgeSlo
 export function slotsFromRuns(runs: TextRun[]): BadgeSlot[] {
   const slots: BadgeSlot[] = []
   const used = new Set<BadgeFieldKey>()
-  const placeholder = runs.find((run) => PLACEHOLDER_NAME.test(run.str.trim()))
-  if (placeholder) {
-    slots.push(slotFromRun('name', placeholder))
-    used.add('name')
+  const classified = classifyRuns(runs)
+  for (const key of ['name', 'title', 'department'] as const) {
+    const run = classified[key]
+    if (!run) continue
+    slots.push(slotFromRun(key, run))
+    used.add(key)
   }
   for (const hint of LABEL_BY_KEY) {
     if (used.has(hint.key)) continue
@@ -164,24 +166,33 @@ function toCqw(px: number, cropWidth: number) {
   return `${Number(((px / cropWidth) * 100).toFixed(4))}cqw`
 }
 
+function compactRun(run: TextRun) {
+  return run.str.replace(/\s+/g, '').trim()
+}
+
+function isFieldValue(run: TextRun) {
+  const compact = compactRun(run)
+  if (!compact) return false
+  if (/^(name|title|department|company|성명|이름|직위|직급|직책|부서|소속|명찰)$/i.test(compact)) return false
+  if (/나눔고딕|나눔명조|nanumgothic|nanummyeongjo/i.test(compact)) return false
+  return /[가-힣]/.test(compact)
+}
+
 function classifyRuns(runs: TextRun[]) {
-  const leftover = runs.filter((run) => run.str.trim())
+  const values = runs.filter(isFieldValue)
   const classified: Partial<Record<keyof BadgeFillValues, TextRun>> = {}
-  const nameIndex = leftover.findIndex((run) => PLACEHOLDER_NAME.test(run.str.trim()))
-  if (nameIndex >= 0) {
-    classified.name = leftover.splice(nameIndex, 1)[0]
-  } else {
-    const bySize = [...leftover].sort(
-      (a, b) => (b.fontSize || b.height) - (a.fontSize || a.height),
-    )
-    if (bySize[0] && (bySize[0].fontSize || bySize[0].height) > (bySize[1]?.fontSize || bySize[1]?.height || 0) * 1.2) {
-      classified.name = bySize[0]
-      leftover.splice(leftover.indexOf(bySize[0]), 1)
-    }
-  }
-  leftover.sort((a, b) => a.y - b.y)
-  if (leftover[0]) classified.title = leftover[0]
-  if (leftover[1]) classified.department = leftover[1]
+  if (!values.length) return classified
+  const name = [...values].sort((a, b) => {
+    const size = (b.fontSize || b.height) - (a.fontSize || a.height)
+    if (Math.abs(size) > 0.5) return size
+    return a.x - b.x
+  })[0]
+  classified.name = name
+  const rest = values.filter((run) => run !== name).sort((a, b) => a.y - b.y || a.x - b.x)
+  const right = rest.filter((run) => run.x >= name.x + Math.max(name.width, 1) * 0.4)
+  const pool = right.length >= 1 ? right : rest
+  if (pool[0]) classified.title = pool[0]
+  if (pool[1]) classified.department = pool[1]
   return classified
 }
 
