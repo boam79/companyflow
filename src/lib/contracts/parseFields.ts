@@ -30,8 +30,14 @@ export function toIsoDate(raw: string): string | undefined {
   return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`
 }
 
+const NEXT_FIELD =
+  '계약명|건명|계약번호|상대방|거래처|담당자|체결일|시작일|종료일|계약금액|금액|Amount|Contract\\s*No\\.?|Contract\\s*title|Counterparty|Title'
+
 function labeledValue(text: string, labels: string): string | undefined {
-  const pattern = new RegExp(`(?:${labels})\\s*[:：]?\\s*([^\\n]+)`, 'i')
+  const pattern = new RegExp(
+    `(?:${labels})\\s*[:：]?\\s*(.+?)(?=\\s+(?:${NEXT_FIELD})(?:\\s|[:：]|$)|$)`,
+    'is',
+  )
   const match = text.match(pattern)
   const value = match?.[1]?.replace(/\s+/g, ' ').trim()
   return value || undefined
@@ -51,22 +57,24 @@ export function parseContractText(text: string): OcrCandidate[] {
   add(
     candidates,
     'contractNo',
-    labeledValue(source, '계약번호|계약\\s*No\\.?|Contract\\s*No\\.?') || source.match(/CON[- ]?\d{2,}[- ]?\d*/i)?.[0]?.replace(/\s/g, '-'),
+    (labeledValue(source, '계약번호|계약\\s*No\\.?|Contract\\s*No\\.?') || source).match(
+      /CON-?[A-Z0-9]+(?:-[A-Z0-9]+)*/i,
+    )?.[0],
   )
 
-  add(candidates, 'title', labeledValue(source, '계약명|건명|계약\\s*명칭'))
+  add(candidates, 'title', labeledValue(source, '계약명|건명|계약\\s*명칭|Contract\\s*title|Title'))
   if (!candidates.some((row) => row.field === 'title')) {
     const line = source
       .split('\n')
       .map((row) => row.trim())
-      .find((row) => row.length >= 4 && /계약|임대|유지보수|보험|용역/.test(row) && !/계약서$/.test(row) && !/계약번호/.test(row))
+      .find((row) => row.length >= 4 && /계약|임대|유지보수|보험|용역|lease/i.test(row) && !/계약서$/.test(row) && !/계약번호|Contract\\s*No/i.test(row))
     add(candidates, 'title', line, 0.45)
   }
 
   add(
     candidates,
     'counterparty',
-    labeledValue(source, '상대방|거래처|임대인|수급인|공급자|발주처'),
+    labeledValue(source, '상대방|거래처|임대인|수급인|공급자|발주처|Counterparty'),
   )
 
   add(candidates, 'ownerName', labeledValue(source, '담당자|관리자'))
@@ -90,6 +98,11 @@ export function parseContractText(text: string): OcrCandidate[] {
   const amounts = [...source.matchAll(/([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{4,})\s*원/g)]
     .map((match) => Number(match[1].replace(/,/g, '')))
     .filter((value) => Number.isFinite(value) && value > 0)
+  if (!amounts.length) {
+    const labeledAmount = labeledValue(source, '계약금액|금액|Amount')
+    const numeric = labeledAmount?.replace(/[^0-9]/g, '')
+    if (numeric) amounts.push(Number(numeric))
+  }
   if (amounts.length) {
     add(candidates, 'amount', String(Math.max(...amounts)))
   }

@@ -32,6 +32,17 @@ describe('계약 OCR 필드 추출', () => {
     })
   })
 
+  it('한 줄 영문 PDF 텍스트에서도 번호만 자른다', () => {
+    const found = Object.fromEntries(
+      parseContractText(
+        'Contract title HQ 3F lease Contract No CON-OCR-01 Counterparty Hanguk Lease Amount 1500000',
+      ).map((row) => [row.field, row.value]),
+    )
+    expect(found.contractNo).toBe('CON-OCR-01')
+    expect(found.counterparty).toBe('Hanguk Lease')
+    expect(found.amount).toBe('1500000')
+    expect(found.title).toMatch(/HQ 3F lease/i)
+  })
   it('OCR 후보로 칸을 채운다', () => {
     const filled = applyOcrCandidates(
       {
