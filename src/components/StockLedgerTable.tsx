@@ -1,6 +1,7 @@
 import type { LedgerLine } from '../lib/stock/engine'
 import {
   buildLedgerView,
+  buildSupplyLedgerView,
   filterLedgerView,
   rowsAreRelated,
   type LedgerFilter,
@@ -28,18 +29,18 @@ export function StockLedgerTable(props: {
   filter: LedgerFilter
   selected?: LedgerLine | null
   onSelect: (line: LedgerLine) => void
+  variant?: 'full' | 'supply'
 }) {
-  const rows = filterLedgerView(
-    buildLedgerView(
-      {
-        processed: new Map(),
-        orders: new Map(),
-        ledger: props.ledger,
-      },
-      { departments: props.departments, warehouses: props.warehouses },
-    ),
-    props.filter,
-  )
+  const names = { departments: props.departments, warehouses: props.warehouses }
+  const built =
+    props.variant === 'supply'
+      ? buildSupplyLedgerView(
+          { processed: new Map(), orders: new Map(), ledger: props.ledger },
+          names,
+        )
+      : buildLedgerView({ processed: new Map(), orders: new Map(), ledger: props.ledger }, names)
+  const rows = filterLedgerView(built, props.filter)
+  const supply = props.variant === 'supply'
 
   if (!props.ledger.length) {
     return <p className="mt-4 text-sm text-muted">아직 입출고 원장이 없습니다. 아래에서 수령·반출을 확정하면 이 표에 이어집니다.</p>
@@ -57,11 +58,11 @@ export function StockLedgerTable(props: {
             <th className="py-2 pr-3 font-medium">시각</th>
             <th className="py-2 pr-3 font-medium">구분</th>
             <th className="py-2 pr-3 font-medium">품목</th>
-            <th className="py-2 pr-3 font-medium">창고</th>
+            {supply ? null : <th className="py-2 pr-3 font-medium">창고</th>}
             <th className="py-2 pr-3 text-right font-medium">입고</th>
             <th className="py-2 pr-3 text-right font-medium">출고</th>
-            <th className="py-2 pr-3 text-right font-medium">창고잔량</th>
-            <th className="py-2 pr-3 text-right font-medium">회사잔량</th>
+            {supply ? null : <th className="py-2 pr-3 text-right font-medium">창고잔량</th>}
+            <th className="py-2 pr-3 text-right font-medium">잔량</th>
             <th className="py-2 font-medium">연결</th>
           </tr>
         </thead>
@@ -81,17 +82,21 @@ export function StockLedgerTable(props: {
                 <td className="py-2 pr-3">
                   {props.items.find((item) => item.id === row.line.itemId)?.name ?? row.line.itemId}
                 </td>
-                <td className="py-2 pr-3">
-                  {props.warehouses.find((warehouse) => warehouse.id === row.line.warehouseId)?.name ??
-                    row.line.warehouseId}
-                </td>
+                {supply ? null : (
+                  <td className="py-2 pr-3">
+                    {props.warehouses.find((warehouse) => warehouse.id === row.line.warehouseId)?.name ??
+                      row.line.warehouseId}
+                  </td>
+                )}
                 <td className="py-2 pr-3 text-right tabular-nums text-ok">
                   {row.inbound ?? ''}
                 </td>
                 <td className="py-2 pr-3 text-right tabular-nums text-danger">
                   {row.outbound ?? ''}
                 </td>
-                <td className="py-2 pr-3 text-right tabular-nums">{row.warehouseBalance}</td>
+                {supply ? null : (
+                  <td className="py-2 pr-3 text-right tabular-nums">{row.warehouseBalance}</td>
+                )}
                 <td className="py-2 pr-3 text-right tabular-nums">{row.companyBalance}</td>
                 <td className="py-2 text-muted">{row.link || '—'}</td>
               </tr>

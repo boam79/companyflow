@@ -7,7 +7,7 @@
 
 ## 지금 하는 일
 
-회사 자산은 직원 배정이 아니다. `/assets`는 위치·QR 원본만 보여 주고, `/stock` 현재고는 비품만 품목×창고로 보여 준다. 지정 Chrome에서 확인한다.
+입퇴사는 직원 목록에서 한 명만 연다. 복사용지 비품 수불부에서 자산화·창고 줄을 숨긴다. 지정 Chrome 확인.
 
 ## 보드
 
@@ -45,6 +45,7 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 - Supabase 활성: `companyflow`, `boardroom`. 정지: `boam79_patient_data`, `qr-asset-manager`, `policyfund-ai-v2`.
 - `confirm_company_device` RPC 추가. 초기 설정 성공 후 원본 장치를 confirmed 로 올린다.
 
+- 2026-09-18: 입퇴사 목록+한 명 상세. 비품 수불부에서 자산화·창고 이동 숨김.
 - 2026-09-18: 회사 자산은 직원 배정이 아님(D-30). `/stock` 현재고는 비품만 품목×창고.
 - 2026-09-18: 책상·컴퓨터 배정·회수 화면은 넣었다가 사용자 확인으로 되돌림.
 - 2026-09-18: 복사용지는 비품 재고. 회사 자산·QR은 책상·컴퓨터만.

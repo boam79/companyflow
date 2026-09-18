@@ -402,6 +402,21 @@ export function PeoplePage() {
     }
   }
 
+  const selectedEmployee = employees.find((row) => row.id === badgeEmployeeId) ?? employees[0]
+  const selectedOrgDept = selectedEmployee
+    ? departments.find((dept) => dept.id === selectedEmployee.departmentId)?.name
+    : undefined
+  const selectedDraft = selectedEmployee
+    ? drafts[selectedEmployee.id] ?? {
+        hiredAt: todayStamp(),
+        title: '',
+        badgeName: selectedEmployee.name,
+        department: selectedEmployee.badgeDepartment || selectedOrgDept || '',
+      }
+    : null
+  const selectedProcess = selectedEmployee ? onboardingView(selectedEmployee.id, checks) : []
+  const selectedHeld = selectedEmployee ? outstandingOnboarding(selectedProcess).length : 0
+
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
   if (!configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
   if (!user) {
@@ -611,45 +626,62 @@ export function PeoplePage() {
           </p>
         ) : null}
       </section>
-      <section className="space-y-4">
+      <section className="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start">
         {employees.length ? (
-          employees.map((employee) => {
-            const orgDeptName = departments.find((dept) => dept.id === employee.departmentId)?.name
-            const draft = drafts[employee.id] ?? {
-              hiredAt: todayStamp(),
-              title: '',
-              badgeName: employee.name,
-              department: employee.badgeDepartment || orgDeptName || '',
-            }
-            const process = onboardingView(employee.id, checks)
-            const held = outstandingOnboarding(process).length
-            return (
-              <article
-                key={employee.id}
-                className={`rounded-lg border border-line bg-card p-5 ${
-                  badgeEmployeeId === employee.id ? 'ring-1 ring-accent' : ''
-                }`}
-                onClick={() => setBadgeEmployeeId(employee.id)}
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-lg font-semibold whitespace-nowrap">{employee.name}</h2>
-                    <p className="mt-1 text-sm text-muted">
+          <>
+            <nav className="max-h-[28rem] overflow-y-auto rounded-lg border border-line bg-card">
+              <p className="sticky top-0 border-b border-line bg-card px-3 py-2 text-xs font-semibold text-muted">
+                직원 {employees.length}
+              </p>
+              {employees.map((employee) => {
+                const process = onboardingView(employee.id, checks)
+                const held = outstandingOnboarding(process).length
+                const active = employee.id === (employees.some((row) => row.id === badgeEmployeeId)
+                  ? badgeEmployeeId
+                  : employees[0].id)
+                return (
+                  <button
+                    key={employee.id}
+                    type="button"
+                    className={`flex w-full flex-col items-start border-b border-line/70 px-3 py-2 text-left last:border-b-0 ${
+                      active ? 'bg-accent-soft' : 'hover:bg-paper'
+                    }`}
+                    onClick={() => setBadgeEmployeeId(employee.id)}
+                  >
+                    <span className="font-medium whitespace-nowrap">{employee.name}</span>
+                    <span className="mt-0.5 text-xs text-muted">
                       {employee.leftAt
                         ? `퇴사 ${employee.leftAt}`
                         : employee.hiredAt
-                          ? `재직 · 입사 ${employee.hiredAt}`
+                          ? `재직 · ${employee.hiredAt}`
                           : '입사 전'}
-                      {held ? ` · 지급품 미회수 ${held}` : ''}
+                      {held ? ` · 미회수 ${held}` : ''}
+                    </span>
+                  </button>
+                )
+              })}
+            </nav>
+            {selectedEmployee && selectedDraft ? (
+              <article className="rounded-lg border border-line bg-card p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold whitespace-nowrap">{selectedEmployee.name}</h2>
+                    <p className="mt-1 text-sm text-muted">
+                      {selectedEmployee.leftAt
+                        ? `퇴사 ${selectedEmployee.leftAt}`
+                        : selectedEmployee.hiredAt
+                          ? `재직 · 입사 ${selectedEmployee.hiredAt}`
+                          : '입사 전'}
+                      {selectedHeld ? ` · 지급품 미회수 ${selectedHeld}` : ''}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {employee.leftAt ? (
+                    {selectedEmployee.leftAt ? (
                       <button
                         type="button"
                         disabled={!ready}
                         className="rounded bg-accent px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-                        onClick={() => void hire(employee.id)}
+                        onClick={() => void hire(selectedEmployee.id)}
                       >
                         재입사
                       </button>
@@ -658,7 +690,7 @@ export function PeoplePage() {
                         type="button"
                         disabled={!ready}
                         className="rounded bg-accent px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-                        onClick={() => void hire(employee.id)}
+                        onClick={() => void hire(selectedEmployee.id)}
                       >
                         입사 저장
                       </button>
@@ -668,17 +700,20 @@ export function PeoplePage() {
                       disabled={!ready}
                       className="rounded border border-line px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
                       onClick={() =>
-                        printEmployeeBadge({ ...employee, ...draft, name: employee.name }, draft.department)
+                        printEmployeeBadge(
+                          { ...selectedEmployee, ...selectedDraft, name: selectedEmployee.name },
+                          selectedDraft.department,
+                        )
                       }
                     >
                       명찰
                     </button>
-                    {employee.leftAt ? null : (
+                    {selectedEmployee.leftAt ? null : (
                       <button
                         type="button"
                         disabled={!ready}
                         className="rounded border border-line px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
-                        onClick={() => void leave(employee.id)}
+                        onClick={() => void leave(selectedEmployee.id)}
                       >
                         퇴사
                       </button>
@@ -692,12 +727,12 @@ export function PeoplePage() {
                     <input
                       className="mt-1 w-full rounded border border-line px-2 py-1.5"
                       placeholder="부서"
-                      value={draft.department}
+                      value={selectedDraft.department}
                       onChange={(e) => {
-                        setBadgeEmployeeId(employee.id)
+                        setBadgeEmployeeId(selectedEmployee.id)
                         setDrafts((prev) => ({
                           ...prev,
-                          [employee.id]: { ...draft, department: e.target.value },
+                          [selectedEmployee.id]: { ...selectedDraft, department: e.target.value },
                         }))
                       }}
                     />
@@ -707,11 +742,11 @@ export function PeoplePage() {
                     <input
                       type="date"
                       className="mt-1 w-full rounded border border-line px-2 py-1.5"
-                      value={draft.hiredAt}
+                      value={selectedDraft.hiredAt}
                       onChange={(e) =>
                         setDrafts((prev) => ({
                           ...prev,
-                          [employee.id]: { ...draft, hiredAt: e.target.value },
+                          [selectedEmployee.id]: { ...selectedDraft, hiredAt: e.target.value },
                         }))
                       }
                     />
@@ -721,12 +756,12 @@ export function PeoplePage() {
                     <input
                       className="mt-1 w-full rounded border border-line px-2 py-1.5"
                       placeholder="직위"
-                      value={draft.title}
+                      value={selectedDraft.title}
                       onChange={(e) => {
-                        setBadgeEmployeeId(employee.id)
+                        setBadgeEmployeeId(selectedEmployee.id)
                         setDrafts((prev) => ({
                           ...prev,
-                          [employee.id]: { ...draft, title: e.target.value },
+                          [selectedEmployee.id]: { ...selectedDraft, title: e.target.value },
                         }))
                       }}
                     />
@@ -736,12 +771,12 @@ export function PeoplePage() {
                     <input
                       className="mt-1 w-full rounded border border-line px-2 py-1.5"
                       placeholder="명찰 이름"
-                      value={draft.badgeName}
+                      value={selectedDraft.badgeName}
                       onChange={(e) => {
-                        setBadgeEmployeeId(employee.id)
+                        setBadgeEmployeeId(selectedEmployee.id)
                         setDrafts((prev) => ({
                           ...prev,
-                          [employee.id]: { ...draft, badgeName: e.target.value },
+                          [selectedEmployee.id]: { ...selectedDraft, badgeName: e.target.value },
                         }))
                       }}
                     />
@@ -752,16 +787,16 @@ export function PeoplePage() {
                   <div>
                     <h3 className="text-sm font-semibold">입사 프로세스</h3>
                     <ul className="mt-2 space-y-2">
-                      {process.map((row) => (
+                      {selectedProcess.map((row) => (
                         <li key={`hire-${row.key}`}>
                           <label className="flex items-center gap-2 whitespace-nowrap">
                             <input
                               type="checkbox"
                               className="size-4 shrink-0 accent-accent"
                               checked={row.issued}
-                              disabled={!ready || Boolean(employee.leftAt) || row.issued}
+                              disabled={!ready || Boolean(selectedEmployee.leftAt) || row.issued}
                               onChange={(e) => {
-                                if (e.target.checked) void toggleCheck(employee.id, row, true)
+                                if (e.target.checked) void toggleCheck(selectedEmployee.id, row, true)
                               }}
                             />
                             <span className={row.issued ? 'font-medium' : 'text-muted'}>{row.hireLabel}</span>
@@ -772,8 +807,8 @@ export function PeoplePage() {
                                 className="rounded border border-line px-2 py-0.5 text-xs disabled:opacity-50"
                                 onClick={() =>
                                   printEmployeeBadge(
-                                    { ...employee, ...draft, name: employee.name },
-                                    draft.department,
+                                    { ...selectedEmployee, ...selectedDraft, name: selectedEmployee.name },
+                                    selectedDraft.department,
                                   )
                                 }
                               >
@@ -784,13 +819,13 @@ export function PeoplePage() {
                         </li>
                       ))}
                     </ul>
-                    <p className="mt-2 text-xs text-muted">{held}/3 지급</p>
+                    <p className="mt-2 text-xs text-muted">{selectedHeld}/3 지급</p>
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold">퇴사 프로세스</h3>
                     <ul className="mt-2 space-y-2">
-                      {process.map((row) => {
-                        const phase = leavePhase(row, Boolean(employee.leftAt))
+                      {selectedProcess.map((row) => {
+                        const phase = leavePhase(row, Boolean(selectedEmployee.leftAt))
                         return (
                           <li key={`leave-${row.key}`}>
                             <label className="flex items-center gap-2 whitespace-nowrap">
@@ -798,9 +833,9 @@ export function PeoplePage() {
                                 type="checkbox"
                                 className="size-4 shrink-0 accent-accent"
                                 checked={phase === 'returned'}
-                                disabled={!ready || Boolean(employee.leftAt) || phase !== 'held'}
+                                disabled={!ready || Boolean(selectedEmployee.leftAt) || phase !== 'held'}
                                 onChange={(e) => {
-                                  if (e.target.checked) void toggleCheck(employee.id, row, false)
+                                  if (e.target.checked) void toggleCheck(selectedEmployee.id, row, false)
                                 }}
                               />
                               <span className={phase === 'held' ? 'font-medium' : 'text-muted'}>
@@ -811,12 +846,14 @@ export function PeoplePage() {
                         )
                       })}
                     </ul>
-                    <p className="mt-2 text-xs text-muted">{leaveSummary(process, Boolean(employee.leftAt))}</p>
+                    <p className="mt-2 text-xs text-muted">
+                      {leaveSummary(selectedProcess, Boolean(selectedEmployee.leftAt))}
+                    </p>
                   </div>
                 </div>
               </article>
-            )
-          })
+            ) : null}
+          </>
         ) : (
           <p className="text-sm text-muted">
             {ready ? '기준정보에서 직원을 먼저 등록하세요.' : '회사 DB를 여는 중입니다.'}

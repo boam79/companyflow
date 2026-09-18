@@ -10,7 +10,7 @@ import { getCompanySqlite } from '../lib/sqlite/instance'
 import { executeStockCommand, ensureDefaultStockMaster, loadStockState } from '../lib/stock/persist'
 import { companyOnHand, onHand, orderRemaining, type LedgerLine, type StockCommand, type StockState } from '../lib/stock/engine'
 import { buildSupplyInventory, supplyItems } from '../lib/stock/inventoryView'
-import type { LedgerFilter } from '../lib/stock/ledgerView'
+import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { commandFromSuggestion, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
@@ -23,7 +23,6 @@ const ACTIONS: { id: ActionType; label: string }[] = [
   { id: 'post_receipt', label: '수령' },
   { id: 'post_issue', label: '반출' },
   { id: 'post_return', label: '반납' },
-  { id: 'transfer_stock', label: '창고 이동' },
   { id: 'draft_order', label: '발주 초안' },
   { id: 'post_direct_in', label: '직접 입고' },
   { id: 'post_outbound', label: '출고' },
@@ -44,8 +43,8 @@ export function StockPage() {
   const [orderId, setOrderId] = useState('ord-paper')
   const [itemId, setItemId] = useState('item-paper')
   const [warehouseId, setWarehouseId] = useState('wh-main')
-  const [fromWarehouseId, setFromWarehouseId] = useState('wh-main')
-  const [toWarehouseId, setToWarehouseId] = useState('wh-sub')
+  const fromWarehouseId = 'wh-main'
+  const toWarehouseId = 'wh-sub'
   const [qty, setQty] = useState('10')
   const [personName, setPersonName] = useState('김담당')
   const [departmentId, setDepartmentId] = useState('')
@@ -121,11 +120,12 @@ export function StockPage() {
     setDepartments(deptRows)
     setState(nextState)
     setSelectedLine((prev) => {
+      const visible = nextState.ledger.filter(isSupplyLedgerLine)
       if (prev) {
-        const found = nextState.ledger.find((line) => line.id === prev.id)
+        const found = visible.find((line) => line.id === prev.id)
         if (found) return found
       }
-      return nextState.ledger[nextState.ledger.length - 1] ?? null
+      return visible[visible.length - 1] ?? null
     })
     const nextStockItems = supplyItems(itemRows)
     const suggested = suggestNextStockForm(
@@ -330,7 +330,7 @@ export function StockPage() {
       <div>
         <h1 className="text-3xl font-semibold">구매·재고</h1>
         <p className="mt-2 text-sm text-muted">
-          복사용지처럼 쓰고 채우는 비품만 다룹니다. 책상·컴퓨터는 자산 메뉴에서 QR로 등록합니다.
+          복사용지처럼 쓰고 채우는 비품만 다룹니다. 창고에 자산화하지 않고, 책상·컴퓨터는 자산 메뉴에서 QR로 등록합니다.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -371,11 +371,13 @@ export function StockPage() {
             <p className="mt-1 text-sm text-muted">
               {selectedInventory ? (
                 <>
-                  {selectedInventory.itemName} 회사 합계{' '}
+                  {selectedInventory.itemName}{' '}
                   <strong className="text-ink tabular-nums">{selectedInventory.total}</strong>
                 </>
               ) : (
-                <>선택 품목 회사 합계 <strong className="text-ink tabular-nums">{paperQty}</strong></>
+                <>
+                  비품 수량 <strong className="text-ink tabular-nums">{paperQty}</strong>
+                </>
               )}
               {state?.orders.get(orderId) ? ` · 발주 ${orderId} 잔량 ${remaining}` : ''}
             </p>
@@ -386,16 +388,11 @@ export function StockPage() {
         </div>
         {inventory.length ? (
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full max-w-2xl text-left text-sm">
+            <table className="w-full max-w-md text-left text-sm">
               <thead>
                 <tr className="border-b border-line text-muted">
-                  <th className="py-2 pr-4 font-medium">품목</th>
-                  {warehouses.map((warehouse) => (
-                    <th key={warehouse.id} className="py-2 pr-4 text-right font-medium">
-                      {warehouse.name}
-                    </th>
-                  ))}
-                  <th className="py-2 text-right font-medium">회사 합계</th>
+                  <th className="py-2 pr-4 font-medium">비품</th>
+                  <th className="py-2 text-right font-medium">수량</th>
                 </tr>
               </thead>
               <tbody>
@@ -410,14 +407,6 @@ export function StockPage() {
                       onClick={() => setItemId(row.itemId)}
                     >
                       <td className="py-2 pr-4 font-medium">{row.itemName}</td>
-                      {row.quantities.map((qtyValue, index) => (
-                        <td
-                          key={warehouses[index]?.id ?? index}
-                          className="py-2 pr-4 text-right tabular-nums"
-                        >
-                          {qtyValue}
-                        </td>
-                      ))}
                       <td className="py-2 text-right font-semibold tabular-nums">{row.total}</td>
                     </tr>
                   )
@@ -435,9 +424,9 @@ export function StockPage() {
       <section className="rounded-lg border border-line bg-card p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold">입출고 수불부</h2>
+            <h2 className="text-lg font-semibold">비품 수불부</h2>
             <p className="mt-1 text-sm text-muted">
-              줄을 고르면 같은 발주·원거래가 함께 표시됩니다. 반출 줄을 고르면 반납 원거래가 채워집니다.
+              사 온 비품이 얼마나 들어왔고 나갔는지만 보여 줍니다. 자산화·창고 이동은 비품 흐름이 아닙니다.
             </p>
           </div>
           <div className="flex rounded border border-line text-sm">
@@ -480,6 +469,7 @@ export function StockPage() {
           departments={departments}
           filter={ledgerFilter}
           selected={selectedLine}
+          variant="supply"
           onSelect={(line) => {
             setSelectedLine(line)
             if (line.txnType === 'issue' || line.txnType === 'outbound') {
@@ -593,55 +583,6 @@ export function StockPage() {
             </label>
           ) : null}
         </div>
-        {action === 'transfer_stock' ? (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-sm">
-              보내는 창고
-              <select
-                className="mt-1 w-full rounded border border-line px-3 py-2"
-                value={fromWarehouseId}
-                onChange={(e) => setFromWarehouseId(e.target.value)}
-              >
-                {warehouses.map((warehouse) => (
-                  <option key={warehouse.id} value={warehouse.id}>
-                    {warehouse.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm">
-              받는 창고
-              <select
-                className="mt-1 w-full rounded border border-line px-3 py-2"
-                value={toWarehouseId}
-                onChange={(e) => setToWarehouseId(e.target.value)}
-              >
-                {warehouses.map((warehouse) => (
-                  <option key={warehouse.id} value={warehouse.id}>
-                    {warehouse.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        ) : action !== 'reverse_transaction' &&
-          action !== 'draft_order' &&
-          action !== 'confirm_order' ? (
-          <label className="text-sm">
-            창고
-            <select
-              className="mt-1 w-full rounded border border-line px-3 py-2"
-              value={warehouseId}
-              onChange={(e) => setWarehouseId(e.target.value)}
-            >
-              {warehouses.map((warehouse) => (
-                <option key={warehouse.id} value={warehouse.id}>
-                  {warehouse.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
         {action === 'post_issue' ? (
           <>
             <label className="text-sm">

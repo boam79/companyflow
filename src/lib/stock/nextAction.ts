@@ -1,7 +1,5 @@
 import {
   applyStockCommand,
-  companyOnHand,
-  onHand,
   orderRemaining,
   type LedgerLine,
   type StockCommand,
@@ -39,7 +37,7 @@ function lastOpenOutbound(state: StockState): LedgerLine | undefined {
 export function suggestNextStockForm(
   state: StockState,
   orderId: string,
-  item?: { assetManaged?: boolean },
+  _item?: { assetManaged?: boolean },
 ): NextStockForm | null {
   const order = state.orders.get(orderId)
   if (order?.status === 'draft') {
@@ -67,28 +65,6 @@ export function suggestNextStockForm(
       qty: '1',
       sourceOperationId: openOut.operationId,
       hint: '반출에 이어 반납 1을 확정하면 입고로 돌아옵니다.',
-    }
-  }
-
-  const itemId = order?.itemId ?? state.ledger.at(-1)?.itemId
-  const moved = state.ledger.some((line) => line.txnType === 'transfer_out')
-  if (!moved && itemId && companyOnHand(state, itemId) >= 2) {
-    return {
-      action: 'transfer_stock',
-      qty: '2',
-      hint: '본사에서 부속으로 2를 옮기면 회사 합계는 그대로입니다.',
-    }
-  }
-
-  if (itemId && item?.assetManaged) {
-    const warehouseId = ['wh-main', 'wh-sub'].find((id) => onHand(state, itemId, id) > 0)
-    if (warehouseId) {
-      return {
-        action: 'convert_to_asset',
-        qty: '1',
-        warehouseId,
-        hint: '책상·컴퓨터처럼 자산관리 품목만 자산화합니다. 복사용지는 재고입니다.',
-      }
     }
   }
 

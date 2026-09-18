@@ -3,7 +3,7 @@ import {
   applyStockCommand,
   createStockState,
 } from './engine'
-import { buildLedgerView, filterLedgerView, formatLedgerLink, rowsAreRelated } from './ledgerView'
+import { buildLedgerView, buildSupplyLedgerView, filterLedgerView, formatLedgerLink, rowsAreRelated } from './ledgerView'
 
 const ITEM = 'item-paper'
 const MAIN = 'wh-main'
@@ -125,5 +125,61 @@ describe('입출고 수불부', () => {
     ])
     expect(rows[1].link).toContain('본사창고')
     expect(rows[2].link).toContain('부속창고')
+  })
+
+  it('비품 수불부는 자산화·창고 이동 줄을 빼고 잔량만 이어 준다', () => {
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'post_direct_in',
+      operationId: 'op-in',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 6,
+    }).state
+    state = applyStockCommand(state, {
+      type: 'post_issue',
+      operationId: 'op-issue',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 4,
+      personName: '김담당',
+    }).state
+    state = applyStockCommand(state, {
+      type: 'convert_to_asset',
+      operationId: 'op-asset',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 1,
+    }).state
+    state = applyStockCommand(state, {
+      type: 'transfer_stock',
+      operationId: 'op-move',
+      itemId: ITEM,
+      fromWarehouseId: MAIN,
+      toWarehouseId: SUB,
+      qty: 1,
+    }).state
+    state = applyStockCommand(state, {
+      type: 'post_direct_in',
+      operationId: 'op-restore',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 1,
+    }).state
+    const restored = {
+      ...state,
+      ledger: state.ledger.map((line) =>
+        line.operationId === 'op-restore'
+          ? { ...line, reason: '비품은 자산이 아니라 재고로 되돌림' }
+          : line,
+      ),
+    }
+
+    const rows = buildSupplyLedgerView(restored)
+    expect(rows.map((row) => [row.label, row.inbound, row.outbound, row.companyBalance])).toEqual([
+      ['직접 입고', 6, null, 6],
+      ['반출', null, 4, 2],
+    ])
+    expect(rows.some((row) => /자산화|본사창고|부속창고/.test(`${row.label}${row.link}`))).toBe(false)
   })
 })

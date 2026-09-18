@@ -61,12 +61,19 @@ export function formatLedgerLink(
   if (line.txnType === 'transfer_in' || line.txnType === 'transfer_out') {
     parts.push(warehouseName ?? line.warehouseId)
   }
-  if (line.reason) parts.push(line.reason)
+  if (line.reason && !/자산화|자산이 아니라 재고/.test(line.reason)) parts.push(line.reason)
   return parts.join(' · ')
 }
 
 export function isTransfer(line: LedgerLine): boolean {
   return line.txnType === 'transfer_in' || line.txnType === 'transfer_out'
+}
+
+export function isSupplyLedgerLine(line: LedgerLine): boolean {
+  if (line.txnType === 'convert_out') return false
+  if (isTransfer(line)) return false
+  if (line.reason && /자산화|자산이 아니라 재고/.test(line.reason)) return false
+  return true
 }
 
 function transferRank(txnType: LedgerTxnType): number {
@@ -90,6 +97,27 @@ export function orderedLedger(ledger: LedgerLine[]): LedgerLine[] {
     .map((row) => row.line)
 }
 
+function toViewRow(
+  line: LedgerLine,
+  warehouseBalance: number,
+  companyBalance: number,
+  names?: LedgerNameMaps,
+): LedgerViewRow {
+  const fromName =
+    line.txnType === 'transfer_in' || line.txnType === 'transfer_out'
+      ? names?.warehouses?.find((row) => row.id === line.warehouseId)?.name
+      : undefined
+  return {
+    line,
+    label: TXN_LABELS[line.txnType],
+    inbound: line.qtyDelta > 0 ? line.qtyDelta : null,
+    outbound: line.qtyDelta < 0 ? -line.qtyDelta : null,
+    warehouseBalance,
+    companyBalance,
+    link: formatLedgerLink(line, names, fromName),
+  }
+}
+
 export function buildLedgerView(state: StockState, names?: LedgerNameMaps): LedgerViewRow[] {
   const warehouse = new Map<string, number>()
   const company = new Map<string, number>()
@@ -101,20 +129,18 @@ export function buildLedgerView(state: StockState, names?: LedgerNameMaps): Ledg
     } else if (!company.has(line.itemId)) {
       company.set(line.itemId, 0)
     }
-    const fromName =
-      line.txnType === 'transfer_in' || line.txnType === 'transfer_out'
-        ? names?.warehouses?.find((row) => row.id === line.warehouseId)?.name
-        : undefined
-    return {
-      line,
-      label: TXN_LABELS[line.txnType],
-      inbound: line.qtyDelta > 0 ? line.qtyDelta : null,
-      outbound: line.qtyDelta < 0 ? -line.qtyDelta : null,
-      warehouseBalance: warehouse.get(warehouseKey) ?? 0,
-      companyBalance: company.get(line.itemId) ?? 0,
-      link: formatLedgerLink(line, names, fromName),
-    }
+    return toViewRow(line, warehouse.get(warehouseKey) ?? 0, company.get(line.itemId) ?? 0, names)
   })
+}
+
+export function buildSupplyLedgerView(state: StockState, names?: LedgerNameMaps): LedgerViewRow[] {
+  const company = new Map<string, number>()
+  return orderedLedger(state.ledger)
+    .filter(isSupplyLedgerLine)
+    .map((line) => {
+      company.set(line.itemId, (company.get(line.itemId) ?? 0) + line.qtyDelta)
+      return toViewRow(line, 0, company.get(line.itemId) ?? 0, names)
+    })
 }
 
 export function filterLedgerView(rows: LedgerViewRow[], filter: LedgerFilter): LedgerViewRow[] {
