@@ -104,11 +104,25 @@ export function slotsFromRuns(runs: TextRun[]): BadgeSlot[] {
   return slots
 }
 
+export function nameplateOverlay(): { key: keyof BadgeFillValues; left: string; top: string; width: string; height: string; fontSize: string }[] {
+  return [
+    { key: 'name', left: '6%', top: '30%', width: '46%', height: '44%', fontSize: '1.2rem' },
+    { key: 'title', left: '54%', top: '28%', width: '40%', height: '26%', fontSize: '0.95rem' },
+    { key: 'department', left: '54%', top: '56%', width: '40%', height: '24%', fontSize: '0.8rem' },
+  ]
+}
+
 export function slotsForPage(runs: TextRun[], width: number, height: number): BadgeSlot[] {
-  const found = slotsFromRuns(runs)
-  if (!found.length) return fallbackSlots(width, height)
-  const missing = fallbackSlots(width, height).filter((slot) => !found.some((row) => row.key === slot.key))
-  return [...found, ...missing]
+  const found = slotsFromRuns(runs).filter((slot) => {
+    const run = runs.find((item) => Math.abs(item.x - slot.x) < 1 && Math.abs(item.y - slot.y) < 1)
+    if (slot.key === 'name' && run && PLACEHOLDER_NAME.test(run.str.trim())) return true
+    return false
+  })
+  if (found.length) {
+    const missing = fallbackSlots(width, height).filter((slot) => !found.some((row) => row.key === slot.key))
+    return [...found, ...missing]
+  }
+  return fallbackSlots(width, height)
 }
 
 export function isBadgeFilled(values: BadgeFillValues) {

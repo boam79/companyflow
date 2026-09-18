@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { badgeFillValues, fallbackSlots, slotsFromRuns } from './badgeFill'
+import { badgeFillValues, fallbackSlots, nameplateOverlay, slotsFromRuns } from './badgeFill'
 
 describe('명찰 채우기', () => {
   it('입사 칸 값으로 이름·부서·직위를 채운다', () => {
@@ -25,5 +25,11 @@ describe('명찰 채우기', () => {
     const slots = fallbackSlots(240, 120)
     expect(slots.map((slot) => slot.key)).toEqual(['name', 'title', 'department'])
     expect(slots[0].x).toBeLessThan(slots[1].x)
+  })
+
+  it('화면 올리는 칸은 왼쪽 이름·오른쪽 직위·부서다', () => {
+    const boxes = nameplateOverlay()
+    expect(boxes.map((box) => box.key)).toEqual(['name', 'title', 'department'])
+    expect(Number.parseFloat(boxes[0].left)).toBeLessThan(Number.parseFloat(boxes[1].left))
   })
 })

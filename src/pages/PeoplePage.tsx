@@ -11,7 +11,7 @@ import {
   loadBadgeTemplateOriginal,
   type BadgeTemplateRecord,
 } from '../lib/people/badgeTemplate'
-import { badgeFillValues, isBadgeFilled, type BadgeFillValues, type BadgeSlot } from '../lib/people/badgeFill'
+import { badgeFillValues, isBadgeFilled, nameplateOverlay, type BadgeFillValues } from '../lib/people/badgeFill'
 import {
   badgeNotifyMessage,
   executeSaveNotifySettings,
@@ -85,9 +85,9 @@ export function PeoplePage() {
   const [departments, setDepartments] = useState<NamedRow[]>([])
   const [employees, setEmployees] = useState<EmployeeRecord[]>([])
   const [checks, setChecks] = useState<CheckRow[]>([])
-  const [drafts, setDrafts] = useState<Record<string, { hiredAt: string; title: string; badgeName: string }>>(
-    {},
-  )
+  const [drafts, setDrafts] = useState<
+    Record<string, { hiredAt: string; title: string; badgeName: string; departmentId: string }>
+  >({})
   const [notice, setNotice] = useState('')
   const [message, setMessage] = useState('')
   const [ready, setReady] = useState(false)
@@ -95,7 +95,6 @@ export function PeoplePage() {
   const [badgeFile, setBadgeFile] = useState<File | null>(null)
   const [badgePreview, setBadgePreview] = useState('')
   const [badgePreviewImages, setBadgePreviewImages] = useState<string[]>([])
-  const [badgePages, setBadgePages] = useState<{ image: string; slots: BadgeSlot[] }[]>([])
   const [previewStatus, setPreviewStatus] = useState<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
   const [badgeEmployeeId, setBadgeEmployeeId] = useState('')
   const [notify, setNotify] = useState<NotifySettings>({ adminEmail: '', slackWebhook: '' })
@@ -122,11 +121,6 @@ export function PeoplePage() {
     if (!companyId || ready || opening.current) return
     void openCompany(companyId)
   }, [companyId, ready])
-
-  useEffect(() => {
-    if (!badgePages.length || !badgeEmployeeId) return
-    void paintFilledPages(badgePages, currentFillValues())
-  }, [badgePages, badgeEmployeeId, drafts, employees, departments])
 
   async function openCompany(nextId: string, force = false) {
     opening.current = true
@@ -159,7 +153,6 @@ export function PeoplePage() {
         await showBadgePreview(original.bytes)
       } else {
         setBadgePreviewImages([])
-        setBadgePages([])
         setPreviewStatus('idle')
       }
       setDrafts(
@@ -170,6 +163,7 @@ export function PeoplePage() {
               hiredAt: row.hiredAt || todayStamp(),
               title: row.title || '',
               badgeName: row.badgeName || row.name,
+              departmentId: row.departmentId || '',
             },
           ]),
         ),
@@ -188,7 +182,6 @@ export function PeoplePage() {
     const { renderBadgeTemplatePreview } = await import('../lib/people/badgePreview')
     const pages = await renderBadgeTemplatePreview(bytes)
     if (seq !== previewSeq.current) return
-    setBadgePages(pages)
     setBadgePreviewImages(pages.map((page) => page.image))
     setPreviewStatus(pages.length ? 'ready' : 'unavailable')
   }
@@ -197,18 +190,11 @@ export function PeoplePage() {
     const employee = employees.find((row) => row.id === badgeEmployeeId)
     if (!employee) return {}
     const draft = drafts[employee.id]
-    const deptName = departments.find((dept) => dept.id === employee.departmentId)?.name
+    const deptName = departments.find((dept) => dept.id === (draft?.departmentId || employee.departmentId))?.name
     return badgeFillValues(
       { name: employee.name, badgeName: draft?.badgeName || employee.badgeName, title: draft?.title || employee.title },
       deptName,
     )
-  }
-
-  async function paintFilledPages(pages: { image: string; slots: BadgeSlot[] }[], values: BadgeFillValues) {
-    if (!pages.length) return
-    const { paintFilledBadge } = await import('../lib/people/badgePreview')
-    const filled = await Promise.all(pages.map((page) => paintFilledBadge(page.image, page.slots, values)))
-    setBadgePreviewImages(filled)
   }
 
   async function saveNotify() {
@@ -326,6 +312,7 @@ export function PeoplePage() {
         hiredAt: draft.hiredAt,
         title: draft.title,
         badgeName: draft.badgeName,
+        departmentId: draft.departmentId,
       })
       setNotice(
         result.status === 'duplicate'
@@ -338,7 +325,7 @@ export function PeoplePage() {
       await refreshPeople()
       const values = badgeFillValues(
         { name: employees.find((row) => row.id === employeeId)?.name || draft.badgeName, badgeName: draft.badgeName, title: draft.title },
-        departments.find((dept) => dept.id === employees.find((row) => row.id === employeeId)?.departmentId)?.name,
+        departments.find((dept) => dept.id === (draft.departmentId || employees.find((row) => row.id === employeeId)?.departmentId))?.name,
       )
       if (result.status === 'applied' && isBadgeFilled(values)) {
         const text = badgeNotifyMessage(values)
@@ -507,15 +494,31 @@ export function PeoplePage() {
         ) : null}
         {previewStatus === 'ready' && badgePreviewImages.length ? (
           <div className="mt-4 w-fit max-w-full rounded border border-line bg-white p-3">
-            <p className="mb-2 text-sm font-medium">미리보기 · 입사 칸 값이 자동으로 들어갑니다</p>
+            <p className="mb-2 text-sm font-medium">미리보기 · 원본 템플릿은 그대로 두고 입사 칸만 올립니다</p>
             <div className="flex flex-wrap items-start gap-3">
               {badgePreviewImages.map((src, index) => (
-                <img
-                  key={`${index}-${src.slice(-24)}`}
-                  src={src}
-                  alt={`명찰 템플릿 미리보기 ${index + 1}`}
-                  className="h-auto w-[240px] max-w-full"
-                />
+                <div key={`${index}-${src.slice(-24)}`} className="relative w-[240px] max-w-full">
+                  <img src={src} alt={`명찰 템플릿 원본 ${index + 1}`} className="h-auto w-full" />
+                  {nameplateOverlay().map((box) => {
+                    const text = currentFillValues()[box.key]
+                    if (!text) return null
+                    return (
+                      <div
+                        key={box.key}
+                        className="absolute flex items-center justify-center overflow-hidden bg-white px-1 text-center font-semibold leading-tight text-ink"
+                        style={{
+                          left: box.left,
+                          top: box.top,
+                          width: box.width,
+                          height: box.height,
+                          fontSize: box.fontSize,
+                        }}
+                      >
+                        {text}
+                      </div>
+                    )
+                  })}
+                </div>
               ))}
             </div>
           </div>
@@ -595,10 +598,11 @@ export function PeoplePage() {
                   hiredAt: todayStamp(),
                   title: '',
                   badgeName: employee.name,
+                  departmentId: employee.departmentId || '',
                 }
                 const process = onboardingView(employee.id, checks)
                 const held = outstandingOnboarding(process).length
-                const deptName = departments.find((dept) => dept.id === employee.departmentId)?.name
+                const deptName = departments.find((dept) => dept.id === (draft.departmentId || employee.departmentId))?.name
                 return (
                   <tr
                     key={employee.id}
@@ -606,7 +610,26 @@ export function PeoplePage() {
                     onClick={() => setBadgeEmployeeId(employee.id)}
                   >
                     <td className="py-3 pr-3">{employee.name}</td>
-                    <td className="py-3 pr-3">{deptName ?? '-'}</td>
+                    <td className="py-3 pr-3">
+                      <select
+                        className="max-w-32 rounded border border-line px-2 py-1"
+                        value={draft.departmentId}
+                        onChange={(e) => {
+                          setBadgeEmployeeId(employee.id)
+                          setDrafts((prev) => ({
+                            ...prev,
+                            [employee.id]: { ...draft, departmentId: e.target.value },
+                          }))
+                        }}
+                      >
+                        <option value="">부서</option>
+                        {departments.map((dept) => (
+                          <option key={dept.id} value={dept.id}>
+                            {dept.name}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
                     <td className="py-3 pr-3">
                       <div className="flex flex-wrap gap-2">
                         <input
