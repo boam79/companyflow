@@ -1,6 +1,6 @@
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist'
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
-import { createWorker } from 'tesseract.js'
+import { createWorker, PSM } from 'tesseract.js'
 import { mimeFromName, toArrayBuffer } from './book'
 import { describeOcrResult, type OcrExtractResult } from './ocr'
 import { parseContractText } from './parseFields'
@@ -85,7 +85,7 @@ async function tessWorkerInstance(onProgress?: (message: string) => void) {
         }
       },
     }).then(async (worker) => {
-      await worker.setParameters({ tessedit_pageseg_mode: '6' })
+      await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_BLOCK })
       return worker
     })
   }
