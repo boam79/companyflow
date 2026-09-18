@@ -7,7 +7,7 @@
 
 ## 지금 하는 일
 
-책상·컴퓨터를 직원에게 배정·회수한다. 배정된 회사 자산이 있으면 퇴사할 수 없다. 지정 Chrome `/assets` 배정·회수, `/people` 퇴사 막힘을 확인한다.
+회사 자산은 직원 배정이 아니다. `/assets`는 위치·QR 원본만 보여 주고, `/stock` 현재고는 비품만 품목×창고로 보여 준다. 지정 Chrome에서 확인한다.
 
 ## 보드
 
@@ -28,7 +28,7 @@
 - [x] 명찰 템플릿 미리보기·PDF 받기 (지정 Chrome에서 명찰-김담당.pdf 확인)
 - [x] 회사 자산은 책상·컴퓨터. 복사용지 AST 해제 후 `/assets` 확인.
 - [ ] 빈 QR → 스마트폰 입력 → 지정 PC 원본 반영. 확인 전.
-- [ ] 회사 자산 배정·회수, 미회수 시 퇴사 차단. 확인 전.
+- [x] 회사 자산은 직원에게 배정하지 않음. 퇴사 차단 해제.
 
 배포 URL: https://companyflow-opal.vercel.app  
 Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, ap-northeast-2)
@@ -45,7 +45,8 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 - Supabase 활성: `companyflow`, `boardroom`. 정지: `boam79_patient_data`, `qr-asset-manager`, `policyfund-ai-v2`.
 - `confirm_company_device` RPC 추가. 초기 설정 성공 후 원본 장치를 confirmed 로 올린다.
 
-- 2026-09-18: 책상·컴퓨터 배정·회수. 미회수면 퇴사 차단. AST-05/AC-23 일부.
+- 2026-09-18: 회사 자산은 직원 배정이 아님(D-30). `/stock` 현재고는 비품만 품목×창고.
+- 2026-09-18: 책상·컴퓨터 배정·회수 화면은 넣었다가 사용자 확인으로 되돌림.
 - 2026-09-18: 복사용지는 비품 재고. 회사 자산·QR은 책상·컴퓨터만.
 - 2026-09-18: 채워진 명찰을 템플릿 크기 PDF로 받음. 이메일 보내기 삭제.
 - 2026-09-18: 자산 QR(AST-01/06) PNG 받기.
@@ -69,11 +70,11 @@ PRD 11.1·기능 ID·AC와 코드를 맞춰 본 결과다. T7은 Planner 완료�
 
 ### T7에서 비어 있는 것 (지금 단계)
 
-- AST-05 배정·이관·반납·수리·폐기 화면·이력. 엔진(`executeAssignAsset`)은 있으나 `/assets`에서 빠짐
+- AST-05 이관·수리·폐기 화면·이력. 직원 배정 UI는 쓰지 않음(D-30)
 - AST-06 등록된 QR로 자산 상세·이력 조회. 지금은 빈 QR 등록만
 - AST-01 구매 원본 연결 없음
-- AST-02 구매 수령에서 창고/자산/비재고 배분 없음. 재고 전환만 `/stock` 자산화
-- AC-23 입퇴사 체크(명찰·유니폼·노트북)와 회사 자산(책상·컴퓨터) 배정·회수가 연결되지 않음
+- AST-02 구매 수령에서 창고/자산/비재고 배분 없음
+- AC-23 입퇴사는 명찰·유니폼·노트북 프로세스. 회사 자산은 직원 배정이 아님(D-30)
 - AC-04 일반 비품 전용 구매 목록(금액·공급사·지급량) 없음. `/reports` CSV가 요약만
 - EMP-02 입사 Workflow 담당자·기한·첨부 없음. 고정 3칸 체크만
 

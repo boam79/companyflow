@@ -1,6 +1,4 @@
 import { loadOnboardingChecks, onboardingView, assertOffboardingClear } from './onboarding'
-import { loadAssets } from '../asset/book'
-import { assertCompanyAssetsReturned, loadItems } from '../master/book'
 
 export type EmployeeRecord = {
   id: string
@@ -136,16 +134,10 @@ export async function executeLeave(
   createdAt = new Date().toISOString(),
 ): Promise<{ status: 'applied' | 'duplicate' }> {
   return runEmployeeCommand(db, command.operationId, 'leave_employee', createdAt, async () => {
-    const [employees, checkRows, assets, items] = await Promise.all([
-      loadEmployees(db),
-      loadOnboardingChecks(db),
-      loadAssets(db),
-      loadItems(db),
-    ])
+    const [employees, checkRows] = await Promise.all([loadEmployees(db), loadOnboardingChecks(db)])
     const employee = employees.find((row) => row.id === command.employeeId)
     if (!employee) throw new Error('직원을 찾을 수 없습니다.')
     assertOffboardingClear(onboardingView(command.employeeId, checkRows))
-    assertCompanyAssetsReturned(assets, command.employeeId, items)
     const next = applyLeave(employee, command.leftAt)
     return [
       {

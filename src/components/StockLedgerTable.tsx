@@ -51,7 +51,7 @@ export function StockLedgerTable(props: {
 
   return (
     <div className="overflow-x-auto">
-      <table className="mt-3 w-full min-w-[52rem] text-left text-sm">
+      <table className="mt-3 w-full text-left text-sm">
         <thead>
           <tr className="border-b border-line text-muted">
             <th className="py-2 pr-3 font-medium">시각</th>

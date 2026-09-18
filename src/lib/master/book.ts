@@ -59,6 +59,10 @@ export function isCompanyAssetItem(item?: ItemRecord) {
   return Boolean(item?.assetManaged) && !ISSUE_ITEMS.some((row) => row.id === item?.id)
 }
 
+export function isSupplyItem(item?: ItemRecord) {
+  return Boolean(item?.stockManaged) && !item?.assetManaged
+}
+
 export function heldCompanyAssets(
   assets: AssetRecord[],
   employeeId: string,
@@ -80,14 +84,11 @@ export function assertAssignableCompanyAsset(item?: ItemRecord): ItemRecord {
 }
 
 export function assertCompanyAssetsReturned(
-  assets: AssetRecord[],
-  employeeId: string,
-  items: ItemRecord[],
+  _assets: AssetRecord[],
+  _employeeId: string,
+  _items: ItemRecord[],
 ): void {
-  const held = heldCompanyAssets(assets, employeeId, items)
-  if (!held.length) return
-  const names = [...new Set(held.map((asset) => items.find((item) => item.id === asset.itemId)?.name ?? '자산'))]
-  throw new Error(`회사 자산 미회수: ${names.join(', ')}를 자산 메뉴에서 먼저 회수하세요.`)
+  // 책상·컴퓨터는 위치·QR 원본이지 직원 지급품이 아니다. 퇴사를 막지 않는다.
 }
 
 export const COMPANY_ASSET_ITEMS: ItemRecord[] = [

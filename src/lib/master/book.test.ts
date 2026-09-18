@@ -4,11 +4,10 @@ import {
   COMPANY_ASSET_ITEMS,
   ISSUE_ITEMS,
   PAPER_ITEM,
-  assertAssignableCompanyAsset,
   assertCompanyAssetsReturned,
   assertConvertibleItem,
-  heldCompanyAssets,
   isCompanyAssetItem,
+  isSupplyItem,
   seedDefaultMaster,
 } from './book'
 
@@ -55,28 +54,25 @@ describe('회사별 기준정보 격리', () => {
   it('복사용지는 비품 재고이고 책상·컴퓨터만 자산화한다', () => {
     expect(() => assertConvertibleItem(ISSUE_ITEMS[0])).toThrow(/입퇴사 프로세스/)
     expect(() => assertConvertibleItem(PAPER_ITEM)).toThrow(/비품 재고/)
+    expect(isSupplyItem(PAPER_ITEM)).toBe(true)
+    expect(isSupplyItem(COMPANY_ASSET_ITEMS[0])).toBe(false)
     expect(isCompanyAssetItem(PAPER_ITEM)).toBe(false)
     expect(isCompanyAssetItem(ISSUE_ITEMS[2])).toBe(false)
     expect(isCompanyAssetItem(COMPANY_ASSET_ITEMS[0])).toBe(true)
     expect(assertConvertibleItem(COMPANY_ASSET_ITEMS[1]).name).toBe('컴퓨터')
   })
 
-  it('책상·컴퓨터가 배정돼 있으면 퇴사하지 못한다', () => {
-    const desk = COMPANY_ASSET_ITEMS[0]
+  it('회사 자산은 직원 배정이 아니라 퇴사를 막지 않는다', () => {
     const held = [
       {
         id: 'desk:1',
-        itemId: desk.id,
+        itemId: COMPANY_ASSET_ITEMS[0].id,
         warehouseId: 'wh-main',
         status: 'assigned' as const,
         employeeId: 'emp-1',
         sourceOperationId: 'desk',
       },
     ]
-    expect(heldCompanyAssets(held, 'emp-1', COMPANY_ASSET_ITEMS)).toHaveLength(1)
-    expect(() => assertCompanyAssetsReturned(held, 'emp-1', COMPANY_ASSET_ITEMS)).toThrow(/책상/)
-    expect(() => assertAssignableCompanyAsset(PAPER_ITEM)).toThrow(/책상·컴퓨터/)
-    expect(assertAssignableCompanyAsset(desk).id).toBe('item-desk')
-    expect(() => assertCompanyAssetsReturned([], 'emp-1', COMPANY_ASSET_ITEMS)).not.toThrow()
+    expect(() => assertCompanyAssetsReturned(held, 'emp-1', COMPANY_ASSET_ITEMS)).not.toThrow()
   })
 })

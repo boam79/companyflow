@@ -9,6 +9,7 @@ import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { executeStockCommand, ensureDefaultStockMaster, loadStockState } from '../lib/stock/persist'
 import { companyOnHand, onHand, orderRemaining, type LedgerLine, type StockCommand, type StockState } from '../lib/stock/engine'
+import { buildSupplyInventory, supplyItems } from '../lib/stock/inventoryView'
 import type { LedgerFilter } from '../lib/stock/ledgerView'
 import { commandFromSuggestion, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
@@ -23,7 +24,6 @@ const ACTIONS: { id: ActionType; label: string }[] = [
   { id: 'post_issue', label: '반출' },
   { id: 'post_return', label: '반납' },
   { id: 'transfer_stock', label: '창고 이동' },
-  { id: 'convert_to_asset', label: '자산화' },
   { id: 'draft_order', label: '발주 초안' },
   { id: 'post_direct_in', label: '직접 입고' },
   { id: 'post_outbound', label: '출고' },
@@ -127,14 +127,14 @@ export function StockPage() {
       }
       return nextState.ledger[nextState.ledger.length - 1] ?? null
     })
-    applySuggestedForm(
-      suggestNextStockForm(
-        nextState,
-        orderId,
-        itemRows.find((row) => row.id === itemId) ?? itemRows.find((row) => row.id === 'item-paper'),
-      ),
+    const nextStockItems = supplyItems(itemRows)
+    const suggested = suggestNextStockForm(
+      nextState,
+      orderId,
+      nextStockItems.find((row) => row.id === itemId) ?? nextStockItems.find((row) => row.id === 'item-paper'),
     )
-    if (!itemRows.some((row) => row.id === itemId) && itemRows[0]) setItemId(itemRows[0].id)
+    applySuggestedForm(suggested?.action === 'convert_to_asset' ? null : suggested)
+    if (!nextStockItems.some((row) => row.id === itemId) && nextStockItems[0]) setItemId(nextStockItems[0].id)
     if (!warehouseRows.some((row) => row.id === warehouseId) && warehouseRows[0]) {
       setWarehouseId(warehouseRows[0].id)
     }
@@ -177,7 +177,6 @@ export function StockPage() {
     }
     if (nextAction === 'post_return') setQty('1')
     if (nextAction === 'transfer_stock') setQty('2')
-    if (nextAction === 'convert_to_asset') setQty('1')
   }
 
   function buildCommand(nextOperationId: string): StockCommand {
@@ -315,26 +314,23 @@ export function StockPage() {
     )
   }
 
+  const stockItems = supplyItems(items)
   const paperQty = state ? companyOnHand(state, itemId) : 0
   const remaining = state ? orderRemaining(state, orderId) : 0
-  const nextForm = state ? suggestNextStockForm(state, orderId, items.find((row) => row.id === itemId)) : null
-  const warehouseBalances =
-    state && items.length && warehouses.length
-      ? items.flatMap((item) =>
-          warehouses.map((warehouse) => ({
-            item,
-            warehouse,
-            qty: onHand(state, item.id, warehouse.id),
-          })),
-        )
-      : []
+  const suggested = state
+    ? suggestNextStockForm(state, orderId, stockItems.find((row) => row.id === itemId))
+    : null
+  const nextForm = suggested?.action === 'convert_to_asset' ? null : suggested
+  const inventory =
+    state && stockItems.length && warehouses.length ? buildSupplyInventory(stockItems, warehouses, state) : []
+  const selectedInventory = inventory.find((row) => row.itemId === itemId) ?? inventory[0]
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-semibold">구매·재고</h1>
         <p className="mt-2 text-sm text-muted">
-          확정 원장을 수불부로 보여 줍니다. 입고·출고가 같은 표에서 잔량으로 이어집니다.
+          복사용지처럼 쓰고 채우는 비품만 다룹니다. 책상·컴퓨터는 자산 메뉴에서 QR로 등록합니다.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -369,33 +365,69 @@ export function StockPage() {
       </div>
 
       <section className="rounded-lg border border-line bg-card p-5">
-        <h2 className="text-lg font-semibold">현재고</h2>
-        <p className="mt-1 text-sm text-muted">
-          선택 품목 회사 합계 <strong>{paperQty}</strong>
-          {state?.orders.get(orderId) ? ` · 발주 ${orderId} 잔량 ${remaining}` : ''}
-        </p>
-        {warehouseBalances.length ? (
-          <table className="mt-3 w-full text-left text-sm">
-            <thead>
-              <tr className="text-muted">
-                <th className="py-1 font-medium">품목</th>
-                <th className="py-1 font-medium">창고</th>
-                <th className="py-1 font-medium">수량</th>
-              </tr>
-            </thead>
-            <tbody>
-              {warehouseBalances.map((row) => (
-                <tr key={`${row.item.id}-${row.warehouse.id}`}>
-                  <td className="py-1">{row.item.name}</td>
-                  <td className="py-1">{row.warehouse.name}</td>
-                  <td className="py-1">{row.qty}</td>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">현재고</h2>
+            <p className="mt-1 text-sm text-muted">
+              {selectedInventory ? (
+                <>
+                  {selectedInventory.itemName} 회사 합계{' '}
+                  <strong className="text-ink tabular-nums">{selectedInventory.total}</strong>
+                </>
+              ) : (
+                <>선택 품목 회사 합계 <strong className="text-ink tabular-nums">{paperQty}</strong></>
+              )}
+              {state?.orders.get(orderId) ? ` · 발주 ${orderId} 잔량 ${remaining}` : ''}
+            </p>
+          </div>
+          <Link className="text-sm text-accent underline" to="/assets">
+            책상·컴퓨터는 자산
+          </Link>
+        </div>
+        {inventory.length ? (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full max-w-2xl text-left text-sm">
+              <thead>
+                <tr className="border-b border-line text-muted">
+                  <th className="py-2 pr-4 font-medium">품목</th>
+                  {warehouses.map((warehouse) => (
+                    <th key={warehouse.id} className="py-2 pr-4 text-right font-medium">
+                      {warehouse.name}
+                    </th>
+                  ))}
+                  <th className="py-2 text-right font-medium">회사 합계</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {inventory.map((row) => {
+                  const active = row.itemId === itemId
+                  return (
+                    <tr
+                      key={row.itemId}
+                      className={`cursor-pointer border-b border-line/70 ${
+                        active ? 'bg-accent-soft' : 'hover:bg-paper'
+                      }`}
+                      onClick={() => setItemId(row.itemId)}
+                    >
+                      <td className="py-2 pr-4 font-medium">{row.itemName}</td>
+                      {row.quantities.map((qtyValue, index) => (
+                        <td
+                          key={warehouses[index]?.id ?? index}
+                          className="py-2 pr-4 text-right tabular-nums"
+                        >
+                          {qtyValue}
+                        </td>
+                      ))}
+                      <td className="py-2 text-right font-semibold tabular-nums">{row.total}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <p className="mt-2 text-sm text-muted">
-            {ready ? '품목·창고가 없습니다.' : '회사 DB를 여는 중입니다.'}
+            {ready ? '비품 품목이 없습니다. 기준정보에서 복사용지처럼 재고 품목을 등록하세요.' : '회사 DB를 여는 중입니다.'}
           </p>
         )}
       </section>
@@ -479,14 +511,6 @@ export function StockPage() {
             >
               {ACTIONS.find((item) => item.id === nextForm.action)?.label} {nextForm.qty}
             </button>
-            {nextForm.action === 'convert_to_asset' ? (
-              <Link
-                className="rounded border border-accent px-4 py-2 text-sm font-semibold text-accent"
-                to="/assets"
-              >
-                자산 목록
-              </Link>
-            ) : (
               <button
                 type="button"
                 disabled={!ready || saving}
@@ -495,7 +519,6 @@ export function StockPage() {
               >
                 이어서 모두 확정
               </button>
-            )}
           </div>
         </section>
       ) : null}
@@ -561,7 +584,7 @@ export function StockPage() {
                 value={itemId}
                 onChange={(e) => setItemId(e.target.value)}
               >
-                {items.map((item) => (
+                {stockItems.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name}
                   </option>
