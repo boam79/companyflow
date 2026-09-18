@@ -209,6 +209,15 @@ export async function writeSampleCompanyData(db: {
         now,
       ],
     )
+    await db.exec(
+      `update employees set
+        department_id = coalesce(nullif(department_id, ''), ?),
+        title = coalesce(nullif(title, ''), ?),
+        badge_name = coalesce(nullif(badge_name, ''), ?),
+        badge_department = coalesce(nullif(badge_department, ''), ?)
+       where id = ?`,
+      [employee.departmentId, employee.title, employee.badgeName, employee.badgeDepartment, employee.id],
+    )
   }
   for (const check of SAMPLE_CHECKS) {
     await db.exec(

@@ -29,7 +29,12 @@ export type AssetRecord = {
   acquiredAt?: string
 }
 
-export function assetNumber(id: string): string {
+export function assetNumber(id: string, serialNo?: string): string {
+  if (id.startsWith('sample:')) {
+    const serial = serialNo?.trim().replace(/\s+/g, '-')
+    if (serial) return `AST-${serial}`
+    return `AST-${id.slice(7).replace(/[^a-z0-9]+/gi, '-').toUpperCase()}`
+  }
   const [operationId, seq] = id.split(':')
   const short = operationId.replace(/-/g, '').slice(0, 8).toUpperCase()
   return `AST-${short}-${seq || '1'}`

@@ -268,18 +268,26 @@ export function AssetsPage() {
               <div key={row.id} className="rounded border border-line p-3 text-center">
                 <img src={row.dataUrl} alt={`빈 QR ${index + 1}`} className="mx-auto h-28 w-28 bg-white p-1" />
                 <p className="mt-1 text-xs text-muted">빈QR-{String(index + 1).padStart(2, '0')}</p>
-                <button
-                  type="button"
-                  className="mt-2 rounded border border-line px-2 py-1 text-xs font-semibold"
-                  onClick={() => {
-                    const link = document.createElement('a')
-                    link.href = row.dataUrl
-                    link.download = blankQrFileName(index + 1)
-                    link.click()
-                  }}
-                >
-                  PNG 받기
-                </button>
+                <div className="mt-2 flex justify-center gap-2">
+                  <a
+                    className="rounded border border-line px-2 py-1 text-xs font-semibold"
+                    href={row.url}
+                  >
+                    입력 열기
+                  </a>
+                  <button
+                    type="button"
+                    className="rounded border border-line px-2 py-1 text-xs font-semibold"
+                    onClick={() => {
+                      const link = document.createElement('a')
+                      link.href = row.dataUrl
+                      link.download = blankQrFileName(index + 1)
+                      link.click()
+                    }}
+                  >
+                    PNG 받기
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -342,7 +350,9 @@ export function AssetsPage() {
                     asset.warehouseId
                   return (
                     <tr key={asset.id} className="border-b border-line/70">
-                      <td className="whitespace-nowrap py-2 pr-4 font-medium">{assetNumber(asset.id)}</td>
+                      <td className="whitespace-nowrap py-2 pr-4 font-medium">
+                        {assetNumber(asset.id, asset.serialNo)}
+                      </td>
                       <td className="py-2 pr-4">{item?.name ?? asset.itemId}</td>
                       <td className="py-2 pr-4 text-muted">
                         {[asset.model, asset.serialNo].filter(Boolean).join(' · ') || '—'}

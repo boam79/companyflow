@@ -22,6 +22,7 @@ describe('회사 샘플 데이터', () => {
       expect.arrayContaining(['책상', '의자', '회의탁자', '컴퓨터', '모니터', '복합기']),
     )
     expect(SAMPLE_ASSETS.every((asset) => COMPANY_ASSET_ITEMS.some((item) => item.id === asset.itemId))).toBe(true)
+    expect(statements.some((row) => row.sql.includes('update employees set'))).toBe(true)
     expect(statements.some((row) => row.sql.includes('employment_checks'))).toBe(true)
   })
 

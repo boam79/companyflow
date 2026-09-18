@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { loadAssets } from '../lib/asset/book'
-import { loadItems, writeDefaultMaster, type ItemRecord } from '../lib/master/book'
+import { isSupplyItem, loadItems, writeDefaultMaster, type ItemRecord } from '../lib/master/book'
 import { migrateProcessAssetsToChecks } from '../lib/people/onboarding'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
-import { csvFromReport, reportDetails, summarizeStock, type DateRange, type ReportDetail } from '../lib/reports/summary'
+import { csvFromSupplyReport, reportDetails, summarizeStock, type DateRange, type ReportDetail } from '../lib/reports/summary'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { loadStockState } from '../lib/stock/persist'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
@@ -65,8 +65,11 @@ export function ReportsPage() {
       await migrateProcessAssetsToChecks(sqlite)
       await retireSupplyAssets(sqlite)
       const itemRows = await loadItems(sqlite)
-      setItems(itemRows)
-      const nextItem = itemRows.some((row) => row.id === itemId) ? itemId : itemRows[0]?.id
+      const supply = itemRows.filter((row) => isSupplyItem(row))
+      setItems(supply)
+      const nextItem = supply.some((row) => row.id === itemId)
+        ? itemId
+        : supply.find((row) => row.id === 'item-paper')?.id || supply[0]?.id
       if (nextItem) setItemId(nextItem)
       await refreshSummary(nextItem || itemId)
     } catch (error) {
@@ -78,11 +81,12 @@ export function ReportsPage() {
   }
 
   async function refreshSummary(nextItemId = itemId, nextRange = range) {
-    const [state, assets, itemRows] = await Promise.all([
+    const [state, assets, loadedItems] = await Promise.all([
       loadStockState(sqlite),
       loadAssets(sqlite),
       loadItems(sqlite),
     ])
+    const itemRows = loadedItems.filter((row) => isSupplyItem(row))
     setItems(itemRows)
     setSummary(summarizeStock(state, assets, nextItemId, nextRange, itemRows.find((row) => row.id === nextItemId)))
     setDetails(reportDetails(state.ledger, nextItemId, nextRange))
@@ -91,7 +95,7 @@ export function ReportsPage() {
   function downloadCsv() {
     if (!summary) return
     const itemName = items.find((item) => item.id === itemId)?.name ?? itemId
-    const blob = new Blob(['\uFEFF' + csvFromReport(itemName, summary, range, details)], {
+    const blob = new Blob(['\uFEFF' + csvFromSupplyReport(itemName, summary, range, details)], {
       type: 'text/csv;charset=utf-8',
     })
     const url = URL.createObjectURL(blob)
@@ -123,7 +127,7 @@ export function ReportsPage() {
       <div>
         <h1 className="text-3xl font-semibold">통계</h1>
         <p className="mt-2 text-sm text-muted">
-          일반 비품은 확정 원장과 자산 목록에서 집계합니다. 일자는 서울 기준이고, 창고 이동은 회사 합계에서 빼 둡니다.
+          복사용지처럼 비품만 집계합니다. 가구·컴퓨터는 자산 메뉴에서 보고, 창고 이동은 회사 합계에서 빼 둡니다.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -209,13 +213,10 @@ export function ReportsPage() {
           <table className="mt-4 w-full text-left text-sm">
             <thead>
               <tr className="border-b border-line text-muted">
-                <th className="py-2 pr-3 font-medium">일반 비품</th>
+                <th className="py-2 pr-3 font-medium">비품</th>
                 <th className="py-2 pr-3 font-medium">입고</th>
                 <th className="py-2 pr-3 font-medium">출고</th>
-                <th className="py-2 pr-3 font-medium">자산화</th>
-                <th className="py-2 pr-3 font-medium">현재고</th>
-                <th className="py-2 pr-3 font-medium">자산</th>
-                <th className="py-2 font-medium">배정</th>
+                <th className="py-2 font-medium">현재고</th>
               </tr>
             </thead>
             <tbody>
@@ -223,10 +224,7 @@ export function ReportsPage() {
                 <td className="py-2 pr-3">{itemName}</td>
                 <td className="py-2 pr-3">{summary.receipt}</td>
                 <td className="py-2 pr-3">{summary.issue}</td>
-                <td className="py-2 pr-3">{summary.convert}</td>
-                <td className="py-2 pr-3">{summary.onHand}</td>
-                <td className="py-2 pr-3">{summary.assets}</td>
-                <td className="py-2">{summary.assigned}</td>
+                <td className="py-2">{summary.onHand}</td>
               </tr>
             </tbody>
           </table>

@@ -109,6 +109,14 @@ export function csvFromSummary(itemName: string, summary: StockSummary, range: D
   return rows.map((row) => row.join(',')).join('\n')
 }
 
+export function csvFromSupplySummary(itemName: string, summary: StockSummary, range: DateRange): string {
+  const rows = [
+    ['품목', '시작일', '종료일', '입고', '출고', '현재고'],
+    [itemName, range.from, range.to, String(summary.receipt), String(summary.issue), String(summary.onHand)],
+  ]
+  return rows.map((row) => row.join(',')).join('\n')
+}
+
 export function csvFromReport(
   itemName: string,
   summary: StockSummary,
@@ -124,4 +132,21 @@ export function csvFromReport(
     ),
   ]
   return [csvFromSummary(itemName, summary, range), ...detailLines].join('\n')
+}
+
+export function csvFromSupplyReport(
+  itemName: string,
+  summary: StockSummary,
+  range: DateRange,
+  details: ReportDetail[],
+): string {
+  const detailLines = [
+    '',
+    '상세',
+    '일자,구분,방향,수량',
+    ...details.map((row) =>
+      [row.day, row.label, row.direction === 'in' ? '입고' : '출고', String(row.qty)].join(','),
+    ),
+  ]
+  return [csvFromSupplySummary(itemName, summary, range), ...detailLines].join('\n')
 }

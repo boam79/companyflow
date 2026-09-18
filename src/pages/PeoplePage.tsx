@@ -23,6 +23,7 @@ import {
 import {
   executeHire,
   executeLeave,
+  employeeHireDraft,
   loadEmployees,
   type EmployeeRecord,
 } from '../lib/people/employment'
@@ -158,20 +159,7 @@ export function PeoplePage() {
         setPreviewStatus('idle')
       }
       setDrafts(
-        Object.fromEntries(
-          employeeRows.map((row) => [
-            row.id,
-            {
-              hiredAt: row.hiredAt || todayStamp(),
-              title: row.title || '',
-              badgeName: row.badgeName || row.name,
-              department:
-                row.badgeDepartment ||
-                departments.find((dept) => dept.id === row.departmentId)?.name ||
-                '',
-            },
-          ]),
-        ),
+        Object.fromEntries(employeeRows.map((row) => [row.id, employeeHireDraft(row, deptRows, todayStamp())])),
       )
     } catch (error) {
       setReady(false)
@@ -396,6 +384,11 @@ export function PeoplePage() {
         leftAt: todayStamp(),
       })
       setNotice(result.status === 'duplicate' ? '같은 퇴사는 한 번만 반영됩니다.' : '퇴사를 기록했습니다.')
+      setDrafts((prev) => {
+        const current = prev[employeeId]
+        if (!current) return prev
+        return { ...prev, [employeeId]: { ...current, hiredAt: todayStamp() } }
+      })
       await refreshPeople()
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
@@ -403,16 +396,8 @@ export function PeoplePage() {
   }
 
   const selectedEmployee = employees.find((row) => row.id === badgeEmployeeId) ?? employees[0]
-  const selectedOrgDept = selectedEmployee
-    ? departments.find((dept) => dept.id === selectedEmployee.departmentId)?.name
-    : undefined
   const selectedDraft = selectedEmployee
-    ? drafts[selectedEmployee.id] ?? {
-        hiredAt: todayStamp(),
-        title: '',
-        badgeName: selectedEmployee.name,
-        department: selectedEmployee.badgeDepartment || selectedOrgDept || '',
-      }
+    ? drafts[selectedEmployee.id] ?? employeeHireDraft(selectedEmployee, departments, todayStamp())
     : null
   const selectedProcess = selectedEmployee ? onboardingView(selectedEmployee.id, checks) : []
   const selectedHeld = selectedEmployee ? outstandingOnboarding(selectedProcess).length : 0
@@ -646,7 +631,11 @@ export function PeoplePage() {
                     className={`flex w-full flex-col items-start border-b border-line/70 px-3 py-2 text-left last:border-b-0 ${
                       active ? 'bg-accent-soft' : 'hover:bg-paper'
                     }`}
-                    onClick={() => setBadgeEmployeeId(employee.id)}
+                    onClick={() => {
+                      setMessage('')
+                      setNotice('')
+                      setBadgeEmployeeId(employee.id)
+                    }}
                   >
                     <span className="font-medium whitespace-nowrap">{employee.name}</span>
                     <span className="mt-0.5 text-xs text-muted">
@@ -788,8 +777,8 @@ export function PeoplePage() {
                     <h3 className="text-sm font-semibold">입사 프로세스</h3>
                     <ul className="mt-2 space-y-2">
                       {selectedProcess.map((row) => (
-                        <li key={`hire-${row.key}`}>
-                          <label className="flex items-center gap-2 whitespace-nowrap">
+                        <li key={`hire-${row.key}`} className="flex items-center gap-2 whitespace-nowrap">
+                          <label className="flex items-center gap-2">
                             <input
                               type="checkbox"
                               className="size-4 shrink-0 accent-accent"
@@ -800,22 +789,22 @@ export function PeoplePage() {
                               }}
                             />
                             <span className={row.issued ? 'font-medium' : 'text-muted'}>{row.hireLabel}</span>
-                            {row.key === 'badge' ? (
-                              <button
-                                type="button"
-                                disabled={!ready}
-                                className="rounded border border-line px-2 py-0.5 text-xs disabled:opacity-50"
-                                onClick={() =>
-                                  printEmployeeBadge(
-                                    { ...selectedEmployee, ...selectedDraft, name: selectedEmployee.name },
-                                    selectedDraft.department,
-                                  )
-                                }
-                              >
-                                출력
-                              </button>
-                            ) : null}
                           </label>
+                          {row.key === 'badge' ? (
+                            <button
+                              type="button"
+                              disabled={!ready}
+                              className="rounded border border-line px-2 py-0.5 text-xs disabled:opacity-50"
+                              onClick={() =>
+                                printEmployeeBadge(
+                                  { ...selectedEmployee, ...selectedDraft, name: selectedEmployee.name },
+                                  selectedDraft.department,
+                                )
+                              }
+                            >
+                              출력
+                            </button>
+                          ) : null}
                         </li>
                       ))}
                     </ul>

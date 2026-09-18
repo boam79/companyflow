@@ -15,6 +15,22 @@ export function isActiveEmployee(employee: EmployeeRecord): boolean {
   return !employee.leftAt
 }
 
+export function employeeHireDraft(
+  row: EmployeeRecord,
+  departments: { id: string; name: string }[],
+  today: string,
+) {
+  return {
+    hiredAt: row.leftAt ? today : row.hiredAt || today,
+    title: row.title || '',
+    badgeName: row.badgeName || row.name,
+    department:
+      row.badgeDepartment ||
+      departments.find((dept) => dept.id === row.departmentId)?.name ||
+      '',
+  }
+}
+
 export function applyHire(
   employee: EmployeeRecord,
   command: { hiredAt: string; title?: string; badgeName?: string; department?: string },
