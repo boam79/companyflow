@@ -107,6 +107,12 @@ function asLatin1(bytes: Uint8Array) {
   return new TextDecoder('latin1').decode(bytes)
 }
 
+export function previewableBadgePdfBytes(bytes: Uint8Array): Uint8Array | undefined {
+  const offset = pdfMagicOffset(bytes)
+  if (offset < 0) return undefined
+  return offset === 0 ? bytes : bytes.subarray(offset)
+}
+
 function pdfMagicOffset(bytes: Uint8Array) {
   const limit = Math.min(bytes.length - 4, 4096)
   for (let index = 0; index <= limit; index += 1) {

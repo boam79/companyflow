@@ -85,8 +85,11 @@ export function PeoplePage() {
   const [badgeTemplate, setBadgeTemplate] = useState<BadgeTemplateRecord | undefined>()
   const [badgeFile, setBadgeFile] = useState<File | null>(null)
   const [badgePreview, setBadgePreview] = useState('')
+  const [badgePreviewImages, setBadgePreviewImages] = useState<string[]>([])
+  const [previewStatus, setPreviewStatus] = useState<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
   const opening = useRef(false)
   const badgeInput = useRef<HTMLInputElement>(null)
+  const previewSeq = useRef(0)
 
   useEffect(() => {
     if (!user) return
@@ -131,6 +134,13 @@ export function PeoplePage() {
       setEmployees(employeeRows)
       setChecks(checkRows)
       setBadgeTemplate(template)
+      if (template) {
+        const original = await loadBadgeTemplateOriginal(sqlite)
+        await showBadgePreview(original.bytes)
+      } else {
+        setBadgePreviewImages([])
+        setPreviewStatus('idle')
+      }
       setDrafts(
         Object.fromEntries(
           employeeRows.map((row) => [
@@ -149,6 +159,16 @@ export function PeoplePage() {
     } finally {
       opening.current = false
     }
+  }
+
+  async function showBadgePreview(bytes: Uint8Array) {
+    const seq = (previewSeq.current += 1)
+    setPreviewStatus('loading')
+    const { renderBadgeTemplatePreview } = await import('../lib/people/badgePreview')
+    const images = await renderBadgeTemplatePreview(bytes)
+    if (seq !== previewSeq.current) return
+    setBadgePreviewImages(images)
+    setPreviewStatus(images.length ? 'ready' : 'unavailable')
   }
 
   async function refreshPeople() {
@@ -184,6 +204,7 @@ export function PeoplePage() {
         fileBytes,
       })
       setBadgeTemplate(result.template)
+      await showBadgePreview(fileBytes)
       setBadgeFile(null)
       if (badgeInput.current) badgeInput.current.value = ''
       const fieldLabels = result.template.fields.map((field) => field.label).join(' · ')
@@ -337,7 +358,12 @@ export function PeoplePage() {
             type="file"
             accept=".ai,.pdf,application/pdf,application/postscript,application/illustrator"
             className="sr-only"
-            onChange={(e) => setBadgeFile(e.target.files?.[0] ?? null)}
+            onChange={(e) => {
+              const file = e.target.files?.[0] ?? null
+              setBadgeFile(file)
+              if (!file) return
+              void file.arrayBuffer().then((buffer) => showBadgePreview(new Uint8Array(buffer)))
+            }}
           />
           <button
             type="button"
@@ -386,6 +412,31 @@ export function PeoplePage() {
         ) : (
           <p className="mt-3 text-sm text-muted">아직 올린 명찰 템플릿이 없습니다.</p>
         )}
+        {previewStatus === 'loading' ? (
+          <p className="mt-3 text-sm text-muted">템플릿 미리보기를 그리는 중입니다.</p>
+        ) : null}
+        {previewStatus === 'ready' && badgePreviewImages.length ? (
+          <div className="mt-4 rounded border border-line bg-white p-3">
+            <p className="mb-2 text-sm font-medium">미리보기</p>
+            <div className="flex flex-col items-center gap-3">
+              {badgePreviewImages.map((src, index) => (
+                <img
+                  key={`${index}-${src.slice(-24)}`}
+                  src={src}
+                  alt={`명찰 템플릿 미리보기 ${index + 1}`}
+                  className="max-h-[520px] w-auto max-w-full"
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {previewStatus === 'unavailable' ? (
+          <p className="mt-3 text-sm text-muted">
+            {badgeTemplate?.sourceKind === 'ai-binary'
+              ? '이 Illustrator 파일은 화면 미리보기를 할 수 없습니다. PDF로 저장해 올리면 보입니다.'
+              : '이 파일은 화면 미리보기를 그리지 못했습니다. 원본은 보존되어 있습니다.'}
+          </p>
+        ) : null}
       </section>
       <section className="rounded-lg border border-line bg-card p-5">
         {employees.length ? (

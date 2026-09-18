@@ -4,6 +4,7 @@ import {
   assertBadgeTemplateFile,
   detectBadgeFields,
   inspectBadgeTemplate,
+  previewableBadgePdfBytes,
 } from './badgeTemplate'
 
 function pdfWithLiterals(...labels: string[]) {
@@ -72,5 +73,15 @@ describe('명찰 템플릿', () => {
       '총무',
       '주임',
     ])
+  })
+
+  it('PDF와 PDF 호환 AI만 미리보기 바이트를 준다', () => {
+    const pdf = pdfWithLiterals('성명')
+    expect(previewableBadgePdfBytes(pdf)?.subarray(0, 5)).toEqual(new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]))
+    const wrapped = new Uint8Array(8 + pdf.length)
+    wrapped.set([0x41, 0x49, 0, 0, 0, 0, 0, 0])
+    wrapped.set(pdf, 8)
+    expect(previewableBadgePdfBytes(wrapped)?.byteLength).toBe(pdf.byteLength)
+    expect(previewableBadgePdfBytes(new Uint8Array([0, 1, 2, 3, 4]))).toBeUndefined()
   })
 })
