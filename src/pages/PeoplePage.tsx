@@ -622,139 +622,198 @@ export function PeoplePage() {
           </p>
         ) : null}
       </section>
-      <section className="rounded-lg border border-line bg-card p-5">
+      <section className="space-y-4">
         {employees.length ? (
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-line text-muted">
-                <th className="py-2 pr-3 font-medium">이름</th>
-                <th className="py-2 pr-3 font-medium">부서</th>
-                <th className="py-2 pr-3 font-medium">입사</th>
-                <th className="py-2 pr-3 font-medium">입사 프로세스</th>
-                <th className="py-2 pr-3 font-medium">퇴사 프로세스</th>
-                <th className="py-2 font-medium">상태</th>
-              </tr>
-            </thead>
-            <tbody>
-              {employees.map((employee) => {
-                const orgDeptName = departments.find((dept) => dept.id === employee.departmentId)?.name
-                const draft = drafts[employee.id] ?? {
-                  hiredAt: todayStamp(),
-                  title: '',
-                  badgeName: employee.name,
-                  department: employee.badgeDepartment || orgDeptName || '',
-                }
-                const process = onboardingView(employee.id, checks)
-                const held = outstandingOnboarding(process).length
-                const companyHeld = heldCompanyAssets(assets, employee.id, items)
-                const companyHeldNames = [
-                  ...new Set(
-                    companyHeld.map((asset) => items.find((item) => item.id === asset.itemId)?.name ?? '자산'),
-                  ),
-                ]
-                return (
-                  <tr
-                    key={employee.id}
-                    className={`border-b border-line/70 align-top ${badgeEmployeeId === employee.id ? 'bg-accent-soft' : ''}`}
-                    onClick={() => setBadgeEmployeeId(employee.id)}
-                  >
-                    <td className="py-3 pr-3">{employee.name}</td>
-                    <td className="py-3 pr-3">
-                      <input
-                        className="w-24 rounded border border-line px-2 py-1"
-                        placeholder="부서"
-                        value={draft.department}
-                        onChange={(e) => {
-                          setBadgeEmployeeId(employee.id)
-                          setDrafts((prev) => ({
-                            ...prev,
-                            [employee.id]: { ...draft, department: e.target.value },
-                          }))
-                        }}
-                      />
-                    </td>
-                    <td className="py-3 pr-3">
-                      <div className="flex flex-wrap gap-2">
-                        <input
-                          type="date"
-                          className="rounded border border-line px-2 py-1"
-                          value={draft.hiredAt}
-                          onChange={(e) =>
-                            setDrafts((prev) => ({
-                              ...prev,
-                              [employee.id]: { ...draft, hiredAt: e.target.value },
-                            }))
-                          }
-                        />
-                        <input
-                          className="w-24 rounded border border-line px-2 py-1"
-                          placeholder="직위"
-                          value={draft.title}
-                          onChange={(e) => {
-                            setBadgeEmployeeId(employee.id)
-                            setDrafts((prev) => ({
-                              ...prev,
-                              [employee.id]: { ...draft, title: e.target.value },
-                            }))
-                          }}
-                        />
-                        <input
-                          className="w-28 rounded border border-line px-2 py-1"
-                          placeholder="명찰 이름"
-                          value={draft.badgeName}
-                          onChange={(e) => {
-                            setBadgeEmployeeId(employee.id)
-                            setDrafts((prev) => ({
-                              ...prev,
-                              [employee.id]: { ...draft, badgeName: e.target.value },
-                            }))
-                          }}
-                        />
-                      </div>
-                    </td>
-                    <td className="py-3 pr-3">
-                      <ul className="space-y-1.5">
-                        {process.map((row) => (
-                          <li key={`hire-${row.key}`}>
-                            <label className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                className="size-4 accent-accent"
-                                checked={row.issued}
-                                disabled={!ready || Boolean(employee.leftAt) || row.issued}
-                                onChange={(e) => {
-                                  if (e.target.checked) void toggleCheck(employee.id, row, true)
-                                }}
-                              />
-                              <span className={row.issued ? 'font-medium' : 'text-muted'}>{row.hireLabel}</span>
-                              {row.key === 'badge' ? (
-                                <button
-                                  type="button"
-                                  disabled={!ready}
-                                  className="rounded border border-line px-2 py-0.5 text-xs disabled:opacity-50"
-                                  onClick={() =>
-                                    printEmployeeBadge({ ...employee, ...draft, name: employee.name }, draft.department)
-                                  }
-                                >
-                                  출력
-                                </button>
-                              ) : null}
-                            </label>
-                          </li>
-                        ))}
-                      </ul>
-                      <p className="mt-1 text-xs text-muted">{held}/3 지급</p>
-                    </td>
-                    <td className="py-3 pr-3">
-                      <ul className="space-y-1.5">
-                        {process.map((row) => {
-                          const phase = leavePhase(row, Boolean(employee.leftAt))
-                          return (
+          employees.map((employee) => {
+            const orgDeptName = departments.find((dept) => dept.id === employee.departmentId)?.name
+            const draft = drafts[employee.id] ?? {
+              hiredAt: todayStamp(),
+              title: '',
+              badgeName: employee.name,
+              department: employee.badgeDepartment || orgDeptName || '',
+            }
+            const process = onboardingView(employee.id, checks)
+            const held = outstandingOnboarding(process).length
+            const companyHeld = heldCompanyAssets(assets, employee.id, items)
+            const companyHeldNames = [
+              ...new Set(
+                companyHeld.map((asset) => items.find((item) => item.id === asset.itemId)?.name ?? '자산'),
+              ),
+            ]
+            return (
+              <article
+                key={employee.id}
+                className={`rounded-lg border border-line bg-card p-5 ${
+                  badgeEmployeeId === employee.id ? 'ring-1 ring-accent' : ''
+                }`}
+                onClick={() => setBadgeEmployeeId(employee.id)}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold whitespace-nowrap">{employee.name}</h2>
+                    <p className="mt-1 text-sm text-muted">
+                      {employee.leftAt
+                        ? `퇴사 ${employee.leftAt}`
+                        : employee.hiredAt
+                          ? `재직 · 입사 ${employee.hiredAt}`
+                          : '입사 전'}
+                      {held ? ` · 지급품 미회수 ${held}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {employee.leftAt ? (
+                      <button
+                        type="button"
+                        disabled={!ready}
+                        className="rounded bg-accent px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                        onClick={() => void hire(employee.id)}
+                      >
+                        재입사
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={!ready}
+                        className="rounded bg-accent px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                        onClick={() => void hire(employee.id)}
+                      >
+                        입사 저장
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={!ready}
+                      className="rounded border border-line px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+                      onClick={() =>
+                        printEmployeeBadge({ ...employee, ...draft, name: employee.name }, draft.department)
+                      }
+                    >
+                      명찰
+                    </button>
+                    {employee.leftAt ? null : (
+                      <button
+                        type="button"
+                        disabled={!ready}
+                        className="rounded border border-line px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+                        onClick={() => void leave(employee.id)}
+                      >
+                        퇴사
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <label className="block text-sm">
+                    부서
+                    <input
+                      className="mt-1 w-full rounded border border-line px-2 py-1.5"
+                      placeholder="부서"
+                      value={draft.department}
+                      onChange={(e) => {
+                        setBadgeEmployeeId(employee.id)
+                        setDrafts((prev) => ({
+                          ...prev,
+                          [employee.id]: { ...draft, department: e.target.value },
+                        }))
+                      }}
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    입사일
+                    <input
+                      type="date"
+                      className="mt-1 w-full rounded border border-line px-2 py-1.5"
+                      value={draft.hiredAt}
+                      onChange={(e) =>
+                        setDrafts((prev) => ({
+                          ...prev,
+                          [employee.id]: { ...draft, hiredAt: e.target.value },
+                        }))
+                      }
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    직위
+                    <input
+                      className="mt-1 w-full rounded border border-line px-2 py-1.5"
+                      placeholder="직위"
+                      value={draft.title}
+                      onChange={(e) => {
+                        setBadgeEmployeeId(employee.id)
+                        setDrafts((prev) => ({
+                          ...prev,
+                          [employee.id]: { ...draft, title: e.target.value },
+                        }))
+                      }}
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    명찰 이름
+                    <input
+                      className="mt-1 w-full rounded border border-line px-2 py-1.5"
+                      placeholder="명찰 이름"
+                      value={draft.badgeName}
+                      onChange={(e) => {
+                        setBadgeEmployeeId(employee.id)
+                        setDrafts((prev) => ({
+                          ...prev,
+                          [employee.id]: { ...draft, badgeName: e.target.value },
+                        }))
+                      }}
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <div>
+                    <h3 className="text-sm font-semibold">입사 프로세스</h3>
+                    <ul className="mt-2 space-y-2">
+                      {process.map((row) => (
+                        <li key={`hire-${row.key}`}>
+                          <label className="flex items-center gap-2 whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              className="size-4 shrink-0 accent-accent"
+                              checked={row.issued}
+                              disabled={!ready || Boolean(employee.leftAt) || row.issued}
+                              onChange={(e) => {
+                                if (e.target.checked) void toggleCheck(employee.id, row, true)
+                              }}
+                            />
+                            <span className={row.issued ? 'font-medium' : 'text-muted'}>{row.hireLabel}</span>
+                            {row.key === 'badge' ? (
+                              <button
+                                type="button"
+                                disabled={!ready}
+                                className="rounded border border-line px-2 py-0.5 text-xs disabled:opacity-50"
+                                onClick={() =>
+                                  printEmployeeBadge(
+                                    { ...employee, ...draft, name: employee.name },
+                                    draft.department,
+                                  )
+                                }
+                              >
+                                출력
+                              </button>
+                            ) : null}
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-2 text-xs text-muted">{held}/3 지급</p>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold">퇴사 프로세스</h3>
+                    <ul className="mt-2 space-y-2">
+                      {process.map((row) => {
+                        const phase = leavePhase(row, Boolean(employee.leftAt))
+                        return (
                           <li key={`leave-${row.key}`}>
-                            <label className="flex items-center gap-2">
+                            <label className="flex items-center gap-2 whitespace-nowrap">
                               <input
                                 type="checkbox"
-                                className="size-4 accent-accent"
+                                className="size-4 shrink-0 accent-accent"
                                 checked={phase === 'returned'}
                                 disabled={!ready || Boolean(employee.leftAt) || phase !== 'held'}
                                 onChange={(e) => {
@@ -766,76 +825,23 @@ export function PeoplePage() {
                               </span>
                             </label>
                           </li>
-                          )
-                        })}
-                      </ul>
-                      <p className="mt-1 text-xs text-muted">{leaveSummary(process, Boolean(employee.leftAt))}</p>
-                      {companyHeldNames.length ? (
-                        <p className="mt-1 text-xs text-danger">
-                          회사 자산 미회수 {companyHeldNames.join('·')} ·{' '}
-                          <Link className="underline" to="/assets">
-                            자산에서 회수
-                          </Link>
-                        </p>
-                      ) : null}
-                    </td>
-                    <td className="py-3">
-                      <p className="text-muted">
-                        {employee.leftAt
-                          ? `퇴사 ${employee.leftAt}`
-                          : employee.hiredAt
-                            ? `재직 · 입사 ${employee.hiredAt}`
-                            : '입사 전'}
-                        {held ? ` · 미회수 ${held}` : ''}
-                        {companyHeldNames.length ? ` · 자산 ${companyHeldNames.join('·')}` : ''}
+                        )
+                      })}
+                    </ul>
+                    <p className="mt-2 text-xs text-muted">{leaveSummary(process, Boolean(employee.leftAt))}</p>
+                    {companyHeldNames.length ? (
+                      <p className="mt-2 text-xs text-danger">
+                        회사 자산 미회수: {companyHeldNames.join(', ')}.{' '}
+                        <Link className="underline" to="/assets">
+                          자산에서 회수
+                        </Link>
                       </p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {employee.leftAt ? (
-                          <button
-                            type="button"
-                            disabled={!ready}
-                            className="rounded bg-accent px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
-                            onClick={() => void hire(employee.id)}
-                          >
-                            재입사
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={!ready}
-                            className="rounded bg-accent px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
-                            onClick={() => void hire(employee.id)}
-                          >
-                            입사 저장
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          disabled={!ready}
-                          className="rounded border border-line px-3 py-1 text-xs font-semibold disabled:opacity-50"
-                          onClick={() =>
-                            printEmployeeBadge({ ...employee, ...draft, name: employee.name }, draft.department)
-                          }
-                        >
-                          명찰
-                        </button>
-                        {employee.leftAt ? null : (
-                          <button
-                            type="button"
-                            disabled={!ready}
-                            className="rounded border border-line px-3 py-1 text-xs font-semibold disabled:opacity-50"
-                            onClick={() => void leave(employee.id)}
-                          >
-                            퇴사
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                    ) : null}
+                  </div>
+                </div>
+              </article>
+            )
+          })
         ) : (
           <p className="text-sm text-muted">
             {ready ? '기준정보에서 직원을 먼저 등록하세요.' : '회사 DB를 여는 중입니다.'}
