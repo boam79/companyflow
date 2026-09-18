@@ -330,7 +330,7 @@ export function StockPage() {
       <div>
         <h1 className="text-3xl font-semibold">구매·재고</h1>
         <p className="mt-2 text-sm text-muted">
-          복사용지처럼 쓰고 채우는 비품만 다룹니다. 창고에 자산화하지 않고, 책상·컴퓨터는 자산 메뉴에서 QR로 등록합니다.
+          복사용지처럼 쓰고 채우는 비품만 다룹니다. 창고에 자산화하지 않고, 가구·컴퓨터는 자산 메뉴에서 QR로 등록합니다.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -383,7 +383,7 @@ export function StockPage() {
             </p>
           </div>
           <Link className="text-sm text-accent underline" to="/assets">
-            책상·컴퓨터는 자산
+            가구·컴퓨터는 자산
           </Link>
         </div>
         {inventory.length ? (

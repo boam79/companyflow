@@ -92,8 +92,13 @@ export function assertCompanyAssetsReturned(
 }
 
 export const COMPANY_ASSET_ITEMS: ItemRecord[] = [
-  { id: 'item-desk', name: '책상', stockManaged: true, assetManaged: true },
-  { id: 'item-computer', name: '컴퓨터', stockManaged: true, assetManaged: true },
+  { id: 'item-desk', name: '책상', stockManaged: false, assetManaged: true },
+  { id: 'item-chair', name: '의자', stockManaged: false, assetManaged: true },
+  { id: 'item-table', name: '회의탁자', stockManaged: false, assetManaged: true },
+  { id: 'item-cabinet', name: '서랍장', stockManaged: false, assetManaged: true },
+  { id: 'item-computer', name: '컴퓨터', stockManaged: false, assetManaged: true },
+  { id: 'item-monitor', name: '모니터', stockManaged: false, assetManaged: true },
+  { id: 'item-printer', name: '복합기', stockManaged: false, assetManaged: true },
 ]
 
 export class CompanyMasterBook {
@@ -221,12 +226,15 @@ export async function writeDefaultMaster(db: {
       'insert or ignore into items(id, name, stock_managed, asset_managed, created_at) values(?, ?, ?, ?, ?)',
       [item.id, item.name, item.stockManaged ? 1 : 0, 1, now],
     )
-    await db.exec('update items set stock_managed = 1, asset_managed = 1, name = ? where id = ?', [
+    await db.exec('update items set stock_managed = ?, asset_managed = 1, name = ? where id = ?', [
+      item.stockManaged ? 1 : 0,
       item.name,
       item.id,
     ])
   }
   await db.exec(`delete from items where id in ('item-badge', 'item-uniform', 'item-laptop')`)
+  const { writeSampleCompanyData } = await import('./sample')
+  await writeSampleCompanyData(db)
   await db.exec(
     `insert or ignore into employees(id, name, department_id, title, hired_at, badge_name, created_at)
       values(?, ?, ?, ?, ?, ?, ?)`,

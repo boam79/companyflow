@@ -435,7 +435,7 @@ export function PeoplePage() {
       <div>
         <h1 className="text-3xl font-semibold">직원·입퇴사</h1>
         <p className="mt-2 text-sm text-muted">
-          명찰·유니폼·노트북은 입사·퇴사 프로세스입니다. 책상·컴퓨터는 자산 메뉴에서 QR로 등록하며, 직원에게 배정하지 않습니다.
+          명찰·유니폼·노트북은 입사·퇴사 프로세스입니다. 가구·컴퓨터는 자산 메뉴에서 QR로 등록하며, 직원에게 배정하지 않습니다.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">

@@ -29,7 +29,7 @@ export type QrAssetPayload = {
 
 export function itemIdForQrName(itemName: string) {
   const hit = COMPANY_ASSET_ITEMS.find((item) => item.name === itemName.trim())
-  if (!hit) throw new Error('책상 또는 컴퓨터만 등록합니다.')
+  if (!hit) throw new Error('회사 자산 품목만 등록합니다.')
   return hit.id
 }
 

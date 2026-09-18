@@ -131,7 +131,7 @@ export function AssetsPage() {
         })),
       )
       setPrinted(urls)
-      setNotice(`빈 QR ${count}장을 만들었습니다. 인쇄해 책상·컴퓨터에 붙인 뒤 스마트폰으로 읽으세요.`)
+      setNotice(`빈 QR ${count}장을 만들었습니다. 인쇄해 가구·컴퓨터에 붙인 뒤 스마트폰으로 읽으세요.`)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     } finally {
@@ -206,7 +206,7 @@ export function AssetsPage() {
       <div>
         <h1 className="text-3xl font-semibold">자산</h1>
         <p className="mt-2 text-sm text-muted">
-          빈 QR을 만들어 책상·컴퓨터에 붙입니다. 직원이 스마트폰으로 읽고 위치·품목 정보를 넣으면, 이 PC가 원본에 반영합니다.
+          빈 QR을 만들어 책상·의자·컴퓨터 같은 회사 자산에 붙입니다. 직원이 스마트폰으로 읽고 위치·품목 정보를 넣으면, 이 PC가 원본에 반영합니다.
           회사 자산은 자리에 두는 물건이며 직원에게 배정하지 않습니다. 복사용지 같은 비품은 재고이며 QR을 붙이지 않습니다.
         </p>
       </div>
@@ -360,7 +360,7 @@ export function AssetsPage() {
         ) : (
           <p className="mt-2 text-sm text-muted">
             {ready
-              ? '회사 자산이 없습니다. 빈 QR을 책상·컴퓨터에 붙인 뒤 스마트폰에서 정보를 넣으세요.'
+              ? '회사 자산이 없습니다. 빈 QR을 가구·컴퓨터에 붙인 뒤 스마트폰에서 정보를 넣으세요.'
               : '회사 DB를 여는 중입니다.'}
           </p>
         )}

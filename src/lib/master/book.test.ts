@@ -59,7 +59,9 @@ describe('회사별 기준정보 격리', () => {
     expect(isCompanyAssetItem(PAPER_ITEM)).toBe(false)
     expect(isCompanyAssetItem(ISSUE_ITEMS[2])).toBe(false)
     expect(isCompanyAssetItem(COMPANY_ASSET_ITEMS[0])).toBe(true)
-    expect(assertConvertibleItem(COMPANY_ASSET_ITEMS[1]).name).toBe('컴퓨터')
+    expect(assertConvertibleItem(COMPANY_ASSET_ITEMS.find((item) => item.id === 'item-computer')).name).toBe(
+      '컴퓨터',
+    )
   })
 
   it('회사 자산은 직원 배정이 아니라 퇴사를 막지 않는다', () => {
