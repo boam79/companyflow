@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { assetNumber, loadAssets, type AssetRecord } from '../lib/asset/book'
 import { assetQrDataUrl, assetQrFileName } from '../lib/asset/qr'
-import { loadItems, writeDefaultMaster, type ItemRecord } from '../lib/master/book'
-import { isProcessItemId, migrateProcessAssetsToChecks } from '../lib/people/onboarding'
+import { isCompanyAssetItem, loadItems, writeDefaultMaster, type ItemRecord } from '../lib/master/book'
+import { migrateProcessAssetsToChecks } from '../lib/people/onboarding'
+import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
@@ -58,6 +59,7 @@ export function AssetsPage() {
       }
       await writeDefaultMaster(sqlite)
       await migrateProcessAssetsToChecks(sqlite)
+      await retireSupplyAssets(sqlite)
       const [itemRows, warehouseRows, assetRows] = await Promise.all([
         loadItems(sqlite),
         sqlite.query<NamedRow>('select id, name from warehouses order by name'),
@@ -66,7 +68,9 @@ export function AssetsPage() {
       setItems(itemRows)
       setWarehouses(warehouseRows)
       setAssets(assetRows)
-      const companyOnly = assetRows.filter((asset) => !isProcessItemId(asset.itemId))
+      const companyOnly = assetRows.filter((asset) =>
+        isCompanyAssetItem(itemRows.find((item) => item.id === asset.itemId)),
+      )
       const urls = await Promise.all(
         companyOnly.map(async (asset) => {
           const number = assetNumber(asset.id)
@@ -82,7 +86,9 @@ export function AssetsPage() {
     }
   }
 
-  const companyAssets = assets.filter((asset) => !isProcessItemId(asset.itemId))
+  const companyAssets = assets.filter((asset) =>
+    isCompanyAssetItem(items.find((item) => item.id === asset.itemId)),
+  )
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
   if (!configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
@@ -102,7 +108,7 @@ export function AssetsPage() {
       <div>
         <h1 className="text-3xl font-semibold">자산</h1>
         <p className="mt-2 text-sm text-muted">
-          재고에서 자산화한 회사 재산만 봅니다. 명찰·유니폼·노트북은 입퇴사 프로세스입니다. QR을 받아 자산에 붙이면 번호로 찾습니다.
+          책상·컴퓨터처럼 고유번호가 필요한 물건만 회사 자산입니다. 복사용지 같은 비품은 재고이며 QR을 붙이지 않습니다.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -182,7 +188,7 @@ export function AssetsPage() {
                         asset.warehouseId}
                     </td>
                     <td className="py-2 pr-3">회사 보관</td>
-                    <td className="py-2 text-muted">입퇴사 지급품 아님</td>
+                    <td className="py-2 text-muted">고유번호·QR</td>
                   </tr>
                 )
               })}
@@ -191,7 +197,7 @@ export function AssetsPage() {
         ) : (
           <p className="mt-2 text-sm text-muted">
             {ready
-              ? '회사 자산이 없습니다. 재고에서 자산관리 품목을 자산화하세요. 명찰·유니폼·노트북은 입퇴사에서 다룹니다.'
+              ? '회사 자산이 없습니다. 책상·컴퓨터를 재고에서 자산화하세요. 복사용지는 비품 재고라 여기에 두지 않습니다.'
               : '회사 DB를 여는 중입니다.'}
           </p>
         )}

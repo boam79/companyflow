@@ -50,10 +50,19 @@ export function assertConvertibleItem(item: ItemRecord | undefined): ItemRecord 
     throw new Error('명찰·유니폼·노트북은 자산이 아닙니다. 입퇴사 프로세스에서 지급·회수하세요.')
   }
   if (!item?.assetManaged) {
-    throw new Error(`${item?.name ?? '이 품목'}은 회사 재고입니다. 자산관리 품목만 자산화하세요.`)
+    throw new Error(`${item?.name ?? '이 품목'}은 비품 재고입니다. 책상·컴퓨터처럼 자산관리 품목만 자산화하세요.`)
   }
   return item
 }
+
+export function isCompanyAssetItem(item?: ItemRecord) {
+  return Boolean(item?.assetManaged) && !ISSUE_ITEMS.some((row) => row.id === item?.id)
+}
+
+export const COMPANY_ASSET_ITEMS: ItemRecord[] = [
+  { id: 'item-desk', name: '책상', stockManaged: true, assetManaged: true },
+  { id: 'item-computer', name: '컴퓨터', stockManaged: true, assetManaged: true },
+]
 
 export class CompanyMasterBook {
   readonly departments = new Map<string, NamedRecord>()
@@ -175,6 +184,16 @@ export async function writeDefaultMaster(db: {
     [PAPER_ITEM.id, PAPER_ITEM.name, 1, 0, now],
   )
   await db.exec('update items set stock_managed = 1, asset_managed = 0 where id = ?', [PAPER_ITEM.id])
+  for (const item of COMPANY_ASSET_ITEMS) {
+    await db.exec(
+      'insert or ignore into items(id, name, stock_managed, asset_managed, created_at) values(?, ?, ?, ?, ?)',
+      [item.id, item.name, item.stockManaged ? 1 : 0, 1, now],
+    )
+    await db.exec('update items set stock_managed = 1, asset_managed = 1, name = ? where id = ?', [
+      item.name,
+      item.id,
+    ])
+  }
   await db.exec(`delete from items where id in ('item-badge', 'item-uniform', 'item-laptop')`)
   await db.exec(
     `insert or ignore into employees(id, name, department_id, title, hired_at, badge_name, created_at)

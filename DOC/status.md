@@ -26,7 +26,7 @@
 - [ ] T7 입퇴사 프로세스·회사 자산(복사용지 AST 3) 사용자 확인. Planner 완료 선언 전.
 - [ ] T8 계약 직접 등록 초안 (`/contracts`). OCR OFF.
 - [x] 명찰 템플릿 미리보기·PDF 받기 (지정 Chrome에서 명찰-김담당.pdf 확인)
-- [ ] 자산 QR PNG. 지정 Chrome `/assets` 확인 전.
+- [ ] 회사 자산은 책상·컴퓨터. 복사용지 AST 해제 후 `/assets` 확인.
 
 배포 URL: https://companyflow-opal.vercel.app  
 Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, ap-northeast-2)
@@ -43,6 +43,7 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 - Supabase 활성: `companyflow`, `boardroom`. 정지: `boam79_patient_data`, `qr-asset-manager`, `policyfund-ai-v2`.
 - `confirm_company_device` RPC 추가. 초기 설정 성공 후 원본 장치를 confirmed 로 올린다.
 
+- 2026-09-18: 복사용지는 비품 재고. 회사 자산·QR은 책상·컴퓨터만.
 - 2026-09-18: 채워진 명찰을 템플릿 크기 PDF로 받음. 이메일 보내기 삭제.
 - 2026-09-18: 자산 QR(AST-01/06) PNG 받기.
 - 2026-09-18: 올린 명찰 PDF·AI를 화면 미리보기로 보여 줌.

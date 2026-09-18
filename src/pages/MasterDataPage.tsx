@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { writeDefaultMaster } from '../lib/master/book'
+import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import {
   assertMasterTable,
   fieldEntityFromTable,
@@ -86,6 +87,7 @@ export function MasterDataPage() {
         return
       }
       await writeDefaultMaster(sqlite)
+      await retireSupplyAssets(sqlite)
       setNotice(`로컬 원본이 열렸습니다. VFS ${sqlite.vfsName}`)
       await reload(tab)
     } catch (error) {

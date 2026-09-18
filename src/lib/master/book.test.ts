@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CompanyMasterBook, ISSUE_ITEMS, PAPER_ITEM, assertConvertibleItem, seedDefaultMaster } from './book'
+import { CompanyMasterBook, COMPANY_ASSET_ITEMS, ISSUE_ITEMS, PAPER_ITEM, assertConvertibleItem, isCompanyAssetItem, seedDefaultMaster } from './book'
 
 describe('회사별 기준정보 격리', () => {
   it('A회사 필드 라벨을 바꿔도 B회사는 유지된다', () => {
@@ -41,11 +41,12 @@ describe('회사별 기준정보 격리', () => {
     expect(book.departments.get('d1')?.name).toBe('총무')
   })
 
-  it('명찰·유니폼·노트북은 자산화할 수 없다', () => {
+  it('복사용지는 비품 재고이고 책상·컴퓨터만 자산화한다', () => {
     expect(() => assertConvertibleItem(ISSUE_ITEMS[0])).toThrow(/입퇴사 프로세스/)
-    expect(() => assertConvertibleItem(PAPER_ITEM)).toThrow(/회사 재고/)
-    expect(
-      assertConvertibleItem({ id: 'item-desk', name: '책상', stockManaged: true, assetManaged: true }).id,
-    ).toBe('item-desk')
+    expect(() => assertConvertibleItem(PAPER_ITEM)).toThrow(/비품 재고/)
+    expect(isCompanyAssetItem(PAPER_ITEM)).toBe(false)
+    expect(isCompanyAssetItem(ISSUE_ITEMS[2])).toBe(false)
+    expect(isCompanyAssetItem(COMPANY_ASSET_ITEMS[0])).toBe(true)
+    expect(assertConvertibleItem(COMPANY_ASSET_ITEMS[1]).name).toBe('컴퓨터')
   })
 })

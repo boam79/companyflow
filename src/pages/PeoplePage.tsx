@@ -38,6 +38,7 @@ import {
   type OnboardingCheck,
   type OnboardingKey,
 } from '../lib/people/onboarding'
+import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
@@ -135,6 +136,7 @@ export function PeoplePage() {
       }
       await writeDefaultMaster(sqlite)
       await migrateProcessAssetsToChecks(sqlite)
+      await retireSupplyAssets(sqlite)
       const [deptRows, employeeRows, checkRows, template, notifyRow] = await Promise.all([
         sqlite.query<NamedRow>('select id, name from departments order by name'),
         loadEmployees(sqlite),

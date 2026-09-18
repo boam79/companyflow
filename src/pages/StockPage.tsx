@@ -5,6 +5,7 @@ import { useAuth } from '../lib/AuthContext'
 import { StockLedgerTable } from '../components/StockLedgerTable'
 import { loadItems, type ItemRecord } from '../lib/master/book'
 import { migrateProcessAssetsToChecks } from '../lib/people/onboarding'
+import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { executeStockCommand, ensureDefaultStockMaster, loadStockState } from '../lib/stock/persist'
 import { companyOnHand, onHand, orderRemaining, type LedgerLine, type StockCommand, type StockState } from '../lib/stock/engine'
@@ -96,6 +97,7 @@ export function StockPage() {
       }
       await ensureDefaultStockMaster(sqlite)
       await migrateProcessAssetsToChecks(sqlite)
+      await retireSupplyAssets(sqlite)
       await reload()
       setNotice(`로컬 원본이 열렸습니다. VFS ${sqlite.vfsName}`)
     } catch (error) {

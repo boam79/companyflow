@@ -107,7 +107,7 @@ export function HomePage() {
           </li>
           <li>
             <Link className="text-accent underline" to="/assets">
-              자산: 자산화·배정·회수
+              자산: 책상·컴퓨터 QR
             </Link>
           </li>
           <li>
