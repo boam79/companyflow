@@ -3,32 +3,48 @@ import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { toArrayBuffer } from '../contracts/book'
 import { previewableBadgePdfBytes } from './badgeTemplate'
 import { cropCanvasToContent } from './badgePreviewCrop'
-import { slotsForPage, type BadgeFillValues, type BadgeSlot, type TextRun } from './badgeFill'
+import { slotsForPage, nameplateOverlay, type BadgeFillValues, type BadgeSlot, type OverlayBox, type TextRun } from './badgeFill'
 
 GlobalWorkerOptions.workerSrc = workerSrc
 
-export type BadgePreviewPage = { image: string; slots: BadgeSlot[] }
+export type BadgePreviewPage = { image: string; slots: BadgeSlot[]; overlay: OverlayBox[] }
 
-function isPdfTextItem(item: unknown): item is { str: string; transform: number[]; width?: number } {
+function isPdfTextItem(
+  item: unknown,
+): item is { str: string; transform: number[]; width?: number; fontName?: string } {
   if (!item || typeof item !== 'object') return false
   const row = item as { str?: unknown; transform?: unknown }
   return typeof row.str === 'string' && Array.isArray(row.transform)
+}
+
+function resolvePdfFontName(page: { commonObjs?: { get: (id: string) => unknown } }, fontId?: string) {
+  if (!fontId) return ''
+  try {
+    const font = page.commonObjs?.get(fontId)
+    if (font && typeof font === 'object' && 'name' in font && typeof font.name === 'string') {
+      return font.name
+    }
+  } catch {
+    return fontId
+  }
+  return fontId
 }
 
 function runsFromPage(
   items: unknown[],
   viewport: { convertToViewportPoint: (x: number, y: number) => number[]; scale: number },
   crop: { x: number; y: number },
+  page: { commonObjs?: { get: (id: string) => unknown } },
 ): TextRun[] {
   const runs: TextRun[] = []
   for (const item of items) {
     if (!isPdfTextItem(item) || !item.str.trim()) continue
     const matrix = item.transform
-    const fontSize = Math.hypot(matrix[2], matrix[3])
+    const fontSize = Math.hypot(matrix[2], matrix[3]) * viewport.scale
     const [x, yTop] = viewport.convertToViewportPoint(matrix[4], matrix[5])
-    const [, yBottom] = viewport.convertToViewportPoint(matrix[4], matrix[5] + fontSize)
+    const [, yBottom] = viewport.convertToViewportPoint(matrix[4], matrix[5] + Math.hypot(matrix[2], matrix[3]))
     const y = Math.min(yTop, yBottom)
-    const height = Math.max(Math.abs(yBottom - yTop), 8)
+    const height = Math.max(Math.abs(yBottom - yTop), fontSize)
     const width = Math.max((item.width ?? 0) * viewport.scale, item.str.length * height * 0.5)
     runs.push({
       str: item.str,
@@ -36,6 +52,8 @@ function runsFromPage(
       y: y - crop.y,
       width,
       height,
+      fontSize,
+      fontName: resolvePdfFontName(page, item.fontName),
     })
   }
   return runs
@@ -63,10 +81,11 @@ export async function renderBadgeTemplatePreview(bytes: Uint8Array): Promise<Bad
       await page.render({ canvas, viewport }).promise
       const cropped = cropCanvasToContent(canvas)
       const text = await page.getTextContent()
-      const runs = runsFromPage(text.items, viewport, cropped.bounds)
+      const runs = runsFromPage(text.items, viewport, cropped.bounds, page)
       pages.push({
         image: cropped.canvas.toDataURL('image/png'),
         slots: slotsForPage(runs, cropped.canvas.width, cropped.canvas.height),
+        overlay: nameplateOverlay(runs, cropped.canvas.width, cropped.canvas.height),
       })
     }
     return pages

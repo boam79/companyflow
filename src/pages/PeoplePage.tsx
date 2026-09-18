@@ -11,7 +11,8 @@ import {
   loadBadgeTemplateOriginal,
   type BadgeTemplateRecord,
 } from '../lib/people/badgeTemplate'
-import { badgeFillValues, isBadgeFilled, nameplateOverlay, type BadgeFillValues } from '../lib/people/badgeFill'
+import { badgeFillValues, isBadgeFilled, matchTemplateSpacing, type BadgeFillValues } from '../lib/people/badgeFill'
+import type { BadgePreviewPage } from '../lib/people/badgePreview'
 import {
   badgeNotifyMessage,
   executeSaveNotifySettings,
@@ -94,7 +95,7 @@ export function PeoplePage() {
   const [badgeTemplate, setBadgeTemplate] = useState<BadgeTemplateRecord | undefined>()
   const [badgeFile, setBadgeFile] = useState<File | null>(null)
   const [badgePreview, setBadgePreview] = useState('')
-  const [badgePreviewImages, setBadgePreviewImages] = useState<string[]>([])
+  const [badgePreviewImages, setBadgePreviewImages] = useState<BadgePreviewPage[]>([])
   const [previewStatus, setPreviewStatus] = useState<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
   const [badgeEmployeeId, setBadgeEmployeeId] = useState('')
   const [notify, setNotify] = useState<NotifySettings>({ adminEmail: '', slackWebhook: '' })
@@ -185,7 +186,7 @@ export function PeoplePage() {
     const { renderBadgeTemplatePreview } = await import('../lib/people/badgePreview')
     const pages = await renderBadgeTemplatePreview(bytes)
     if (seq !== previewSeq.current) return
-    setBadgePreviewImages(pages.map((page) => page.image))
+    setBadgePreviewImages(pages)
     setPreviewStatus(pages.length ? 'ready' : 'unavailable')
   }
 
@@ -498,25 +499,36 @@ export function PeoplePage() {
           <div className="mt-4 w-fit max-w-full rounded border border-line bg-white p-3">
             <p className="mb-2 text-sm font-medium">미리보기 · 원본 템플릿은 그대로 두고 입사 칸만 올립니다</p>
             <div className="flex flex-wrap items-start gap-3">
-              {badgePreviewImages.map((src, index) => (
-                <div key={`${index}-${src.slice(-24)}`} className="relative w-[240px] max-w-full">
-                  <img src={src} alt={`명찰 템플릿 원본 ${index + 1}`} className="h-auto w-full" />
-                  {nameplateOverlay().map((box) => {
+              {badgePreviewImages.map((page, index) => (
+                <div
+                  key={`${index}-${page.image.slice(-24)}`}
+                  className="relative w-[240px] max-w-full"
+                  style={{ containerType: 'inline-size' }}
+                >
+                  <img src={page.image} alt={`명찰 템플릿 원본 ${index + 1}`} className="h-auto w-full" />
+                  {page.overlay.map((box) => {
                     const text = currentFillValues()[box.key]
                     if (!text) return null
                     return (
                       <div
                         key={box.key}
-                        className="absolute flex items-center justify-center overflow-hidden bg-white px-1 text-center font-semibold leading-tight text-ink"
+                        className="absolute overflow-hidden bg-white leading-none text-ink"
                         style={{
                           left: box.left,
                           top: box.top,
                           width: box.width,
                           height: box.height,
                           fontSize: box.fontSize,
+                          fontFamily: box.fontFamily,
+                          fontWeight: box.fontWeight,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: box.textAlign === 'left' ? 'flex-start' : 'center',
+                          textAlign: box.textAlign,
+                          whiteSpace: 'nowrap',
                         }}
                       >
-                        {text}
+                        {matchTemplateSpacing(text, box.sample)}
                       </div>
                     )
                   })}
