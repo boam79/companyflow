@@ -75,7 +75,7 @@ async function tessWorkerInstance(onProgress?: (message: string) => void) {
       corePath: '/tesseract-core',
       langPath: '/tessdata',
       gzip: true,
-      workerBlobURL: false,
+      workerBlobURL: true,
       logger: (info) => {
         if (!onProgress) return
         if (info.status === 'recognizing text' && typeof info.progress === 'number') {
@@ -84,13 +84,50 @@ async function tessWorkerInstance(onProgress?: (message: string) => void) {
           onProgress('OCR 엔진을 준비하는 중입니다. 처음이면 1분 정도 걸릴 수 있습니다.')
         }
       },
-    }).then(async (worker) => {
-      await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_BLOCK })
-      return worker
     })
+      .then(async (worker) => {
+        await worker.setParameters({ tessedit_pageseg_mode: PSM.AUTO })
+        return worker
+      })
+      .catch((error) => {
+        tessLoading = null
+        tessWorker = null
+        throw error
+      })
   }
   tessWorker = await tessLoading
   return tessWorker
+}
+
+async function rasterizeForOcr(bytes: Uint8Array, mime: string): Promise<Blob> {
+  const source = new Blob([toArrayBuffer(bytes)], { type: mime || 'image/png' })
+  if (typeof createImageBitmap === 'undefined' || typeof document === 'undefined') return source
+  let bitmap: ImageBitmap
+  try {
+    bitmap = await createImageBitmap(source)
+  } catch {
+    throw new Error('이 그림을 열 수 없습니다. PNG 또는 JPEG로 다시 저장해 보세요.')
+  }
+  const longest = Math.max(bitmap.width, bitmap.height, 1)
+  let scale = 1
+  if (longest < 1200) scale = 1200 / longest
+  if (longest > 2400) scale = 2400 / longest
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+  const ctx = canvas.getContext('2d', { alpha: false })
+  if (!ctx) {
+    bitmap.close()
+    throw new Error('그림을 화면에 그릴 수 없습니다.')
+  }
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.imageSmoothingEnabled = true
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+  bitmap.close()
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+  if (!blob) throw new Error('그림을 PNG로 바꿀 수 없습니다.')
+  return blob
 }
 
 async function recognizeImages(images: Array<Blob | File>, onProgress?: (message: string) => void) {
@@ -129,8 +166,8 @@ export async function extractLocalContract(input: {
       }
     } else {
       input.onProgress?.('이미지에서 글자를 읽는 중입니다.')
-      const blob = new Blob([toArrayBuffer(input.bytes)], { type: mime || 'image/png' })
-      text = await recognizeImages([blob], input.onProgress)
+      const prepared = await rasterizeForOcr(input.bytes, mime || 'image/png')
+      text = await recognizeImages([prepared], input.onProgress)
       source = 'ocr'
     }
     const candidates = parseContractText(text)

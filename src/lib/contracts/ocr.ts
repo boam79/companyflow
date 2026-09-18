@@ -34,7 +34,10 @@ export function describeOcrResult(input: {
   source?: 'pdf-text' | 'ocr'
 }): string {
   if (input.error) {
-    return `OCR을 끝내지 못했습니다. 직접 입력하세요. (${input.error})`
+    const friendly = /attempting to read image|could not decode|unable to decode|EncodingError/i.test(input.error)
+      ? '이 그림을 열 수 없습니다. PNG 또는 JPEG로 다시 저장해 보세요.'
+      : input.error
+    return `OCR을 끝내지 못했습니다. 직접 입력하세요. (${friendly})`
   }
   if (!input.text.trim()) {
     return '글자를 찾지 못했습니다. 위 칸을 직접 입력하세요. 원본은 이 PC에 남습니다.'
