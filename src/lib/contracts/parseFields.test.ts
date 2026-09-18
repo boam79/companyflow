@@ -60,6 +60,13 @@ describe('계약 OCR 필드 추출', () => {
     expect(found.signedAt).toBe('2026-09-19')
   })
 
+  it('앞의 영문 잡음은 계약명에서 뺀다', () => {
+    const found = Object.fromEntries(
+      parseContractText('ASS 본사 3층 임대\n계약번호 CON-Z-1').map((row) => [row.field, row.value]),
+    )
+    expect(found.title).toBe('본사 3층 임대')
+  })
+
   it('계약금액 줄을 계약명으로 쓰지 않는다', () => {
     const found = Object.fromEntries(
       parseContractText('계약번호 CON-X-1\n계약금액 2500000원').map((row) => [row.field, row.value]),

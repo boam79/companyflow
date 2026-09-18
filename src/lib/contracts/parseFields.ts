@@ -65,7 +65,8 @@ function labeledValue(text: string, labels: string): string | undefined {
 }
 
 function add(candidates: OcrCandidate[], field: string, value: string | undefined, confidence = FIELD_CONFIDENCE[field] ?? 0.5) {
-  const next = value ? tidyOcrValue(value) : ''
+  let next = value ? tidyOcrValue(value) : ''
+  if (field === 'title') next = next.replace(/^[A-Za-z]{1,4}\s+(?=[\uAC00-\uD7A3])/, '')
   if (!next) return
   if (candidates.some((row) => row.field === field)) return
   candidates.push({ field, value: next, confidence })
