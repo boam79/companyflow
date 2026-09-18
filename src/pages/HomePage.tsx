@@ -120,11 +120,6 @@ export function HomePage() {
               계약: 직접 등록 초안
             </Link>
           </li>
-          <li>
-            <Link className="text-accent underline" to="/reports">
-              통계: 일반 비품·Excel
-            </Link>
-          </li>
         </ul>
       </section>
     </div>

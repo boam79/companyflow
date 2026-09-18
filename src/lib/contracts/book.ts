@@ -54,6 +54,33 @@ export type ContractOriginal = {
   bytes: Uint8Array
 }
 
+export function contractPeriod(row: { startAt?: string; endAt?: string }) {
+  if (!row.startAt && !row.endAt) return '기간 없음'
+  return [row.startAt, row.endAt].filter(Boolean).join(' ~ ')
+}
+
+export function contractAmountText(amount?: number) {
+  if (amount == null) return '금액 없음'
+  return `${amount.toLocaleString('ko-KR')}원`
+}
+
+export function contractLife(endAt?: string, today?: string) {
+  if (!endAt) return '진행'
+  return endAt < (today ?? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date()))
+    ? '종료'
+    : '진행'
+}
+
+export function filterContracts(rows: ContractDraft[], query: string) {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return rows
+  return rows.filter((row) =>
+    [row.title, row.contractNo, row.counterparty, row.ownerName, row.fileName]
+      .filter(Boolean)
+      .some((value) => value!.toLowerCase().includes(needle)),
+  )
+}
+
 export function mimeFromName(name?: string): string | undefined {
   const ext = name?.split('.').pop()?.toLowerCase()
   return ext ? MIME_BY_EXT[ext] : undefined

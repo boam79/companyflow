@@ -10,7 +10,6 @@ import { MasterDataPage } from './pages/MasterDataPage'
 import { OperatorCompaniesPage } from './pages/OperatorCompaniesPage'
 import { PeoplePage } from './pages/PeoplePage'
 import { QrScanPage } from './pages/QrScanPage'
-import { ReportsPage } from './pages/ReportsPage'
 import { StockPage } from './pages/StockPage'
 
 export default function App() {
@@ -29,7 +28,6 @@ export default function App() {
             <Route path="/q/:token" element={<QrScanPage />} />
             <Route path="/people" element={<PeoplePage />} />
             <Route path="/contracts" element={<ContractsPage />} />
-            <Route path="/reports" element={<ReportsPage />} />
           </Route>
         </Routes>
       </AuthProvider>

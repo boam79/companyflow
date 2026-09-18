@@ -68,6 +68,60 @@ export const SAMPLE_EMPLOYEES = [
   },
 ] as const
 
+export const SAMPLE_PARTNERS = [
+  { id: 'partner-lease', name: '한국임대' },
+  { id: 'partner-mfp', name: '사무기기코리아' },
+  { id: 'partner-kt', name: 'KT' },
+  { id: 'partner-samsung', name: '삼성화재' },
+] as const
+
+export const SAMPLE_CONTRACTS = [
+  {
+    id: 'sample:con-lease',
+    title: '본사 3층 임대',
+    contractNo: 'CON-2024-001',
+    counterparty: '한국임대',
+    signedAt: '2024-01-02',
+    startAt: '2024-01-01',
+    endAt: '2026-12-31',
+    amount: 12_000_000,
+    ownerName: '김담당',
+  },
+  {
+    id: 'sample:con-mfp',
+    title: '복합기 유지보수',
+    contractNo: 'CON-2025-014',
+    counterparty: '사무기기코리아',
+    signedAt: '2025-03-01',
+    startAt: '2025-03-01',
+    endAt: '2026-02-28',
+    amount: 2_400_000,
+    ownerName: '정하나',
+  },
+  {
+    id: 'sample:con-line',
+    title: '인터넷 전용회선',
+    contractNo: 'CON-2026-003',
+    counterparty: 'KT',
+    signedAt: '2026-01-02',
+    startAt: '2026-01-01',
+    endAt: '2026-12-31',
+    amount: 1_800_000,
+    ownerName: '최민호',
+  },
+  {
+    id: 'sample:con-insurance',
+    title: '영업배상 책임보험',
+    contractNo: 'CON-2026-008',
+    counterparty: '삼성화재',
+    signedAt: '2026-04-01',
+    startAt: '2026-04-01',
+    endAt: '2027-03-31',
+    amount: 3_600_000,
+    ownerName: '박재민',
+  },
+] as const
+
 export const SAMPLE_CHECKS = [
   { employeeId: 'emp-kim', itemKey: 'laptop', issuedAt: '2026-03-02' },
   { employeeId: 'emp-park', itemKey: 'badge', issuedAt: '2024-04-01' },
@@ -182,6 +236,10 @@ export function sampleAssetNames() {
   return [...new Set(SAMPLE_ASSETS.map((asset) => SAMPLE_ITEM_NAMES[asset.itemId]))]
 }
 
+export function sampleContractTitles() {
+  return SAMPLE_CONTRACTS.map((row) => row.title)
+}
+
 export async function writeSampleCompanyData(db: {
   exec: (sql: string, params?: unknown[]) => Promise<void>
 }): Promise<void> {
@@ -190,6 +248,13 @@ export async function writeSampleCompanyData(db: {
     await db.exec('insert or ignore into departments(id, name, created_at) values(?, ?, ?)', [
       dept.id,
       dept.name,
+      now,
+    ])
+  }
+  for (const partner of SAMPLE_PARTNERS) {
+    await db.exec('insert or ignore into partners(id, name, created_at) values(?, ?, ?)', [
+      partner.id,
+      partner.name,
       now,
     ])
   }
@@ -244,6 +309,26 @@ export async function writeSampleCompanyData(db: {
         asset.departmentName,
         asset.ownerName || null,
         asset.acquiredAt,
+      ],
+    )
+  }
+  for (const contract of SAMPLE_CONTRACTS) {
+    await db.exec(
+      `insert or ignore into contracts(
+          id, title, contract_no, counterparty, signed_at, start_at, end_at, amount, currency,
+          owner_name, status, ocr_status, created_at
+        ) values(?, ?, ?, ?, ?, ?, ?, ?, 'KRW', ?, 'draft', 'off', ?)`,
+      [
+        contract.id,
+        contract.title,
+        contract.contractNo,
+        contract.counterparty,
+        contract.signedAt,
+        contract.startAt,
+        contract.endAt,
+        contract.amount,
+        contract.ownerName,
+        now,
       ],
     )
   }

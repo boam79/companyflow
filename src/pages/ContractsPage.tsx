@@ -1,7 +1,19 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
-import { executeDraftContract, hashFileBytes, loadContractOriginal, loadContracts, toArrayBuffer, type ContractDraft } from '../lib/contracts/book'
+import {
+  assertContractFile,
+  contractAmountText,
+  contractLife,
+  contractPeriod,
+  executeDraftContract,
+  filterContracts,
+  hashFileBytes,
+  loadContractOriginal,
+  loadContracts,
+  toArrayBuffer,
+  type ContractDraft,
+} from '../lib/contracts/book'
 import { DISABLED_OCR } from '../lib/contracts/ocr'
 import { writeDefaultMaster } from '../lib/master/book'
 import { getCompanySqlite } from '../lib/sqlite/instance'
@@ -13,19 +25,26 @@ function todayStamp() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date())
 }
 
+function emptyForm() {
+  return {
+    title: '',
+    contractNo: '',
+    counterparty: '',
+    signedAt: todayStamp(),
+    startAt: todayStamp(),
+    endAt: '',
+    amount: '',
+    ownerName: '',
+  }
+}
+
 export function ContractsPage() {
   const { configured, loading, user } = useAuth()
   const [companies, setCompanies] = useState<CompanyRow[]>([])
   const [companyId, setCompanyId] = useState('')
   const [rows, setRows] = useState<ContractDraft[]>([])
-  const [title, setTitle] = useState('본사 임대')
-  const [contractNo, setContractNo] = useState('')
-  const [counterparty, setCounterparty] = useState('한국임대')
-  const [signedAt, setSignedAt] = useState(todayStamp())
-  const [startAt, setStartAt] = useState(todayStamp())
-  const [endAt, setEndAt] = useState('')
-  const [amount, setAmount] = useState('')
-  const [ownerName, setOwnerName] = useState('김담당')
+  const [query, setQuery] = useState('')
+  const [form, setForm] = useState(emptyForm)
   const [file, setFile] = useState<File | null>(null)
   const [fileKey, setFileKey] = useState(0)
   const [selectedId, setSelectedId] = useState('')
@@ -68,7 +87,9 @@ export function ContractsPage() {
         return
       }
       await writeDefaultMaster(sqlite)
-      setRows(await loadContracts(sqlite))
+      const nextRows = await loadContracts(sqlite)
+      setRows(nextRows)
+      setSelectedId((prev) => (nextRows.some((row) => row.id === prev) ? prev : nextRows[0]?.id ?? ''))
       const ocr = await DISABLED_OCR.extract({})
       setOcrMessage(ocr.message)
     } catch (error) {
@@ -76,6 +97,33 @@ export function ContractsPage() {
       setMessage(error instanceof Error ? error.message : String(error))
     } finally {
       opening.current = false
+    }
+  }
+
+  function resetForm() {
+    setForm(emptyForm())
+    setFile(null)
+    setFileKey((key) => key + 1)
+  }
+
+  async function pickFile(next: File | null) {
+    setMessage('')
+    setNotice('')
+    if (!next) {
+      setFile(null)
+      return
+    }
+    try {
+      assertContractFile(next.size, next.type, next.name)
+      const hash = await hashFileBytes(new Uint8Array(await next.arrayBuffer()))
+      if (rows.some((row) => row.fileHash === hash)) {
+        throw new Error('같은 원본 파일은 계약을 한 번만 만듭니다.')
+      }
+      setFile(next)
+    } catch (error) {
+      setFile(null)
+      setFileKey((key) => key + 1)
+      setMessage(error instanceof Error ? error.message : String(error))
     }
   }
 
@@ -96,17 +144,18 @@ export function ContractsPage() {
         fileMime = file.type
         fileBytes = bytes
       }
+      const id = crypto.randomUUID()
       const result = await executeDraftContract(sqlite, {
         operationId: crypto.randomUUID(),
-        id: crypto.randomUUID(),
-        title,
-        contractNo,
-        counterparty,
-        signedAt,
-        startAt,
-        endAt: endAt || undefined,
-        amount: amount ? Number(amount) : undefined,
-        ownerName,
+        id,
+        title: form.title,
+        contractNo: form.contractNo,
+        counterparty: form.counterparty,
+        signedAt: form.signedAt,
+        startAt: form.startAt,
+        endAt: form.endAt || undefined,
+        amount: form.amount ? Number(form.amount) : undefined,
+        ownerName: form.ownerName,
         fileName,
         fileHash,
         fileMime,
@@ -119,9 +168,10 @@ export function ContractsPage() {
             ? '계약 초안과 원본 파일을 저장했습니다. OCR로 체결하지 않았습니다.'
             : '계약 초안을 저장했습니다. OCR로 체결하지 않았습니다.',
       )
-      setRows(await loadContracts(sqlite))
-      setFile(null)
-      setFileKey((key) => key + 1)
+      const nextRows = await loadContracts(sqlite)
+      setRows(nextRows)
+      setSelectedId(id)
+      resetForm()
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     }
@@ -143,6 +193,7 @@ export function ContractsPage() {
     }
   }
 
+  const visible = useMemo(() => filterContracts(rows, query), [rows, query])
   const selected = rows.find((row) => row.id === selectedId)
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
@@ -186,124 +237,219 @@ export function ContractsPage() {
         <Link className="rounded border border-line px-3 py-2 text-sm" to="/master">
           거래처
         </Link>
-        <Link className="rounded border border-line px-3 py-2 text-sm" to="/reports">
-          통계
-        </Link>
+        <button
+          type="button"
+          className="rounded border border-line px-3 py-2 text-sm"
+          onClick={() => {
+            setSelectedId('')
+            setNotice('')
+            setMessage('')
+            resetForm()
+          }}
+        >
+          새 초안
+        </button>
       </div>
       {ocrMessage ? <p className="text-sm text-accent">{ocrMessage}</p> : null}
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
-      <form className="grid max-w-3xl gap-3 rounded-lg border border-line bg-card p-5 sm:grid-cols-2" onSubmit={onSubmit}>
-        <label className="text-sm">
-          계약명
-          <input className="mt-1 w-full rounded border border-line px-3 py-2" value={title} onChange={(e) => setTitle(e.target.value)} />
-        </label>
-        <label className="text-sm">
-          계약번호
-          <input className="mt-1 w-full rounded border border-line px-3 py-2" value={contractNo} onChange={(e) => setContractNo(e.target.value)} />
-        </label>
-        <label className="text-sm">
-          상대방
-          <input className="mt-1 w-full rounded border border-line px-3 py-2" value={counterparty} onChange={(e) => setCounterparty(e.target.value)} />
-        </label>
-        <label className="text-sm">
-          담당자
-          <input className="mt-1 w-full rounded border border-line px-3 py-2" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} />
-        </label>
-        <label className="text-sm">
-          체결일
-          <input type="date" className="mt-1 w-full rounded border border-line px-3 py-2" value={signedAt} onChange={(e) => setSignedAt(e.target.value)} />
-        </label>
-        <label className="text-sm">
-          시작일
-          <input type="date" className="mt-1 w-full rounded border border-line px-3 py-2" value={startAt} onChange={(e) => setStartAt(e.target.value)} />
-        </label>
-        <label className="text-sm">
-          종료일
-          <input type="date" className="mt-1 w-full rounded border border-line px-3 py-2" value={endAt} onChange={(e) => setEndAt(e.target.value)} />
-        </label>
-        <label className="text-sm">
-          금액(원)
-          <input type="number" min="0" className="mt-1 w-full rounded border border-line px-3 py-2" value={amount} onChange={(e) => setAmount(e.target.value)} />
-        </label>
-        <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
-          <input
-            key={fileKey}
-            ref={fileInput}
-            type="file"
-            accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
-            className="sr-only"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          />
-          <button
-            type="button"
-            className="rounded border border-line px-4 py-2 text-sm font-semibold"
-            onClick={() => fileInput.current?.click()}
-          >
-            첨부파일
-          </button>
-          <span className="text-sm text-muted">{file ? file.name : '선택된 파일 없음 · PDF·PNG·JPEG 8MB'}</span>
-        </div>
-        <div className="sm:col-span-2">
-          <button type="submit" disabled={!ready} className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-            초안 저장
-          </button>
-        </div>
-      </form>
-      <section className="rounded-lg border border-line bg-card p-5">
-        <h2 className="text-lg font-semibold">초안 {rows.length}</h2>
-        {rows.length ? (
-          <table className="mt-3 w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-line text-muted">
-                <th className="py-2 pr-3 font-medium">계약</th>
-                <th className="py-2 pr-3 font-medium">상대방</th>
-                <th className="py-2 pr-3 font-medium">원본</th>
-                <th className="py-2 font-medium">상태</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className={`cursor-pointer border-b border-line/70 ${selectedId === row.id ? 'bg-accent-soft' : ''}`}
-                  onClick={() => setSelectedId(row.id)}
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)]">
+        <nav className="max-h-[70vh] overflow-auto rounded-lg border border-line bg-card">
+          <div className="sticky top-0 space-y-2 border-b border-line bg-card p-3">
+            <h2 className="text-sm font-semibold">초안 {rows.length}</h2>
+            <input
+              className="w-full rounded border border-line px-3 py-2 text-sm"
+              placeholder="번호·계약·상대방·담당자"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+          {visible.length ? (
+            visible.map((row) => (
+              <button
+                key={row.id}
+                type="button"
+                className={`flex w-full flex-col items-start border-b border-line/70 px-3 py-2 text-left last:border-b-0 ${
+                  selectedId === row.id ? 'bg-accent-soft' : 'hover:bg-paper'
+                }`}
+                onClick={() => {
+                  setSelectedId(row.id)
+                  setMessage('')
+                }}
+              >
+                <span className="font-medium">{row.title}</span>
+                <span className="mt-0.5 text-xs text-muted">
+                  {row.contractNo ? `${row.contractNo} · ` : ''}
+                  {row.counterparty}
+                  {` · ${contractLife(row.endAt)}`}
+                </span>
+                <span className="mt-0.5 text-xs text-muted">
+                  {contractPeriod(row)} · {contractAmountText(row.amount)}
+                  {row.hasOriginal ? ` · ${row.fileName}` : ' · 원본 없음'}
+                </span>
+              </button>
+            ))
+          ) : (
+            <p className="p-3 text-sm text-muted">
+              {ready ? (query.trim() ? '검색 결과가 없습니다.' : '저장된 초안이 없습니다.') : '회사 DB를 여는 중입니다.'}
+            </p>
+          )}
+        </nav>
+
+        <div className="space-y-6">
+          {selected ? (
+            <section className="rounded-lg border border-line bg-card p-5 text-sm">
+              <h2 className="text-lg font-semibold">{selected.title}</h2>
+              <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+                <div>
+                  <dt className="text-muted">계약번호</dt>
+                  <dd>{selected.contractNo || '없음'}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted">상대방</dt>
+                  <dd>{selected.counterparty}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted">담당자</dt>
+                  <dd>{selected.ownerName || '없음'}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted">체결일</dt>
+                  <dd>{selected.signedAt || '없음'}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted">기간</dt>
+                  <dd>
+                    {contractPeriod(selected)} · {contractLife(selected.endAt)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted">금액</dt>
+                  <dd>{contractAmountText(selected.amount)}</dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-muted">상태</dt>
+                  <dd>초안 · OCR 꺼짐</dd>
+                </div>
+              </dl>
+              {selected.hasOriginal ? (
+                <button
+                  type="button"
+                  className="mt-4 rounded border border-line px-3 py-1.5 text-xs font-semibold"
+                  onClick={() => void downloadOriginal(selected.id)}
                 >
-                  <td className="py-2 pr-3">{row.title}</td>
-                  <td className="py-2 pr-3">{row.counterparty}</td>
-                  <td className="py-2 pr-3">{row.hasOriginal ? row.fileName : '없음'}</td>
-                  <td className="py-2">초안 · OCR 꺼짐</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p className="mt-2 text-sm text-muted">{ready ? '저장된 초안이 없습니다.' : '회사 DB를 여는 중입니다.'}</p>
-        )}
-        {selected ? (
-          <div className="mt-4 space-y-2 border-t border-line pt-4 text-sm">
-            <p>
-              {selected.title} · {selected.counterparty}
-              {selected.ownerName ? ` · ${selected.ownerName}` : ''}
-            </p>
-            <p className="text-muted">
-              {[selected.startAt, selected.endAt].filter(Boolean).join(' ~ ') || '기간 없음'}
-              {selected.amount != null ? ` · ${selected.amount.toLocaleString('ko-KR')}원` : ''}
-            </p>
-            {selected.hasOriginal ? (
+                  원본 받기
+                </button>
+              ) : (
+                <p className="mt-4 text-muted">이 초안에는 원본 파일이 없습니다.</p>
+              )}
+            </section>
+          ) : (
+            <section className="rounded-lg border border-dashed border-line bg-card p-5 text-sm text-muted">
+              왼쪽에서 초안을 고르거나 아래 칸으로 새 초안을 만드세요.
+            </section>
+          )}
+
+          <form className="grid gap-3 rounded-lg border border-line bg-card p-5 sm:grid-cols-2" onSubmit={onSubmit}>
+            <h2 className="text-lg font-semibold sm:col-span-2">새 초안</h2>
+            <label className="text-sm">
+              계약명
+              <input
+                required
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={form.title}
+                onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+              />
+            </label>
+            <label className="text-sm">
+              계약번호
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={form.contractNo}
+                onChange={(e) => setForm((prev) => ({ ...prev, contractNo: e.target.value }))}
+              />
+            </label>
+            <label className="text-sm">
+              상대방
+              <input
+                required
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={form.counterparty}
+                onChange={(e) => setForm((prev) => ({ ...prev, counterparty: e.target.value }))}
+              />
+            </label>
+            <label className="text-sm">
+              담당자
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={form.ownerName}
+                onChange={(e) => setForm((prev) => ({ ...prev, ownerName: e.target.value }))}
+              />
+            </label>
+            <label className="text-sm">
+              체결일
+              <input
+                type="date"
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={form.signedAt}
+                onChange={(e) => setForm((prev) => ({ ...prev, signedAt: e.target.value }))}
+              />
+            </label>
+            <label className="text-sm">
+              시작일
+              <input
+                type="date"
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={form.startAt}
+                onChange={(e) => setForm((prev) => ({ ...prev, startAt: e.target.value }))}
+              />
+            </label>
+            <label className="text-sm">
+              종료일
+              <input
+                type="date"
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={form.endAt}
+                onChange={(e) => setForm((prev) => ({ ...prev, endAt: e.target.value }))}
+              />
+            </label>
+            <label className="text-sm">
+              금액(원)
+              <input
+                type="number"
+                min="0"
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={form.amount}
+                onChange={(e) => setForm((prev) => ({ ...prev, amount: e.target.value }))}
+              />
+            </label>
+            <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+              <input
+                key={fileKey}
+                ref={fileInput}
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                className="sr-only"
+                onChange={(e) => void pickFile(e.target.files?.[0] ?? null)}
+              />
               <button
                 type="button"
-                className="rounded border border-line px-3 py-1 text-xs font-semibold"
-                onClick={() => void downloadOriginal(selected.id)}
+                className="rounded border border-line px-4 py-2 text-sm font-semibold"
+                onClick={() => fileInput.current?.click()}
               >
-                원본 받기
+                첨부파일
               </button>
-            ) : (
-              <p className="text-muted">이 초안에는 원본 파일이 없습니다.</p>
-            )}
-          </div>
-        ) : null}
-      </section>
+              <span className="text-sm text-muted">{file ? file.name : '선택된 파일 없음 · PDF·PNG·JPEG 8MB'}</span>
+            </div>
+            <div className="sm:col-span-2">
+              <button type="submit" disabled={!ready} className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                초안 저장
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   )
 }
