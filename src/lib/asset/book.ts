@@ -1,3 +1,5 @@
+import { assertAssignableCompanyAsset, loadItems } from '../master/book'
+
 export const ASSET_TABLE_SQL = [
   `create table if not exists assets (
     id text primary key,
@@ -138,11 +140,15 @@ export async function executeAssignAsset(
   )
   if (existing.length) return { status: 'duplicate' }
   const assets = await loadAssets(db)
+  const items = await loadItems(db)
   const employees = await db.query<{ left_at?: string | null }>(
     'select left_at from employees where id = ?',
     [command.employeeId],
   )
   if (!employees.length) throw new Error('직원을 찾을 수 없습니다.')
+  const asset = assets.find((row) => row.id === command.assetId)
+  if (!asset) throw new Error('자산을 찾을 수 없습니다.')
+  assertAssignableCompanyAsset(items.find((item) => item.id === asset.itemId))
   applyAssignAsset(assets, command, { leftAt: employees[0].left_at ?? undefined })
   try {
     await db.batch([

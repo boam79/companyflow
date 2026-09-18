@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
+import { writeDefaultMaster, heldCompanyAssets, loadItems, type ItemRecord } from '../lib/master/book'
 import { toArrayBuffer } from '../lib/contracts/book'
-import { writeDefaultMaster } from '../lib/master/book'
+import { loadAssets, type AssetRecord } from '../lib/asset/book'
 import {
   applyBadgeLines,
   executeSaveBadgeTemplate,
@@ -86,6 +87,8 @@ export function PeoplePage() {
   const [departments, setDepartments] = useState<NamedRow[]>([])
   const [employees, setEmployees] = useState<EmployeeRecord[]>([])
   const [checks, setChecks] = useState<CheckRow[]>([])
+  const [assets, setAssets] = useState<AssetRecord[]>([])
+  const [items, setItems] = useState<ItemRecord[]>([])
   const [drafts, setDrafts] = useState<
     Record<string, { hiredAt: string; title: string; badgeName: string; department: string }>
   >({})
@@ -137,16 +140,20 @@ export function PeoplePage() {
       await writeDefaultMaster(sqlite)
       await migrateProcessAssetsToChecks(sqlite)
       await retireSupplyAssets(sqlite)
-      const [deptRows, employeeRows, checkRows, template, notifyRow] = await Promise.all([
+      const [deptRows, employeeRows, checkRows, template, notifyRow, assetRows, itemRows] = await Promise.all([
         sqlite.query<NamedRow>('select id, name from departments order by name'),
         loadEmployees(sqlite),
         loadOnboardingChecks(sqlite),
         loadBadgeTemplate(sqlite),
         loadNotifySettings(sqlite),
+        loadAssets(sqlite),
+        loadItems(sqlite),
       ])
       setDepartments(deptRows)
       setEmployees(employeeRows)
       setChecks(checkRows)
+      setAssets(assetRows)
+      setItems(itemRows)
       setBadgeTemplate(template)
       setNotify(notifyRow)
       setBadgeEmployeeId((prev) => prev || employeeRows.find((row) => !row.leftAt)?.id || employeeRows[0]?.id || '')
@@ -257,14 +264,18 @@ export function PeoplePage() {
   }
 
   async function refreshPeople() {
-    const [employeeRows, checkRows, template] = await Promise.all([
+    const [employeeRows, checkRows, template, assetRows, itemRows] = await Promise.all([
       loadEmployees(sqlite),
       loadOnboardingChecks(sqlite),
       loadBadgeTemplate(sqlite),
+      loadAssets(sqlite),
+      loadItems(sqlite),
     ])
     setEmployees(employeeRows)
     setChecks(checkRows)
     setBadgeTemplate(template)
+    setAssets(assetRows)
+    setItems(itemRows)
   }
 
   function printEmployeeBadge(employee: EmployeeRecord, departmentName?: string) {
@@ -420,7 +431,7 @@ export function PeoplePage() {
       <div>
         <h1 className="text-3xl font-semibold">직원·입퇴사</h1>
         <p className="mt-2 text-sm text-muted">
-          명찰·유니폼·노트북은 자산이 아니라 입사·퇴사 프로세스입니다. 회사 재고·자산과 섞지 않습니다.
+          명찰·유니폼·노트북은 입사·퇴사 프로세스입니다. 책상·컴퓨터는 자산 메뉴에서 배정·회수하고, 남아 있으면 퇴사할 수 없습니다.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -441,6 +452,9 @@ export function PeoplePage() {
         </select>
         <Link className="rounded border border-line px-3 py-2 text-sm" to="/master">
           기준정보
+        </Link>
+        <Link className="rounded border border-line px-3 py-2 text-sm" to="/assets">
+          회사 자산 배정
         </Link>
       </div>
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
@@ -632,6 +646,12 @@ export function PeoplePage() {
                 }
                 const process = onboardingView(employee.id, checks)
                 const held = outstandingOnboarding(process).length
+                const companyHeld = heldCompanyAssets(assets, employee.id, items)
+                const companyHeldNames = [
+                  ...new Set(
+                    companyHeld.map((asset) => items.find((item) => item.id === asset.itemId)?.name ?? '자산'),
+                  ),
+                ]
                 return (
                   <tr
                     key={employee.id}
@@ -750,6 +770,14 @@ export function PeoplePage() {
                         })}
                       </ul>
                       <p className="mt-1 text-xs text-muted">{leaveSummary(process, Boolean(employee.leftAt))}</p>
+                      {companyHeldNames.length ? (
+                        <p className="mt-1 text-xs text-danger">
+                          회사 자산 미회수 {companyHeldNames.join('·')} ·{' '}
+                          <Link className="underline" to="/assets">
+                            자산에서 회수
+                          </Link>
+                        </p>
+                      ) : null}
                     </td>
                     <td className="py-3">
                       <p className="text-muted">
@@ -759,6 +787,7 @@ export function PeoplePage() {
                             ? `재직 · 입사 ${employee.hiredAt}`
                             : '입사 전'}
                         {held ? ` · 미회수 ${held}` : ''}
+                        {companyHeldNames.length ? ` · 자산 ${companyHeldNames.join('·')}` : ''}
                       </p>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {employee.leftAt ? (

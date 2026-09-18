@@ -59,6 +59,37 @@ export function isCompanyAssetItem(item?: ItemRecord) {
   return Boolean(item?.assetManaged) && !ISSUE_ITEMS.some((row) => row.id === item?.id)
 }
 
+export function heldCompanyAssets(
+  assets: AssetRecord[],
+  employeeId: string,
+  items: ItemRecord[],
+): AssetRecord[] {
+  return assets.filter(
+    (asset) =>
+      asset.status === 'assigned' &&
+      asset.employeeId === employeeId &&
+      isCompanyAssetItem(items.find((item) => item.id === asset.itemId)),
+  )
+}
+
+export function assertAssignableCompanyAsset(item?: ItemRecord): ItemRecord {
+  if (!item || !isCompanyAssetItem(item)) {
+    throw new Error('책상·컴퓨터만 직원에게 배정합니다.')
+  }
+  return item
+}
+
+export function assertCompanyAssetsReturned(
+  assets: AssetRecord[],
+  employeeId: string,
+  items: ItemRecord[],
+): void {
+  const held = heldCompanyAssets(assets, employeeId, items)
+  if (!held.length) return
+  const names = [...new Set(held.map((asset) => items.find((item) => item.id === asset.itemId)?.name ?? '자산'))]
+  throw new Error(`회사 자산 미회수: ${names.join(', ')}를 자산 메뉴에서 먼저 회수하세요.`)
+}
+
 export const COMPANY_ASSET_ITEMS: ItemRecord[] = [
   { id: 'item-desk', name: '책상', stockManaged: true, assetManaged: true },
   { id: 'item-computer', name: '컴퓨터', stockManaged: true, assetManaged: true },

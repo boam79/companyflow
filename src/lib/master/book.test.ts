@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { CompanyMasterBook, COMPANY_ASSET_ITEMS, ISSUE_ITEMS, PAPER_ITEM, assertConvertibleItem, isCompanyAssetItem, seedDefaultMaster } from './book'
+import {
+  CompanyMasterBook,
+  COMPANY_ASSET_ITEMS,
+  ISSUE_ITEMS,
+  PAPER_ITEM,
+  assertAssignableCompanyAsset,
+  assertCompanyAssetsReturned,
+  assertConvertibleItem,
+  heldCompanyAssets,
+  isCompanyAssetItem,
+  seedDefaultMaster,
+} from './book'
 
 describe('회사별 기준정보 격리', () => {
   it('A회사 필드 라벨을 바꿔도 B회사는 유지된다', () => {
@@ -48,5 +59,24 @@ describe('회사별 기준정보 격리', () => {
     expect(isCompanyAssetItem(ISSUE_ITEMS[2])).toBe(false)
     expect(isCompanyAssetItem(COMPANY_ASSET_ITEMS[0])).toBe(true)
     expect(assertConvertibleItem(COMPANY_ASSET_ITEMS[1]).name).toBe('컴퓨터')
+  })
+
+  it('책상·컴퓨터가 배정돼 있으면 퇴사하지 못한다', () => {
+    const desk = COMPANY_ASSET_ITEMS[0]
+    const held = [
+      {
+        id: 'desk:1',
+        itemId: desk.id,
+        warehouseId: 'wh-main',
+        status: 'assigned' as const,
+        employeeId: 'emp-1',
+        sourceOperationId: 'desk',
+      },
+    ]
+    expect(heldCompanyAssets(held, 'emp-1', COMPANY_ASSET_ITEMS)).toHaveLength(1)
+    expect(() => assertCompanyAssetsReturned(held, 'emp-1', COMPANY_ASSET_ITEMS)).toThrow(/책상/)
+    expect(() => assertAssignableCompanyAsset(PAPER_ITEM)).toThrow(/책상·컴퓨터/)
+    expect(assertAssignableCompanyAsset(desk).id).toBe('item-desk')
+    expect(() => assertCompanyAssetsReturned([], 'emp-1', COMPANY_ASSET_ITEMS)).not.toThrow()
   })
 })
