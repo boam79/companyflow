@@ -224,6 +224,7 @@ export const MASTER_TABLE_SQL = [
     hired_at text,
     left_at text,
     badge_name text,
+    badge_department text,
     created_at text not null
   );`,
   `create table if not exists employment_events (

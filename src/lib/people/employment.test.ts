@@ -6,15 +6,15 @@ describe('입퇴사', () => {
   it('입사하면 명찰 이름과 입사일이 생긴다', () => {
     const hired = applyHire(
       { id: 'emp-1', name: '김담당' },
-      { hiredAt: '2026-03-01', title: '주임', badgeName: '김 담당', departmentId: 'dept-design' },
+      { hiredAt: '2026-03-01', title: '주임', badgeName: '김 담당', department: '마케팅팀' },
     )
     expect(hired).toMatchObject({
       hiredAt: '2026-03-01',
       title: '주임',
       badgeName: '김 담당',
-      departmentId: 'dept-design',
+      badgeDepartment: '마케팅팀',
     })
-    expect(badgeLines(hired, '디자인팀')).toEqual(['김 담당', '디자인팀', '주임'])
+    expect(badgeLines(hired, hired.badgeDepartment)).toEqual(['김 담당', '마케팅팀', '주임'])
   })
 
   it('회사 재고는 퇴사 프로세스가 아니다', () => {

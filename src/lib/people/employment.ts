@@ -8,6 +8,7 @@ export type EmployeeRecord = {
   hiredAt?: string
   leftAt?: string
   badgeName?: string
+  badgeDepartment?: string
 }
 
 export function isActiveEmployee(employee: EmployeeRecord): boolean {
@@ -16,7 +17,7 @@ export function isActiveEmployee(employee: EmployeeRecord): boolean {
 
 export function applyHire(
   employee: EmployeeRecord,
-  command: { hiredAt: string; title?: string; badgeName?: string; departmentId?: string },
+  command: { hiredAt: string; title?: string; badgeName?: string; department?: string },
 ): EmployeeRecord {
   if (!command.hiredAt.trim()) throw new Error('입사일이 필요합니다.')
   return {
@@ -25,7 +26,7 @@ export function applyHire(
     hiredAt: command.hiredAt,
     title: command.title?.trim() || employee.title,
     badgeName: command.badgeName?.trim() || employee.badgeName || employee.name,
-    departmentId: command.departmentId?.trim() || employee.departmentId,
+    badgeDepartment: command.department?.trim() || employee.badgeDepartment,
   }
 }
 
@@ -55,8 +56,9 @@ export async function loadEmployees(
     hired_at?: string | null
     left_at?: string | null
     badge_name?: string | null
+    badge_department?: string | null
   }>(
-    'select id, name, department_id, title, hired_at, left_at, badge_name from employees order by name',
+    'select id, name, department_id, title, hired_at, left_at, badge_name, badge_department from employees order by name',
   )
   return rows.map((row) => ({
     id: row.id,
@@ -66,6 +68,7 @@ export async function loadEmployees(
     hiredAt: row.hired_at ?? undefined,
     leftAt: row.left_at ?? undefined,
     badgeName: row.badge_name ?? undefined,
+    badgeDepartment: row.badge_department ?? undefined,
   }))
 }
 
@@ -80,7 +83,7 @@ export async function executeHire(
     hiredAt: string
     title?: string
     badgeName?: string
-    departmentId?: string
+    department?: string
   },
   createdAt = new Date().toISOString(),
 ): Promise<{ status: 'applied' | 'duplicate' }> {
@@ -91,12 +94,12 @@ export async function executeHire(
     const next = applyHire(employee, command)
     const statements = [
       {
-        sql: 'update employees set hired_at = ?, left_at = null, title = ?, badge_name = ?, department_id = ? where id = ?',
+        sql: 'update employees set hired_at = ?, left_at = null, title = ?, badge_name = ?, badge_department = ? where id = ?',
         params: [
           next.hiredAt,
           next.title ?? null,
           next.badgeName ?? next.name,
-          next.departmentId ?? null,
+          next.badgeDepartment ?? null,
           command.employeeId,
         ],
       },
@@ -107,7 +110,7 @@ export async function executeHire(
           command.employeeId,
           employee.leftAt ? 'rehire' : 'hire',
           command.hiredAt,
-          JSON.stringify({ title: next.title, badgeName: next.badgeName, departmentId: next.departmentId }),
+          JSON.stringify({ title: next.title, badgeName: next.badgeName, department: next.badgeDepartment }),
           createdAt,
         ],
       },

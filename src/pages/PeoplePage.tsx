@@ -86,7 +86,7 @@ export function PeoplePage() {
   const [employees, setEmployees] = useState<EmployeeRecord[]>([])
   const [checks, setChecks] = useState<CheckRow[]>([])
   const [drafts, setDrafts] = useState<
-    Record<string, { hiredAt: string; title: string; badgeName: string; departmentId: string }>
+    Record<string, { hiredAt: string; title: string; badgeName: string; department: string }>
   >({})
   const [notice, setNotice] = useState('')
   const [message, setMessage] = useState('')
@@ -163,7 +163,10 @@ export function PeoplePage() {
               hiredAt: row.hiredAt || todayStamp(),
               title: row.title || '',
               badgeName: row.badgeName || row.name,
-              departmentId: row.departmentId || '',
+              department:
+                row.badgeDepartment ||
+                departments.find((dept) => dept.id === row.departmentId)?.name ||
+                '',
             },
           ]),
         ),
@@ -190,10 +193,9 @@ export function PeoplePage() {
     const employee = employees.find((row) => row.id === badgeEmployeeId)
     if (!employee) return {}
     const draft = drafts[employee.id]
-    const deptName = departments.find((dept) => dept.id === (draft?.departmentId || employee.departmentId))?.name
     return badgeFillValues(
       { name: employee.name, badgeName: draft?.badgeName || employee.badgeName, title: draft?.title || employee.title },
-      deptName,
+      draft?.department || employee.badgeDepartment,
     )
   }
 
@@ -312,7 +314,7 @@ export function PeoplePage() {
         hiredAt: draft.hiredAt,
         title: draft.title,
         badgeName: draft.badgeName,
-        departmentId: draft.departmentId,
+        department: draft.department,
       })
       setNotice(
         result.status === 'duplicate'
@@ -325,7 +327,7 @@ export function PeoplePage() {
       await refreshPeople()
       const values = badgeFillValues(
         { name: employees.find((row) => row.id === employeeId)?.name || draft.badgeName, badgeName: draft.badgeName, title: draft.title },
-        departments.find((dept) => dept.id === (draft.departmentId || employees.find((row) => row.id === employeeId)?.departmentId))?.name,
+        draft.department,
       )
       if (result.status === 'applied' && isBadgeFilled(values)) {
         const text = badgeNotifyMessage(values)
@@ -594,15 +596,15 @@ export function PeoplePage() {
             </thead>
             <tbody>
               {employees.map((employee) => {
+                const orgDeptName = departments.find((dept) => dept.id === employee.departmentId)?.name
                 const draft = drafts[employee.id] ?? {
                   hiredAt: todayStamp(),
                   title: '',
                   badgeName: employee.name,
-                  departmentId: employee.departmentId || '',
+                  department: employee.badgeDepartment || orgDeptName || '',
                 }
                 const process = onboardingView(employee.id, checks)
                 const held = outstandingOnboarding(process).length
-                const deptName = departments.find((dept) => dept.id === (draft.departmentId || employee.departmentId))?.name
                 return (
                   <tr
                     key={employee.id}
@@ -611,24 +613,18 @@ export function PeoplePage() {
                   >
                     <td className="py-3 pr-3">{employee.name}</td>
                     <td className="py-3 pr-3">
-                      <select
-                        className="max-w-32 rounded border border-line px-2 py-1"
-                        value={draft.departmentId}
+                      <input
+                        className="w-24 rounded border border-line px-2 py-1"
+                        placeholder="부서"
+                        value={draft.department}
                         onChange={(e) => {
                           setBadgeEmployeeId(employee.id)
                           setDrafts((prev) => ({
                             ...prev,
-                            [employee.id]: { ...draft, departmentId: e.target.value },
+                            [employee.id]: { ...draft, department: e.target.value },
                           }))
                         }}
-                      >
-                        <option value="">부서</option>
-                        {departments.map((dept) => (
-                          <option key={dept.id} value={dept.id}>
-                            {dept.name}
-                          </option>
-                        ))}
-                      </select>
+                      />
                     </td>
                     <td className="py-3 pr-3">
                       <div className="flex flex-wrap gap-2">
@@ -690,7 +686,7 @@ export function PeoplePage() {
                                   disabled={!ready}
                                   className="rounded border border-line px-2 py-0.5 text-xs disabled:opacity-50"
                                   onClick={() =>
-                                    printEmployeeBadge({ ...employee, ...draft, name: employee.name }, deptName)
+                                    printEmployeeBadge({ ...employee, ...draft, name: employee.name }, draft.department)
                                   }
                                 >
                                   출력
@@ -762,7 +758,7 @@ export function PeoplePage() {
                           disabled={!ready}
                           className="rounded border border-line px-3 py-1 text-xs font-semibold disabled:opacity-50"
                           onClick={() =>
-                            printEmployeeBadge({ ...employee, ...draft, name: employee.name }, deptName)
+                            printEmployeeBadge({ ...employee, ...draft, name: employee.name }, draft.department)
                           }
                         >
                           명찰
