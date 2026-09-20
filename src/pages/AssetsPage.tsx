@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { assetNumber, loadAssets, type AssetRecord } from '../lib/asset/book'
+import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
 import {
   assetLifeLabel,
   executeAssetLife,
@@ -528,6 +529,8 @@ export function AssetsPage() {
           <form
             key={`${selected.id}:${formTick}`}
             className="mt-4 grid gap-3 sm:grid-cols-2"
+            lang="ko"
+            onKeyDown={preventImeEnterSubmit}
             onSubmit={(event) => {
               event.preventDefault()
               void recordLife(new FormData(event.currentTarget))
@@ -591,8 +594,9 @@ export function AssetsPage() {
             ) : null}
             <label className="text-sm sm:col-span-2">
               사유
-              <input
+              <textarea
                 name="reason"
+                rows={2}
                 autoComplete="off"
                 className="mt-1 w-full rounded border border-line px-3 py-2"
                 defaultValue=""

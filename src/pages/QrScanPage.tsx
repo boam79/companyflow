@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { COMPANY_ASSET_ITEMS, loadItems } from '../lib/master/book'
 import { loadQrAssetDetail, phoneQrSavedMessage, type QrAssetDetail } from '../lib/asset/qrLookup'
+import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
 import { readQrAssetForm } from '../lib/asset/register'
 import { fetchQrLabel, submitAssetQr, type AssetQrLabelRow } from '../lib/asset/relay'
 import { getCompanySqlite } from '../lib/sqlite/instance'
@@ -176,7 +177,13 @@ export function QrScanPage() {
         <p className="text-sm text-muted">{phoneQrSavedMessage()}</p>
       ) : null}
       {canSave ? (
-        <form key={formTick} className="space-y-3 rounded-lg border border-line bg-card p-5" onSubmit={onSubmit}>
+        <form
+          key={formTick}
+          className="space-y-3 rounded-lg border border-line bg-card p-5"
+          lang="ko"
+          onKeyDown={preventImeEnterSubmit}
+          onSubmit={onSubmit}
+        >
           <label className="block text-sm">
             품목
             <select name="itemName" className="mt-1 w-full rounded border border-line px-3 py-2" defaultValue={COMPANY_ASSET_ITEMS[0]?.name ?? '책상'}>
