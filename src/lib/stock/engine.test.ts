@@ -361,4 +361,28 @@ describe('복사용지 재고 원장', () => {
     expect(onHand(state, 'item-desk', MAIN)).toBe(0)
     expect(companyOnHand(state, 'item-desk')).toBe(0)
   })
+
+  it('수령 불량은 현재고와 발주 잔량에 넣지 않는다', () => {
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'confirm_order',
+      operationId: 'op-order',
+      orderId: 'ord-1',
+      itemId: ITEM,
+      qty: 10,
+    }).state
+    state = applyStockCommand(state, {
+      type: 'post_receipt',
+      operationId: 'op-recv',
+      orderId: 'ord-1',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 6,
+      defectQty: 2,
+    }).state
+    expect(onHand(state, ITEM, MAIN)).toBe(6)
+    expect(companyOnHand(state, ITEM)).toBe(6)
+    expect(orderRemaining(state, 'ord-1')).toBe(4)
+    expect(state.ledger.some((line) => line.txnType === 'reject' && line.qtyDelta === 2)).toBe(true)
+  })
 })

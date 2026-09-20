@@ -75,6 +75,7 @@ export function StockPage() {
   const fromWarehouseId = 'wh-main'
   const toWarehouseId = 'wh-sub'
   const [qty, setQty] = useState('10')
+  const [defectQty, setDefectQty] = useState('0')
   const [personName, setPersonName] = useState('김담당')
   const [departmentId, setDepartmentId] = useState('')
   const [sourceOperationId, setSourceOperationId] = useState('')
@@ -320,6 +321,7 @@ export function StockPage() {
           itemId: nextItemId,
           warehouseId,
           qty: quantity,
+          ...(Number(defectQty) > 0 ? { defectQty: Number(defectQty) } : {}),
         }
       case 'post_direct_in':
       case 'post_outbound':
@@ -471,11 +473,12 @@ export function StockPage() {
               : `저장했습니다. (${ACTIONS.find((item) => item.id === action)?.label} · ${nextOperationId})`,
       )
       if (result.status === 'applied') {
-        applySuggestedForm(suggestNextStockForm(result.state, orderId))
+        applySuggestedForm(suggestNextStockForm(result.state, orderId, resolved.item))
         if (action === 'draft_order' || action === 'confirm_order') {
           setPendingOrderFile(null)
           if (orderFileInput.current) orderFileInput.current.value = ''
         }
+        if (action === 'post_receipt') setDefectQty('0')
       }
       await reload()
     } catch (error) {
@@ -657,7 +660,7 @@ export function StockPage() {
                     목록 받기
                   </button>
                 </div>
-                <p className="mt-1 text-xs text-muted">한 발주서에 여러 품목을 넣으면 같은 번호로 줄이 늘어납니다. 일반 비품은 여기, 책상·컴퓨터는 자산 발주입니다. 공급사·발주일·납기·첨부·통화는 발주에서 넣습니다.</p>
+                <p className="mt-1 text-xs text-muted">한 발주서에 여러 품목을 넣으면 같은 번호로 줄이 늘어납니다. 수령의 정상만 재고에 넣고 불량은 잔량에 남깁니다. 책상·컴퓨터는 자산 발주입니다.</p>
                 <div className="mt-2 overflow-x-auto">
                   <table className="min-w-max w-full text-left text-sm">
                     <thead>
@@ -671,6 +674,7 @@ export function StockPage() {
                         <th className="whitespace-nowrap py-1.5 pr-3 font-medium">통화</th>
                         <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">발주</th>
                         <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">수령</th>
+                        <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">불량</th>
                         <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">잔량</th>
                         <th className="whitespace-nowrap py-1.5 font-medium">상태</th>
                       </tr>
@@ -695,6 +699,7 @@ export function StockPage() {
                             <td className="whitespace-nowrap py-1.5 pr-3">{row.currencyName}</td>
                             <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{row.orderedQty}</td>
                             <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{row.receivedQty}</td>
+                            <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{row.rejectedQty}</td>
                             <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{row.remainingQty}</td>
                             <td className="whitespace-nowrap py-1.5">{row.status === 'draft' ? '초안' : '확정'}</td>
                           </tr>
@@ -808,13 +813,25 @@ export function StockPage() {
           </label>
           {action !== 'reverse_transaction' ? (
             <label className="w-28 text-sm">
-              {action === 'adjust_stock' ? '실사 수량' : '수량'}
+              {action === 'adjust_stock' ? '실사 수량' : action === 'post_receipt' ? '정상' : '수량'}
               <input
                 className="mt-1 w-full rounded border border-line px-3 py-2"
                 type="number"
                 min="0"
                 value={qty}
                 onChange={(e) => setQty(e.target.value)}
+              />
+            </label>
+          ) : null}
+          {action === 'post_receipt' ? (
+            <label className="w-28 text-sm">
+              불량
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                type="number"
+                min="0"
+                value={defectQty}
+                onChange={(e) => setDefectQty(e.target.value)}
               />
             </label>
           ) : null}

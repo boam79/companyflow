@@ -24,6 +24,7 @@ export type StockCommand =
       warehouseId: string
       qty: number
       directAsset?: boolean
+      defectQty?: number
     }
   | {
       type: 'post_direct_in'
@@ -96,6 +97,7 @@ export type LedgerTxnType =
   | 'adjust'
   | 'reversal'
   | 'convert_out'
+  | 'reject'
 
 export type LedgerLine = {
   id: string
@@ -146,15 +148,19 @@ export function createStockState(): StockState {
   }
 }
 
+export function countsTowardOnHand(line: Pick<LedgerLine, 'txnType'>): boolean {
+  return line.txnType !== 'reject'
+}
+
 export function onHand(state: StockState, itemId: string, warehouseId: string): number {
   return state.ledger
-    .filter((line) => line.itemId === itemId && line.warehouseId === warehouseId)
+    .filter((line) => line.itemId === itemId && line.warehouseId === warehouseId && countsTowardOnHand(line))
     .reduce((sum, line) => sum + line.qtyDelta, 0)
 }
 
 export function companyOnHand(state: StockState, itemId: string): number {
   return state.ledger
-    .filter((line) => line.itemId === itemId)
+    .filter((line) => line.itemId === itemId && countsTowardOnHand(line))
     .reduce((sum, line) => sum + line.qtyDelta, 0)
 }
 
@@ -194,6 +200,17 @@ export function orderReceived(state: StockState, orderId: string, itemId?: strin
       (line) =>
         line.orderId === orderId &&
         (line.txnType === 'receipt' || line.txnType === 'direct_in') &&
+        (!itemId || line.itemId === itemId),
+    )
+    .reduce((sum, line) => sum + line.qtyDelta, 0)
+}
+
+export function orderRejected(state: StockState, orderId: string, itemId?: string): number {
+  return state.ledger
+    .filter(
+      (line) =>
+        line.orderId === orderId &&
+        line.txnType === 'reject' &&
         (!itemId || line.itemId === itemId),
     )
     .reduce((sum, line) => sum + line.qtyDelta, 0)
@@ -248,6 +265,8 @@ export function applyStockCommand(
     }
     case 'post_receipt': {
       requirePositive(command.qty)
+      const defectQty = command.defectQty ?? 0
+      if (defectQty < 0) throw new Error('불량 수량은 0 이상이어야 합니다.')
       const order = next.orders.get(command.orderId)
       if (!order || order.status !== 'confirmed') {
         throw new Error('확정된 발주만 수령할 수 있습니다.')
@@ -266,6 +285,17 @@ export function applyStockCommand(
         orderId: command.orderId,
         reason: command.directAsset ? '직접 자산화' : undefined,
       })
+      if (defectQty > 0) {
+        next.ledger.push({
+          id: `${command.operationId}:reject`,
+          operationId: command.operationId,
+          txnType: 'reject',
+          itemId: command.itemId,
+          warehouseId: command.warehouseId,
+          qtyDelta: defectQty,
+          orderId: command.orderId,
+        })
+      }
       if (command.directAsset) {
         next.ledger.push({
           id: `${command.operationId}:convert`,

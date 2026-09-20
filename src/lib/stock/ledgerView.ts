@@ -1,4 +1,4 @@
-import type { LedgerLine, LedgerTxnType, StockState } from './engine'
+import { countsTowardOnHand, type LedgerLine, type LedgerTxnType, type StockState } from './engine'
 
 export type LedgerFilter = 'all' | 'in' | 'out'
 
@@ -13,6 +13,7 @@ export const TXN_LABELS: Record<LedgerTxnType, string> = {
   convert_out: '자산화 출고',
   adjust: '실사 조정',
   reversal: '정정',
+  reject: '검수 불량',
 }
 
 export type LedgerViewRow = {
@@ -123,9 +124,9 @@ export function buildLedgerView(state: StockState, names?: LedgerNameMaps): Ledg
   const company = new Map<string, number>()
   return orderedLedger(state.ledger).map((line) => {
     const warehouseKey = `${line.itemId}:${line.warehouseId}`
-    warehouse.set(warehouseKey, (warehouse.get(warehouseKey) ?? 0) + line.qtyDelta)
+    warehouse.set(warehouseKey, (warehouse.get(warehouseKey) ?? 0) + (countsTowardOnHand(line) ? line.qtyDelta : 0))
     if (!isTransfer(line)) {
-      company.set(line.itemId, (company.get(line.itemId) ?? 0) + line.qtyDelta)
+      company.set(line.itemId, (company.get(line.itemId) ?? 0) + (countsTowardOnHand(line) ? line.qtyDelta : 0))
     } else if (!company.has(line.itemId)) {
       company.set(line.itemId, 0)
     }
@@ -138,7 +139,7 @@ export function buildSupplyLedgerView(state: StockState, names?: LedgerNameMaps)
   return orderedLedger(state.ledger)
     .filter(isSupplyLedgerLine)
     .map((line) => {
-      company.set(line.itemId, (company.get(line.itemId) ?? 0) + line.qtyDelta)
+      company.set(line.itemId, (company.get(line.itemId) ?? 0) + (countsTowardOnHand(line) ? line.qtyDelta : 0))
       return toViewRow(line, 0, company.get(line.itemId) ?? 0, names)
     })
 }

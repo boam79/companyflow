@@ -1,5 +1,5 @@
 import { isCompanyAssetItem, isSupplyItem, type ItemRecord } from '../master/book'
-import { companyOnHand, onHand, orderReceived, orderRemaining, stockOrderLines, type StockOrder, type StockState } from './engine'
+import { companyOnHand, onHand, orderReceived, orderRejected, orderRemaining, stockOrderLines, type StockOrder, type StockState } from './engine'
 
 export type NamedWarehouse = { id: string; name: string }
 
@@ -44,6 +44,7 @@ export type PurchaseOrderRow = {
   itemName: string
   orderedQty: number
   receivedQty: number
+  rejectedQty: number
   remainingQty: number
   status: StockOrder['status']
   partnerId?: string
@@ -93,6 +94,7 @@ function orderRows(
             itemName: item?.name ?? line.itemId,
             orderedQty: line.qty,
             receivedQty: orderReceived(state, order.id, line.itemId),
+            rejectedQty: orderRejected(state, order.id, line.itemId),
             remainingQty: orderRemaining(state, order.id, line.itemId),
             status: order.status,
             ...(partnerId ? { partnerId } : {}),
@@ -140,7 +142,7 @@ function csvCell(value: string | number) {
 
 export function supplyOrderCsv(rows: PurchaseOrderRow[]): string {
   const lines = [
-    ['발주번호', '품목', '공급사', '발주일', '납기', '첨부', '통화', '발주', '수령', '잔량', '상태'].join(','),
+    ['발주번호', '품목', '공급사', '발주일', '납기', '첨부', '통화', '발주', '수령', '불량', '잔량', '상태'].join(','),
     ...rows.map((row) =>
       [
         csvCell(row.orderId),
@@ -152,6 +154,7 @@ export function supplyOrderCsv(rows: PurchaseOrderRow[]): string {
         csvCell(row.currencyName),
         row.orderedQty,
         row.receivedQty,
+        row.rejectedQty,
         row.remainingQty,
         row.status === 'draft' ? '초안' : '확정',
       ].join(','),

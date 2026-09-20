@@ -93,6 +93,7 @@ describe('비품 발주 목록', () => {
         itemName: '복사용지',
         orderedQty: 10,
         receivedQty: 6,
+        rejectedQty: 0,
         remainingQty: 4,
         status: 'confirmed',
         supplierName: '',
@@ -110,6 +111,7 @@ describe('비품 발주 목록', () => {
         itemName: '책상',
         orderedQty: 2,
         receivedQty: 0,
+        rejectedQty: 0,
         remainingQty: 0,
         status: 'draft',
         supplierName: '',
@@ -141,6 +143,7 @@ describe('비품 발주 목록', () => {
         itemName: '복사용지',
         orderedQty: 10,
         receivedQty: 0,
+        rejectedQty: 0,
         remainingQty: 10,
         status: 'confirmed',
         partnerId: 'partner-mfp',
@@ -242,8 +245,8 @@ describe('비품 발주 목록', () => {
       ['ord-mix', '책상', 1],
     ])
     const csv = supplyOrderCsv(buildSupplyOrderList(mixedItems, state))
-    expect(csv).toContain('ord-mix,복사용지,,,,,원,10,0,10,확정')
-    expect(csv).toContain('ord-mix,클립,,,,,원,3,0,3,확정')
+    expect(csv).toContain('ord-mix,복사용지,,,,,원,10,0,0,10,확정')
+    expect(csv).toContain('ord-mix,클립,,,,,원,3,0,0,3,확정')
   })
 
   it('오늘 날짜는 YYYY-MM-DD다', () => {
@@ -267,7 +270,32 @@ describe('비품 발주 목록', () => {
     }).state
     const csv = supplyOrderCsv(buildSupplyOrderList(items, state))
     expect(csv.startsWith('\uFEFF')).toBe(true)
-    expect(csv).toContain('발주번호,품목,공급사,발주일,납기,첨부,통화,발주,수령,잔량,상태')
-    expect(csv).toContain('ord-paper,복사용지,,,,,원,10,0,10,확정')
+    expect(csv).toContain('발주번호,품목,공급사,발주일,납기,첨부,통화,발주,수령,불량,잔량,상태')
+    expect(csv).toContain('ord-paper,복사용지,,,,,원,10,0,0,10,확정')
+  })
+
+  it('발주 목록은 검수 불량을 따로 보여 준다', () => {
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'confirm_order',
+      operationId: 'op-paper',
+      orderId: 'ord-paper',
+      itemId: PAPER_ITEM.id,
+      qty: 10,
+    }).state
+    state = applyStockCommand(state, {
+      type: 'post_receipt',
+      operationId: 'op-recv',
+      orderId: 'ord-paper',
+      itemId: PAPER_ITEM.id,
+      warehouseId: 'wh-main',
+      qty: 6,
+      defectQty: 2,
+    }).state
+    expect(buildSupplyOrderList([PAPER_ITEM], state)[0]).toMatchObject({
+      receivedQty: 6,
+      rejectedQty: 2,
+      remainingQty: 4,
+    })
   })
 })
