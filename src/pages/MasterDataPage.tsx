@@ -12,11 +12,13 @@ import {
   assertItemSupplier,
   fieldEntityFromTable,
   itemCatalogUpdateStatement,
+  masterDeactivateStatement,
   masterInsertStatement,
   partnerAttachment,
   partnerUpdateStatement,
   PURCHASE_KINDS,
   purchaseKindLabel,
+  ACTIVE_MASTER_WHERE,
   type MasterFieldEntity,
   type MasterTable,
 } from '../lib/master/commands'
@@ -138,6 +140,7 @@ export function MasterDataPage() {
   const [partnerPhone, setPartnerPhone] = useState('')
   const [partnerMemo, setPartnerMemo] = useState('')
   const [selectedPartnerId, setSelectedPartnerId] = useState('')
+  const [selectedNamedId, setSelectedNamedId] = useState('')
   const [partnerFileName, setPartnerFileName] = useState('')
   const [partnerHasFile, setPartnerHasFile] = useState(false)
   const [pendingPartnerFile, setPendingPartnerFile] = useState<{
@@ -207,10 +210,14 @@ export function MasterDataPage() {
       'select entity, key, label from custom_field_defs order by entity, key',
     )
     setFields(defs)
-    const deptRows = await sqlite.query<NamedRow>('select id, name from departments order by name')
+    const deptRows = await sqlite.query<NamedRow>(
+      `select id, name from departments where ${ACTIVE_MASTER_WHERE} order by name`,
+    )
     setDepartments(deptRows)
     if (!departmentId && deptRows[0]) setDepartmentId(deptRows[0].id)
-    const partnerRows = await sqlite.query<NamedRow>('select id, name from partners order by name')
+    const partnerRows = await sqlite.query<NamedRow>(
+      `select id, name from partners where ${ACTIVE_MASTER_WHERE} order by name`,
+    )
     setPartners(partnerRows)
     if (nextTab === 'fields') {
       setRows([])
@@ -231,9 +238,11 @@ export function MasterDataPage() {
             ? await sqlite.query<NamedRow>(
                 `select id, name, phone, memo, file_name,
                   case when file_base64 is not null and length(file_base64) > 0 then 1 else 0 end as has_file
-                 from partners order by name`,
+                 from partners where ${ACTIVE_MASTER_WHERE} order by name`,
               )
-            : await sqlite.query<NamedRow>(`select id, name from ${nextTab} order by name`)
+            : await sqlite.query<NamedRow>(
+                `select id, name from ${nextTab} where ${ACTIVE_MASTER_WHERE} order by name`,
+              )
     setRows(named)
     setListTab(nextTab)
   }
@@ -403,6 +412,34 @@ export function MasterDataPage() {
     }
   }
 
+  function selectedDeactivateId() {
+    if (tab === 'items') return selectedItemId
+    if (tab === 'partners') return selectedPartnerId
+    if (tab === 'departments' || tab === 'warehouses') return selectedNamedId
+    return ''
+  }
+
+  async function deactivateRow() {
+    if (!ready || tab === 'fields' || tab === 'employees') return
+    setMessage('')
+    const operationId = crypto.randomUUID()
+    try {
+      const stmt = masterDeactivateStatement(tab, selectedDeactivateId())
+      const result = await sqlite.runOnce(operationId, async () => {
+        await sqlite.exec(stmt.sql, stmt.params)
+        return { id: stmt.params[0] }
+      })
+      setNotice(`${TABS.find((item) => item.id === tab)?.label} 사용 안 함 (${result.status})`)
+      setSelectedItemId('')
+      setSelectedPartnerId('')
+      setSelectedNamedId('')
+      setName('')
+      await reload()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
   if (!configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
   if (!user) {
@@ -558,6 +595,7 @@ export function MasterDataPage() {
               setItemUnit('개')
               setPurchaseKind('supply')
               setItemPartnerId('')
+              setSelectedNamedId('')
               resetPartnerForm()
               setTab(item.id)
             }}
@@ -656,6 +694,14 @@ export function MasterDataPage() {
               >
                 품목 저장
               </button>
+              <button
+                type="button"
+                disabled={!ready || !selectedItemId}
+                className="rounded border border-line px-4 py-2 text-sm disabled:opacity-50"
+                onClick={() => void deactivateRow()}
+              >
+                사용 안 함
+              </button>
             </div>
           </>
         ) : tab === 'partners' ? (
@@ -735,6 +781,14 @@ export function MasterDataPage() {
               >
                 거래처 저장
               </button>
+              <button
+                type="button"
+                disabled={!ready || !selectedPartnerId}
+                className="rounded border border-line px-4 py-2 text-sm disabled:opacity-50"
+                onClick={() => void deactivateRow()}
+              >
+                사용 안 함
+              </button>
             </div>
           </>
         ) : (
@@ -787,6 +841,16 @@ export function MasterDataPage() {
         >
           추가
         </button>
+        {tab === 'departments' || tab === 'warehouses' ? (
+          <button
+            type="button"
+            disabled={!ready || !selectedNamedId}
+            className="rounded border border-line px-4 py-2 text-sm disabled:opacity-50"
+            onClick={() => void deactivateRow()}
+          >
+            사용 안 함
+          </button>
+        ) : null}
         </div>
           </>
         )}
@@ -808,7 +872,15 @@ export function MasterDataPage() {
           <MasterTable
             columns={table.columns}
             rows={table.rows}
-            selectedId={tab === 'items' ? selectedItemId : tab === 'partners' ? selectedPartnerId : undefined}
+            selectedId={
+              tab === 'items'
+                ? selectedItemId
+                : tab === 'partners'
+                  ? selectedPartnerId
+                  : tab === 'departments' || tab === 'warehouses'
+                    ? selectedNamedId
+                    : undefined
+            }
             onRowClick={
               tab === 'items'
                 ? (id) => {
@@ -837,7 +909,15 @@ export function MasterDataPage() {
                       setMessage('')
                       setNotice('')
                     }
-                  : undefined
+                  : tab === 'departments' || tab === 'warehouses'
+                    ? (id) => {
+                        const row = rows.find((item) => item.id === id)
+                        setSelectedNamedId(id)
+                        setName(row?.name ?? '')
+                        setMessage('')
+                        setNotice('')
+                      }
+                    : undefined
             }
           />
         </>

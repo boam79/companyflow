@@ -31,6 +31,20 @@ export function fieldEntityFromTable(table: MasterTable): MasterFieldEntity {
   return TABLE_ENTITY[table]
 }
 
+export function masterDeactivateStatement(table: string, id: string) {
+  assertMasterTable(table)
+  if (table === 'employees') {
+    throw new Error('직원은 퇴사로 남기고 목록에서 지우지 않습니다.')
+  }
+  if (!id.trim()) throw new Error('사용 안 함으로 둘 줄을 고르세요.')
+  return {
+    sql: `update ${table} set active = 0 where id = ?`,
+    params: [id],
+  }
+}
+
+export const ACTIVE_MASTER_WHERE = 'coalesce(active, 1) = 1'
+
 export const PURCHASE_KINDS = [
   { id: 'supply', label: '일반 비품' },
   { id: 'material', label: '자재' },

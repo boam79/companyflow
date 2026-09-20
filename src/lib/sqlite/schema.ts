@@ -66,6 +66,9 @@ export const SCHEMA_PATCHES = [
   'alter table partners add column file_name text',
   'alter table partners add column file_mime text',
   'alter table partners add column file_base64 text',
+  'alter table departments add column active integer not null default 1',
+  'alter table partners add column active integer not null default 1',
+  'alter table warehouses add column active integer not null default 1',
   `create table if not exists employment_checks (
     employee_id text not null,
     item_key text not null,

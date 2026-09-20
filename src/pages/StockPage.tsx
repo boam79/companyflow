@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { StockLedgerTable } from '../components/StockLedgerTable'
 import { isCompanyAssetItem, isSupplyItem, loadItems, type ItemRecord } from '../lib/master/book'
+import { ACTIVE_MASTER_WHERE } from '../lib/master/commands'
 import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
 import { isInboundStockAction, resolveTypedItem } from '../lib/stock/typedItem'
 import { allocateReceiptQty } from '../lib/asset/receipt'
@@ -124,8 +125,8 @@ export function StockPage() {
   async function reload() {
     const [itemRows, warehouseRows, deptRows, nextState] = await Promise.all([
       loadItems(sqlite),
-      sqlite.query<NamedRow>('select id, name from warehouses order by name'),
-      sqlite.query<NamedRow>('select id, name from departments order by name'),
+      sqlite.query<NamedRow>(`select id, name from warehouses where ${ACTIVE_MASTER_WHERE} order by name`),
+      sqlite.query<NamedRow>(`select id, name from departments where ${ACTIVE_MASTER_WHERE} order by name`),
       loadStockState(sqlite),
     ])
     setItems(itemRows)

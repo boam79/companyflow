@@ -358,6 +358,7 @@ export const MASTER_TABLE_SQL = [
   `create table if not exists departments (
     id text primary key,
     name text not null,
+    active integer not null default 1,
     created_at text not null
   );`,
   `create table if not exists employees (
@@ -409,11 +410,13 @@ export const MASTER_TABLE_SQL = [
     file_name text,
     file_mime text,
     file_base64 text,
+    active integer not null default 1,
     created_at text not null
   );`,
   `create table if not exists warehouses (
     id text primary key,
     name text not null,
+    active integer not null default 1,
     created_at text not null
   );`,
   `create table if not exists custom_field_defs (

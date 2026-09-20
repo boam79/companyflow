@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { writeDefaultMaster } from '../lib/master/book'
+import { ACTIVE_MASTER_WHERE } from '../lib/master/commands'
 import { toArrayBuffer } from '../lib/contracts/book'
 import {
   applyBadgeLines,
@@ -168,7 +169,7 @@ export function PeoplePage() {
       await migrateProcessAssetsToChecks(sqlite)
       await retireSupplyAssets(sqlite)
       const [deptRows, employeeRows, checkRows, template, notifyRow, workflowRows, eventRows] = await Promise.all([
-        sqlite.query<NamedRow>('select id, name from departments order by name'),
+        sqlite.query<NamedRow>(`select id, name from departments where ${ACTIVE_MASTER_WHERE} order by name`),
         loadEmployees(sqlite),
         loadOnboardingChecks(sqlite),
         loadBadgeTemplate(sqlite),

@@ -15,6 +15,7 @@ import {
   assertPurchaseKind,
   duplicateItemRepairs,
   assertItemSupplier,
+  masterDeactivateStatement,
 } from './commands'
 
 describe('기준정보 SQL 명령', () => {
@@ -187,6 +188,21 @@ describe('기준정보 SQL 명령', () => {
     expect(() =>
       partnerAttachment({ name: '명함.txt', mime: 'text/plain', bytes: new Uint8Array([1]) }),
     ).toThrow(/PDF·PNG·JPEG/)
+  })
+
+  it('품목·부서·거래처·창고는 삭제 대신 사용 안 함으로 숨긴다', () => {
+    expect(masterDeactivateStatement('items', 'item-clip')).toEqual({
+      sql: 'update items set active = 0 where id = ?',
+      params: ['item-clip'],
+    })
+    expect(masterDeactivateStatement('departments', 'dept-dev')).toEqual({
+      sql: 'update departments set active = 0 where id = ?',
+      params: ['dept-dev'],
+    })
+    expect(masterDeactivateStatement('partners', 'partner-kt').sql).toContain('partners')
+    expect(masterDeactivateStatement('warehouses', 'wh-sub').sql).toContain('warehouses')
+    expect(() => masterDeactivateStatement('employees', 'emp-kim')).toThrow(/퇴사/)
+    expect(() => masterDeactivateStatement('items', '')).toThrow(/고르세요/)
   })
 
   it('직원 화면의 기본 추가 필드는 employee 엔티티다', () => {

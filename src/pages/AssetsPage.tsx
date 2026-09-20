@@ -15,6 +15,7 @@ import { assertQrAssetPayload, executeQrRegistration, type QrAssetPayload } from
 import { fetchPendingQrInbox, importAssetQr, insertBlankQrLabels, type AssetQrInboxRow } from '../lib/asset/relay'
 import { assertBlankQrCount, blankQrDataUrl, blankQrFileName, blankQrScanUrl } from '../lib/asset/qr'
 import { isCompanyAssetItem, loadItems, writeDefaultMaster, type ItemRecord } from '../lib/master/book'
+import { ACTIVE_MASTER_WHERE } from '../lib/master/commands'
 import { migrateProcessAssetsToChecks } from '../lib/people/onboarding'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { getCompanySqlite } from '../lib/sqlite/instance'
@@ -134,7 +135,7 @@ export function AssetsPage() {
       await retireSupplyAssets(sqlite)
       const [itemRows, warehouseRows, assetRows] = await Promise.all([
         loadItems(sqlite),
-        sqlite.query<NamedRow>('select id, name from warehouses order by name'),
+        sqlite.query<NamedRow>(`select id, name from warehouses where ${ACTIVE_MASTER_WHERE} order by name`),
         loadAssets(sqlite),
       ])
       setItems(itemRows)
