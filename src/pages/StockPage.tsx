@@ -135,7 +135,10 @@ export function StockPage() {
       itemRows.find((row) => row.id === itemId) ?? itemRows.find((row) => row.id === 'item-paper'),
     )
     applySuggestedForm(suggested?.action === 'convert_to_asset' ? null : suggested)
-    if (!nextStockItems.some((row) => row.id === itemId) && nextStockItems[0]) setItemId(nextStockItems[0].id)
+    const keepItem = itemRows.find((row) => row.id === itemId)
+    if (!keepItem || !(isSupplyItem(keepItem) || isCompanyAssetItem(keepItem))) {
+      if (nextStockItems[0]) setItemId(nextStockItems[0].id)
+    }
     if (!warehouseRows.some((row) => row.id === warehouseId) && warehouseRows[0]) {
       setWarehouseId(warehouseRows[0].id)
     }
