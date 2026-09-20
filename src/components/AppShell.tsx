@@ -23,7 +23,7 @@ export function AppShell() {
 
   return (
     <div className="flex min-h-svh flex-col">
-      <header className="shrink-0 border-b border-line bg-card">
+      <header className="sticky top-0 z-50 border-b border-line/80 bg-card/80 backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-[92rem] items-center justify-between gap-4 px-5 py-2.5">
           <Link to="/" className="text-lg font-semibold text-accent">
             CompanyFlow

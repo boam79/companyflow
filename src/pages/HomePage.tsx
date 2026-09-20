@@ -15,23 +15,33 @@ import {
   type HomeStoryTone,
 } from '../lib/home/intro'
 
-function CoverActions({ user, startTo }: { user: unknown; startTo: string }) {
-  if (user) {
-    return (
-      <Link to={startTo} className="inline-flex rounded bg-white px-5 py-2.5 text-sm font-semibold text-accent">
-        {HOME_COVER_START}
-      </Link>
-    )
-  }
+const kickerClass = 'text-[14px] font-semibold leading-none'
+const titleClass =
+  'whitespace-pre-line break-keep text-[34px] font-semibold leading-[1.15] md:text-[40px] md:leading-[1.1] lg:text-[56px] lg:leading-[1.07]'
+const bodyClass = 'mt-6 max-w-[22rem] text-[17px] font-normal leading-[1.47]'
+
+function Cta({
+  to,
+  children,
+  variant,
+}: {
+  to: string
+  children: ReactNode
+  variant: 'light' | 'lightGhost' | 'dark' | 'darkGhost'
+}) {
+  const styles = {
+    light: 'bg-white text-accent',
+    lightGhost: 'border border-white/35 bg-transparent text-white',
+    dark: 'bg-accent text-white',
+    darkGhost: 'border border-black/10 bg-white text-ink',
+  }[variant]
   return (
-    <>
-      <Link to="/guest" className="inline-flex rounded bg-white px-5 py-2.5 text-sm font-semibold text-accent">
-        {HOME_COVER_GUEST}
-      </Link>
-      <Link to="/login" className="inline-flex rounded border border-white/40 px-5 py-2.5 text-sm font-semibold text-white">
-        로그인
-      </Link>
-    </>
+    <Link
+      to={to}
+      className={`inline-flex h-11 items-center rounded-full px-[22px] text-[17px] font-normal ${styles}`}
+    >
+      {children}
+    </Link>
   )
 }
 
@@ -51,11 +61,17 @@ function StoryScene({
   children: ReactNode
 }) {
   return (
-    <section className={`relative ${tall ? 'min-h-[160svh]' : ''} ${homeStorySurface(tone)}`}>
-      <div className={tall ? 'sticky top-0 flex min-h-svh items-center' : 'flex min-h-[calc(100svh-3.5rem)] items-center'}>
-        <div className="mx-auto grid w-full max-w-[92rem] items-center gap-8 px-5 py-12 lg:grid-cols-2 lg:gap-16 lg:py-16">
-          <div>{children}</div>
-          <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl shadow-[0_24px_60px_rgba(28,36,48,0.18)] lg:aspect-auto lg:h-[min(70vh,38rem)]">
+    <section className={`relative ${tall ? 'min-h-[170svh]' : ''} ${homeStorySurface(tone)}`}>
+      <div
+        className={
+          tall
+            ? 'sticky top-14 flex min-h-[calc(100svh-3.5rem)] items-center'
+            : 'flex min-h-[calc(100svh-3.5rem)] items-center'
+        }
+      >
+        <div className="mx-auto grid w-full max-w-[90rem] items-center gap-10 px-6 py-16 md:px-10 lg:grid-cols-[minmax(18rem,26.5rem)_minmax(0,1fr)] lg:gap-x-20 lg:py-0">
+          <div className="max-w-[26.5rem]">{children}</div>
+          <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[28px] shadow-[0_3px_30px_rgba(0,0,0,0.18)] lg:aspect-auto lg:h-[min(72vh,40rem)]">
             <img
               src={image}
               alt={imageAlt}
@@ -78,14 +94,27 @@ export function HomePage() {
   const startTo = user ? '/stock' : '/login'
 
   return (
-    <div className="flex min-h-full flex-col">
-      <section className="flex min-h-[calc(100svh-3.5rem)] flex-col justify-center bg-accent px-5 py-16 text-white md:py-24">
-        <div className="mx-auto w-full max-w-[92rem]">
-          <p className="text-3xl font-semibold tracking-tight md:text-5xl">CompanyFlow</p>
-          <h1 className="mt-3 max-w-4xl text-3xl font-semibold leading-tight md:text-5xl">{HOME_COVER_TITLE}</h1>
-          <p className="mt-5 max-w-2xl text-base text-white/80 md:text-lg">{HOME_COVER_LEAD}</p>
+    <div className="flex min-h-full flex-col antialiased">
+      <section className="flex min-h-[calc(100svh-3.5rem)] flex-col justify-center bg-accent px-6 py-24 text-white md:px-10">
+        <div className="mx-auto w-full max-w-[90rem]">
+          <p className="text-[21px] font-semibold leading-none tracking-tight">CompanyFlow</p>
+          <h1 className={`${titleClass} mt-4 max-w-[11em] text-white`}>{HOME_COVER_TITLE}</h1>
+          <p className={`${bodyClass} text-white/70`}>{HOME_COVER_LEAD}</p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <CoverActions user={user} startTo={startTo} />
+            {user ? (
+              <Cta to={startTo} variant="light">
+                {HOME_COVER_START}
+              </Cta>
+            ) : (
+              <>
+                <Cta to="/guest" variant="light">
+                  {HOME_COVER_GUEST}
+                </Cta>
+                <Cta to="/login" variant="lightGhost">
+                  로그인
+                </Cta>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -98,34 +127,26 @@ export function HomePage() {
           eager={index === 0}
           tall
         >
-          <p className={`text-sm font-medium tracking-[0.28em] ${homeStoryMuted(beat.tone)}`}>{beat.kicker}</p>
-          <h2 className="mt-5 max-w-3xl text-4xl font-semibold leading-[1.15] tracking-tight text-balance md:text-6xl">
-            {beat.title}
-          </h2>
-          <p className={`mt-8 max-w-xl text-lg leading-relaxed md:text-xl ${homeStoryMuted(beat.tone)}`}>{beat.body}</p>
+          <p className={`${kickerClass} ${homeStoryMuted(beat.tone)}`}>{beat.kicker}</p>
+          <h2 className={`mt-3 ${titleClass}`}>{beat.title}</h2>
+          <p className={`${bodyClass} ${homeStoryMuted(beat.tone)}`}>{beat.body}</p>
         </StoryScene>
       ))}
       <StoryScene tone="paper" image={HOME_STORY_CLOSE_IMAGE} imageAlt={HOME_STORY_CLOSE_ALT}>
-        <p className="text-sm font-medium tracking-[0.28em] text-muted">원본</p>
-        <h2 className="mt-5 max-w-3xl text-4xl font-semibold leading-[1.15] tracking-tight text-balance md:text-6xl">
-          {HOME_STORY_CLOSE}
-        </h2>
-        <div className="mt-10 flex flex-wrap gap-3">
+        <h2 className={titleClass}>{HOME_STORY_CLOSE}</h2>
+        <div className="mt-8 flex flex-wrap gap-3">
           {user ? (
-            <Link to={startTo} className="inline-flex rounded bg-accent px-5 py-2.5 text-sm font-semibold text-white">
+            <Cta to={startTo} variant="dark">
               {HOME_COVER_START}
-            </Link>
+            </Cta>
           ) : (
             <>
-              <Link to="/guest" className="inline-flex rounded bg-accent px-5 py-2.5 text-sm font-semibold text-white">
+              <Cta to="/guest" variant="dark">
                 {HOME_COVER_GUEST}
-              </Link>
-              <Link
-                to="/login"
-                className="inline-flex rounded border border-line bg-card px-5 py-2.5 text-sm font-semibold text-ink"
-              >
+              </Cta>
+              <Cta to="/login" variant="darkGhost">
                 로그인
-              </Link>
+              </Cta>
             </>
           )}
         </div>

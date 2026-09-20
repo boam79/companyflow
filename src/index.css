@@ -1,8 +1,8 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'Apple SD Gothic Neo', 'Noto Sans KR', 'Pretendard', system-ui,
-    sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo',
+    'Noto Sans KR', 'Pretendard', system-ui, sans-serif;
   --color-ink: #1c2430;
   --color-muted: #5c6775;
   --color-line: #d8dee6;
