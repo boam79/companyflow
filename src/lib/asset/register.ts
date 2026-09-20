@@ -1,5 +1,6 @@
 import { COMPANY_ASSET_ITEMS } from '../master/book'
 import { assetNumber, loadAssets, type AssetRecord } from './book'
+import { normalizeHangulField } from './life'
 
 export const QR_LABEL_TABLE_SQL = [
   `create table if not exists qr_labels (
@@ -34,19 +35,31 @@ export function itemIdForQrName(itemName: string) {
 }
 
 export function assertQrAssetPayload(input: Partial<QrAssetPayload>): QrAssetPayload {
-  const itemName = input.itemName?.trim() ?? ''
+  const itemName = normalizeHangulField(input.itemName ?? '')
   itemIdForQrName(itemName)
-  const location = input.location?.trim() ?? ''
+  const location = normalizeHangulField(input.location ?? '')
   if (!location) throw new Error('위치를 입력하세요.')
   return {
     itemName,
-    model: input.model?.trim() ?? '',
-    serialNo: input.serialNo?.trim() ?? '',
+    model: normalizeHangulField(input.model ?? ''),
+    serialNo: normalizeHangulField(input.serialNo ?? ''),
     location,
-    departmentName: input.departmentName?.trim() ?? '',
-    ownerName: input.ownerName?.trim() ?? '',
+    departmentName: normalizeHangulField(input.departmentName ?? ''),
+    ownerName: normalizeHangulField(input.ownerName ?? ''),
     acquiredAt: input.acquiredAt?.trim() ?? '',
   }
+}
+
+export function readQrAssetForm(data: FormData): QrAssetPayload {
+  return assertQrAssetPayload({
+    itemName: String(data.get('itemName') ?? ''),
+    model: String(data.get('model') ?? ''),
+    serialNo: String(data.get('serialNo') ?? ''),
+    location: String(data.get('location') ?? ''),
+    departmentName: String(data.get('departmentName') ?? ''),
+    ownerName: String(data.get('ownerName') ?? ''),
+    acquiredAt: String(data.get('acquiredAt') ?? ''),
+  })
 }
 
 export function applyQrRegistration(

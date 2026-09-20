@@ -57,6 +57,7 @@ export function AssetsPage() {
   const [assets, setAssets] = useState<AssetRecord[]>([])
   const [inbox, setInbox] = useState<AssetQrInboxRow[]>([])
   const [printed, setPrinted] = useState<PrintedQr[]>([])
+  const [boundQr, setBoundQr] = useState<PrintedQr | null>(null)
   const [blankCount, setBlankCount] = useState(4)
   const [selectedId, setSelectedId] = useState('')
   const [events, setEvents] = useState<AssetLifeEvent[]>([])
@@ -87,6 +88,28 @@ export function AssetsPage() {
     if (!companyId || ready || opening.current) return
     void openCompany(companyId)
   }, [companyId, ready])
+
+  useEffect(() => {
+    const token = assets.find((row) => row.id === selectedId)?.qrToken
+    if (!token) {
+      setBoundQr(null)
+      return
+    }
+    let cancelled = false
+    const origin = window.location.origin
+    void (async () => {
+      try {
+        const url = blankQrScanUrl(origin, token)
+        const dataUrl = await blankQrDataUrl(origin, token)
+        if (!cancelled) setBoundQr({ id: token, url, dataUrl })
+      } catch {
+        if (!cancelled) setBoundQr(null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [assets, selectedId])
 
   async function refreshInbox(nextId: string) {
     const client = getSupabase()
@@ -185,7 +208,15 @@ export function AssetsPage() {
       const payload = payloadFromUnknown(row.payload)
       const result = await executeQrRegistration(sqlite, { labelId: row.label_id, payload })
       await importAssetQr(client, row.label_id)
-      setAssets(await loadAssets(sqlite))
+      const assetRows = await loadAssets(sqlite)
+      setAssets(assetRows)
+      const bound = assetRows.find((asset) => asset.qrToken === row.label_id)
+      if (bound) {
+        setSelectedId(bound.id)
+        setLifeForm(emptyLifeForm())
+        setFormTick((tick) => tick + 1)
+        setEvents(await loadAssetEvents(sqlite, bound.id))
+      }
       await refreshInbox(companyId)
       setNotice(
         result.status === 'duplicate'
@@ -467,6 +498,33 @@ export function AssetsPage() {
           <p className="mt-1 text-sm text-muted">
             직원에게 배정하지 않습니다. 자리를 옮기면 이관, 고치면 수리, 더 이상 안 쓰면 폐기를 남깁니다.
           </p>
+          {boundQr ? (
+            <div className="mt-4 flex flex-wrap items-center gap-4 rounded border border-line p-3">
+              <img src={boundQr.dataUrl} alt="등록 QR" className="h-24 w-24 bg-white p-1" />
+              <div className="space-y-2 text-sm">
+                <p className="text-muted">이 QR을 지정 PC에서 읽으면 상세와 이력이 열립니다. 자산번호는 QR에 넣지 않습니다.</p>
+                <div className="flex flex-wrap gap-2">
+                  <Link className="rounded border border-line px-2 py-1 text-xs font-semibold" to={`/q/${boundQr.id}`}>
+                    QR로 상세 보기
+                  </Link>
+                  <button
+                    type="button"
+                    className="rounded border border-line px-2 py-1 text-xs font-semibold"
+                    onClick={() => {
+                      const link = document.createElement('a')
+                      link.href = boundQr.dataUrl
+                      link.download = `${assetNumber(selected.id, selected.serialNo)}.png`
+                      link.click()
+                    }}
+                  >
+                    PNG 받기
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-muted">빈 QR로 등록된 자산만 QR 상세를 엽니다. 샘플로 넣은 책상은 표식이 없습니다.</p>
+          )}
           <form
             key={`${selected.id}:${formTick}`}
             className="mt-4 grid gap-3 sm:grid-cols-2"

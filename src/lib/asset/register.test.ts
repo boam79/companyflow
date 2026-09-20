@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { assetsFromConvert } from './book'
-import { applyQrRegistration, assertQrAssetPayload, itemIdForQrName } from './register'
+import { applyQrRegistration, assertQrAssetPayload, itemIdForQrName, readQrAssetForm } from './register'
 
 const LABEL = '11111111-1111-4111-8111-111111111111'
 
@@ -67,5 +67,22 @@ describe('빈 QR 자산 등록', () => {
         createdAt: 't',
       }),
     ).toThrow(/빈 QR/)
+  })
+
+  it('풀어 쓴 한글은 한 글자로 모아 저장한다', () => {
+    const data = new FormData()
+    data.set('itemName', '책상')
+    data.set('model', '우드라인')
+    data.set('serialNo', 'DSK-001')
+    data.set('location', '본사 3층'.normalize('NFD'))
+    data.set('departmentName', '총무'.normalize('NFD'))
+    data.set('ownerName', '김담당')
+    data.set('acquiredAt', '2026-09-18')
+    expect(readQrAssetForm(data)).toMatchObject({
+      itemName: '책상',
+      location: '본사 3층',
+      departmentName: '총무',
+      ownerName: '김담당',
+    })
   })
 })

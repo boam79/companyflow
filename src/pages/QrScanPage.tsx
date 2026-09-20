@@ -1,45 +1,73 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
-import { COMPANY_ASSET_ITEMS } from '../lib/master/book'
-import { assertQrAssetPayload, type QrAssetPayload } from '../lib/asset/register'
+import { COMPANY_ASSET_ITEMS, loadItems } from '../lib/master/book'
+import { loadQrAssetDetail, phoneQrSavedMessage, type QrAssetDetail } from '../lib/asset/qrLookup'
+import { readQrAssetForm } from '../lib/asset/register'
 import { fetchQrLabel, submitAssetQr, type AssetQrLabelRow } from '../lib/asset/relay'
-import { getSupabase } from '../lib/supabase'
+import { getCompanySqlite } from '../lib/sqlite/instance'
+import { getSupabase, type CompanyRow } from '../lib/supabase'
 
-const EMPTY: QrAssetPayload = {
-  itemName: COMPANY_ASSET_ITEMS[0]?.name ?? '책상',
-  model: '',
-  serialNo: '',
-  location: '',
-  departmentName: '',
-  ownerName: '',
-  acquiredAt: '',
-}
+const sqlite = getCompanySqlite()
 
 export function QrScanPage() {
   const { token = '' } = useParams()
   const { configured, loading, user } = useAuth()
   const [label, setLabel] = useState<AssetQrLabelRow | null>(null)
-  const [form, setForm] = useState<QrAssetPayload>(EMPTY)
+  const [detail, setDetail] = useState<QrAssetDetail | null>(null)
   const [message, setMessage] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
+  const [formTick, setFormTick] = useState(0)
 
   useEffect(() => {
     if (!user) return
     const client = getSupabase()
     if (!client) return
     setMessage('')
-    void fetchQrLabel(client, token)
-      .then((row) => {
+    setDetail(null)
+    setNotice('')
+    let cancelled = false
+    void (async () => {
+      try {
+        const row = await fetchQrLabel(client, token)
+        if (cancelled) return
         setLabel(row)
         if (!row) setMessage('이 QR은 회사 PC에서 만든 빈 QR이 아닙니다.')
-        else if (row.status !== 'blank') setMessage('이미 저장된 QR입니다. 지정 PC에서 원본에 반영합니다.')
-      })
-      .catch((error) => setMessage(error instanceof Error ? error.message : String(error)))
+        const { data } = await client
+          .from('companies')
+          .select('id, display_name, company_code, registration_status')
+          .order('created_at', { ascending: false })
+        const companyId = (data as CompanyRow[] | null)?.[0]?.id
+        if (!companyId) return
+        if (!sqlite.isOpen(companyId)) {
+          await sqlite.open(companyId)
+        }
+        if (!sqlite.persistOk) return
+        const items = await loadItems(sqlite)
+        const local = await loadQrAssetDetail(sqlite, token, items)
+        if (cancelled) return
+        if (local) {
+          setDetail(local)
+          setMessage('')
+        }
+      } catch (error) {
+        if (cancelled) return
+        const text = error instanceof Error ? error.message : String(error)
+        if (/다른 탭/.test(text)) {
+          setMessage('다른 탭이 이 회사 원본을 사용 중입니다. 그 탭을 닫거나, 자산 화면에서 QR로 상세 보기를 누르세요.')
+          return
+        }
+        if (/영속|OPFS|지정 Chrome|초기 설정/i.test(text)) return
+        setMessage((prev) => prev || text)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [token, user])
 
-  async function onSubmit(event: FormEvent) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const client = getSupabase()
     if (!client) {
@@ -50,10 +78,11 @@ export function QrScanPage() {
     setMessage('')
     setNotice('')
     try {
-      const payload = assertQrAssetPayload(form)
+      const payload = readQrAssetForm(new FormData(event.currentTarget))
       await submitAssetQr(client, token, payload)
       setLabel((prev) => (prev ? { ...prev, status: 'submitted' } : prev))
       setNotice('저장했습니다. 지정 PC 자산 화면에서 원본에 반영됩니다.')
+      setFormTick((tick) => tick + 1)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     } finally {
@@ -75,6 +104,62 @@ export function QrScanPage() {
     )
   }
 
+  if (detail) {
+    return (
+      <div className="max-w-md space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold">
+            {detail.itemName} · {detail.assetNumber}
+          </h1>
+          <p className="mt-2 text-sm text-muted">지정 PC 원본입니다. 직원에게 배정하지 않습니다.</p>
+        </div>
+        <dl className="space-y-2 rounded-lg border border-line bg-card p-5 text-sm">
+          <div>
+            <dt className="text-muted">상태</dt>
+            <dd className="font-medium">{detail.statusLabel}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">위치</dt>
+            <dd>{detail.locationText || '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">부서</dt>
+            <dd>{detail.departmentName || '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">담당</dt>
+            <dd>{detail.ownerName || '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">모델 · 일련번호</dt>
+            <dd>{[detail.model, detail.serialNo].filter(Boolean).join(' · ') || '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-muted">취득</dt>
+            <dd>{detail.acquiredAt || '—'}</dd>
+          </div>
+        </dl>
+        <section>
+          <h2 className="text-sm font-semibold">이력 {detail.history.length}</h2>
+          {detail.history.length ? (
+            <ul className="mt-2 space-y-2 text-sm">
+              {detail.history.map((line, index) => (
+                <li key={`${index}:${line}`} className="border-b border-line/70 py-2">
+                  {line}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-sm text-muted">이력이 없습니다.</p>
+          )}
+        </section>
+        <Link className="inline-block text-sm text-accent underline" to="/assets">
+          자산 화면에서 이관·수리·폐기
+        </Link>
+      </div>
+    )
+  }
+
   const canSave = label?.status === 'blank' && !notice
 
   return (
@@ -87,15 +172,14 @@ export function QrScanPage() {
       </div>
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
+      {!canSave && label && label.status !== 'blank' ? (
+        <p className="text-sm text-muted">{phoneQrSavedMessage()}</p>
+      ) : null}
       {canSave ? (
-        <form className="space-y-3 rounded-lg border border-line bg-card p-5" onSubmit={onSubmit}>
+        <form key={formTick} className="space-y-3 rounded-lg border border-line bg-card p-5" onSubmit={onSubmit}>
           <label className="block text-sm">
             품목
-            <select
-              className="mt-1 w-full rounded border border-line px-3 py-2"
-              value={form.itemName}
-              onChange={(e) => setForm((prev) => ({ ...prev, itemName: e.target.value }))}
-            >
+            <select name="itemName" className="mt-1 w-full rounded border border-line px-3 py-2" defaultValue={COMPANY_ASSET_ITEMS[0]?.name ?? '책상'}>
               {COMPANY_ASSET_ITEMS.map((item) => (
                 <option key={item.id} value={item.name}>
                   {item.name}
@@ -105,59 +189,29 @@ export function QrScanPage() {
           </label>
           <label className="block text-sm">
             모델
-            <input
-              className="mt-1 w-full rounded border border-line px-3 py-2"
-              value={form.model}
-              onChange={(e) => setForm((prev) => ({ ...prev, model: e.target.value }))}
-            />
+            <input name="model" autoComplete="off" className="mt-1 w-full rounded border border-line px-3 py-2" defaultValue="" />
           </label>
           <label className="block text-sm">
             일련번호
-            <input
-              className="mt-1 w-full rounded border border-line px-3 py-2"
-              value={form.serialNo}
-              onChange={(e) => setForm((prev) => ({ ...prev, serialNo: e.target.value }))}
-            />
+            <input name="serialNo" autoComplete="off" className="mt-1 w-full rounded border border-line px-3 py-2" defaultValue="" />
           </label>
           <label className="block text-sm">
             위치
-            <input
-              required
-              className="mt-1 w-full rounded border border-line px-3 py-2"
-              value={form.location}
-              onChange={(e) => setForm((prev) => ({ ...prev, location: e.target.value }))}
-            />
+            <input name="location" required autoComplete="off" className="mt-1 w-full rounded border border-line px-3 py-2" defaultValue="" />
           </label>
           <label className="block text-sm">
             부서
-            <input
-              className="mt-1 w-full rounded border border-line px-3 py-2"
-              value={form.departmentName}
-              onChange={(e) => setForm((prev) => ({ ...prev, departmentName: e.target.value }))}
-            />
+            <input name="departmentName" autoComplete="off" className="mt-1 w-full rounded border border-line px-3 py-2" defaultValue="" />
           </label>
           <label className="block text-sm">
             담당자
-            <input
-              className="mt-1 w-full rounded border border-line px-3 py-2"
-              value={form.ownerName}
-              onChange={(e) => setForm((prev) => ({ ...prev, ownerName: e.target.value }))}
-            />
+            <input name="ownerName" autoComplete="off" className="mt-1 w-full rounded border border-line px-3 py-2" defaultValue="" />
           </label>
           <label className="block text-sm">
             취득일
-            <input
-              type="date"
-              className="mt-1 w-full rounded border border-line px-3 py-2"
-              value={form.acquiredAt}
-              onChange={(e) => setForm((prev) => ({ ...prev, acquiredAt: e.target.value }))}
-            />
+            <input type="date" name="acquiredAt" className="mt-1 w-full rounded border border-line px-3 py-2" defaultValue="" />
           </label>
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-          >
+          <button type="submit" disabled={busy} className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
             저장
           </button>
         </form>
