@@ -343,48 +343,51 @@ export function StockPage() {
   const selectedInventory = inventory.find((row) => row.itemId === itemId) ?? inventory[0]
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold">구매·재고</h1>
-        <p className="mt-2 text-sm text-muted">
-          복사용지는 수불부로 수량을 다룹니다. 책상·컴퓨터 발주를 수령하면 창고 재고가 아니라 개별 자산으로 등록됩니다.
-        </p>
-      </div>
-      <div className="flex flex-wrap gap-3">
-        <select
-          className="rounded border border-line px-3 py-2 text-sm"
-          value={companyId}
-          onChange={(e) => {
-            setReady(false)
-            setOpenFailed(false)
-            void openCompany(e.target.value, true)
-          }}
-        >
-          <option value="">회사 선택</option>
-          {companies.map((company) => (
-            <option key={company.id} value={company.id}>
-              {company.display_name} ({company.company_code})
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          className="rounded border border-line px-3 py-2 text-sm"
-          disabled={!companyId}
-          onClick={() => {
-            setReady(false)
-            setOpenFailed(false)
-            void openCompany(companyId, true)
-          }}
-        >
-          이 회사 DB 다시 열기
-        </button>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold">구매·재고</h1>
+          <p className="mt-1 max-w-3xl text-sm text-muted">
+            복사용지는 수불부로 수량을 다룹니다. 책상·컴퓨터 발주를 수령하면 창고 재고가 아니라 개별 자산으로 등록됩니다.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <select
+            className="rounded border border-line px-3 py-2 text-sm"
+            value={companyId}
+            onChange={(e) => {
+              setReady(false)
+              setOpenFailed(false)
+              void openCompany(e.target.value, true)
+            }}
+          >
+            <option value="">회사 선택</option>
+            {companies.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.display_name} ({company.company_code})
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="rounded border border-line px-3 py-2 text-sm"
+            disabled={!companyId}
+            onClick={() => {
+              setReady(false)
+              setOpenFailed(false)
+              void openCompany(companyId, true)
+            }}
+          >
+            이 회사 DB 다시 열기
+          </button>
+        </div>
       </div>
 
-      <section className="rounded-lg border border-line bg-card p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="grid min-h-0 gap-4 lg:grid-cols-[12.5rem_minmax(0,1fr)_22rem] lg:items-start">
+      <section className="rounded-lg border border-line bg-card p-4">
+        <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <h2 className="text-lg font-semibold">현재고</h2>
+            <h2 className="text-base font-semibold">현재고</h2>
             <p className="mt-1 text-sm text-muted">
               {selectedInventory ? (
                 <>
@@ -404,12 +407,12 @@ export function StockPage() {
           </Link>
         </div>
         {inventory.length ? (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full max-w-md text-left text-sm">
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-line text-muted">
-                  <th className="py-2 pr-4 font-medium">비품</th>
-                  <th className="py-2 text-right font-medium">수량</th>
+                  <th className="py-1.5 pr-3 font-medium">비품</th>
+                  <th className="py-1.5 text-right font-medium">수량</th>
                 </tr>
               </thead>
               <tbody>
@@ -423,8 +426,8 @@ export function StockPage() {
                       }`}
                       onClick={() => setItemId(row.itemId)}
                     >
-                      <td className="py-2 pr-4 font-medium">{row.itemName}</td>
-                      <td className="py-2 text-right font-semibold tabular-nums">{row.total}</td>
+                      <td className="py-1.5 pr-3 font-medium">{row.itemName}</td>
+                      <td className="py-1.5 text-right font-semibold tabular-nums">{row.total}</td>
                     </tr>
                   )
                 })}
@@ -438,10 +441,10 @@ export function StockPage() {
         )}
       </section>
 
-      <section className="rounded-lg border border-line bg-card p-5">
-        <div className="flex flex-wrap items-end justify-between gap-3">
+      <section className="flex min-h-0 flex-col rounded-lg border border-line bg-card p-4">
+        <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
-            <h2 className="text-lg font-semibold">비품 수불부</h2>
+            <h2 className="text-base font-semibold">비품 수불부</h2>
             <p className="mt-1 text-sm text-muted">
               사 온 비품이 얼마나 들어왔고 나갔는지만 보여 줍니다. 자산화·창고 이동은 비품 흐름이 아닙니다.
             </p>
@@ -469,7 +472,7 @@ export function StockPage() {
           </div>
         </div>
         {state?.orders.size ? (
-          <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
+          <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
             {[...state.orders.values()].map((order) => (
               <li key={order.id}>
                 발주 {order.id} · {items.find((item) => item.id === order.itemId)?.name ?? order.itemId}{' '}
@@ -479,6 +482,7 @@ export function StockPage() {
             ))}
           </ul>
         ) : null}
+        <div className="mt-1 min-h-0 max-h-[calc(100svh-14rem)] overflow-auto">
         <StockLedgerTable
           ledger={state?.ledger ?? []}
           items={items}
@@ -496,10 +500,12 @@ export function StockPage() {
             }
           }}
         />
+        </div>
       </section>
 
+      <div className="flex flex-col gap-3">
       {nextForm ? (
-        <section className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-accent-soft px-5 py-4">
+        <section className="flex flex-col gap-2 rounded-lg border border-accent bg-accent-soft px-4 py-3">
           <p className="text-sm text-accent">{nextForm.hint}</p>
           <div className="flex flex-wrap gap-2">
             <button
@@ -532,7 +538,7 @@ export function StockPage() {
 
       <form
         id="stock-command"
-        className="grid max-w-3xl gap-3 rounded-lg border border-line bg-card p-5"
+        className="grid gap-3 rounded-lg border border-line bg-card p-4"
         onSubmit={onSubmit}
       >
         <div className="flex flex-wrap items-end gap-3">
@@ -666,6 +672,8 @@ export function StockPage() {
           {lastOperationId ? <p className="mt-1 text-xs">직전 거래: {lastOperationId}</p> : null}
         </details>
       </form>
+      </div>
+      </div>
     </div>
   )
 }

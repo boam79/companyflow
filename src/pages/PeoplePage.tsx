@@ -416,205 +416,44 @@ export function PeoplePage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold">직원·입퇴사</h1>
-        <p className="mt-2 text-sm text-muted">
-          명찰·유니폼·노트북은 입사·퇴사 프로세스입니다. 가구·컴퓨터는 자산 메뉴에서 QR로 등록하며, 직원에게 배정하지 않습니다.
-        </p>
-      </div>
-      <div className="flex flex-wrap gap-3">
-        <select
-          className="rounded border border-line px-3 py-2 text-sm"
-          value={companyId}
-          onChange={(e) => {
-            setReady(false)
-            void openCompany(e.target.value, true)
-          }}
-        >
-          <option value="">회사 선택</option>
-          {companies.map((company) => (
-            <option key={company.id} value={company.id}>
-              {company.display_name} ({company.company_code})
-            </option>
-          ))}
-        </select>
-        <Link className="rounded border border-line px-3 py-2 text-sm" to="/master">
-          기준정보
-        </Link>
-        <Link className="rounded border border-line px-3 py-2 text-sm" to="/assets">
-          회사 자산
-        </Link>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold">직원·입퇴사</h1>
+          <p className="mt-1 max-w-3xl text-sm text-muted">
+            명찰·유니폼·노트북은 입사·퇴사 프로세스입니다. 가구·컴퓨터는 자산 메뉴에서 QR로 등록하며, 직원에게 배정하지 않습니다.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <select
+            className="rounded border border-line px-3 py-2 text-sm"
+            value={companyId}
+            onChange={(e) => {
+              setReady(false)
+              void openCompany(e.target.value, true)
+            }}
+          >
+            <option value="">회사 선택</option>
+            {companies.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.display_name} ({company.company_code})
+              </option>
+            ))}
+          </select>
+          <Link className="rounded border border-line px-3 py-2 text-sm" to="/master">
+            기준정보
+          </Link>
+          <Link className="rounded border border-line px-3 py-2 text-sm" to="/assets">
+            회사 자산
+          </Link>
+        </div>
       </div>
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
-      <section className="rounded-lg border border-line bg-card p-5">
-        <h2 className="text-lg font-semibold">명찰 템플릿</h2>
-        <p className="mt-1 text-sm text-muted">
-          PDF 또는 Illustrator(.ai) 원본을 올리면 이름·부서·직위 칸을 읽습니다. 브라우저에서 AI를 직접 고치지 않고 원본은 이 PC에 남깁니다.
-        </p>
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <input
-            ref={badgeInput}
-            type="file"
-            accept=".ai,.pdf,application/pdf,application/postscript,application/illustrator"
-            className="sr-only"
-            onChange={(e) => {
-              const file = e.target.files?.[0] ?? null
-              setBadgeFile(file)
-              if (!file) return
-              void file.arrayBuffer().then((buffer) => showBadgePreview(new Uint8Array(buffer)))
-            }}
-          />
-          <button
-            type="button"
-            className="rounded border border-line px-4 py-2 text-sm font-semibold"
-            onClick={() => badgeInput.current?.click()}
-          >
-            첨부파일
-          </button>
-          <span className="text-sm text-muted">
-            {badgeFile ? badgeFile.name : '선택된 파일 없음 · PDF·AI 8MB'}
-          </span>
-          <button
-            type="button"
-            disabled={!ready}
-            className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-            onClick={() => void saveBadgeTemplate()}
-          >
-            템플릿 올리기
-          </button>
-          {badgeTemplate ? (
-            <button
-              type="button"
-              disabled={!ready}
-              className="rounded border border-line px-4 py-2 text-sm font-semibold disabled:opacity-50"
-              onClick={() => void downloadBadgeTemplate()}
-            >
-              원본 받기
-            </button>
-          ) : null}
-        </div>
-        {badgeTemplate ? (
-          <div className="mt-3 space-y-1 text-sm">
-            <p>
-              올린 파일: <span className="font-medium">{badgeTemplate.fileName}</span>
-            </p>
-            <p>
-              파악한 칸:{' '}
-              {badgeTemplate.fields.length
-                ? badgeTemplate.fields.map((field) => field.label).join(' · ')
-                : '이름·부서·직위 글자를 찾지 못했습니다'}
-            </p>
-            {badgePreview || badgeTemplate.extractedText ? (
-              <p className="text-muted">읽은 글자: {badgePreview || badgeTemplate.extractedText}</p>
-            ) : null}
-          </div>
-        ) : (
-          <p className="mt-3 text-sm text-muted">아직 올린 명찰 템플릿이 없습니다.</p>
-        )}
-        {previewStatus === 'loading' ? (
-          <p className="mt-3 text-sm text-muted">템플릿 미리보기를 그리는 중입니다.</p>
-        ) : null}
-        {previewStatus === 'ready' && badgePreviewImages.length ? (
-          <div className="mt-4 w-fit max-w-full rounded border border-line bg-white p-3">
-            <p className="mb-2 text-sm font-medium">미리보기 · 원본 템플릿은 그대로 두고 입사 칸만 올립니다</p>
-            <div className="flex flex-wrap items-start gap-3">
-              {badgePreviewImages.map((page, index) => (
-                <div
-                  key={`${index}-${page.image.slice(-24)}`}
-                  className="relative w-[240px] max-w-full"
-                  style={{ containerType: 'inline-size' }}
-                >
-                  <img src={page.image} alt={`명찰 템플릿 원본 ${index + 1}`} className="h-auto w-full" />
-                  {page.overlay.map((box) => {
-                    const text = currentFillValues()[box.key]
-                    if (!text) return null
-                    return (
-                      <div
-                        key={box.key}
-                        className="absolute overflow-hidden bg-white leading-none text-ink"
-                        style={{
-                          left: box.left,
-                          top: box.top,
-                          width: box.width,
-                          height: box.height,
-                          fontSize: box.fontSize,
-                          fontFamily: box.fontFamily,
-                          fontWeight: box.fontWeight,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: box.textAlign === 'left' ? 'flex-start' : 'center',
-                          textAlign: box.textAlign,
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {matchTemplateSpacing(text, box.sample)}
-                      </div>
-                    )
-                  })}
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-        {previewStatus === 'ready' && badgePreviewImages.length ? (
-          <div className="mt-4 space-y-3 text-sm">
-            <p className="text-muted">
-              지금 채우는 직원:{' '}
-              <span className="font-medium">
-                {employees.find((row) => row.id === badgeEmployeeId)?.name ?? '직원을 고르세요'}
-              </span>
-            </p>
-            <div className="flex max-w-xl flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={!ready}
-                className="rounded bg-accent px-3 py-2 font-semibold text-white disabled:opacity-50"
-                onClick={() => void downloadFilledBadgePdf()}
-              >
-                명찰 PDF 받기
-              </button>
-              <input
-                className="min-w-64 flex-1 rounded border border-line px-3 py-2"
-                placeholder="슬랙 Incoming Webhook"
-                value={notify.slackWebhook}
-                onChange={(e) => setNotify((prev) => ({ ...prev, slackWebhook: e.target.value }))}
-              />
-              <button
-                type="button"
-                disabled={!ready}
-                className="rounded border border-line px-3 py-2 font-semibold disabled:opacity-50"
-                onClick={() => void saveNotify()}
-              >
-                보낼 곳 저장
-              </button>
-              <button
-                type="button"
-                disabled={!ready}
-                className="rounded border border-line px-3 py-2 font-semibold disabled:opacity-50"
-                onClick={() => void sendFilledBadgeSlack()}
-              >
-                슬랙 보내기
-              </button>
-            </div>
-            <p className="text-muted">
-              PDF는 템플릿 명찰 크기·나눔고딕 글자 크기 그대로입니다. 인쇄 배율 100%(실제 크기)로 출력한 뒤 잘라 붙이세요.
-            </p>
-          </div>
-        ) : null}
-        {previewStatus === 'unavailable' ? (
-          <p className="mt-3 text-sm text-muted">
-            {badgeTemplate?.sourceKind === 'ai-binary'
-              ? '이 Illustrator 파일은 화면 미리보기를 할 수 없습니다. PDF로 저장해 올리면 보입니다.'
-              : '이 파일은 화면 미리보기를 그리지 못했습니다. 원본은 보존되어 있습니다.'}
-          </p>
-        ) : null}
-      </section>
-      <section className="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start">
+      <section className="grid min-h-0 gap-4 xl:grid-cols-[13rem_minmax(0,1fr)_18rem] xl:items-start">
         {employees.length ? (
           <>
-            <nav className="max-h-[28rem] overflow-y-auto rounded-lg border border-line bg-card">
+            <nav className="max-h-[calc(100svh-9rem)] overflow-y-auto rounded-lg border border-line bg-card">
               <p className="sticky top-0 border-b border-line bg-card px-3 py-2 text-xs font-semibold text-muted">
                 직원 {employees.length}
               </p>
@@ -844,10 +683,175 @@ export function PeoplePage() {
             ) : null}
           </>
         ) : (
-          <p className="text-sm text-muted">
+          <p className="text-sm text-muted xl:col-span-2">
             {ready ? '기준정보에서 직원을 먼저 등록하세요.' : '회사 DB를 여는 중입니다.'}
           </p>
         )}
+        <aside className="max-h-[calc(100svh-9rem)] overflow-auto rounded-lg border border-line bg-card p-4">
+          <h2 className="text-base font-semibold">명찰 템플릿</h2>
+          <p className="mt-1 text-sm text-muted">
+            PDF 또는 Illustrator(.ai) 원본을 올리면 이름·부서·직위 칸을 읽습니다. 브라우저에서 AI를 직접 고치지 않고 원본은 이 PC에 남깁니다.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <input
+              ref={badgeInput}
+              type="file"
+              accept=".ai,.pdf,application/pdf,application/postscript,application/illustrator"
+              className="sr-only"
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null
+                setBadgeFile(file)
+                if (!file) return
+                void file.arrayBuffer().then((buffer) => showBadgePreview(new Uint8Array(buffer)))
+              }}
+            />
+            <button
+              type="button"
+              className="rounded border border-line px-3 py-1.5 text-sm font-semibold"
+              onClick={() => badgeInput.current?.click()}
+            >
+              첨부파일
+            </button>
+            <button
+              type="button"
+              disabled={!ready}
+              className="rounded bg-accent px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+              onClick={() => void saveBadgeTemplate()}
+            >
+              템플릿 올리기
+            </button>
+            {badgeTemplate ? (
+              <button
+                type="button"
+                disabled={!ready}
+                className="rounded border border-line px-3 py-1.5 text-sm font-semibold disabled:opacity-50"
+                onClick={() => void downloadBadgeTemplate()}
+              >
+                원본 받기
+              </button>
+            ) : null}
+          </div>
+          <p className="mt-2 text-xs text-muted">
+            {badgeFile ? badgeFile.name : '선택된 파일 없음 · PDF·AI 8MB'}
+          </p>
+          {badgeTemplate ? (
+            <div className="mt-3 space-y-1 text-sm">
+              <p>
+                올린 파일: <span className="font-medium">{badgeTemplate.fileName}</span>
+              </p>
+              <p>
+                파악한 칸:{' '}
+                {badgeTemplate.fields.length
+                  ? badgeTemplate.fields.map((field) => field.label).join(' · ')
+                  : '이름·부서·직위 글자를 찾지 못했습니다'}
+              </p>
+              {badgePreview || badgeTemplate.extractedText ? (
+                <p className="text-muted">읽은 글자: {badgePreview || badgeTemplate.extractedText}</p>
+              ) : null}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-muted">아직 올린 명찰 템플릿이 없습니다.</p>
+          )}
+          {previewStatus === 'loading' ? (
+            <p className="mt-3 text-sm text-muted">템플릿 미리보기를 그리는 중입니다.</p>
+          ) : null}
+          {previewStatus === 'ready' && badgePreviewImages.length ? (
+            <div className="mt-3 w-fit max-w-full rounded border border-line bg-white p-2">
+              <p className="mb-2 text-xs font-medium">미리보기 · 원본은 그대로 두고 입사 칸만 올립니다</p>
+              <div className="flex flex-wrap items-start gap-3">
+                {badgePreviewImages.map((page, index) => (
+                  <div
+                    key={`${index}-${page.image.slice(-24)}`}
+                    className="relative w-[240px] max-w-full"
+                    style={{ containerType: 'inline-size' }}
+                  >
+                    <img src={page.image} alt={`명찰 템플릿 원본 ${index + 1}`} className="h-auto w-full" />
+                    {page.overlay.map((box) => {
+                      const text = currentFillValues()[box.key]
+                      if (!text) return null
+                      return (
+                        <div
+                          key={box.key}
+                          className="absolute overflow-hidden bg-white leading-none text-ink"
+                          style={{
+                            left: box.left,
+                            top: box.top,
+                            width: box.width,
+                            height: box.height,
+                            fontSize: box.fontSize,
+                            fontFamily: box.fontFamily,
+                            fontWeight: box.fontWeight,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: box.textAlign === 'left' ? 'flex-start' : 'center',
+                            textAlign: box.textAlign,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {matchTemplateSpacing(text, box.sample)}
+                        </div>
+                      )
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {previewStatus === 'ready' && badgePreviewImages.length ? (
+            <div className="mt-3 space-y-2 text-sm">
+              <p className="text-muted">
+                지금 채우는 직원:{' '}
+                <span className="font-medium">
+                  {employees.find((row) => row.id === badgeEmployeeId)?.name ?? '직원을 고르세요'}
+                </span>
+              </p>
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  disabled={!ready}
+                  className="rounded bg-accent px-3 py-2 font-semibold text-white disabled:opacity-50"
+                  onClick={() => void downloadFilledBadgePdf()}
+                >
+                  명찰 PDF 받기
+                </button>
+                <input
+                  className="w-full rounded border border-line px-3 py-2"
+                  placeholder="슬랙 Incoming Webhook"
+                  value={notify.slackWebhook}
+                  onChange={(e) => setNotify((prev) => ({ ...prev, slackWebhook: e.target.value }))}
+                />
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={!ready}
+                    className="rounded border border-line px-3 py-1.5 font-semibold disabled:opacity-50"
+                    onClick={() => void saveNotify()}
+                  >
+                    보낼 곳 저장
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!ready}
+                    className="rounded border border-line px-3 py-1.5 font-semibold disabled:opacity-50"
+                    onClick={() => void sendFilledBadgeSlack()}
+                  >
+                    슬랙 보내기
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs text-muted">
+                PDF는 템플릿 명찰 크기·나눔고딕 글자 크기 그대로입니다. 인쇄 배율 100%(실제 크기)로 출력한 뒤 잘라 붙이세요.
+              </p>
+            </div>
+          ) : null}
+          {previewStatus === 'unavailable' ? (
+            <p className="mt-3 text-sm text-muted">
+              {badgeTemplate?.sourceKind === 'ai-binary'
+                ? '이 Illustrator 파일은 화면 미리보기를 할 수 없습니다. PDF로 저장해 올리면 보입니다.'
+                : '이 파일은 화면 미리보기를 그리지 못했습니다. 원본은 보존되어 있습니다.'}
+            </p>
+          ) : null}
+        </aside>
       </section>
     </div>
   )

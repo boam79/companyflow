@@ -18,9 +18,9 @@ export function AppShell() {
   const scanMode = location.pathname.startsWith('/q/')
 
   return (
-    <div className="min-h-svh">
-      <header className="border-b border-line bg-card">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
+    <div className="flex min-h-svh flex-col">
+      <header className="shrink-0 border-b border-line bg-card">
+        <div className="mx-auto flex w-full max-w-[92rem] items-center justify-between gap-4 px-5 py-2.5">
           <Link to="/" className="text-lg font-semibold text-accent">
             CompanyFlow
           </Link>
@@ -62,7 +62,7 @@ export function AppShell() {
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-6 py-8">
+      <main className="mx-auto w-full max-w-[92rem] flex-1 px-5 py-4">
         <Outlet />
       </main>
     </div>

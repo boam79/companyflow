@@ -43,7 +43,7 @@ export function StockLedgerTable(props: {
   const supply = props.variant === 'supply'
 
   if (!props.ledger.length) {
-    return <p className="mt-4 text-sm text-muted">아직 입출고 원장이 없습니다. 아래에서 수령·반출을 확정하면 이 표에 이어집니다.</p>
+    return <p className="mt-3 text-sm text-muted">아직 입출고 원장이 없습니다. 오른쪽에서 수령·반출을 확정하면 이 표에 이어집니다.</p>
   }
 
   if (!rows.length) {

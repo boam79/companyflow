@@ -186,43 +186,47 @@ export function MasterDataPage() {
         : `${TABS.find((item) => item.id === tab)?.label} 이름`
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold">기준정보</h1>
-        <p className="mt-2 text-sm text-muted">
-          회사별 로컬 원본에만 저장합니다. 같은 추가는 한 번만 반영됩니다.
-        </p>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold">기준정보</h1>
+          <p className="mt-1 text-sm text-muted">
+            회사별 로컬 원본에만 저장합니다. 같은 추가는 한 번만 반영됩니다.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <select
+            className="rounded border border-line px-3 py-2 text-sm"
+            value={companyId}
+            onChange={(e) => {
+              setReady(false)
+              setOpenFailed(false)
+              void openCompany(e.target.value, true)
+            }}
+          >
+            <option value="">회사 선택</option>
+            {companies.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.display_name} ({company.company_code})
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="rounded border border-line px-3 py-2 text-sm"
+            disabled={!companyId}
+            onClick={() => {
+              setReady(false)
+              setOpenFailed(false)
+              void openCompany(companyId, true)
+            }}
+          >
+            이 회사 DB 다시 열기
+          </button>
+        </div>
       </div>
-      <div className="flex flex-wrap gap-3">
-        <select
-          className="rounded border border-line px-3 py-2 text-sm"
-          value={companyId}
-          onChange={(e) => {
-            setReady(false)
-            setOpenFailed(false)
-            void openCompany(e.target.value, true)
-          }}
-        >
-          <option value="">회사 선택</option>
-          {companies.map((company) => (
-            <option key={company.id} value={company.id}>
-              {company.display_name} ({company.company_code})
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          className="rounded border border-line px-3 py-2 text-sm"
-          disabled={!companyId}
-          onClick={() => {
-            setReady(false)
-            setOpenFailed(false)
-            void openCompany(companyId, true)
-          }}
-        >
-          이 회사 DB 다시 열기
-        </button>
-      </div>
+      <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)] lg:items-start">
+      <section className="rounded-lg border border-line bg-card p-4">
       <div className="flex flex-wrap gap-2 text-sm">
         {TABS.map((item) => (
           <button
@@ -235,7 +239,7 @@ export function MasterDataPage() {
           </button>
         ))}
       </div>
-      <form className="flex max-w-3xl flex-wrap gap-2" onSubmit={onSubmit}>
+      <form className="mt-3 flex flex-wrap gap-2" onSubmit={onSubmit}>
         {tab === 'fields' ? (
           <>
             <select
@@ -286,6 +290,13 @@ export function MasterDataPage() {
       </form>
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
+      {tab !== 'fields' ? (
+        <p className="mt-3 text-xs text-muted">
+          이 탭의 기본 필드 엔티티는 {fieldEntityFromTable(tab)} 입니다.
+        </p>
+      ) : null}
+      </section>
+      <section className="max-h-[calc(100svh-10rem)] overflow-auto rounded-lg border border-line bg-card p-4">
       {tab === 'fields' ? (
         fields.length ? (
           <ul className="space-y-1 text-sm">
@@ -299,9 +310,9 @@ export function MasterDataPage() {
           <p className="text-sm text-muted">아직 필드가 없습니다.</p>
         )
       ) : rows.length ? (
-        <ul className="space-y-1 text-sm">
+        <ul className="columns-1 gap-x-8 text-sm sm:columns-2">
           {rows.map((row) => (
-            <li key={row.id}>
+            <li key={row.id} className="break-inside-avoid py-0.5">
               {row.name}
               {tab === 'employees' && row.department_id
                 ? ` · ${departments.find((dept) => dept.id === row.department_id)?.name ?? ''}`
@@ -311,14 +322,11 @@ export function MasterDataPage() {
         </ul>
       ) : (
         <p className="text-sm text-muted">
-          {ready ? '아직 항목이 없습니다. 위에서 추가하세요.' : '회사 DB를 여는 중입니다.'}
+          {ready ? '아직 항목이 없습니다. 왼쪽에서 추가하세요.' : '회사 DB를 여는 중입니다.'}
         </p>
       )}
-      {tab !== 'fields' ? (
-        <p className="text-xs text-muted">
-          이 탭의 기본 필드 엔티티는 {fieldEntityFromTable(tab)} 입니다.
-        </p>
-      ) : null}
+      </section>
+      </div>
     </div>
   )
 }

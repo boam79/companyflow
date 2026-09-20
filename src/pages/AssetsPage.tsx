@@ -305,41 +305,47 @@ export function AssetsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold">자산</h1>
-        <p className="mt-2 text-sm text-muted">
-          빈 QR을 만들어 책상·의자·컴퓨터 같은 회사 자산에 붙입니다. 직원이 스마트폰으로 읽고 위치·품목 정보를 넣으면, 이 PC가 원본에 반영합니다.
-          회사 자산은 자리에 두는 물건이며 직원에게 배정하지 않습니다. 자리 이동은 이관, 고치면 수리, 못 쓰면 폐기로 이력을 남깁니다. 복사용지 같은 비품은 재고이며 QR을 붙이지 않습니다.
-        </p>
-      </div>
-      <div className="flex flex-wrap gap-3">
-        <select
-          className="rounded border border-line px-3 py-2 text-sm"
-          value={companyId}
-          onChange={(e) => {
-            setReady(false)
-            void openCompany(e.target.value, true)
-          }}
-        >
-          <option value="">회사 선택</option>
-          {companies.map((company) => (
-            <option key={company.id} value={company.id}>
-              {company.display_name} ({company.company_code})
-            </option>
-          ))}
-        </select>
-        <Link className="rounded border border-line px-3 py-2 text-sm" to="/stock">
-          비품 재고
-        </Link>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold">자산</h1>
+          <p className="mt-1 max-w-4xl text-sm text-muted">
+            빈 QR을 만들어 책상·의자·컴퓨터 같은 회사 자산에 붙입니다. 직원이 스마트폰으로 읽고 위치·품목 정보를 넣으면, 이 PC가 원본에 반영합니다.
+            회사 자산은 자리에 두는 물건이며 직원에게 배정하지 않습니다. 자리 이동은 이관, 고치면 수리, 못 쓰면 폐기로 이력을 남깁니다. 복사용지 같은 비품은 재고이며 QR을 붙이지 않습니다.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <select
+            className="rounded border border-line px-3 py-2 text-sm"
+            value={companyId}
+            onChange={(e) => {
+              setReady(false)
+              void openCompany(e.target.value, true)
+            }}
+          >
+            <option value="">회사 선택</option>
+            {companies.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.display_name} ({company.company_code})
+              </option>
+            ))}
+          </select>
+          <Link className="rounded border border-line px-3 py-2 text-sm" to="/stock">
+            비품 재고
+          </Link>
+        </div>
       </div>
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
 
-      <section className="rounded-lg border border-line bg-card p-5">
-        <h2 className="text-lg font-semibold">빈 QR 만들기</h2>
-        <p className="mt-1 text-sm text-muted">자산번호는 넣지 않습니다. 스티커를 붙인 뒤 스마트폰으로 정보를 입력합니다.</p>
-        <div className="mt-3 flex flex-wrap items-end gap-3">
+      <div className="grid gap-3 lg:grid-cols-2">
+      <section className="rounded-lg border border-line bg-card p-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold">빈 QR 만들기</h2>
+            <p className="mt-1 text-sm text-muted">자산번호는 넣지 않습니다. 스티커를 붙인 뒤 스마트폰으로 정보를 입력합니다.</p>
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
           <label className="text-sm">
             장수
             <input
@@ -364,23 +370,24 @@ export function AssetsPage() {
               인쇄
             </button>
           ) : null}
+          </div>
         </div>
         {printed.length ? (
-          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="mt-3 flex gap-3 overflow-x-auto">
             {printed.map((row, index) => (
-              <div key={row.id} className="rounded border border-line p-3 text-center">
-                <img src={row.dataUrl} alt={`빈 QR ${index + 1}`} className="mx-auto h-28 w-28 bg-white p-1" />
+              <div key={row.id} className="w-32 shrink-0 rounded border border-line p-2 text-center">
+                <img src={row.dataUrl} alt={`빈 QR ${index + 1}`} className="mx-auto h-20 w-20 bg-white p-1" />
                 <p className="mt-1 text-xs text-muted">빈QR-{String(index + 1).padStart(2, '0')}</p>
-                <div className="mt-2 flex justify-center gap-2">
+                <div className="mt-1 flex justify-center gap-1">
                   <a
-                    className="rounded border border-line px-2 py-1 text-xs font-semibold"
+                    className="rounded border border-line px-1.5 py-0.5 text-xs font-semibold"
                     href={row.url}
                   >
                     입력 열기
                   </a>
                   <button
                     type="button"
-                    className="rounded border border-line px-2 py-1 text-xs font-semibold"
+                    className="rounded border border-line px-1.5 py-0.5 text-xs font-semibold"
                     onClick={() => {
                       const link = document.createElement('a')
                       link.href = row.dataUrl
@@ -388,7 +395,7 @@ export function AssetsPage() {
                       link.click()
                     }}
                   >
-                    PNG 받기
+                    PNG
                   </button>
                 </div>
               </div>
@@ -397,14 +404,14 @@ export function AssetsPage() {
         ) : null}
       </section>
 
-      <section className="rounded-lg border border-line bg-card p-5">
-        <h2 className="text-lg font-semibold">스마트폰에서 저장 {inbox.length}</h2>
+      <section className="rounded-lg border border-line bg-card p-4">
+        <h2 className="text-base font-semibold">스마트폰에서 저장 {inbox.length}</h2>
         {inbox.length ? (
-          <ul className="mt-3 space-y-2 text-sm">
+          <ul className="mt-2 max-h-36 space-y-1 overflow-auto text-sm">
             {inbox.map((row) => {
               const payload = row.payload as Partial<QrAssetPayload>
               return (
-                <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-line/70 py-2">
+                <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-line/70 py-1.5">
                   <span>
                     {String(payload.itemName ?? '자산')} · {String(payload.location ?? '위치 없음')} ·{' '}
                     {String(payload.ownerName || payload.departmentName || '담당 없음')}
@@ -427,21 +434,24 @@ export function AssetsPage() {
           </p>
         )}
       </section>
+      </div>
 
-      <section className="rounded-lg border border-line bg-card p-5">
-        <h2 className="text-lg font-semibold">회사 자산 {companyAssets.length}</h2>
+      <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.9fr)] lg:items-start">
+      <div className="flex min-h-0 flex-col gap-3">
+      <section className="rounded-lg border border-line bg-card p-4">
+        <h2 className="text-base font-semibold">회사 자산 {companyAssets.length}</h2>
         {companyAssets.length ? (
-          <div className="mt-3 overflow-x-auto">
+          <div className="mt-2 max-h-[calc(100svh-18rem)] overflow-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-line text-muted">
-                  <th className="py-2 pr-4 font-medium">자산번호</th>
-                  <th className="py-2 pr-4 font-medium">품목</th>
-                  <th className="py-2 pr-4 font-medium">모델·일련번호</th>
-                  <th className="py-2 pr-4 font-medium">위치</th>
-                  <th className="py-2 pr-4 font-medium">부서</th>
-                  <th className="py-2 pr-4 font-medium">담당</th>
-                  <th className="py-2 font-medium">취득</th>
+                <tr className="sticky top-0 border-b border-line bg-card text-muted">
+                  <th className="py-1.5 pr-3 font-medium">자산번호</th>
+                  <th className="py-1.5 pr-3 font-medium">품목</th>
+                  <th className="py-1.5 pr-3 font-medium">모델·일련번호</th>
+                  <th className="py-1.5 pr-3 font-medium">위치</th>
+                  <th className="py-1.5 pr-3 font-medium">부서</th>
+                  <th className="py-1.5 pr-3 font-medium">담당</th>
+                  <th className="py-1.5 font-medium">취득</th>
                 </tr>
               </thead>
               <tbody>
@@ -491,9 +501,24 @@ export function AssetsPage() {
         )}
       </section>
 
+      {disposedAssets.length ? (
+        <section className="rounded-lg border border-line bg-card p-4">
+          <h2 className="text-base font-semibold">폐기 {disposedAssets.length}</h2>
+          <ul className="mt-2 space-y-1 text-sm text-muted">
+            {disposedAssets.map((asset) => (
+              <li key={asset.id}>
+                {assetNumber(asset.id, asset.serialNo)} · {items.find((row) => row.id === asset.itemId)?.name ?? asset.itemId}{' '}
+                · {asset.locationText || '위치 없음'}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+      </div>
+
       {selected && selected.status !== 'disposed' ? (
-        <section className="rounded-lg border border-line bg-card p-5">
-          <h2 className="text-lg font-semibold">
+        <section className="max-h-[calc(100svh-12rem)] overflow-auto rounded-lg border border-line bg-card p-4">
+          <h2 className="text-base font-semibold">
             {items.find((row) => row.id === selected.itemId)?.name ?? '자산'} · {assetNumber(selected.id, selected.serialNo)}
           </h2>
           <p className="mt-1 text-sm text-muted">
@@ -501,8 +526,8 @@ export function AssetsPage() {
             {selected.sourceOrderId ? ` 구매 원본 발주 ${selected.sourceOrderId}.` : ''}
           </p>
           {boundQr ? (
-            <div className="mt-4 flex flex-wrap items-center gap-4 rounded border border-line p-3">
-              <img src={boundQr.dataUrl} alt="등록 QR" className="h-24 w-24 bg-white p-1" />
+            <div className="mt-3 flex flex-wrap items-center gap-3 rounded border border-line p-3">
+              <img src={boundQr.dataUrl} alt="등록 QR" className="h-20 w-20 bg-white p-1" />
               <div className="space-y-2 text-sm">
                 <p className="text-muted">이 QR을 지정 PC에서 읽으면 상세와 이력이 열립니다. 자산번호는 QR에 넣지 않습니다.</p>
                 <div className="flex flex-wrap gap-2">
@@ -529,7 +554,7 @@ export function AssetsPage() {
           )}
           <form
             key={`${selected.id}:${formTick}`}
-            className="mt-4 grid gap-3 sm:grid-cols-2"
+            className="mt-3 grid gap-3 sm:grid-cols-2"
             lang="ko"
             onKeyDown={preventImeEnterSubmit}
             onSubmit={(event) => {
@@ -613,11 +638,11 @@ export function AssetsPage() {
               </button>
             </div>
           </form>
-          <h3 className="mt-6 text-sm font-semibold">이력 {events.length}</h3>
+          <h3 className="mt-4 text-sm font-semibold">이력 {events.length}</h3>
           {events.length ? (
-            <ul className="mt-2 space-y-2 text-sm">
+            <ul className="mt-2 space-y-1 text-sm">
               {events.map((event) => (
-                <li key={event.id} className="border-b border-line/70 py-2">
+                <li key={event.id} className="border-b border-line/70 py-1.5">
                   <span className="font-medium">{assetLifeLabel(event.kind)}</span>
                   <span className="text-muted"> · {event.happenedAt}</span>
                   {event.locationText ? <span> · {event.locationText}</span> : null}
@@ -629,21 +654,12 @@ export function AssetsPage() {
             <p className="mt-2 text-sm text-muted">이력이 없습니다.</p>
           )}
         </section>
-      ) : null}
-
-      {disposedAssets.length ? (
-        <section className="rounded-lg border border-line bg-card p-5">
-          <h2 className="text-lg font-semibold">폐기 {disposedAssets.length}</h2>
-          <ul className="mt-2 space-y-1 text-sm text-muted">
-            {disposedAssets.map((asset) => (
-              <li key={asset.id}>
-                {assetNumber(asset.id, asset.serialNo)} · {items.find((row) => row.id === asset.itemId)?.name ?? asset.itemId}{' '}
-                · {asset.locationText || '위치 없음'}
-              </li>
-            ))}
-          </ul>
+      ) : (
+        <section className="rounded-lg border border-dashed border-line bg-card p-4 text-sm text-muted">
+          왼쪽 목록에서 회사 자산을 고르면 이관·수리·폐기를 남깁니다.
         </section>
-      ) : null}
+      )}
+      </div>
     </div>
   )
 }

@@ -237,52 +237,54 @@ export function ContractsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-semibold">계약</h1>
-        <p className="mt-2 text-sm text-muted">
-          원본 PDF·PNG·JPEG를 올리면 이 PC에서 글자를 읽어 칸을 채웁니다. 확인하고 고친 뒤 초안만 저장합니다.
-          같은 파일은 한 번만 받습니다. OCR만으로 체결하지 않습니다.
-        </p>
-      </div>
-      <div className="flex flex-wrap gap-3">
-        <select
-          className="rounded border border-line px-3 py-2 text-sm"
-          value={companyId}
-          onChange={(e) => {
-            setReady(false)
-            void openCompany(e.target.value, true)
-          }}
-        >
-          <option value="">회사 선택</option>
-          {companies.map((company) => (
-            <option key={company.id} value={company.id}>
-              {company.display_name} ({company.company_code})
-            </option>
-          ))}
-        </select>
-        <Link className="rounded border border-line px-3 py-2 text-sm" to="/master">
-          거래처
-        </Link>
-        <button
-          type="button"
-          className="rounded border border-line px-3 py-2 text-sm"
-          onClick={() => {
-            setSelectedId('')
-            setNotice('')
-            setMessage('')
-            resetForm()
-          }}
-        >
-          새 초안
-        </button>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold">계약</h1>
+          <p className="mt-1 max-w-3xl text-sm text-muted">
+            원본 PDF·PNG·JPEG를 올리면 이 PC에서 글자를 읽어 칸을 채웁니다. 확인하고 고친 뒤 초안만 저장합니다.
+            같은 파일은 한 번만 받습니다. OCR만으로 체결하지 않습니다.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <select
+            className="rounded border border-line px-3 py-2 text-sm"
+            value={companyId}
+            onChange={(e) => {
+              setReady(false)
+              void openCompany(e.target.value, true)
+            }}
+          >
+            <option value="">회사 선택</option>
+            {companies.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.display_name} ({company.company_code})
+              </option>
+            ))}
+          </select>
+          <Link className="rounded border border-line px-3 py-2 text-sm" to="/master">
+            거래처
+          </Link>
+          <button
+            type="button"
+            className="rounded border border-line px-3 py-2 text-sm"
+            onClick={() => {
+              setSelectedId('')
+              setNotice('')
+              setMessage('')
+              resetForm()
+            }}
+          >
+            새 초안
+          </button>
+        </div>
       </div>
       {ocrMessage ? <p className="text-sm text-accent">{ocrMessage}</p> : null}
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)]">
-        <nav className="max-h-[70vh] overflow-auto rounded-lg border border-line bg-card">
+      <div className="grid min-h-0 gap-4 xl:grid-cols-[16rem_minmax(0,1fr)_minmax(22rem,1fr)] xl:items-start">
+        <nav className="max-h-[calc(100svh-10rem)] overflow-auto rounded-lg border border-line bg-card">
           <div className="sticky top-0 space-y-2 border-b border-line bg-card p-3">
             <h2 className="text-sm font-semibold">초안 {rows.length}</h2>
             <input
@@ -325,9 +327,8 @@ export function ContractsPage() {
           )}
         </nav>
 
-        <div className="space-y-6">
-          {selected ? (
-            <section className="rounded-lg border border-line bg-card p-5 text-sm">
+        {selected ? (
+            <section className="max-h-[calc(100svh-10rem)] overflow-auto rounded-lg border border-line bg-card p-4 text-sm">
               <h2 className="text-lg font-semibold">{selected.title}</h2>
               <dl className="mt-3 grid gap-2 sm:grid-cols-2">
                 <div>
@@ -374,12 +375,12 @@ export function ContractsPage() {
               )}
             </section>
           ) : (
-            <section className="rounded-lg border border-dashed border-line bg-card p-5 text-sm text-muted">
-              왼쪽에서 초안을 고르거나 아래 칸으로 새 초안을 만드세요.
+            <section className="rounded-lg border border-dashed border-line bg-card p-4 text-sm text-muted">
+              왼쪽에서 초안을 고르거나 오른쪽 칸으로 새 초안을 만드세요.
             </section>
           )}
 
-          <form className="grid gap-3 rounded-lg border border-line bg-card p-5 sm:grid-cols-2" onSubmit={onSubmit}>
+          <form className="grid max-h-[calc(100svh-10rem)] gap-3 overflow-auto rounded-lg border border-line bg-card p-4 sm:grid-cols-2" onSubmit={onSubmit}>
             <h2 className="text-lg font-semibold sm:col-span-2">새 초안</h2>
             <label className="text-sm">
               계약명
@@ -497,7 +498,6 @@ export function ContractsPage() {
               </button>
             </div>
           </form>
-        </div>
       </div>
     </div>
   )
