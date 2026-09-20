@@ -93,6 +93,7 @@ export const SCHEMA_PATCHES = [
   'alter table assets add column department_name text',
   'alter table assets add column owner_name text',
   'alter table assets add column acquired_at text',
+  'alter table assets add column source_order_id text',
   `create unique index if not exists assets_qr_token on assets(qr_token) where qr_token is not null`,
   ...ASSET_EVENT_TABLE_SQL,
 ]

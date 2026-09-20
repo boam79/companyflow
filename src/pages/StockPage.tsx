@@ -3,7 +3,8 @@ import { flushSync } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { StockLedgerTable } from '../components/StockLedgerTable'
-import { loadItems, type ItemRecord } from '../lib/master/book'
+import { isCompanyAssetItem, isSupplyItem, loadItems, type ItemRecord } from '../lib/master/book'
+import { allocateReceiptQty } from '../lib/asset/receipt'
 import { migrateProcessAssetsToChecks } from '../lib/people/onboarding'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { getCompanySqlite } from '../lib/sqlite/instance'
@@ -131,7 +132,7 @@ export function StockPage() {
     const suggested = suggestNextStockForm(
       nextState,
       orderId,
-      nextStockItems.find((row) => row.id === itemId) ?? nextStockItems.find((row) => row.id === 'item-paper'),
+      itemRows.find((row) => row.id === itemId) ?? itemRows.find((row) => row.id === 'item-paper'),
     )
     applySuggestedForm(suggested?.action === 'convert_to_asset' ? null : suggested)
     if (!nextStockItems.some((row) => row.id === itemId) && nextStockItems[0]) setItemId(nextStockItems[0].id)
@@ -171,6 +172,9 @@ export function StockPage() {
       return
     }
     if (nextAction === 'post_issue' || nextAction === 'post_outbound') {
+      if (isCompanyAssetItem(items.find((row) => row.id === itemId))) {
+        setItemId(supplyItems(items)[0]?.id ?? 'item-paper')
+      }
       const onHandQty = onHand(state, itemId, warehouseId)
       setQty(String(onHandQty > 0 ? Math.min(1, onHandQty) : 1))
       return
@@ -285,10 +289,17 @@ export function StockPage() {
       const result = await executeStockCommand(sqlite, buildCommand(nextOperationId))
       setLastOperationId(nextOperationId)
       setOperationId('')
+      const receiptItem = items.find((row) => row.id === itemId)
+      const assetCount =
+        action === 'post_receipt' && result.status === 'applied'
+          ? allocateReceiptQty(receiptItem, Number(qty)).assetQty
+          : 0
       setNotice(
         result.status === 'duplicate'
           ? `같은 operation_id 는 한 번만 반영됩니다. (${nextOperationId})`
-          : `저장했습니다. (${ACTIONS.find((item) => item.id === action)?.label} · ${nextOperationId})`,
+          : assetCount
+            ? `${receiptItem?.name} ${assetCount}건을 자산으로 등록했습니다. 자산 화면에서 위치를 이관하세요.`
+            : `저장했습니다. (${ACTIONS.find((item) => item.id === action)?.label} · ${nextOperationId})`,
       )
       if (result.status === 'applied') {
         applySuggestedForm(suggestNextStockForm(result.state, orderId))
@@ -315,10 +326,13 @@ export function StockPage() {
   }
 
   const stockItems = supplyItems(items)
+  const orderableItems = items.filter((item) => isSupplyItem(item) || isCompanyAssetItem(item))
+  const formItems =
+    action === 'draft_order' || action === 'confirm_order' || action === 'post_receipt' ? orderableItems : stockItems
   const paperQty = state ? companyOnHand(state, itemId) : 0
   const remaining = state ? orderRemaining(state, orderId) : 0
   const suggested = state
-    ? suggestNextStockForm(state, orderId, stockItems.find((row) => row.id === itemId))
+    ? suggestNextStockForm(state, orderId, items.find((row) => row.id === itemId) ?? stockItems.find((row) => row.id === itemId))
     : null
   const nextForm = suggested?.action === 'convert_to_asset' ? null : suggested
   const inventory =
@@ -330,7 +344,7 @@ export function StockPage() {
       <div>
         <h1 className="text-3xl font-semibold">구매·재고</h1>
         <p className="mt-2 text-sm text-muted">
-          복사용지처럼 쓰고 채우는 비품만 다룹니다. 창고에 자산화하지 않고, 가구·컴퓨터는 자산 메뉴에서 QR로 등록합니다.
+          복사용지는 수불부로 수량을 다룹니다. 책상·컴퓨터 발주를 수령하면 창고 재고가 아니라 개별 자산으로 등록됩니다.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -574,7 +588,7 @@ export function StockPage() {
                 value={itemId}
                 onChange={(e) => setItemId(e.target.value)}
               >
-                {stockItems.map((item) => (
+                {formItems.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name}
                   </option>

@@ -498,6 +498,7 @@ export function AssetsPage() {
           </h2>
           <p className="mt-1 text-sm text-muted">
             직원에게 배정하지 않습니다. 자리를 옮기면 이관, 고치면 수리, 더 이상 안 쓰면 폐기를 남깁니다.
+            {selected.sourceOrderId ? ` 구매 원본 발주 ${selected.sourceOrderId}.` : ''}
           </p>
           {boundQr ? (
             <div className="mt-4 flex flex-wrap items-center gap-4 rounded border border-line p-3">

@@ -129,4 +129,41 @@ describe('재고 영속 묶음', () => {
     expect(statements.filter((stmt) => stmt.sql.includes('insert into assets'))).toHaveLength(2)
     expect(companyOnHand(converted.state, ITEM)).toBe(5)
   })
+
+  it('가구 수령은 현재고 없이 자산 행만 만든다', () => {
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'confirm_order',
+      operationId: 'op-desk-order',
+      orderId: 'ord-desk',
+      itemId: 'item-desk',
+      qty: 2,
+    }).state
+    const received = applyStockCommand(state, {
+      type: 'post_receipt',
+      operationId: 'op-desk-recv',
+      orderId: 'ord-desk',
+      itemId: 'item-desk',
+      warehouseId: MAIN,
+      qty: 2,
+      directAsset: true,
+    })
+    const statements = statementsForCommand(
+      {
+        type: 'post_receipt',
+        operationId: 'op-desk-recv',
+        orderId: 'ord-desk',
+        itemId: 'item-desk',
+        warehouseId: MAIN,
+        qty: 2,
+        directAsset: true,
+      },
+      state,
+      received.state,
+      '2026-09-20T00:00:00.000Z',
+    )
+    expect(statements.filter((stmt) => stmt.sql.includes('stock_ledger'))).toHaveLength(2)
+    expect(statements.filter((stmt) => stmt.sql.includes('insert into assets'))).toHaveLength(2)
+    expect(companyOnHand(received.state, 'item-desk')).toBe(0)
+  })
 })

@@ -15,6 +15,7 @@ export type StockCommand =
       itemId: string
       warehouseId: string
       qty: number
+      directAsset?: boolean
     }
   | {
       type: 'post_direct_in'
@@ -202,7 +203,21 @@ export function applyStockCommand(
         warehouseId: command.warehouseId,
         qtyDelta: command.qty,
         orderId: command.orderId,
+        reason: command.directAsset ? '직접 자산화' : undefined,
       })
+      if (command.directAsset) {
+        next.ledger.push({
+          id: `${command.operationId}:convert`,
+          operationId: command.operationId,
+          txnType: 'convert_out',
+          itemId: command.itemId,
+          warehouseId: command.warehouseId,
+          qtyDelta: -command.qty,
+          orderId: command.orderId,
+          sourceOperationId: command.operationId,
+          reason: '직접 자산화',
+        })
+      }
       break
     }
     case 'post_direct_in':

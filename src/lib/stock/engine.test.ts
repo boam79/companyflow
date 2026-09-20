@@ -150,4 +150,27 @@ describe('복사용지 재고 원장', () => {
       }),
     ).toThrow(/이미 정정/)
   })
+
+  it('가구 수령은 발주 잔량만 줄이고 현재고는 늘리지 않는다', () => {
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'confirm_order',
+      operationId: 'op-desk-order',
+      orderId: 'ord-desk',
+      itemId: 'item-desk',
+      qty: 2,
+    }).state
+    state = applyStockCommand(state, {
+      type: 'post_receipt',
+      operationId: 'op-desk-recv',
+      orderId: 'ord-desk',
+      itemId: 'item-desk',
+      warehouseId: MAIN,
+      qty: 2,
+      directAsset: true,
+    }).state
+    expect(orderRemaining(state, 'ord-desk')).toBe(0)
+    expect(onHand(state, 'item-desk', MAIN)).toBe(0)
+    expect(companyOnHand(state, 'item-desk')).toBe(0)
+  })
 })

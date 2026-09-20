@@ -1,3 +1,4 @@
+import { isCompanyAssetItem, type ItemRecord } from '../master/book'
 import {
   applyStockCommand,
   orderRemaining,
@@ -37,7 +38,7 @@ function lastOpenOutbound(state: StockState): LedgerLine | undefined {
 export function suggestNextStockForm(
   state: StockState,
   orderId: string,
-  _item?: { assetManaged?: boolean },
+  item?: ItemRecord,
 ): NextStockForm | null {
   const order = state.orders.get(orderId)
   if (order?.status === 'draft') {
@@ -54,7 +55,9 @@ export function suggestNextStockForm(
     return {
       action: 'post_receipt',
       qty: String(qty),
-      hint: `발주 잔량 ${remaining} 중 ${qty}${objectMarker(qty)} 수령하면 수불부에 입고로 이어집니다.`,
+      hint: isCompanyAssetItem(item)
+        ? `발주 잔량 ${remaining} 중 ${qty}개를 수령하면 개별 자산으로 등록됩니다.`
+        : `발주 잔량 ${remaining} 중 ${qty}${objectMarker(qty)} 수령하면 수불부에 입고로 이어집니다.`,
     }
   }
 

@@ -49,6 +49,27 @@ describe('다음 재고 거래', () => {
     })
   })
 
+  it('가구 발주 잔량은 수령하면 자산이 된다고 안내한다', () => {
+    const desk = {
+      id: 'item-desk',
+      name: '책상',
+      stockManaged: false,
+      assetManaged: true,
+    }
+    let state = applyStockCommand(createStockState(), {
+      type: 'confirm_order',
+      operationId: 'op-desk-order',
+      orderId: 'ord-desk',
+      itemId: 'item-desk',
+      qty: 2,
+    }).state
+    expect(suggestNextStockForm(state, 'ord-desk', desk)).toMatchObject({
+      action: 'post_receipt',
+      qty: '2',
+      hint: '발주 잔량 2 중 2개를 수령하면 개별 자산으로 등록됩니다.',
+    })
+  })
+
   it('잔량 수령 뒤에는 반출 원거래로 반납 1을 맞춘다', () => {
     let state = paperState()
     state = applyStockCommand(state, {

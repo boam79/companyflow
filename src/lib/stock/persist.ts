@@ -1,4 +1,5 @@
 import { assetsFromConvert } from '../asset/book'
+import { assetsFromReceipt, allocateReceiptQty } from '../asset/receipt'
 import { assertConvertibleItem, loadItems, writeDefaultMaster } from '../master/book'
 import type { CompanySqlite } from '../sqlite/client'
 import {
@@ -110,6 +111,35 @@ export function statementsForCommand(
       })
     }
   }
+  if (command.type === 'post_receipt' && command.directAsset) {
+    for (const asset of assetsFromReceipt(
+      command.operationId,
+      command.itemId,
+      command.warehouseId,
+      command.qty,
+      createdAt,
+      command.orderId,
+    )) {
+      statements.push({
+        sql: `insert into assets(
+            id, item_id, warehouse_id, status, employee_id, source_operation_id, created_at,
+            location_text, acquired_at, source_order_id
+          ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        params: [
+          asset.id,
+          asset.itemId,
+          asset.warehouseId,
+          asset.status,
+          null,
+          asset.sourceOperationId,
+          createdAt,
+          asset.locationText ?? null,
+          asset.acquiredAt ?? null,
+          asset.sourceOrderId ?? null,
+        ],
+      })
+    }
+  }
   return statements
 }
 
@@ -177,16 +207,25 @@ export async function executeStockCommand(
     const items = await loadItems(db)
     assertConvertibleItem(items.find((item) => item.id === command.itemId))
   }
+  let nextCommand = command
+  if (command.type === 'post_receipt') {
+    const items = await loadItems(db)
+    const allocation = allocateReceiptQty(
+      items.find((item) => item.id === command.itemId),
+      command.qty,
+    )
+    nextCommand = { ...command, directAsset: allocation.assetQty > 0 }
+  }
   const prev = await loadStockState(db)
-  const result = applyStockCommand(prev, command)
+  const result = applyStockCommand(prev, nextCommand)
   if (result.status === 'duplicate') return result
 
   const statements: SqlStatement[] = [
     {
       sql: 'insert into processed_operations(operation_id, result_json, created_at) values(?, ?, ?)',
-      params: [command.operationId, JSON.stringify({ type: command.type }), createdAt],
+      params: [nextCommand.operationId, JSON.stringify({ type: nextCommand.type }), createdAt],
     },
-    ...statementsForCommand(command, prev, result.state, createdAt),
+    ...statementsForCommand(nextCommand, prev, result.state, createdAt),
     {
       sql: 'insert into audit_events(id, action, detail_json, created_at) values(?, ?, ?, ?)',
       params: [
