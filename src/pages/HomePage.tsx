@@ -12,7 +12,6 @@ import {
   HOME_STORY_CLOSE_IMAGE,
   homeStoryMuted,
   homeStorySurface,
-  homeStoryWash,
   type HomeStoryTone,
 } from '../lib/home/intro'
 
@@ -52,21 +51,22 @@ function StoryScene({
   children: ReactNode
 }) {
   return (
-    <section className={`relative ${tall ? 'min-h-[160svh]' : 'min-h-[calc(100svh-3.5rem)]'} ${homeStorySurface(tone)}`}>
-      <div className={`overflow-hidden ${tall ? 'sticky top-0 min-h-svh' : 'relative min-h-[calc(100svh-3.5rem)]'}`}>
-        <img
-          src={image}
-          alt={imageAlt}
-          className="absolute inset-0 h-full w-full object-cover"
-          width={1376}
-          height={768}
-          loading={eager ? 'eager' : 'lazy'}
-          decoding="async"
-          fetchPriority={eager ? 'high' : 'low'}
-        />
-        <div className={`absolute inset-0 ${homeStoryWash(tone)}`} />
-        <div className="relative z-10 flex min-h-svh items-center px-5 py-16">
-          <div className="mx-auto w-full max-w-[92rem]">{children}</div>
+    <section className={`relative ${tall ? 'min-h-[160svh]' : ''} ${homeStorySurface(tone)}`}>
+      <div className={tall ? 'sticky top-0 flex min-h-svh items-center' : 'flex min-h-[calc(100svh-3.5rem)] items-center'}>
+        <div className="mx-auto grid w-full max-w-[92rem] items-center gap-8 px-5 py-12 lg:grid-cols-2 lg:gap-16 lg:py-16">
+          <div>{children}</div>
+          <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl shadow-[0_24px_60px_rgba(28,36,48,0.18)] lg:aspect-auto lg:h-[min(70vh,38rem)]">
+            <img
+              src={image}
+              alt={imageAlt}
+              className="absolute inset-0 h-full w-full object-cover"
+              width={1376}
+              height={768}
+              loading={eager ? 'eager' : 'lazy'}
+              decoding="async"
+              fetchPriority={eager ? 'high' : 'low'}
+            />
+          </div>
         </div>
       </div>
     </section>
@@ -99,7 +99,7 @@ export function HomePage() {
           tall
         >
           <p className={`text-sm font-medium tracking-[0.28em] ${homeStoryMuted(beat.tone)}`}>{beat.kicker}</p>
-          <h2 className="mt-5 max-w-3xl text-4xl font-semibold leading-[1.15] tracking-tight text-balance md:text-6xl lg:text-7xl">
+          <h2 className="mt-5 max-w-3xl text-4xl font-semibold leading-[1.15] tracking-tight text-balance md:text-6xl">
             {beat.title}
           </h2>
           <p className={`mt-8 max-w-xl text-lg leading-relaxed md:text-xl ${homeStoryMuted(beat.tone)}`}>{beat.body}</p>
@@ -120,7 +120,10 @@ export function HomePage() {
               <Link to="/guest" className="inline-flex rounded bg-accent px-5 py-2.5 text-sm font-semibold text-white">
                 {HOME_COVER_GUEST}
               </Link>
-              <Link to="/login" className="inline-flex rounded border border-line bg-card/80 px-5 py-2.5 text-sm font-semibold text-ink">
+              <Link
+                to="/login"
+                className="inline-flex rounded border border-line bg-card px-5 py-2.5 text-sm font-semibold text-ink"
+              >
                 로그인
               </Link>
             </>

@@ -78,13 +78,3 @@ export function homeStorySurface(tone: HomeStoryTone) {
 export function homeStoryMuted(tone: HomeStoryTone) {
   return tone === 'navy' ? 'text-white/80' : 'text-muted'
 }
-
-export function homeStoryWash(tone: HomeStoryTone) {
-  if (tone === 'navy') {
-    return 'bg-gradient-to-b from-accent/90 via-accent/70 to-accent/25 lg:bg-gradient-to-r lg:from-accent lg:via-accent/75 lg:to-transparent'
-  }
-  if (tone === 'white') {
-    return 'bg-gradient-to-b from-card/92 via-card/70 to-card/20 lg:bg-gradient-to-r lg:from-card lg:via-card/80 lg:to-transparent'
-  }
-  return 'bg-gradient-to-b from-paper/92 via-paper/70 to-paper/20 lg:bg-gradient-to-r lg:from-paper lg:via-paper/80 lg:to-transparent'
-}
