@@ -2,6 +2,8 @@ export const HOME_COVER_TITLE = '회사별 지정 PC\n업무 원본'
 export const HOME_COVER_LEAD = '입고, 반출, 재고현황을 이 PC에서 시작합니다.'
 export const HOME_COVER_START = '업무 시작'
 export const HOME_COVER_GUEST = '둘러보기'
+export const HOME_COVER_IMAGE = '/home/origin.jpg'
+export const HOME_COVER_IMAGE_ALT = '지정 PC 모니터와 책상'
 
 export type HomeStoryTone = 'paper' | 'navy' | 'white'
 

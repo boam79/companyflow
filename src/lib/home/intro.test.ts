@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   HOME_COVER_GUEST,
+  HOME_COVER_IMAGE,
   HOME_COVER_LEAD,
   HOME_COVER_START,
   HOME_COVER_TITLE,
@@ -28,6 +29,7 @@ describe('홈 인트로', () => {
     expect(HOME_STORY_CLOSE).toBe('지정한 이 PC가 원본입니다.')
     expect(HOME_STORY_CLOSE).not.toMatch(/샘플/)
     expect(HOME_STORY.every((beat) => beat.image.startsWith('/home/'))).toBe(true)
+    expect(HOME_COVER_IMAGE).toBe('/home/origin.jpg')
     expect(homeStorySurface('navy')).toContain('bg-accent')
     expect(homeStoryMuted('paper')).toBe('text-[#6e6e73]')
   })

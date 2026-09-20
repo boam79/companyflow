@@ -19,16 +19,23 @@ export function AppShell() {
   const location = useLocation()
   const scanMode = isQrScanPath(location.pathname)
   const guest = isGuestPath(location.pathname)
+  const home = location.pathname === '/'
   const menus = guest ? GUEST_MENUS : MENUS
 
   return (
-    <div className="flex min-h-svh flex-col">
-      <header className="sticky top-0 z-50 border-b border-line/80 bg-card/80 backdrop-blur-xl">
+    <div className={`flex min-h-svh flex-col ${home ? 'bg-[#07090c]' : ''}`}>
+      <header
+        className={
+          home
+            ? 'sticky top-0 z-50 border-b border-white/10 bg-black/35 backdrop-blur-xl'
+            : 'sticky top-0 z-50 border-b border-line/80 bg-card/80 backdrop-blur-xl'
+        }
+      >
         <div className="mx-auto flex w-full max-w-[92rem] items-center justify-between gap-4 px-5 py-2.5">
-          <Link to="/" className="text-lg font-semibold text-accent">
+          <Link to="/" className={home ? 'text-[15px] font-semibold text-white' : 'text-lg font-semibold text-accent'}>
             CompanyFlow
           </Link>
-          <nav className="flex flex-wrap items-center gap-4 text-sm">
+          <nav className={`flex flex-wrap items-center gap-4 text-[13px] ${home ? '' : 'text-sm'}`}>
             {scanMode
               ? null
               : menus.map((menu) => (
@@ -36,7 +43,13 @@ export function AppShell() {
                     key={menu.to}
                     to={menu.to}
                     className={({ isActive }) =>
-                      isActive ? 'font-semibold text-accent' : 'text-muted'
+                      home
+                        ? isActive
+                          ? 'font-medium text-white'
+                          : 'text-white/50 hover:text-white/80'
+                        : isActive
+                          ? 'font-semibold text-accent'
+                          : 'text-muted'
                     }
                     end={menu.to === '/' || menu.to === '/guest'}
                   >
@@ -45,11 +58,11 @@ export function AppShell() {
                 ))}
             {loading ? null : user ? (
               <>
-                <span className="text-muted">{user.email}</span>
+                <span className={home ? 'text-white/45' : 'text-muted'}>{user.email}</span>
                 {operator ? (
                   <span className="rounded bg-accent-soft px-2 py-0.5 text-xs">운영</span>
                 ) : null}
-                <button type="button" className="text-muted" onClick={() => void signOut()}>
+                <button type="button" className={home ? 'text-white/45' : 'text-muted'} onClick={() => void signOut()}>
                   로그아웃
                 </button>
               </>
@@ -57,7 +70,13 @@ export function AppShell() {
               <NavLink
                 to={scanMode ? `/login?next=${encodeURIComponent(location.pathname)}` : '/login'}
                 className={({ isActive }) =>
-                  isActive ? 'font-semibold text-accent' : 'text-muted'
+                  home
+                    ? isActive
+                      ? 'font-medium text-white'
+                      : 'text-white/50 hover:text-white/80'
+                    : isActive
+                      ? 'font-semibold text-accent'
+                      : 'text-muted'
                 }
               >
                 로그인
@@ -70,7 +89,7 @@ export function AppShell() {
         className={
           scanMode || location.pathname !== '/'
             ? 'mx-auto w-full max-w-[92rem] flex-1 px-5 py-4'
-            : 'w-full flex-1'
+            : 'w-full flex-1 bg-[#07090c]'
         }
       >
         <Outlet />
