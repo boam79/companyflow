@@ -13,7 +13,7 @@ import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { executeStockCommand, ensureDefaultStockMaster, loadStockState } from '../lib/stock/persist'
 import { companyOnHand, onHand, orderRemaining, type LedgerLine, type StockCommand, type StockState } from '../lib/stock/engine'
-import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, orderRemainingCaption, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, orderRemainingCaption, resolveOrderPartnerId, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { commandFromSuggestion, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
@@ -49,8 +49,10 @@ export function StockPage() {
   const [companies, setCompanies] = useState<CompanyRow[]>([])
   const [companyId, setCompanyId] = useState('')
   const [items, setItems] = useState<ItemRecord[]>([])
+  const [partners, setPartners] = useState<NamedRow[]>([])
   const [warehouses, setWarehouses] = useState<NamedRow[]>([])
   const [departments, setDepartments] = useState<NamedRow[]>([])
+  const [orderPartnerId, setOrderPartnerId] = useState('')
   const [state, setState] = useState<StockState | null>(null)
   const [action, setAction] = useState<ActionType>('confirm_order')
   const [operationId, setOperationId] = useState('')
@@ -123,13 +125,15 @@ export function StockPage() {
   }
 
   async function reload() {
-    const [itemRows, warehouseRows, deptRows, nextState] = await Promise.all([
+    const [itemRows, partnerRows, warehouseRows, deptRows, nextState] = await Promise.all([
       loadItems(sqlite),
+      sqlite.query<NamedRow>(`select id, name from partners where ${ACTIVE_MASTER_WHERE} order by name`),
       sqlite.query<NamedRow>(`select id, name from warehouses where ${ACTIVE_MASTER_WHERE} order by name`),
       sqlite.query<NamedRow>(`select id, name from departments where ${ACTIVE_MASTER_WHERE} order by name`),
       loadStockState(sqlite),
     ])
     setItems(itemRows)
+    setPartners(partnerRows)
     setWarehouses(warehouseRows)
     setDepartments(deptRows)
     setState(nextState)
@@ -152,9 +156,28 @@ export function StockPage() {
     if (!keepItem || !(isSupplyItem(keepItem) || isCompanyAssetItem(keepItem))) {
       if (nextStockItems[0]) setItemId(nextStockItems[0].id)
     }
+    const selectedItem =
+      keepItem && (isSupplyItem(keepItem) || isCompanyAssetItem(keepItem))
+        ? keepItem
+        : nextStockItems[0]
+    if (selectedItem?.partnerId) {
+      setOrderPartnerId((prev) => prev || selectedItem.partnerId || '')
+    }
     if (!warehouseRows.some((row) => row.id === warehouseId) && warehouseRows[0]) {
       setWarehouseId(warehouseRows[0].id)
     }
+  }
+
+  function chooseItem(nextItemId: string) {
+    setItemId(nextItemId)
+    const item = items.find((row) => row.id === nextItemId)
+    setOrderPartnerId(item?.partnerId ?? '')
+  }
+
+  function chooseOrder(row: PurchaseOrderRow) {
+    setOrderId(row.orderId)
+    setItemId(row.itemId)
+    setOrderPartnerId(row.partnerId ?? '')
   }
 
   function applySuggestedForm(next: NextStockForm | null) {
@@ -188,7 +211,7 @@ export function StockPage() {
     }
     if (nextAction === 'post_issue' || nextAction === 'post_outbound') {
       if (isCompanyAssetItem(items.find((row) => row.id === itemId))) {
-        setItemId(supplyItems(items)[0]?.id ?? 'item-paper')
+        chooseItem(supplyItems(items)[0]?.id ?? 'item-paper')
       }
       const onHandQty = onHand(state, itemId, warehouseId)
       setQty(String(onHandQty > 0 ? Math.min(1, onHandQty) : 1))
@@ -198,12 +221,22 @@ export function StockPage() {
     if (nextAction === 'transfer_stock') setQty('2')
   }
 
-  function buildCommand(nextOperationId: string, nextItemId = itemId): StockCommand {
+  function buildCommand(nextOperationId: string, nextItemId = itemId, nextItem?: ItemRecord): StockCommand {
     const quantity = Number(qty)
     switch (action) {
       case 'draft_order':
       case 'confirm_order':
-        return { type: action, operationId: nextOperationId, orderId, itemId: nextItemId, qty: quantity }
+        return {
+          type: action,
+          operationId: nextOperationId,
+          orderId,
+          itemId: nextItemId,
+          qty: quantity,
+          partnerId: resolveOrderPartnerId(
+            orderPartnerId,
+            nextItem ?? items.find((row) => row.id === nextItemId),
+          ),
+        }
       case 'post_receipt':
         return {
           type: action,
@@ -278,6 +311,7 @@ export function StockPage() {
             warehouseId,
             fromWarehouseId,
             toWarehouseId,
+            partnerId: orderPartnerId.trim() || undefined,
           }),
         )
         current = result.state
@@ -312,7 +346,7 @@ export function StockPage() {
       setItemId(resolved.item.id)
       const result = await executeStockCommand(
         sqlite,
-        buildCommand(nextOperationId, resolved.item.id),
+        buildCommand(nextOperationId, resolved.item.id, resolved.item),
         undefined,
         resolved.created ? { newItem: resolved.item } : undefined,
       )
@@ -369,8 +403,8 @@ export function StockPage() {
   const inventory =
     state && stockItems.length && warehouses.length ? buildSupplyInventory(stockItems, warehouses, state) : []
   const selectedInventory = inventory.find((row) => row.itemId === itemId) ?? inventory[0]
-  const supplyOrders = state ? buildSupplyOrderList(items, state) : []
-  const assetOrders = state ? buildAssetOrderList(items, state) : []
+  const supplyOrders = state ? buildSupplyOrderList(items, state, partners) : []
+  const assetOrders = state ? buildAssetOrderList(items, state, partners) : []
 
   return (
     <div className="flex flex-col gap-4">
@@ -454,7 +488,7 @@ export function StockPage() {
                       className={`cursor-pointer border-b border-line/70 ${
                         active ? 'bg-accent-soft' : 'hover:bg-paper'
                       }`}
-                      onClick={() => setItemId(row.itemId)}
+                      onClick={() => chooseItem(row.itemId)}
                     >
                       <td className="py-1.5 pr-3 font-medium">{row.itemName}</td>
                       <td className="py-1.5 text-right font-semibold tabular-nums">{row.total}</td>
@@ -515,13 +549,14 @@ export function StockPage() {
                     목록 받기
                   </button>
                 </div>
-                <p className="mt-1 text-xs text-muted">일반 비품만 발주 항목별로 모읍니다. 책상·컴퓨터는 자산 발주입니다.</p>
+                <p className="mt-1 text-xs text-muted">일반 비품만 발주 항목별로 모읍니다. 책상·컴퓨터는 자산 발주입니다. 공급사는 품목 기본값을 쓰거나 여기서 바꿉니다.</p>
                 <div className="mt-2 overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead>
                       <tr className="border-b border-line text-muted">
                         <th className="py-1.5 pr-3 font-medium">발주번호</th>
                         <th className="py-1.5 pr-3 font-medium">품목</th>
+                        <th className="py-1.5 pr-3 font-medium">공급사</th>
                         <th className="py-1.5 pr-3 text-right font-medium">발주</th>
                         <th className="py-1.5 pr-3 text-right font-medium">수령</th>
                         <th className="py-1.5 pr-3 text-right font-medium">잔량</th>
@@ -537,13 +572,11 @@ export function StockPage() {
                             className={`cursor-pointer border-b border-line/70 ${
                               active ? 'bg-accent-soft' : 'hover:bg-paper'
                             }`}
-                            onClick={() => {
-                              setOrderId(row.orderId)
-                              setItemId(row.itemId)
-                            }}
+                            onClick={() => chooseOrder(row)}
                           >
                             <td className="whitespace-nowrap py-1.5 pr-3 font-medium">{row.orderId}</td>
                             <td className="py-1.5 pr-3">{row.itemName}</td>
+                            <td className="py-1.5 pr-3">{row.supplierName || '—'}</td>
                             <td className="py-1.5 pr-3 text-right tabular-nums">{row.orderedQty}</td>
                             <td className="py-1.5 pr-3 text-right tabular-nums">{row.receivedQty}</td>
                             <td className="py-1.5 pr-3 text-right tabular-nums">{row.remainingQty}</td>
@@ -563,12 +596,10 @@ export function StockPage() {
                     <button
                       type="button"
                       className={`text-left ${row.orderId === orderId ? 'font-semibold text-accent' : 'hover:text-ink'}`}
-                      onClick={() => {
-                        setOrderId(row.orderId)
-                        setItemId(row.itemId)
-                      }}
+                      onClick={() => chooseOrder(row)}
                     >
-                      자산 발주 {row.orderId} · {row.itemName} {row.orderedQty} ·{' '}
+                      자산 발주 {row.orderId} · {row.itemName} {row.orderedQty}
+                      {row.supplierName ? ` · ${row.supplierName}` : ''} ·{' '}
                       {row.status === 'draft' ? '초안' : `잔량 ${row.remainingQty}`}
                     </button>
                   </li>
@@ -686,6 +717,23 @@ export function StockPage() {
                 value={orderId}
                 onChange={(e) => setOrderId(e.target.value)}
               />
+            </label>
+          ) : null}
+          {action === 'draft_order' || action === 'confirm_order' ? (
+            <label className="text-sm">
+              공급사
+              <select
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={orderPartnerId}
+                onChange={(e) => setOrderPartnerId(e.target.value)}
+              >
+                <option value="">없음</option>
+                {partners.map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {row.name}
+                  </option>
+                ))}
+              </select>
             </label>
           ) : null}
           {action !== 'reverse_transaction' ? (

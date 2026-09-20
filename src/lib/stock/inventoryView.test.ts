@@ -6,6 +6,7 @@ import {
   buildSupplyInventory,
   buildSupplyOrderList,
   orderRemainingCaption,
+  resolveOrderPartnerId,
   supplyItems,
   supplyOrderCsv,
 } from './inventoryView'
@@ -93,6 +94,7 @@ describe('비품 발주 목록', () => {
         receivedQty: 6,
         remainingQty: 4,
         status: 'confirmed',
+        supplierName: '',
       },
     ])
     expect(buildAssetOrderList(items, state)).toEqual([
@@ -104,8 +106,42 @@ describe('비품 발주 목록', () => {
         receivedQty: 0,
         remainingQty: 0,
         status: 'draft',
+        supplierName: '',
       },
     ])
+  })
+
+  it('발주 목록은 품목 공급사 이름을 붙인다', () => {
+    const paper = { ...PAPER_ITEM, partnerId: 'partner-mfp' }
+    const partners = [{ id: 'partner-mfp', name: '사무기기코리아' }]
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'confirm_order',
+      operationId: 'op-paper',
+      orderId: 'ord-paper',
+      itemId: paper.id,
+      qty: 10,
+      partnerId: 'partner-mfp',
+    }).state
+    expect(buildSupplyOrderList([paper], state, partners)).toEqual([
+      {
+        orderId: 'ord-paper',
+        itemId: paper.id,
+        itemName: '복사용지',
+        orderedQty: 10,
+        receivedQty: 0,
+        remainingQty: 10,
+        status: 'confirmed',
+        partnerId: 'partner-mfp',
+        supplierName: '사무기기코리아',
+      },
+    ])
+  })
+
+  it('발주 공급사는 고른 값이 있으면 그걸 쓰고 없으면 품목 기본이다', () => {
+    expect(resolveOrderPartnerId('partner-kt', { partnerId: 'partner-mfp' })).toBe('partner-kt')
+    expect(resolveOrderPartnerId('', { partnerId: 'partner-mfp' })).toBe('partner-mfp')
+    expect(resolveOrderPartnerId('  ', undefined)).toBeUndefined()
   })
 
   it('목록 CSV는 한글 열 이름으로 발주 항목을 내보낸다', () => {
@@ -119,7 +155,7 @@ describe('비품 발주 목록', () => {
     }).state
     const csv = supplyOrderCsv(buildSupplyOrderList(items, state))
     expect(csv.startsWith('\uFEFF')).toBe(true)
-    expect(csv).toContain('발주번호,품목,발주,수령,잔량,상태')
-    expect(csv).toContain('ord-paper,복사용지,10,0,10,확정')
+    expect(csv).toContain('발주번호,품목,공급사,발주,수령,잔량,상태')
+    expect(csv).toContain('ord-paper,복사용지,,10,0,10,확정')
   })
 })

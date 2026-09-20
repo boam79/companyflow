@@ -151,6 +151,29 @@ describe('복사용지 재고 원장', () => {
     ).toThrow(/이미 정정/)
   })
 
+  it('발주 확정은 공급사를 남기고 초안 공급사를 유지한다', () => {
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'draft_order',
+      operationId: 'op-draft',
+      orderId: 'ord-1',
+      itemId: ITEM,
+      qty: 10,
+      partnerId: 'partner-mfp',
+    }).state
+    expect(state.orders.get('ord-1')?.partnerId).toBe('partner-mfp')
+
+    state = applyStockCommand(state, {
+      type: 'confirm_order',
+      operationId: 'op-confirm',
+      orderId: 'ord-1',
+      itemId: ITEM,
+      qty: 10,
+    }).state
+    expect(state.orders.get('ord-1')?.status).toBe('confirmed')
+    expect(state.orders.get('ord-1')?.partnerId).toBe('partner-mfp')
+  })
+
   it('가구 수령은 발주 잔량만 줄이고 현재고는 늘리지 않는다', () => {
     let state = createStockState()
     state = applyStockCommand(state, {

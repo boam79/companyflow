@@ -80,6 +80,7 @@ export type SuggestionContext = {
   warehouseId: string
   fromWarehouseId: string
   toWarehouseId: string
+  partnerId?: string
 }
 
 export function commandFromSuggestion(
@@ -97,6 +98,7 @@ export function commandFromSuggestion(
         orderId: ctx.orderId,
         itemId: ctx.itemId,
         qty,
+        partnerId: ctx.partnerId,
       }
     case 'post_receipt':
       return {

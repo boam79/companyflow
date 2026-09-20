@@ -7,6 +7,7 @@ export type StockCommand =
       orderId: string
       itemId: string
       qty: number
+      partnerId?: string
     }
   | {
       type: 'post_receipt'
@@ -109,6 +110,7 @@ export type StockOrder = {
   itemId: string
   qty: number
   status: 'draft' | 'confirmed'
+  partnerId?: string
 }
 
 export type StockState = {
@@ -169,23 +171,18 @@ export function applyStockCommand(
 
   switch (command.type) {
     case 'draft_order':
+    case 'confirm_order': {
       requirePositive(command.qty)
+      const existing = next.orders.get(command.orderId)
       next.orders.set(command.orderId, {
         id: command.orderId,
         itemId: command.itemId,
         qty: command.qty,
-        status: 'draft',
+        status: command.type === 'draft_order' ? 'draft' : 'confirmed',
+        partnerId: command.partnerId ?? existing?.partnerId,
       })
       break
-    case 'confirm_order':
-      requirePositive(command.qty)
-      next.orders.set(command.orderId, {
-        id: command.orderId,
-        itemId: command.itemId,
-        qty: command.qty,
-        status: 'confirmed',
-      })
-      break
+    }
     case 'post_receipt': {
       requirePositive(command.qty)
       const order = next.orders.get(command.orderId)
@@ -386,6 +383,7 @@ export const STOCK_TABLE_SQL = [
     item_id text not null,
     qty integer not null,
     status text not null,
+    partner_id text,
     operation_id text not null unique,
     created_at text not null
   );`,

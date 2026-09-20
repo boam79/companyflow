@@ -166,4 +166,43 @@ describe('재고 영속 묶음', () => {
     expect(statements.filter((stmt) => stmt.sql.includes('insert into assets'))).toHaveLength(2)
     expect(companyOnHand(received.state, 'item-desk')).toBe(0)
   })
+
+  it('발주 SQL에 공급사를 넣고 다시 읽는다', () => {
+    const prev = createStockState()
+    const command = {
+      type: 'confirm_order' as const,
+      operationId: 'op-paper',
+      orderId: 'ord-paper',
+      itemId: ITEM,
+      qty: 10,
+      partnerId: 'partner-mfp',
+    }
+    const next = applyStockCommand(prev, command).state
+    const statements = statementsForCommand(command, prev, next, '2026-09-20T00:00:00.000Z')
+    expect(statements[0]?.sql).toContain('partner_id')
+    expect(statements[0]?.params).toEqual([
+      'ord-paper',
+      ITEM,
+      10,
+      'confirmed',
+      'partner-mfp',
+      'op-paper',
+      '2026-09-20T00:00:00.000Z',
+    ])
+    const restored = stateFromRows(
+      [
+        {
+          id: 'ord-paper',
+          item_id: ITEM,
+          qty: 10,
+          status: 'confirmed',
+          operation_id: 'op-paper',
+          partner_id: 'partner-mfp',
+        },
+      ],
+      [],
+      [],
+    )
+    expect(restored.orders.get('ord-paper')?.partnerId).toBe('partner-mfp')
+  })
 })
