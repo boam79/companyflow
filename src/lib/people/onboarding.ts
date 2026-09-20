@@ -65,6 +65,10 @@ export function leavePhase(row: OnboardingCheck, left: boolean): LeavePhase {
   return 'pending'
 }
 
+export function leaveRowLabel(row: OnboardingCheck, left: boolean): string {
+  return leavePhase(row, left) === 'pending' ? `${row.name} 미지급` : row.leaveLabel
+}
+
 export function leaveSummary(checks: OnboardingCheck[], left: boolean): string {
   const held = outstandingOnboarding(checks).length
   if (held) return `미회수 ${held} · 퇴사 전 회수`

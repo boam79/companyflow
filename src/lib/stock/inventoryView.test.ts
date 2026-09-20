@@ -5,6 +5,7 @@ import {
   buildAssetOrderList,
   buildSupplyInventory,
   buildSupplyOrderList,
+  orderRemainingCaption,
   supplyItems,
   supplyOrderCsv,
 } from './inventoryView'
@@ -42,6 +43,15 @@ describe('비품 현재고', () => {
         total: 7,
       },
     ])
+  })
+
+  it('현재고 안내는 고른 품목 발주만 붙인다', () => {
+    const paper = { itemId: 'item-paper', itemName: '복사용지', quantities: [8], total: 8 }
+    const clip = { itemId: 'item-clip', itemName: '클립', quantities: [2], total: 2 }
+    const paperOrder = { id: 'ord-paper', itemId: 'item-paper', qty: 10, status: 'confirmed' as const }
+    expect(orderRemainingCaption(paper, paperOrder, 0)).toBe(' · 발주 ord-paper 잔량 0')
+    expect(orderRemainingCaption(clip, paperOrder, 0)).toBe('')
+    expect(orderRemainingCaption(clip, undefined, 0)).toBe('')
   })
 })
 

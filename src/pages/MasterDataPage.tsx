@@ -105,6 +105,7 @@ export function MasterDataPage() {
   const [companies, setCompanies] = useState<CompanyRow[]>([])
   const [companyId, setCompanyId] = useState('')
   const [tab, setTab] = useState<TabId>('departments')
+  const [listTab, setListTab] = useState<TabId>('departments')
   const [rows, setRows] = useState<NamedRow[]>([])
   const [departments, setDepartments] = useState<NamedRow[]>([])
   const [fields, setFields] = useState<FieldRow[]>([])
@@ -177,6 +178,7 @@ export function MasterDataPage() {
     if (!departmentId && deptRows[0]) setDepartmentId(deptRows[0].id)
     if (nextTab === 'fields') {
       setRows([])
+      setListTab(nextTab)
       return
     }
     assertMasterTable(nextTab)
@@ -191,6 +193,7 @@ export function MasterDataPage() {
             )
           : await sqlite.query<NamedRow>(`select id, name from ${nextTab} order by name`)
     setRows(named)
+    setListTab(nextTab)
   }
 
   useEffect(() => {
@@ -382,7 +385,6 @@ export function MasterDataPage() {
             type="button"
             className={tab === item.id ? 'font-semibold text-accent' : 'text-muted'}
             onClick={() => {
-              setRows([])
               setSelectedItemId('')
               setMinStock('0')
               setTab(item.id)
@@ -471,7 +473,7 @@ export function MasterDataPage() {
       ) : null}
       </section>
       <section className="max-h-[calc(100svh-10rem)] overflow-auto rounded-lg border border-line bg-card p-4">
-      {(tab === 'fields' ? fields.length : rows.length) ? (
+      {tab === listTab && (tab === 'fields' ? fields.length : rows.length) ? (
         <>
           <h2 className="mb-2 text-base font-semibold">
             {tabLabel} {tab === 'fields' ? fields.length : rows.length}
@@ -496,7 +498,11 @@ export function MasterDataPage() {
         </>
       ) : (
         <p className="text-sm text-muted">
-          {ready ? '아직 항목이 없습니다. 왼쪽에서 추가하세요.' : '회사 DB를 여는 중입니다.'}
+          {!ready
+            ? '회사 DB를 여는 중입니다.'
+            : tab !== listTab
+              ? '목록을 불러오는 중입니다.'
+              : '아직 항목이 없습니다. 왼쪽에서 추가하세요.'}
         </p>
       )}
       </section>

@@ -5,6 +5,7 @@ import {
   assertOffboardingClear,
   isProcessItemId,
   leavePhase,
+  leaveRowLabel,
   leaveSummary,
   migrateProcessAssetsToChecks,
   onboardingView,
@@ -46,6 +47,10 @@ describe('입퇴사 프로세스', () => {
     expect(leaveSummary(onboardingView('emp-1', []), false)).toBe('지급 전 · 입사 중 프로세스부터')
     expect(leaveSummary(applyIssueCheck(onboardingView('emp-1', []), 'laptop', '2026-09-17'), false)).toBe(
       '미회수 1 · 퇴사 전 회수',
+    )
+    expect(leaveRowLabel(onboardingView('emp-oh', [])[0], true)).toBe('명찰 미지급')
+    expect(leaveRowLabel(applyIssueCheck(onboardingView('emp-1', []), 'badge', '2026-09-17')[0], false)).toBe(
+      '명찰 회수',
     )
   })
 

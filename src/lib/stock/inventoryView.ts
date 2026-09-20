@@ -27,6 +27,15 @@ export function buildSupplyInventory(
   }))
 }
 
+export function orderRemainingCaption(
+  selected: Pick<SupplyInventoryRow, 'itemId'> | undefined,
+  order: StockOrder | undefined,
+  remaining: number,
+): string {
+  if (!selected || !order || order.itemId !== selected.itemId) return ''
+  return ` · 발주 ${order.id} 잔량 ${remaining}`
+}
+
 export type PurchaseOrderRow = {
   orderId: string
   itemId: string

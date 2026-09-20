@@ -39,6 +39,7 @@ import {
 import {
   executeOnboardingToggle,
   leavePhase,
+  leaveRowLabel,
   leaveSummary,
   loadOnboardingChecks,
   migrateProcessAssetsToChecks,
@@ -909,7 +910,7 @@ export function PeoplePage() {
                                 }}
                               />
                               <span className={phase === 'held' ? 'font-medium' : 'text-muted'}>
-                                {phase === 'pending' ? `${row.name} 지급 전` : row.leaveLabel}
+                                {leaveRowLabel(row, Boolean(selectedEmployee.leftAt))}
                               </span>
                             </label>
                           </li>

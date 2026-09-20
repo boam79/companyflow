@@ -12,7 +12,7 @@ import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { executeStockCommand, ensureDefaultStockMaster, loadStockState } from '../lib/stock/persist'
 import { companyOnHand, onHand, orderRemaining, type LedgerLine, type StockCommand, type StockState } from '../lib/stock/engine'
-import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, orderRemainingCaption, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { commandFromSuggestion, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
@@ -154,7 +154,6 @@ export function StockPage() {
     if (!warehouseRows.some((row) => row.id === warehouseId) && warehouseRows[0]) {
       setWarehouseId(warehouseRows[0].id)
     }
-    if (!departmentId && deptRows[0]) setDepartmentId(deptRows[0].id)
   }
 
   function applySuggestedForm(next: NextStockForm | null) {
@@ -423,13 +422,13 @@ export function StockPage() {
                 <>
                   {selectedInventory.itemName}{' '}
                   <strong className="text-ink tabular-nums">{selectedInventory.total}</strong>
+                  {orderRemainingCaption(selectedInventory, state?.orders.get(orderId), remaining)}
                 </>
               ) : (
                 <>
                   비품 수량 <strong className="text-ink tabular-nums">{paperQty}</strong>
                 </>
               )}
-              {state?.orders.get(orderId) ? ` · 발주 ${orderId} 잔량 ${remaining}` : ''}
             </p>
           </div>
           <Link className="text-sm text-accent underline" to="/assets">
