@@ -43,7 +43,7 @@ describe('입퇴사 프로세스', () => {
     )
     expect(leavePhase(returned[0], false)).toBe('pending')
     expect(leavePhase(returned[0], true)).toBe('returned')
-    expect(leaveSummary(onboardingView('emp-1', []), false)).toBe('지급 전 · 입사 프로세스부터')
+    expect(leaveSummary(onboardingView('emp-1', []), false)).toBe('지급 전 · 입사 중 프로세스부터')
     expect(leaveSummary(applyIssueCheck(onboardingView('emp-1', []), 'laptop', '2026-09-17'), false)).toBe(
       '미회수 1 · 퇴사 전 회수',
     )

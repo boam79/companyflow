@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { applyHire, applyLeave, badgeLines, employeeHireDraft } from './employment'
+import {
+  applyHire,
+  applyLeave,
+  badgeLines,
+  employeeHireDraft,
+  groupRoster,
+  hireProcessSteps,
+  hireProcessSummary,
+  rosterCaption,
+  rosterPhase,
+} from './employment'
 import { applyIssueCheck, assertOffboardingClear, onboardingView } from './onboarding'
 
 describe('입퇴사', () => {
@@ -58,5 +68,50 @@ describe('입퇴사', () => {
     )
     const hired = applyHire(left, { hiredAt: '2026-09-17', title: '주임' })
     expect(hired).toMatchObject({ hiredAt: '2026-09-17', leftAt: undefined, title: '주임' })
+  })
+
+  it('직원 목록은 입사 중·재직·퇴사로 나눈다', () => {
+    const joining = { id: 'emp-kim', name: '김담당', hiredAt: '2026-09-16' }
+    const employed = { id: 'emp-lee', name: '이수진', hiredAt: '2025-07-14' }
+    const left = { id: 'emp-oh', name: '오세훈', hiredAt: '2022-06-01', leftAt: '2026-08-31' }
+    const before = { id: 'emp-new', name: '신입' }
+    const checks = [
+      { employeeId: 'emp-lee', itemKey: 'badge' as const, issued: true },
+      { employeeId: 'emp-lee', itemKey: 'uniform' as const, issued: true },
+      { employeeId: 'emp-lee', itemKey: 'laptop' as const, issued: true },
+      { employeeId: 'emp-kim', itemKey: 'laptop' as const, issued: true },
+    ]
+    expect(
+      groupRoster([joining, employed, left, before], checks).map((group) => [
+        group.phase,
+        group.label,
+        group.employees.map((row) => row.name),
+      ]),
+    ).toEqual([
+      ['joining', '입사 중', ['김담당', '신입']],
+      ['employed', '재직', ['이수진']],
+      ['left', '퇴사', ['오세훈']],
+    ])
+    expect(rosterCaption(joining, onboardingView('emp-kim', checks))).toBe('입사 중 · 1/3 지급')
+    expect(rosterCaption(before, onboardingView('emp-new', []))).toBe('입사 전 · 0/3 지급')
+    expect(rosterCaption(employed, onboardingView('emp-lee', checks))).toBe('재직 · 2025-07-14')
+    expect(rosterCaption(left, onboardingView('emp-oh', []))).toBe('퇴사 2026-08-31')
+  })
+
+  it('입사 중 프로세스는 입사 저장과 지급 3칸이다', () => {
+    const employee = { id: 'emp-1', name: '김담당', hiredAt: '2026-09-16' }
+    const checks = applyIssueCheck(onboardingView('emp-1', []), 'laptop', '2026-09-16')
+    expect(hireProcessSteps(employee, checks).map((step) => [step.label, step.done])).toEqual([
+      ['입사 저장', true],
+      ['명찰 지급', false],
+      ['유니폼 지급', false],
+      ['노트북 지급', true],
+    ])
+    expect(rosterPhase(employee, checks)).toBe('joining')
+    expect(hireProcessSummary(employee, checks)).toBe('입사 중 · 2/4')
+    const complete = applyIssueCheck(applyIssueCheck(checks, 'badge', '2026-09-16'), 'uniform', '2026-09-16')
+    expect(rosterPhase(employee, complete)).toBe('employed')
+    expect(hireProcessSummary(employee, complete)).toBe('입사 완료 · 3/3 지급')
+    expect(hireProcessSummary({ id: 'emp-new', name: '신입' }, onboardingView('emp-new', []))).toBe('입사 중 · 0/4')
   })
 })

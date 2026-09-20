@@ -69,7 +69,7 @@ export function leaveSummary(checks: OnboardingCheck[], left: boolean): string {
   const held = outstandingOnboarding(checks).length
   if (held) return `미회수 ${held} · 퇴사 전 회수`
   if (left) return '회수 완료 · 퇴사 기록됨'
-  return '지급 전 · 입사 프로세스부터'
+  return '지급 전 · 입사 중 프로세스부터'
 }
 
 export function applyIssueCheck(checks: OnboardingCheck[], key: OnboardingKey, at: string): OnboardingCheck[] {
