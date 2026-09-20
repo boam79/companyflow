@@ -59,5 +59,7 @@ describe('등록 QR 자산 상세', () => {
   it('휴대폰에는 원본 상세를 보여 주지 않는다', () => {
     expect(phoneQrSavedMessage()).toMatch(/지정 PC/)
     expect(phoneQrSavedMessage()).not.toMatch(/현재고|최신/)
+    expect(phoneQrSavedMessage(true)).toMatch(/샘플/)
+    expect(phoneQrSavedMessage(true)).not.toMatch(/지정 PC/)
   })
 })

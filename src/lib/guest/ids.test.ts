@@ -16,6 +16,10 @@ describe('게스트 경로', () => {
     expect(isGuestCompanyId('3a27aedf-0ec9-4d28-8724-a80135eaadc3')).toBe(false)
     expect(isGuestPath('/guest')).toBe(true)
     expect(isGuestPath('/guest/stock')).toBe(true)
+    expect(isGuestPath('/guest/q/11111111-1111-4111-8111-111111111111')).toBe(true)
+    expect(workPath('/q/11111111-1111-4111-8111-111111111111', true)).toBe(
+      '/guest/q/11111111-1111-4111-8111-111111111111',
+    )
     expect(isGuestPath('/stock')).toBe(false)
     expect(isGuestPath('/guesting')).toBe(false)
     expect(workPath('/stock', true)).toBe('/guest/stock')

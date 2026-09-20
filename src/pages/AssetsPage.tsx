@@ -10,7 +10,7 @@ import {
   type AssetLifeEvent,
   type AssetLifeKind,
 } from '../lib/asset/life'
-import { assertQrAssetPayload, executeQrRegistration, type QrAssetPayload } from '../lib/asset/register'
+import { assertQrAssetPayload, executeQrRegistration, loadQrLabels, type QrAssetPayload } from '../lib/asset/register'
 import { fetchPendingQrInbox, importAssetQr, insertBlankQrLabels, type AssetQrInboxRow } from '../lib/asset/relay'
 import { assertBlankQrCount, blankQrDataUrl, blankQrFileName, blankQrScanUrl } from '../lib/asset/qr'
 import { isCompanyAssetItem, loadItems, writeDefaultMaster, type ItemRecord } from '../lib/master/book'
@@ -82,8 +82,8 @@ export function AssetsPage() {
     const origin = window.location.origin
     void (async () => {
       try {
-        const url = blankQrScanUrl(origin, token)
-        const dataUrl = await blankQrDataUrl(origin, token)
+        const url = blankQrScanUrl(origin, token, guest)
+        const dataUrl = await blankQrDataUrl(origin, token, guest)
         if (!cancelled) setBoundQr({ id: token, url, dataUrl })
       } catch {
         if (!cancelled) setBoundQr(null)
@@ -92,7 +92,7 @@ export function AssetsPage() {
     return () => {
       cancelled = true
     }
-  }, [assets, selectedId])
+  }, [assets, selectedId, guest])
 
   async function refreshInbox(nextId: string) {
     if (guest) return
@@ -140,7 +140,22 @@ export function AssetsPage() {
       } else {
         setEvents([])
       }
-      await refreshInbox(nextId)
+      if (guest) {
+        const origin = window.location.origin
+        const labels = await loadQrLabels(sqlite)
+        const blanks = labels.filter((row) => row.status === 'blank')
+        setPrinted(
+          await Promise.all(
+            blanks.map(async (row) => ({
+              id: row.id,
+              url: blankQrScanUrl(origin, row.id, true),
+              dataUrl: await blankQrDataUrl(origin, row.id, true),
+            })),
+          ),
+        )
+      } else {
+        await refreshInbox(nextId)
+      }
     } catch (error) {
       setReady(false)
       setMessage(error instanceof Error ? error.message : String(error))
@@ -150,14 +165,16 @@ export function AssetsPage() {
   }
 
   async function makeBlankQrs() {
-    if (guest) {
-      setMessage('샘플에서는 중앙 QR을 만들지 않습니다.')
+    if (!companyId || !ready) {
+      setMessage(guest ? '샘플을 연 뒤에 빈 QR을 만듭니다.' : '지정 PC에서 회사를 연 뒤에 빈 QR을 만듭니다.')
       return
     }
-    const client = getSupabase()
-    if (!client || !companyId || !ready) {
-      setMessage('지정 PC에서 회사를 연 뒤에 빈 QR을 만듭니다.')
-      return
+    if (!guest) {
+      const client = getSupabase()
+      if (!client) {
+        setMessage('지정 PC에서 회사를 연 뒤에 빈 QR을 만듭니다.')
+        return
+      }
     }
     setBusy(true)
     setMessage('')
@@ -166,7 +183,11 @@ export function AssetsPage() {
       const count = assertBlankQrCount(blankCount)
       const ids = Array.from({ length: count }, () => crypto.randomUUID())
       const origin = window.location.origin
-      await insertBlankQrLabels(client, companyId, ids)
+      if (!guest) {
+        const client = getSupabase()
+        if (!client) throw new Error('지정 PC에서 회사를 연 뒤에 빈 QR을 만듭니다.')
+        await insertBlankQrLabels(client, companyId, ids)
+      }
       const createdAt = new Date().toISOString()
       await sqlite.batch(
         ids.map((id) => ({
@@ -177,12 +198,16 @@ export function AssetsPage() {
       const urls = await Promise.all(
         ids.map(async (id) => ({
           id,
-          url: blankQrScanUrl(origin, id),
-          dataUrl: await blankQrDataUrl(origin, id),
+          url: blankQrScanUrl(origin, id, guest),
+          dataUrl: await blankQrDataUrl(origin, id, guest),
         })),
       )
-      setPrinted(urls)
-      setNotice(`빈 QR ${count}장을 만들었습니다. 인쇄해 가구·컴퓨터에 붙인 뒤 스마트폰으로 읽으세요.`)
+      setPrinted((prev) => (guest ? [...prev, ...urls] : urls))
+      setNotice(
+        guest
+          ? `샘플 빈 QR ${count}장을 만들었습니다. 입력 열기를 눌러 이 화면에서 확인하세요. 지정 PC 원본은 건드리지 않습니다.`
+          : `빈 QR ${count}장을 만들었습니다. 인쇄해 가구·컴퓨터에 붙인 뒤 스마트폰으로 읽으세요.`,
+      )
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     } finally {
@@ -300,8 +325,9 @@ export function AssetsPage() {
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold">자산</h1>
           <p className="mt-1 max-w-4xl text-sm text-muted">
-            빈 QR을 만들어 책상·의자·컴퓨터 같은 회사 자산에 붙입니다. 직원이 스마트폰으로 읽고 위치·품목 정보를 넣으면, 이 PC가 원본에 반영합니다.
-            회사 자산은 자리에 두는 물건이며 직원에게 배정하지 않습니다. 자리 이동은 이관, 고치면 수리, 못 쓰면 폐기로 이력을 남깁니다. 복사용지 같은 비품은 재고이며 QR을 붙이지 않습니다.
+            {guest
+              ? '샘플에서 빈 QR을 만들고 입력 열기로 가구·컴퓨터 정보를 넣습니다. 지정 PC 원본과 중앙 QR은 쓰지 않습니다. 회사 자산은 자리에 두는 물건이며 직원에게 배정하지 않습니다.'
+              : '빈 QR을 만들어 책상·의자·컴퓨터 같은 회사 자산에 붙입니다. 직원이 스마트폰으로 읽고 위치·품목 정보를 넣으면, 이 PC가 원본에 반영합니다. 회사 자산은 자리에 두는 물건이며 직원에게 배정하지 않습니다. 자리 이동은 이관, 고치면 수리, 못 쓰면 폐기로 이력을 남깁니다. 복사용지 같은 비품은 재고이며 QR을 붙이지 않습니다.'}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -332,13 +358,16 @@ export function AssetsPage() {
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
 
-      {guest ? null : (
       <div className="grid gap-3 lg:grid-cols-2">
       <section className="rounded-lg border border-line bg-card p-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold">빈 QR 만들기</h2>
-            <p className="mt-1 text-sm text-muted">자산번호는 넣지 않습니다. 스티커를 붙인 뒤 스마트폰으로 정보를 입력합니다.</p>
+            <p className="mt-1 text-sm text-muted">
+              {guest
+                ? '자산번호는 넣지 않습니다. 입력 열기를 눌러 이 화면에서 정보를 넣습니다.'
+                : '자산번호는 넣지 않습니다. 스티커를 붙인 뒤 스마트폰으로 정보를 입력합니다.'}
+            </p>
           </div>
           <div className="flex flex-wrap items-end gap-2">
           <label className="text-sm">
@@ -374,12 +403,12 @@ export function AssetsPage() {
                 <img src={row.dataUrl} alt={`빈 QR ${index + 1}`} className="mx-auto h-20 w-20 bg-white p-1" />
                 <p className="mt-1 text-xs text-muted">빈QR-{String(index + 1).padStart(2, '0')}</p>
                 <div className="mt-1 flex justify-center gap-1">
-                  <a
+                  <Link
                     className="rounded border border-line px-1.5 py-0.5 text-xs font-semibold"
-                    href={row.url}
+                    to={href(`/q/${row.id}`)}
                   >
                     입력 열기
-                  </a>
+                  </Link>
                   <button
                     type="button"
                     className="rounded border border-line px-1.5 py-0.5 text-xs font-semibold"
@@ -400,8 +429,14 @@ export function AssetsPage() {
       </section>
 
       <section className="rounded-lg border border-line bg-card p-4">
-        <h2 className="text-base font-semibold">스마트폰에서 저장 {inbox.length}</h2>
-        {inbox.length ? (
+        <h2 className="text-base font-semibold">
+          {guest ? '샘플 입력' : `스마트폰에서 저장 ${inbox.length}`}
+        </h2>
+        {guest ? (
+          <p className="mt-2 text-sm text-muted">
+            입력 열기에서 저장하면 바로 샘플 자산에 들어갑니다. 지정 PC 원본과 중앙 QR은 쓰지 않습니다.
+          </p>
+        ) : inbox.length ? (
           <ul className="mt-2 max-h-36 space-y-1 overflow-auto text-sm">
             {inbox.map((row) => {
               const payload = row.payload as Partial<QrAssetPayload>
@@ -430,7 +465,6 @@ export function AssetsPage() {
         )}
       </section>
       </div>
-      )}
 
       <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.9fr)] lg:items-start">
       <div className="flex min-h-0 flex-col gap-3">
@@ -525,13 +559,15 @@ export function AssetsPage() {
             <div className="mt-3 flex flex-wrap items-center gap-3 rounded border border-line p-3">
               <img src={boundQr.dataUrl} alt="등록 QR" className="h-20 w-20 bg-white p-1" />
               <div className="space-y-2 text-sm">
-                <p className="text-muted">이 QR을 지정 PC에서 읽으면 상세와 이력이 열립니다. 자산번호는 QR에 넣지 않습니다.</p>
+                <p className="text-muted">
+                  {guest
+                    ? '이 QR을 샘플에서 읽으면 상세와 이력이 열립니다. 자산번호는 QR에 넣지 않습니다.'
+                    : '이 QR을 지정 PC에서 읽으면 상세와 이력이 열립니다. 자산번호는 QR에 넣지 않습니다.'}
+                </p>
                 <div className="flex flex-wrap gap-2">
-                  {guest ? null : (
-                    <Link className="rounded border border-line px-2 py-1 text-xs font-semibold" to={`/q/${boundQr.id}`}>
-                      QR로 상세 보기
-                    </Link>
-                  )}
+                  <Link className="rounded border border-line px-2 py-1 text-xs font-semibold" to={href(`/q/${boundQr.id}`)}>
+                    QR로 상세 보기
+                  </Link>
                   <button
                     type="button"
                     className="rounded border border-line px-2 py-1 text-xs font-semibold"
@@ -548,7 +584,11 @@ export function AssetsPage() {
               </div>
             </div>
           ) : (
-            <p className="mt-3 text-sm text-muted">빈 QR로 등록된 자산만 QR 상세를 엽니다. 샘플로 넣은 책상은 표식이 없습니다.</p>
+            <p className="mt-3 text-sm text-muted">
+              {guest
+                ? '빈 QR로 등록된 자산만 QR 상세를 엽니다. 견본으로 넣은 책상은 표식이 없습니다.'
+                : '빈 QR로 등록된 자산만 QR 상세를 엽니다. 샘플로 넣은 책상은 표식이 없습니다.'}
+            </p>
           )}
           <form
             key={`${selected.id}:${formTick}`}

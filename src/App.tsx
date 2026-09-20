@@ -35,6 +35,7 @@ export default function App() {
               <Route path="/guest/master" element={<MasterDataPage />} />
               <Route path="/guest/stock" element={<StockPage />} />
               <Route path="/guest/assets" element={<AssetsPage />} />
+              <Route path="/guest/q/:token" element={<QrScanPage />} />
               <Route path="/guest/people" element={<PeoplePage />} />
               <Route path="/guest/contracts" element={<ContractsPage />} />
             </Route>

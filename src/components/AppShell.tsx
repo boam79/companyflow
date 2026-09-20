@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
+import { isQrScanPath } from '../lib/asset/qr'
 import { GUEST_MENUS, isGuestPath } from '../lib/guest/ids'
 
 const MENUS = [
@@ -16,7 +17,7 @@ const MENUS = [
 export function AppShell() {
   const { loading, user, operator, signOut } = useAuth()
   const location = useLocation()
-  const scanMode = location.pathname.startsWith('/q/')
+  const scanMode = isQrScanPath(location.pathname)
   const guest = isGuestPath(location.pathname)
   const menus = guest ? GUEST_MENUS : MENUS
 
@@ -52,7 +53,7 @@ export function AppShell() {
                   로그아웃
                 </button>
               </>
-            ) : (
+            ) : guest ? null : (
               <NavLink
                 to={scanMode ? `/login?next=${location.pathname}` : '/login'}
                 className={({ isActive }) =>

@@ -47,7 +47,10 @@ export function buildQrAssetDetail(
   }
 }
 
-export function phoneQrSavedMessage() {
+export function phoneQrSavedMessage(guest = false) {
+  if (guest) {
+    return '이미 샘플에 저장된 QR입니다. 자산 화면에서 상세를 볼 수 있습니다.'
+  }
   return '이미 저장된 QR입니다. 지정 PC에서 이 QR을 읽으면 상세와 이력이 보입니다.'
 }
 

@@ -4,34 +4,78 @@ import { useAuth } from '../lib/AuthContext'
 import { COMPANY_ASSET_ITEMS, loadItems } from '../lib/master/book'
 import { loadQrAssetDetail, phoneQrSavedMessage, type QrAssetDetail } from '../lib/asset/qrLookup'
 import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
-import { readQrAssetForm } from '../lib/asset/register'
+import { executeQrRegistration, readQrAssetForm } from '../lib/asset/register'
 import { fetchQrLabel, submitAssetQr, type AssetQrLabelRow } from '../lib/asset/relay'
+import { isQrLabelId } from '../lib/asset/qr'
 import { lastOpenedCompanyId, rememberCompanies, rememberOpenedCompany } from '../lib/companySession'
-import { getCompanySqlite } from '../lib/sqlite/instance'
+import { GUEST_COMPANY_ID } from '../lib/guest/ids'
+import { useWorkAccess } from '../lib/guest/workAccess'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
-
-const sqlite = getCompanySqlite()
 
 export function QrScanPage() {
   const { token = '' } = useParams()
+  const { guest, sqlite, href } = useWorkAccess()
   const { configured, loading, user } = useAuth()
   const [label, setLabel] = useState<AssetQrLabelRow | null>(null)
   const [detail, setDetail] = useState<QrAssetDetail | null>(null)
+  const [itemOptions, setItemOptions] = useState(COMPANY_ASSET_ITEMS)
   const [message, setMessage] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
   const [formTick, setFormTick] = useState(0)
 
   useEffect(() => {
-    if (!user) return
-    const client = getSupabase()
-    if (!client) return
+    if (!guest && !user) return
     setMessage('')
     setDetail(null)
     setNotice('')
     let cancelled = false
     void (async () => {
       try {
+        if (guest) {
+          if (!isQrLabelId(token)) {
+            setLabel(null)
+            setMessage('이 QR은 샘플에서 만든 빈 QR이 아닙니다.')
+            return
+          }
+          if (!sqlite.isOpen(GUEST_COMPANY_ID)) {
+            setLabel(null)
+            setMessage('샘플을 연 뒤에 QR을 읽으세요.')
+            return
+          }
+          if (!sqlite.persistOk) return
+          const rows = await sqlite.query<{
+            id: string
+            status: 'blank' | 'bound'
+            created_at: string
+          }>('select id, status, created_at from qr_labels where id = ?', [token])
+          const row = rows[0]
+          if (cancelled) return
+          if (!row) {
+            setLabel(null)
+            setMessage('이 QR은 샘플에서 만든 빈 QR이 아닙니다.')
+            return
+          }
+          setLabel({
+            id: row.id,
+            company_id: GUEST_COMPANY_ID,
+            status: row.status === 'bound' ? 'imported' : 'blank',
+            created_at: row.created_at,
+          })
+          const items = await loadItems(sqlite)
+          const options = COMPANY_ASSET_ITEMS.filter((item) => items.some((row) => row.id === item.id))
+          setItemOptions(options.length ? options : COMPANY_ASSET_ITEMS)
+          const local = await loadQrAssetDetail(sqlite, token, items)
+          if (cancelled) return
+          if (local) {
+            setDetail(local)
+            setMessage('')
+          }
+          return
+        }
+
+        const client = getSupabase()
+        if (!client) return
         const row = await fetchQrLabel(client, token)
         if (cancelled) return
         setLabel(row)
@@ -53,6 +97,7 @@ export function QrScanPage() {
         }
         if (!sqlite.persistOk) return
         const items = await loadItems(sqlite)
+        setItemOptions(COMPANY_ASSET_ITEMS)
         const local = await loadQrAssetDetail(sqlite, token, items)
         if (cancelled) return
         if (local) {
@@ -67,7 +112,7 @@ export function QrScanPage() {
           return
         }
         if (/invalid input syntax for type uuid/i.test(text)) {
-          setMessage('이 QR은 회사 PC에서 만든 빈 QR이 아닙니다.')
+          setMessage(guest ? '이 QR은 샘플에서 만든 빈 QR이 아닙니다.' : '이 QR은 회사 PC에서 만든 빈 QR이 아닙니다.')
           return
         }
         if (/영속|OPFS|지정 Chrome|초기 설정/i.test(text)) return
@@ -77,20 +122,34 @@ export function QrScanPage() {
     return () => {
       cancelled = true
     }
-  }, [token, user])
+  }, [token, user, guest, sqlite])
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const client = getSupabase()
-    if (!client) {
-      setMessage('중앙 운영이 연결되지 않았습니다.')
-      return
-    }
     setBusy(true)
     setMessage('')
     setNotice('')
     try {
       const payload = readQrAssetForm(new FormData(event.currentTarget))
+      if (guest) {
+        const result = await executeQrRegistration(sqlite, { labelId: token, payload })
+        const items = await loadItems(sqlite)
+        const local = await loadQrAssetDetail(sqlite, token, items)
+        setDetail(local)
+        setLabel((prev) => (prev ? { ...prev, status: 'imported' } : prev))
+        setNotice(
+          result.status === 'duplicate'
+            ? '이미 샘플에 저장된 QR입니다.'
+            : '샘플에 저장했습니다. 지정 PC 원본은 건드리지 않습니다.',
+        )
+        setFormTick((tick) => tick + 1)
+        return
+      }
+      const client = getSupabase()
+      if (!client) {
+        setMessage('중앙 운영이 연결되지 않았습니다.')
+        return
+      }
       await submitAssetQr(client, token, payload)
       setLabel((prev) => (prev ? { ...prev, status: 'submitted' } : prev))
       setNotice('저장했습니다. 지정 PC 자산 화면에서 원본에 반영됩니다.')
@@ -102,9 +161,9 @@ export function QrScanPage() {
     }
   }
 
-  if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
-  if (!configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
-  if (!user) {
+  if (!guest && loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
+  if (!guest && !configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
+  if (!guest && !user) {
     return (
       <div className="max-w-md space-y-4">
         <h1 className="text-2xl font-semibold">자산 정보 입력</h1>
@@ -123,8 +182,13 @@ export function QrScanPage() {
           <h1 className="text-2xl font-semibold">
             {detail.itemName} · {detail.assetNumber}
           </h1>
-          <p className="mt-2 text-sm text-muted">지정 PC 원본입니다. 직원에게 배정하지 않습니다.</p>
+          <p className="mt-2 text-sm text-muted">
+            {guest
+              ? '샘플입니다. 지정 PC 원본은 건드리지 않습니다. 직원에게 배정하지 않습니다.'
+              : '지정 PC 원본입니다. 직원에게 배정하지 않습니다.'}
+          </p>
         </div>
+        {notice ? <p className="text-sm text-ok">{notice}</p> : null}
         <dl className="space-y-2 rounded-lg border border-line bg-card p-5 text-sm">
           <div>
             <dt className="text-muted">상태</dt>
@@ -165,7 +229,7 @@ export function QrScanPage() {
             <p className="mt-2 text-sm text-muted">이력이 없습니다.</p>
           )}
         </section>
-        <Link className="inline-block text-sm text-accent underline" to="/assets">
+        <Link className="inline-block text-sm text-accent underline" to={href('/assets')}>
           자산 화면에서 이관·수리·폐기
         </Link>
       </div>
@@ -179,13 +243,15 @@ export function QrScanPage() {
       <div>
         <h1 className="text-2xl font-semibold">자산 정보 입력</h1>
         <p className="mt-2 text-sm text-muted">
-          빈 QR에 자산번호를 넣지 않습니다. 품목·모델·일련번호·위치·부서·담당자·취득일을 입력해 저장하세요.
+          {guest
+            ? '샘플 빈 QR입니다. 자산번호를 넣지 않습니다. 이 화면에서 품목·위치만 넣고 바로 샘플 자산으로 확인합니다.'
+            : '빈 QR에 자산번호를 넣지 않습니다. 품목·모델·일련번호·위치·부서·담당자·취득일을 입력해 저장하세요.'}
         </p>
       </div>
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
       {!canSave && label && label.status !== 'blank' ? (
-        <p className="text-sm text-muted">{phoneQrSavedMessage()}</p>
+        <p className="text-sm text-muted">{phoneQrSavedMessage(guest)}</p>
       ) : null}
       {canSave ? (
         <form
@@ -197,8 +263,8 @@ export function QrScanPage() {
         >
           <label className="block text-sm">
             품목
-            <select name="itemName" className="mt-1 w-full rounded border border-line px-3 py-2" defaultValue={COMPANY_ASSET_ITEMS[0]?.name ?? '책상'}>
-              {COMPANY_ASSET_ITEMS.map((item) => (
+            <select name="itemName" className="mt-1 w-full rounded border border-line px-3 py-2" defaultValue={itemOptions[0]?.name ?? '책상'}>
+              {itemOptions.map((item) => (
                 <option key={item.id} value={item.name}>
                   {item.name}
                 </option>

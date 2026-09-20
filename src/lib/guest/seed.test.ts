@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { PAPER_ITEM } from '../master/book'
-import { assertGuestOpensMemory, GUEST_PAPER_IN_OP, GUEST_PAPER_QTY, seedGuestCompany } from './seed'
+import {
+  assertGuestOpensMemory,
+  GUEST_BLANK_QR_ID,
+  GUEST_PAPER_IN_OP,
+  GUEST_PAPER_QTY,
+  seedGuestCompany,
+} from './seed'
 
 describe('게스트 샘플 시드', () => {
   it('본사 시드가 아니라 견본 이름만 넣는다', async () => {
@@ -43,6 +49,8 @@ describe('게스트 샘플 시드', () => {
     expect(execSql.some((sql) => sql.includes('insert into stock_ledger'))).toBe(true)
     expect(batchParams.some((params) => params.includes(GUEST_PAPER_IN_OP))).toBe(true)
     expect(batchParams.some((params) => params.includes(GUEST_PAPER_QTY))).toBe(true)
+    expect(execParams.some((params) => params.includes(GUEST_BLANK_QR_ID))).toBe(true)
+    expect(execSql.some((sql) => sql.includes('insert or ignore into qr_labels'))).toBe(true)
     expect(GUEST_PAPER_QTY).toBe(7)
   })
 

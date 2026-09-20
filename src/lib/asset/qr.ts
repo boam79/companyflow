@@ -12,6 +12,15 @@ export function assertLabelId(labelId: string): string {
   return id
 }
 
+export function isQrScanPath(pathname: string) {
+  return pathname.startsWith('/q/') || pathname.startsWith('/guest/q/')
+}
+
+export function qrScanPath(labelId: string, guest = false) {
+  const id = assertLabelId(labelId)
+  return guest ? `/guest/q/${id}` : `/q/${id}`
+}
+
 export function assertBlankQrUrl(url: string) {
   if (/AST-/i.test(url) || /companyflow:asset/i.test(url)) {
     throw new Error('빈 QR은 자산번호를 넣지 않습니다.')
@@ -22,15 +31,16 @@ export function assertBlankQrUrl(url: string) {
   } catch {
     throw new Error('빈 QR 주소가 아닙니다.')
   }
-  if (!/^\/q\/[0-9a-f-]{36}$/i.test(parsed.pathname)) {
+  const match = parsed.pathname.match(/^\/(?:guest\/)?q\/([^/]+)$/i)
+  if (!match) {
     throw new Error('빈 QR 주소가 아닙니다.')
   }
-  assertLabelId(parsed.pathname.slice(3))
+  assertLabelId(match[1])
 }
 
-export function blankQrScanUrl(origin: string, labelId: string) {
+export function blankQrScanUrl(origin: string, labelId: string, guest = false) {
   const base = origin.replace(/\/$/, '')
-  const url = `${base}/q/${assertLabelId(labelId)}`
+  const url = `${base}${qrScanPath(labelId, guest)}`
   assertBlankQrUrl(url)
   return url
 }
@@ -47,8 +57,8 @@ export function assertBlankQrCount(count: number) {
   return count
 }
 
-export async function blankQrDataUrl(origin: string, labelId: string) {
-  return QRCode.toDataURL(blankQrScanUrl(origin, labelId), {
+export async function blankQrDataUrl(origin: string, labelId: string, guest = false) {
+  return QRCode.toDataURL(blankQrScanUrl(origin, labelId, guest), {
     width: 384,
     margin: 1,
     errorCorrectionLevel: 'M',

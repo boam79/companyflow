@@ -6,6 +6,7 @@ import type { CompanySqlite } from '../sqlite/client'
 export const GUEST_PAPER_QTY = 7
 export const GUEST_PAPER_IN_OP = 'guest:paper-in'
 export const GUEST_PAPER_ITEM_ID = 'item-paper'
+export const GUEST_BLANK_QR_ID = 'c0ffee00-0000-4000-8000-000000000001'
 
 export function assertGuestOpensMemory(guest: boolean, vfsName: string) {
   if (guest && vfsName !== MEMORY_VFS) {
@@ -154,6 +155,11 @@ export async function seedGuestCompany(
       '2026-09-01',
     ],
   )
+  await db.exec('insert or ignore into qr_labels(id, status, created_at) values(?, ?, ?)', [
+    GUEST_BLANK_QR_ID,
+    'blank',
+    now,
+  ])
   await db.exec(
     `insert or ignore into contracts(
       id, title, contract_no, counterparty, signed_at, start_at, end_at, amount, currency,
