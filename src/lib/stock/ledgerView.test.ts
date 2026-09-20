@@ -119,7 +119,7 @@ describe('입출고 수불부', () => {
     expect(
       rows.map((row) => [row.label, row.inbound, row.outbound, row.warehouseBalance, row.companyBalance]),
     ).toEqual([
-      ['직접 입고', 8, null, 8, 8],
+      ['입고', 8, null, 8, 8],
       ['이동 출고', null, 2, 6, 8],
       ['이동 입고', 2, null, 2, 8],
     ])
@@ -177,7 +177,7 @@ describe('입출고 수불부', () => {
 
     const rows = buildSupplyLedgerView(restored)
     expect(rows.map((row) => [row.label, row.inbound, row.outbound, row.companyBalance])).toEqual([
-      ['직접 입고', 6, null, 6],
+      ['입고', 6, null, 6],
       ['반출', null, 4, 2],
     ])
     expect(rows.some((row) => /자산화|본사창고|부속창고/.test(`${row.label}${row.link}`))).toBe(false)

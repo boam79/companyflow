@@ -2,12 +2,12 @@
 
 마지막 갱신: 2026-09-20  
 현재 역할: Executor  
-구현: T1~T6 완료. T8 계약 OCR 사용자 확인. T7 이관·QR·수령 자산화. 홈 수령 대기·계약 기한·입사 중·재고 부족·최근 작업. T7 완료 아님.  
+D-31: `/stock` 기본은 입고·반출·재고현황. 발주·수령·검수는 더 보기. 지정 Chrome 확인 전.  
 원격: https://github.com/boam79/companyflow.git
 
 ## 지금 하는 일
 
-지정 Chrome PUR-05 정상·불량 확인. 검수 통과분 공급사 반품. 결재·거절품 반환·통계는 넣지 않는다.
+D-31 매일 화면 단순화. 지정 Chrome `/stock` 입고→반출·재고현황 확인.
 
 ## 보드
 
@@ -46,6 +46,8 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 - Supabase 활성: `companyflow`, `boardroom`. 정지: `boam79_patient_data`, `qr-asset-manager`, `policyfund-ai-v2`.
 - `confirm_company_device` RPC 추가. 초기 설정 성공 후 원본 장치를 confirmed 로 올린다.
 
+- 2026-09-20: D-31 `/stock` 기본 입고·반출·재고현황. 발주·수령은 더 보기. 지정 Chrome 확인 전.
+- 2026-09-20: Planner. 구매·재고 매일 화면을 입고·반출·재고현황으로 줄이자는 제안. 사용자 확인 후 구현.
 - 2026-09-20: PUR-05 검수 통과분 공급사 반품. 현재고 감소·잔량 복구. 거절품 반환은 아직.
 - 2026-09-20: PUR-05 수령 정상·불량. 불량은 재고·잔량에 넣지 않음. 반품은 아직.
 - 2026-09-20: PUR-04 지정 Chrome 확인(같은 발주번호 복사용지·책상). 자산 수령 뒤 반출은 비품으로.

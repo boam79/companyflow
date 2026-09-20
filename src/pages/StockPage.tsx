@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { flushSync } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { StockLedgerTable } from '../components/StockLedgerTable'
@@ -14,9 +13,10 @@ import { getCompanySqlite } from '../lib/sqlite/instance'
 import { executeStockCommand, ensureDefaultStockMaster, loadOrderOriginal, loadStockState, orderAttachment } from '../lib/stock/persist'
 import { toArrayBuffer } from '../lib/contracts/book'
 import { companyOnHand, onHand, orderNetReceived, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
-import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, orderRemainingCaption, resolveOrderPartnerId, supplyItems, supplyOrderCsv, todayYmd, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, resolveOrderPartnerId, supplyItems, supplyOrderCsv, todayYmd, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
-import { commandFromSuggestion, stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
+import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
 type NamedRow = { id: string; name: string }
@@ -24,18 +24,7 @@ type ActionType = StockCommand['type']
 type ExtraOrderLine = { key: string; itemId: string; qty: string }
 
 const sqlite = getCompanySqlite()
-const ACTIONS: { id: ActionType; label: string }[] = [
-  { id: 'confirm_order', label: '발주 확정' },
-  { id: 'post_receipt', label: '수령' },
-  { id: 'post_supplier_return', label: '공급사 반품' },
-  { id: 'post_issue', label: '반출' },
-  { id: 'post_return', label: '반납' },
-  { id: 'draft_order', label: '발주 초안' },
-  { id: 'post_direct_in', label: '직접 입고' },
-  { id: 'post_outbound', label: '출고' },
-  { id: 'adjust_stock', label: '실사 조정' },
-  { id: 'reverse_transaction', label: '정정' },
-]
+const ACTIONS = [...DAILY_STOCK_ACTIONS, ...MORE_STOCK_ACTIONS]
 
 function downloadSupplyOrderCsv(rows: PurchaseOrderRow[]) {
   const blob = new Blob([supplyOrderCsv(rows)], { type: 'text/csv;charset=utf-8' })
@@ -68,14 +57,15 @@ export function StockPage() {
   } | null>(null)
   const orderFileInput = useRef<HTMLInputElement>(null)
   const [state, setState] = useState<StockState | null>(null)
-  const [action, setAction] = useState<ActionType>('confirm_order')
+  const [action, setAction] = useState<ActionType>('post_direct_in')
+  const [showMoreActions, setShowMoreActions] = useState(false)
   const [operationId, setOperationId] = useState('')
   const [orderId, setOrderId] = useState('ord-paper')
   const [itemId, setItemId] = useState('item-paper')
   const [warehouseId, setWarehouseId] = useState('wh-main')
   const fromWarehouseId = 'wh-main'
   const toWarehouseId = 'wh-sub'
-  const [qty, setQty] = useState('10')
+  const [qty, setQty] = useState('1')
   const [defectQty, setDefectQty] = useState('0')
   const [personName, setPersonName] = useState('김담당')
   const [departmentId, setDepartmentId] = useState('')
@@ -161,12 +151,6 @@ export function StockPage() {
       return visible[visible.length - 1] ?? null
     })
     const nextStockItems = supplyItems(itemRows)
-    const suggested = suggestNextStockForm(
-      nextState,
-      orderId,
-      itemRows.find((row) => row.id === itemId) ?? itemRows.find((row) => row.id === 'item-paper'),
-    )
-    applySuggestedForm(suggested?.action === 'convert_to_asset' ? null : suggested)
     const keepItem = itemRows.find((row) => row.id === itemId)
     if (!keepItem || !(isSupplyItem(keepItem) || isCompanyAssetItem(keepItem))) {
       if (nextStockItems[0]) setItemId(nextStockItems[0].id)
@@ -268,6 +252,10 @@ export function StockPage() {
     )
     if (suggested?.action === nextAction) {
       applySuggestedForm(suggested)
+      return
+    }
+    if (nextAction === 'post_direct_in') {
+      setQty((prev) => (Number(prev) > 0 ? prev : '1'))
       return
     }
     if (nextAction === 'post_receipt') {
@@ -382,45 +370,6 @@ export function StockPage() {
     }
   }
 
-  async function applyRemaining() {
-    if (!ready || !companyId || !state) return
-    setMessage('')
-    setSaving(true)
-    const labels: string[] = []
-    let current = state
-    try {
-      for (let step = 0; step < 8; step += 1) {
-        const next = suggestNextStockForm(current, orderId)
-        if (!next) break
-        const nextOperationId = crypto.randomUUID()
-        const result = await executeStockCommand(
-          sqlite,
-          commandFromSuggestion(next, nextOperationId, {
-            orderId,
-            itemId,
-            warehouseId,
-            fromWarehouseId,
-            toWarehouseId,
-            partnerId: orderPartnerId.trim() || undefined,
-            dueDate: orderDueDate.trim() || undefined,
-            orderDate: orderDate.trim() || undefined,
-            currency: orderCurrency,
-          }),
-        )
-        current = result.state
-        labels.push(`${ACTIONS.find((item) => item.id === next.action)?.label} ${next.qty}`)
-        setLastOperationId(nextOperationId)
-      }
-      setNotice(labels.length ? `이어서 확정했습니다. ${labels.join(' → ')}` : '이어서 처리할 거래가 없습니다.')
-      await reload()
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
-      await reload()
-    } finally {
-      setSaving(false)
-    }
-  }
-
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!ready || !companyId) return
@@ -486,7 +435,6 @@ export function StockPage() {
               : `저장했습니다. (${ACTIONS.find((item) => item.id === action)?.label} · ${nextOperationId})`,
       )
       if (result.status === 'applied') {
-        applySuggestedForm(suggestNextStockForm(result.state, orderId, resolved.item))
         if (action === 'draft_order' || action === 'confirm_order') {
           setPendingOrderFile(null)
           if (orderFileInput.current) orderFileInput.current.value = ''
@@ -519,11 +467,6 @@ export function StockPage() {
   const formItems =
     action === 'draft_order' || action === 'confirm_order' || action === 'post_receipt' ? orderableItems : stockItems
   const paperQty = state ? companyOnHand(state, itemId) : 0
-  const remaining = state ? orderRemaining(state, orderId, itemId) : 0
-  const suggested = state
-    ? suggestNextStockForm(state, orderId, items.find((row) => row.id === itemId) ?? stockItems.find((row) => row.id === itemId))
-    : null
-  const nextForm = suggested?.action === 'convert_to_asset' ? null : suggested
   const inventory =
     state && stockItems.length && warehouses.length ? buildSupplyInventory(stockItems, warehouses, state) : []
   const selectedInventory = inventory.find((row) => row.itemId === itemId) ?? inventory[0]
@@ -536,7 +479,7 @@ export function StockPage() {
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold">구매·재고</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted">
-            복사용지는 수불부로 수량을 다룹니다. 책상·컴퓨터 발주를 수령하면 창고 재고가 아니라 개별 자산으로 등록됩니다.
+            입고하면 현재고가 늘고 반출하면 줄어듭니다. 책상·컴퓨터는 자산입니다.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -575,13 +518,12 @@ export function StockPage() {
       <section className="rounded-lg border border-line bg-card p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <h2 className="text-base font-semibold">현재고</h2>
+            <h2 className="text-base font-semibold">재고현황</h2>
             <p className="mt-1 text-sm text-muted">
               {selectedInventory ? (
                 <>
                   {selectedInventory.itemName}{' '}
                   <strong className="text-ink tabular-nums">{selectedInventory.total}</strong>
-                  {orderRemainingCaption(selectedInventory, state?.orders.get(orderId), remaining)}
                 </>
               ) : (
                 <>
@@ -632,10 +574,8 @@ export function StockPage() {
       <section className="flex min-h-0 flex-col rounded-lg border border-line bg-card p-4">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
-            <h2 className="text-base font-semibold">비품 수불부</h2>
-            <p className="mt-1 text-sm text-muted">
-              사 온 비품이 얼마나 들어왔고 나갔는지만 보여 줍니다. 자산화·창고 이동은 비품 흐름이 아닙니다.
-            </p>
+            <h2 className="text-base font-semibold">수불부</h2>
+            <p className="mt-1 text-sm text-muted">들어온 수량과 나간 수량을 이어 보여 줍니다.</p>
           </div>
           <div className="flex rounded border border-line text-sm">
             {(
@@ -660,7 +600,9 @@ export function StockPage() {
           </div>
         </div>
         {supplyOrders.length || assetOrders.length ? (
-          <div className="mt-3 space-y-3">
+          <details className="mt-3 text-sm">
+            <summary className="cursor-pointer text-muted">발주 기록 {supplyOrders.length + assetOrders.length}</summary>
+            <div className="mt-2 space-y-3">
             {supplyOrders.length ? (
               <div>
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -673,7 +615,6 @@ export function StockPage() {
                     목록 받기
                   </button>
                 </div>
-                <p className="mt-1 text-xs text-muted">한 발주서에 여러 품목을 넣으면 같은 번호로 줄이 늘어납니다. 수령의 정상만 재고에 넣고 불량은 잔량에 남깁니다. 공급사 반품은 검수 통과분만 현재고에서 빼 잔량을 되돌립니다.</p>
                 <div className="mt-2 overflow-x-auto">
                   <table className="min-w-max w-full text-left text-sm">
                     <thead>
@@ -702,7 +643,10 @@ export function StockPage() {
                             className={`cursor-pointer border-b border-line/70 ${
                               active ? 'bg-accent-soft' : 'hover:bg-paper'
                             }`}
-                            onClick={() => chooseOrder(row)}
+                            onClick={() => {
+                              setShowMoreActions(true)
+                              chooseOrder(row)
+                            }}
                           >
                             <td className="whitespace-nowrap py-1.5 pr-3 font-medium">{row.orderId}</td>
                             <td className="whitespace-nowrap py-1.5 pr-3">{row.itemName}</td>
@@ -732,7 +676,10 @@ export function StockPage() {
                     <button
                       type="button"
                       className={`text-left ${row.orderId === orderId ? 'font-semibold text-accent' : 'hover:text-ink'}`}
-                      onClick={() => chooseOrder(row)}
+                      onClick={() => {
+                        setShowMoreActions(true)
+                        chooseOrder(row)
+                      }}
                     >
                       자산 발주 {row.orderId} · {row.itemName} {row.orderedQty}
                       {row.supplierName ? ` · ${row.supplierName}` : ''}
@@ -746,9 +693,8 @@ export function StockPage() {
                 ))}
               </ul>
             ) : null}
-          </div>
-        ) : ready ? (
-          <p className="mt-2 text-sm text-muted">아직 비품 발주가 없습니다. 오른쪽에서 발주 초안·확정을 남기면 이 목록에 모입니다.</p>
+            </div>
+          </details>
         ) : null}
         <div className="mt-1 min-h-0 max-h-[calc(100svh-14rem)] overflow-auto">
         <StockLedgerTable
@@ -772,38 +718,6 @@ export function StockPage() {
       </section>
 
       <div className="flex flex-col gap-3">
-      {nextForm ? (
-        <section className="flex flex-col gap-2 rounded-lg border border-accent bg-accent-soft px-4 py-3">
-          <p className="text-sm text-accent">{nextForm.hint}</p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="submit"
-              form="stock-command"
-              disabled={!ready || saving}
-              className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-              onClick={(event) => {
-                if (!nextForm) return
-                if (action === nextForm.action && qty === nextForm.qty) return
-                event.preventDefault()
-                flushSync(() => applySuggestedForm(nextForm))
-                const form = document.getElementById('stock-command')
-                if (form instanceof HTMLFormElement) form.requestSubmit()
-              }}
-            >
-              {ACTIONS.find((item) => item.id === nextForm.action)?.label} {nextForm.qty}
-            </button>
-              <button
-                type="button"
-                disabled={!ready || saving}
-                className="rounded border border-accent px-4 py-2 text-sm font-semibold text-accent disabled:opacity-50"
-                onClick={() => void applyRemaining()}
-              >
-                이어서 모두 확정
-              </button>
-          </div>
-        </section>
-      ) : null}
-
       <form
         id="stock-command"
         className="grid gap-3 rounded-lg border border-line bg-card p-4"
@@ -819,13 +733,20 @@ export function StockPage() {
               value={action}
               onChange={(e) => onActionChange(e.target.value as ActionType)}
             >
-              {ACTIONS.map((item) => (
+              {stockActionChoices(showMoreActions, action).map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.label}
                 </option>
               ))}
             </select>
           </label>
+          <button
+            type="button"
+            className="mb-0.5 text-xs font-semibold text-accent"
+            onClick={() => setShowMoreActions((prev) => !prev)}
+          >
+            {showMoreActions ? '매일 명령만' : '발주·검수 더 보기'}
+          </button>
           {action !== 'reverse_transaction' ? (
             <label className="w-28 text-sm">
               {action === 'adjust_stock' ? '실사 수량' : action === 'post_receipt' ? '정상' : '수량'}
@@ -861,7 +782,7 @@ export function StockPage() {
         {notice ? <p className="text-sm text-ok">{notice}</p> : null}
         {message ? <p className="text-sm text-danger">{message}</p> : null}
         <div className="grid gap-3 sm:grid-cols-2">
-          {action === 'draft_order' || action === 'confirm_order' || action === 'post_receipt' ? (
+          {action === 'draft_order' || action === 'confirm_order' || action === 'post_receipt' || action === 'post_supplier_return' ? (
             <label className="text-sm">
               발주 번호
               <input

@@ -96,7 +96,7 @@ describe('홈 업무', () => {
       ...Array.from({ length: 8 }, (_, index) => ({
         id: `pad-${index}`,
         at: `2026-08-0${index + 1}T00:00:00.000Z`,
-        label: '직접 입고',
+        label: '입고',
         detail: `볼펜 ${index}`,
         to: '/stock' as const,
       })),
@@ -107,9 +107,9 @@ describe('홈 업무', () => {
       ['계약 초안', '본사 3층 임대', '/contracts'],
       ['입사', '김담당', '/people'],
       ['수령 입고', '복사용지 6', '/stock'],
-      ['직접 입고', '볼펜 7', '/stock'],
-      ['직접 입고', '볼펜 6', '/stock'],
-      ['직접 입고', '볼펜 5', '/stock'],
+      ['입고', '볼펜 7', '/stock'],
+      ['입고', '볼펜 6', '/stock'],
+      ['입고', '볼펜 5', '/stock'],
     ])
   })
 

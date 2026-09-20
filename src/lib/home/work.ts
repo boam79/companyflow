@@ -25,7 +25,7 @@ export type RecentWork = {
 
 const TXN_LABELS: Record<string, string> = {
   receipt: '수령 입고',
-  direct_in: '직접 입고',
+  direct_in: '입고',
   issue: '반출',
   outbound: '출고',
   return: '반납 입고',
