@@ -1,5 +1,6 @@
 import { assetsFromConvert } from '../asset/book'
 import { assetsFromReceipt, allocateReceiptQty } from '../asset/receipt'
+import { assertContractFile, base64ToBytes, bytesToBase64 } from '../contracts/book'
 import { assertConvertibleItem, loadItems, writeDefaultMaster, type ItemRecord } from '../master/book'
 import type { CompanySqlite } from '../sqlite/client'
 import { supplyItemInsert } from './typedItem'
@@ -39,6 +40,9 @@ export type OrderRow = {
   partner_id?: string | null
   due_date?: string | null
   order_date?: string | null
+  file_name?: string | null
+  file_mime?: string | null
+  file_base64?: string | null
 }
 
 type StockDb = Pick<CompanySqlite, 'query' | 'batch'>
@@ -46,6 +50,15 @@ type StockDb = Pick<CompanySqlite, 'query' | 'batch'>
 export function isUniqueConstraintError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error)
   return /UNIQUE constraint failed/i.test(message)
+}
+
+export function orderAttachment(file: { name: string; mime?: string; bytes: Uint8Array }) {
+  const fileMime = assertContractFile(file.bytes.byteLength, file.mime, file.name)
+  return {
+    fileName: file.name.trim() || '발주첨부',
+    fileMime,
+    fileBase64: bytesToBase64(file.bytes),
+  }
 }
 
 export function ledgerInsert(line: LedgerLine, createdAt: string): SqlStatement {
@@ -82,8 +95,10 @@ export function statementsForCommand(
     const order = next.orders.get(command.orderId)
     if (order) {
       statements.push({
-        sql: `insert or replace into stock_orders(id, item_id, qty, status, partner_id, due_date, order_date, operation_id, created_at)
-          values(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        sql: `insert or replace into stock_orders(
+            id, item_id, qty, status, partner_id, due_date, order_date,
+            file_name, file_mime, file_base64, operation_id, created_at)
+          values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         params: [
           order.id,
           order.itemId,
@@ -92,6 +107,9 @@ export function statementsForCommand(
           order.partnerId ?? null,
           order.dueDate ?? null,
           order.orderDate ?? null,
+          order.fileName ?? null,
+          order.fileMime ?? null,
+          order.fileBase64 ?? null,
           command.operationId,
           createdAt,
         ],
@@ -173,6 +191,9 @@ export function stateFromRows(
       partnerId: order.partner_id ?? undefined,
       dueDate: order.due_date ?? undefined,
       orderDate: order.order_date ?? undefined,
+      fileName: order.file_name ?? undefined,
+      fileMime: order.file_mime ?? undefined,
+      fileBase64: order.file_base64 ?? undefined,
     }
     state.orders.set(order.id, row)
     state.processed.set(order.operation_id, 'applied')
@@ -200,7 +221,10 @@ export function stateFromRows(
 
 export async function loadStockState(db: Pick<CompanySqlite, 'query'>): Promise<StockState> {
   const [orders, ledger, processed] = await Promise.all([
-    db.query<OrderRow>('select id, item_id, qty, status, partner_id, due_date, order_date, operation_id from stock_orders'),
+    db.query<OrderRow>(
+      `select id, item_id, qty, status, partner_id, due_date, order_date,
+        file_name, file_mime, file_base64, operation_id from stock_orders`,
+    ),
     db.query<LedgerRow>(
       `select id, operation_id, txn_type, item_id, warehouse_id, qty_delta,
         person_name, department_id, source_operation_id, order_id, reason, created_at
@@ -213,6 +237,24 @@ export async function loadStockState(db: Pick<CompanySqlite, 'query'>): Promise<
     ledger,
     processed.map((row) => row.operation_id),
   )
+}
+
+export async function loadOrderOriginal(
+  db: Pick<CompanySqlite, 'query'>,
+  orderId: string,
+) {
+  const rows = await db.query<{
+    file_name?: string | null
+    file_mime?: string | null
+    file_base64?: string | null
+  }>('select file_name, file_mime, file_base64 from stock_orders where id = ?', [orderId])
+  const row = rows[0]
+  if (!row?.file_base64 || !row.file_name) throw new Error('발주 첨부가 없습니다.')
+  return {
+    fileName: row.file_name,
+    fileMime: row.file_mime || 'application/octet-stream',
+    bytes: base64ToBytes(row.file_base64),
+  }
 }
 
 export async function executeStockCommand(

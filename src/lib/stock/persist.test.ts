@@ -7,6 +7,7 @@ import {
 } from './engine'
 import {
   isUniqueConstraintError,
+  orderAttachment,
   statementsForCommand,
   stateFromRows,
 } from './persist'
@@ -190,6 +191,9 @@ describe('재고 영속 묶음', () => {
       'partner-mfp',
       '2026-09-27',
       '2026-09-20',
+      null,
+      null,
+      null,
       'op-paper',
       '2026-09-20T00:00:00.000Z',
     ])
@@ -212,5 +216,46 @@ describe('재고 영속 묶음', () => {
     expect(restored.orders.get('ord-paper')?.partnerId).toBe('partner-mfp')
     expect(restored.orders.get('ord-paper')?.dueDate).toBe('2026-09-27')
     expect(restored.orders.get('ord-paper')?.orderDate).toBe('2026-09-20')
+  })
+
+  it('발주 SQL에 첨부를 넣고 다시 읽는다', () => {
+    const attached = orderAttachment({
+      name: 'quote.png',
+      mime: 'image/png',
+      bytes: new Uint8Array([1, 2, 3, 4]),
+    })
+    expect(attached.fileName).toBe('quote.png')
+    expect(attached.fileMime).toBe('image/png')
+    const prev = createStockState()
+    const command = {
+      type: 'confirm_order' as const,
+      operationId: 'op-file',
+      orderId: 'ord-file',
+      itemId: ITEM,
+      qty: 10,
+      ...attached,
+    }
+    const next = applyStockCommand(prev, command).state
+    const statements = statementsForCommand(command, prev, next, '2026-09-20T00:00:00.000Z')
+    expect(statements[0]?.sql).toContain('file_base64')
+    expect(statements[0]?.params).toContain('quote.png')
+    const restored = stateFromRows(
+      [
+        {
+          id: 'ord-file',
+          item_id: ITEM,
+          qty: 10,
+          status: 'confirmed',
+          operation_id: 'op-file',
+          file_name: attached.fileName,
+          file_mime: attached.fileMime,
+          file_base64: attached.fileBase64,
+        },
+      ],
+      [],
+      [],
+    )
+    expect(restored.orders.get('ord-file')?.fileName).toBe('quote.png')
+    expect(restored.orders.get('ord-file')?.fileBase64).toBe(attached.fileBase64)
   })
 })

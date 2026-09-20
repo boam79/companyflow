@@ -10,6 +10,9 @@ export type StockCommand =
       partnerId?: string
       dueDate?: string
       orderDate?: string
+      fileName?: string
+      fileMime?: string
+      fileBase64?: string
     }
   | {
       type: 'post_receipt'
@@ -115,6 +118,9 @@ export type StockOrder = {
   partnerId?: string
   dueDate?: string
   orderDate?: string
+  fileName?: string
+  fileMime?: string
+  fileBase64?: string
 }
 
 export type StockState = {
@@ -186,6 +192,9 @@ export function applyStockCommand(
         partnerId: command.partnerId ?? existing?.partnerId,
         dueDate: command.dueDate ?? existing?.dueDate,
         orderDate: command.orderDate ?? existing?.orderDate,
+        fileName: command.fileName ?? existing?.fileName,
+        fileMime: command.fileMime ?? existing?.fileMime,
+        fileBase64: command.fileBase64 ?? existing?.fileBase64,
       })
       break
     }
@@ -392,6 +401,9 @@ export const STOCK_TABLE_SQL = [
     partner_id text,
     due_date text,
     order_date text,
+    file_name text,
+    file_mime text,
+    file_base64 text,
     operation_id text not null unique,
     created_at text not null
   );`,

@@ -11,7 +11,8 @@ import { allocateReceiptQty } from '../lib/asset/receipt'
 import { migrateProcessAssetsToChecks } from '../lib/people/onboarding'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { getCompanySqlite } from '../lib/sqlite/instance'
-import { executeStockCommand, ensureDefaultStockMaster, loadStockState } from '../lib/stock/persist'
+import { executeStockCommand, ensureDefaultStockMaster, loadOrderOriginal, loadStockState, orderAttachment } from '../lib/stock/persist'
+import { toArrayBuffer } from '../lib/contracts/book'
 import { companyOnHand, onHand, orderRemaining, type LedgerLine, type StockCommand, type StockState } from '../lib/stock/engine'
 import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, orderRemainingCaption, resolveOrderPartnerId, supplyItems, supplyOrderCsv, todayYmd, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
@@ -55,6 +56,13 @@ export function StockPage() {
   const [orderPartnerId, setOrderPartnerId] = useState('')
   const [orderDueDate, setOrderDueDate] = useState('')
   const [orderDate, setOrderDate] = useState(todayYmd)
+  const [orderFileName, setOrderFileName] = useState('')
+  const [pendingOrderFile, setPendingOrderFile] = useState<{
+    fileName: string
+    fileMime: string
+    fileBase64: string
+  } | null>(null)
+  const orderFileInput = useRef<HTMLInputElement>(null)
   const [state, setState] = useState<StockState | null>(null)
   const [action, setAction] = useState<ActionType>('confirm_order')
   const [operationId, setOperationId] = useState('')
@@ -182,6 +190,36 @@ export function StockPage() {
     setOrderPartnerId(row.partnerId ?? '')
     setOrderDueDate(row.dueDate ?? '')
     setOrderDate(row.orderDate || todayYmd())
+    setOrderFileName(row.fileName)
+    setPendingOrderFile(null)
+  }
+
+  async function pickOrderFile(file: File) {
+    setMessage('')
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      const attached = orderAttachment({ name: file.name, mime: file.type, bytes })
+      setPendingOrderFile(attached)
+      setOrderFileName(attached.fileName)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+      if (orderFileInput.current) orderFileInput.current.value = ''
+    }
+  }
+
+  async function downloadOrderFile() {
+    setMessage('')
+    try {
+      const original = await loadOrderOriginal(sqlite, orderId)
+      const url = URL.createObjectURL(new Blob([toArrayBuffer(original.bytes)], { type: original.fileMime }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = original.fileName
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
   }
 
   function applySuggestedForm(next: NextStockForm | null) {
@@ -242,6 +280,7 @@ export function StockPage() {
           ),
           dueDate: orderDueDate.trim() || undefined,
           orderDate: orderDate.trim() || undefined,
+          ...(pendingOrderFile ?? {}),
         }
       case 'post_receipt':
         return {
@@ -376,6 +415,10 @@ export function StockPage() {
       )
       if (result.status === 'applied') {
         applySuggestedForm(suggestNextStockForm(result.state, orderId))
+        if (action === 'draft_order' || action === 'confirm_order') {
+          setPendingOrderFile(null)
+          if (orderFileInput.current) orderFileInput.current.value = ''
+        }
       }
       await reload()
     } catch (error) {
@@ -557,20 +600,21 @@ export function StockPage() {
                     목록 받기
                   </button>
                 </div>
-                <p className="mt-1 text-xs text-muted">일반 비품만 발주 항목별로 모읍니다. 책상·컴퓨터는 자산 발주입니다. 공급사·발주일·납기는 발주에서 넣습니다.</p>
+                <p className="mt-1 text-xs text-muted">일반 비품만 발주 항목별로 모읍니다. 책상·컴퓨터는 자산 발주입니다. 공급사·발주일·납기·첨부는 발주에서 넣습니다.</p>
                 <div className="mt-2 overflow-x-auto">
-                  <table className="w-full text-left text-sm">
+                  <table className="min-w-max w-full text-left text-sm">
                     <thead>
                       <tr className="border-b border-line text-muted">
-                        <th className="py-1.5 pr-3 font-medium">발주번호</th>
-                        <th className="py-1.5 pr-3 font-medium">품목</th>
-                        <th className="py-1.5 pr-3 font-medium">공급사</th>
-                        <th className="py-1.5 pr-3 font-medium">발주일</th>
-                        <th className="py-1.5 pr-3 font-medium">납기</th>
-                        <th className="py-1.5 pr-3 text-right font-medium">발주</th>
-                        <th className="py-1.5 pr-3 text-right font-medium">수령</th>
-                        <th className="py-1.5 pr-3 text-right font-medium">잔량</th>
-                        <th className="py-1.5 font-medium">상태</th>
+                        <th className="whitespace-nowrap py-1.5 pr-3 font-medium">발주번호</th>
+                        <th className="whitespace-nowrap py-1.5 pr-3 font-medium">품목</th>
+                        <th className="whitespace-nowrap py-1.5 pr-3 font-medium">공급사</th>
+                        <th className="whitespace-nowrap py-1.5 pr-3 font-medium">발주일</th>
+                        <th className="whitespace-nowrap py-1.5 pr-3 font-medium">납기</th>
+                        <th className="whitespace-nowrap py-1.5 pr-3 font-medium">첨부</th>
+                        <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">발주</th>
+                        <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">수령</th>
+                        <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">잔량</th>
+                        <th className="whitespace-nowrap py-1.5 font-medium">상태</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -585,14 +629,15 @@ export function StockPage() {
                             onClick={() => chooseOrder(row)}
                           >
                             <td className="whitespace-nowrap py-1.5 pr-3 font-medium">{row.orderId}</td>
-                            <td className="py-1.5 pr-3">{row.itemName}</td>
-                            <td className="py-1.5 pr-3">{row.supplierName || '—'}</td>
+                            <td className="whitespace-nowrap py-1.5 pr-3">{row.itemName}</td>
+                            <td className="whitespace-nowrap py-1.5 pr-3">{row.supplierName || '—'}</td>
                             <td className="whitespace-nowrap py-1.5 pr-3">{row.orderDate || '—'}</td>
                             <td className="whitespace-nowrap py-1.5 pr-3">{row.dueDate || '—'}</td>
-                            <td className="py-1.5 pr-3 text-right tabular-nums">{row.orderedQty}</td>
-                            <td className="py-1.5 pr-3 text-right tabular-nums">{row.receivedQty}</td>
-                            <td className="py-1.5 pr-3 text-right tabular-nums">{row.remainingQty}</td>
-                            <td className="py-1.5">{row.status === 'draft' ? '초안' : '확정'}</td>
+                            <td className="whitespace-nowrap py-1.5 pr-3">{row.fileName || '—'}</td>
+                            <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{row.orderedQty}</td>
+                            <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{row.receivedQty}</td>
+                            <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{row.remainingQty}</td>
+                            <td className="whitespace-nowrap py-1.5">{row.status === 'draft' ? '초안' : '확정'}</td>
                           </tr>
                         )
                       })}
@@ -613,7 +658,8 @@ export function StockPage() {
                       자산 발주 {row.orderId} · {row.itemName} {row.orderedQty}
                       {row.supplierName ? ` · ${row.supplierName}` : ''}
                       {row.orderDate ? ` · 발주일 ${row.orderDate}` : ''}
-                      {row.dueDate ? ` · 납기 ${row.dueDate}` : ''} ·{' '}
+                      {row.dueDate ? ` · 납기 ${row.dueDate}` : ''}
+                      {row.fileName ? ` · ${row.fileName}` : ''} ·{' '}
                       {row.status === 'draft' ? '초안' : `잔량 ${row.remainingQty}`}
                     </button>
                   </li>
@@ -771,6 +817,43 @@ export function StockPage() {
                 onChange={(e) => setOrderDueDate(e.target.value)}
               />
             </label>
+          ) : null}
+          {action === 'draft_order' || action === 'confirm_order' ? (
+            <div className="text-sm">
+              첨부
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <input
+                  ref={orderFileInput}
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                  className="sr-only"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) void pickOrderFile(file)
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={!ready || saving}
+                  className="rounded border border-line px-3 py-2 text-sm font-semibold disabled:opacity-50"
+                  onClick={() => orderFileInput.current?.click()}
+                >
+                  첨부
+                </button>
+                {orderFileName && !pendingOrderFile ? (
+                  <button
+                    type="button"
+                    disabled={!ready || saving}
+                    className="rounded border border-line px-3 py-2 text-sm disabled:opacity-50"
+                    onClick={() => void downloadOrderFile()}
+                  >
+                    {orderFileName}
+                  </button>
+                ) : (
+                  <span className="text-xs text-muted">{orderFileName || 'PDF·PNG·JPEG 8MB'}</span>
+                )}
+              </div>
+            </div>
           ) : null}
           {action !== 'reverse_transaction' ? (
             <label className="text-sm">
