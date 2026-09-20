@@ -14,7 +14,7 @@ import { getCompanySqlite } from '../lib/sqlite/instance'
 import { executeStockCommand, ensureDefaultStockMaster, loadOrderOriginal, loadStockState, orderAttachment } from '../lib/stock/persist'
 import { toArrayBuffer } from '../lib/contracts/book'
 import { companyOnHand, onHand, orderRemaining, type LedgerLine, type StockCommand, type StockState } from '../lib/stock/engine'
-import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, orderRemainingCaption, resolveOrderPartnerId, supplyItems, supplyOrderCsv, todayYmd, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, orderRemainingCaption, resolveOrderPartnerId, supplyItems, supplyOrderCsv, todayYmd, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { commandFromSuggestion, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
@@ -56,6 +56,7 @@ export function StockPage() {
   const [orderPartnerId, setOrderPartnerId] = useState('')
   const [orderDueDate, setOrderDueDate] = useState('')
   const [orderDate, setOrderDate] = useState(todayYmd)
+  const [orderCurrency, setOrderCurrency] = useState('KRW')
   const [orderFileName, setOrderFileName] = useState('')
   const [pendingOrderFile, setPendingOrderFile] = useState<{
     fileName: string
@@ -190,6 +191,7 @@ export function StockPage() {
     setOrderPartnerId(row.partnerId ?? '')
     setOrderDueDate(row.dueDate ?? '')
     setOrderDate(row.orderDate || todayYmd())
+    setOrderCurrency(row.currency || 'KRW')
     setOrderFileName(row.fileName)
     setPendingOrderFile(null)
   }
@@ -280,6 +282,7 @@ export function StockPage() {
           ),
           dueDate: orderDueDate.trim() || undefined,
           orderDate: orderDate.trim() || undefined,
+          currency: orderCurrency,
           ...(pendingOrderFile ?? {}),
         }
       case 'post_receipt':
@@ -359,6 +362,7 @@ export function StockPage() {
             partnerId: orderPartnerId.trim() || undefined,
             dueDate: orderDueDate.trim() || undefined,
             orderDate: orderDate.trim() || undefined,
+            currency: orderCurrency,
           }),
         )
         current = result.state
@@ -600,7 +604,7 @@ export function StockPage() {
                     목록 받기
                   </button>
                 </div>
-                <p className="mt-1 text-xs text-muted">일반 비품만 발주 항목별로 모읍니다. 책상·컴퓨터는 자산 발주입니다. 공급사·발주일·납기·첨부는 발주에서 넣습니다.</p>
+                <p className="mt-1 text-xs text-muted">일반 비품만 발주 항목별로 모읍니다. 책상·컴퓨터는 자산 발주입니다. 공급사·발주일·납기·첨부·통화는 발주에서 넣습니다.</p>
                 <div className="mt-2 overflow-x-auto">
                   <table className="min-w-max w-full text-left text-sm">
                     <thead>
@@ -611,6 +615,7 @@ export function StockPage() {
                         <th className="whitespace-nowrap py-1.5 pr-3 font-medium">발주일</th>
                         <th className="whitespace-nowrap py-1.5 pr-3 font-medium">납기</th>
                         <th className="whitespace-nowrap py-1.5 pr-3 font-medium">첨부</th>
+                        <th className="whitespace-nowrap py-1.5 pr-3 font-medium">통화</th>
                         <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">발주</th>
                         <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">수령</th>
                         <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">잔량</th>
@@ -634,6 +639,7 @@ export function StockPage() {
                             <td className="whitespace-nowrap py-1.5 pr-3">{row.orderDate || '—'}</td>
                             <td className="whitespace-nowrap py-1.5 pr-3">{row.dueDate || '—'}</td>
                             <td className="whitespace-nowrap py-1.5 pr-3">{row.fileName || '—'}</td>
+                            <td className="whitespace-nowrap py-1.5 pr-3">{row.currencyName}</td>
                             <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{row.orderedQty}</td>
                             <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{row.receivedQty}</td>
                             <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{row.remainingQty}</td>
@@ -659,7 +665,8 @@ export function StockPage() {
                       {row.supplierName ? ` · ${row.supplierName}` : ''}
                       {row.orderDate ? ` · 발주일 ${row.orderDate}` : ''}
                       {row.dueDate ? ` · 납기 ${row.dueDate}` : ''}
-                      {row.fileName ? ` · ${row.fileName}` : ''} ·{' '}
+                      {row.fileName ? ` · ${row.fileName}` : ''}
+                      {row.currencyName ? ` · ${row.currencyName}` : ''} ·{' '}
                       {row.status === 'draft' ? '초안' : `잔량 ${row.remainingQty}`}
                     </button>
                   </li>
@@ -816,6 +823,22 @@ export function StockPage() {
                 value={orderDueDate}
                 onChange={(e) => setOrderDueDate(e.target.value)}
               />
+            </label>
+          ) : null}
+          {action === 'draft_order' || action === 'confirm_order' ? (
+            <label className="text-sm">
+              통화
+              <select
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={orderCurrency}
+                onChange={(e) => setOrderCurrency(e.target.value)}
+              >
+                {ORDER_CURRENCIES.map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {row.name}
+                  </option>
+                ))}
+              </select>
             </label>
           ) : null}
           {action === 'draft_order' || action === 'confirm_order' ? (

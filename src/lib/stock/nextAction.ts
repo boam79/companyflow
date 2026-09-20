@@ -83,6 +83,7 @@ export type SuggestionContext = {
   partnerId?: string
   dueDate?: string
   orderDate?: string
+  currency?: string
 }
 
 export function commandFromSuggestion(
@@ -103,6 +104,7 @@ export function commandFromSuggestion(
         partnerId: ctx.partnerId,
         dueDate: ctx.dueDate,
         orderDate: ctx.orderDate,
+        currency: ctx.currency,
       }
     case 'post_receipt':
       return {

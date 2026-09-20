@@ -51,6 +51,18 @@ export type PurchaseOrderRow = {
   dueDate: string
   orderDate: string
   fileName: string
+  currency: string
+  currencyName: string
+}
+
+export const ORDER_CURRENCIES = [
+  { id: 'KRW', name: '원' },
+  { id: 'USD', name: '달러' },
+] as const
+
+export function orderCurrencyLabel(id?: string): string {
+  const code = id?.trim() || 'KRW'
+  return ORDER_CURRENCIES.find((row) => row.id === code)?.name ?? code
 }
 
 export function resolveOrderPartnerId(
@@ -86,6 +98,8 @@ function orderRows(
         dueDate: order.dueDate ?? '',
         orderDate: order.orderDate ?? '',
         fileName: order.fileName ?? '',
+        currency: order.currency || 'KRW',
+        currencyName: orderCurrencyLabel(order.currency),
       }
     })
     .sort((a, b) => a.orderId.localeCompare(b.orderId))
@@ -122,7 +136,7 @@ function csvCell(value: string | number) {
 
 export function supplyOrderCsv(rows: PurchaseOrderRow[]): string {
   const lines = [
-    ['발주번호', '품목', '공급사', '발주일', '납기', '첨부', '발주', '수령', '잔량', '상태'].join(','),
+    ['발주번호', '품목', '공급사', '발주일', '납기', '첨부', '통화', '발주', '수령', '잔량', '상태'].join(','),
     ...rows.map((row) =>
       [
         csvCell(row.orderId),
@@ -131,6 +145,7 @@ export function supplyOrderCsv(rows: PurchaseOrderRow[]): string {
         csvCell(row.orderDate),
         csvCell(row.dueDate),
         csvCell(row.fileName),
+        csvCell(row.currencyName),
         row.orderedQty,
         row.receivedQty,
         row.remainingQty,

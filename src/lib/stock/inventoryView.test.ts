@@ -99,6 +99,8 @@ describe('비품 발주 목록', () => {
         dueDate: '',
         orderDate: '',
         fileName: '',
+        currency: 'KRW',
+        currencyName: '원',
       },
     ])
     expect(buildAssetOrderList(items, state)).toEqual([
@@ -114,6 +116,8 @@ describe('비품 발주 목록', () => {
         dueDate: '',
         orderDate: '',
         fileName: '',
+        currency: 'KRW',
+        currencyName: '원',
       },
     ])
   })
@@ -144,8 +148,26 @@ describe('비품 발주 목록', () => {
         dueDate: '',
         orderDate: '',
         fileName: '',
+        currency: 'KRW',
+        currencyName: '원',
       },
     ])
+  })
+
+  it('발주 목록은 달러 통화를 한글로 붙인다', () => {
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'confirm_order',
+      operationId: 'op-paper',
+      orderId: 'ord-paper',
+      itemId: PAPER_ITEM.id,
+      qty: 10,
+      currency: 'USD',
+    }).state
+    expect(buildSupplyOrderList([PAPER_ITEM], state)[0]).toMatchObject({
+      currency: 'USD',
+      currencyName: '달러',
+    })
   })
 
   it('발주 목록은 첨부 이름을 붙인다', () => {
@@ -217,7 +239,7 @@ describe('비품 발주 목록', () => {
     }).state
     const csv = supplyOrderCsv(buildSupplyOrderList(items, state))
     expect(csv.startsWith('\uFEFF')).toBe(true)
-    expect(csv).toContain('발주번호,품목,공급사,발주일,납기,첨부,발주,수령,잔량,상태')
-    expect(csv).toContain('ord-paper,복사용지,,,,,10,0,10,확정')
+    expect(csv).toContain('발주번호,품목,공급사,발주일,납기,첨부,통화,발주,수령,잔량,상태')
+    expect(csv).toContain('ord-paper,복사용지,,,,,원,10,0,10,확정')
   })
 })

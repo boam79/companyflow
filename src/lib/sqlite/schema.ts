@@ -81,6 +81,7 @@ export const SCHEMA_PATCHES = [
   'alter table stock_orders add column file_name text',
   'alter table stock_orders add column file_mime text',
   'alter table stock_orders add column file_base64 text',
+  "alter table stock_orders add column currency text not null default 'KRW'",
   `create table if not exists employment_checks (
     employee_id text not null,
     item_key text not null,

@@ -246,6 +246,37 @@ describe('복사용지 재고 원장', () => {
     expect(state.orders.get('ord-file')?.fileBase64).toBe('abc')
   })
 
+  it('발주 확정은 통화를 남기고 없으면 원이다', () => {
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'draft_order',
+      operationId: 'op-draft-fx',
+      orderId: 'ord-fx',
+      itemId: ITEM,
+      qty: 10,
+      currency: 'USD',
+    }).state
+    expect(state.orders.get('ord-fx')?.currency).toBe('USD')
+
+    state = applyStockCommand(state, {
+      type: 'confirm_order',
+      operationId: 'op-confirm-fx',
+      orderId: 'ord-fx',
+      itemId: ITEM,
+      qty: 10,
+    }).state
+    expect(state.orders.get('ord-fx')?.currency).toBe('USD')
+
+    state = applyStockCommand(createStockState(), {
+      type: 'confirm_order',
+      operationId: 'op-krw',
+      orderId: 'ord-krw',
+      itemId: ITEM,
+      qty: 1,
+    }).state
+    expect(state.orders.get('ord-krw')?.currency).toBe('KRW')
+  })
+
   it('가구 수령은 발주 잔량만 줄이고 현재고는 늘리지 않는다', () => {
     let state = createStockState()
     state = applyStockCommand(state, {

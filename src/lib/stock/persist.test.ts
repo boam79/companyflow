@@ -182,7 +182,8 @@ describe('재고 영속 묶음', () => {
     }
     const next = applyStockCommand(prev, command).state
     const statements = statementsForCommand(command, prev, next, '2026-09-20T00:00:00.000Z')
-    expect(statements[0]?.sql).toContain('order_date')
+    expect(statements[0]?.sql).toContain('currency')
+    expect(statements[0]?.params).toContain('KRW')
     expect(statements[0]?.params).toEqual([
       'ord-paper',
       ITEM,
@@ -191,6 +192,7 @@ describe('재고 영속 묶음', () => {
       'partner-mfp',
       '2026-09-27',
       '2026-09-20',
+      'KRW',
       null,
       null,
       null,

@@ -43,6 +43,7 @@ export type OrderRow = {
   file_name?: string | null
   file_mime?: string | null
   file_base64?: string | null
+  currency?: string | null
 }
 
 type StockDb = Pick<CompanySqlite, 'query' | 'batch'>
@@ -96,9 +97,9 @@ export function statementsForCommand(
     if (order) {
       statements.push({
         sql: `insert or replace into stock_orders(
-            id, item_id, qty, status, partner_id, due_date, order_date,
+            id, item_id, qty, status, partner_id, due_date, order_date, currency,
             file_name, file_mime, file_base64, operation_id, created_at)
-          values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         params: [
           order.id,
           order.itemId,
@@ -107,6 +108,7 @@ export function statementsForCommand(
           order.partnerId ?? null,
           order.dueDate ?? null,
           order.orderDate ?? null,
+          order.currency ?? 'KRW',
           order.fileName ?? null,
           order.fileMime ?? null,
           order.fileBase64 ?? null,
@@ -194,6 +196,7 @@ export function stateFromRows(
       fileName: order.file_name ?? undefined,
       fileMime: order.file_mime ?? undefined,
       fileBase64: order.file_base64 ?? undefined,
+      currency: order.currency ?? undefined,
     }
     state.orders.set(order.id, row)
     state.processed.set(order.operation_id, 'applied')
@@ -222,7 +225,7 @@ export function stateFromRows(
 export async function loadStockState(db: Pick<CompanySqlite, 'query'>): Promise<StockState> {
   const [orders, ledger, processed] = await Promise.all([
     db.query<OrderRow>(
-      `select id, item_id, qty, status, partner_id, due_date, order_date,
+      `select id, item_id, qty, status, partner_id, due_date, order_date, currency,
         file_name, file_mime, file_base64, operation_id from stock_orders`,
     ),
     db.query<LedgerRow>(

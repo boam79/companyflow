@@ -13,6 +13,7 @@ export type StockCommand =
       fileName?: string
       fileMime?: string
       fileBase64?: string
+      currency?: string
     }
   | {
       type: 'post_receipt'
@@ -121,6 +122,7 @@ export type StockOrder = {
   fileName?: string
   fileMime?: string
   fileBase64?: string
+  currency?: string
 }
 
 export type StockState = {
@@ -195,6 +197,7 @@ export function applyStockCommand(
         fileName: command.fileName ?? existing?.fileName,
         fileMime: command.fileMime ?? existing?.fileMime,
         fileBase64: command.fileBase64 ?? existing?.fileBase64,
+        currency: command.currency ?? existing?.currency ?? 'KRW',
       })
       break
     }
@@ -404,6 +407,7 @@ export const STOCK_TABLE_SQL = [
     file_name text,
     file_mime text,
     file_base64 text,
+    currency text not null default 'KRW',
     operation_id text not null unique,
     created_at text not null
   );`,
