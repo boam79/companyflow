@@ -24,11 +24,8 @@ type NamedRow = {
 }
 type FieldRow = { entity: string; key: string; label: string }
 type TabId = MasterTable | 'fields'
-type ListTileRow = { id: string; name: string; meta?: string; badge?: string }
-
-function nameInitial(name: string) {
-  return Array.from(name.trim())[0] || '?'
-}
+type TableColumn = { key: string; label: string; muted?: boolean }
+type TableRow = { id: string } & Record<string, string>
 
 function itemKindLabel(row: NamedRow) {
   if (row.asset_managed === 1) return '회사 자산'
@@ -36,65 +33,35 @@ function itemKindLabel(row: NamedRow) {
   return '품목'
 }
 
-function employeeTile(row: NamedRow): ListTileRow {
-  return {
-    id: row.id,
-    name: row.name,
-    meta: row.title?.trim() || undefined,
-    badge: row.left_at ? '퇴사' : undefined,
-  }
-}
-
-function itemTile(row: NamedRow): ListTileRow {
-  return {
-    id: row.id,
-    name: row.name,
-  }
-}
-
-function ListTile({ name, meta, badge }: { name: string; meta?: string; badge?: string }) {
+function MasterTable({ columns, rows }: { columns: TableColumn[]; rows: TableRow[] }) {
   return (
-    <li className="flex items-center gap-3 rounded-lg border border-line px-3 py-2.5">
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent">
-        {nameInitial(name)}
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <p className="truncate font-medium">{name}</p>
-          {badge ? (
-            <span className="shrink-0 rounded bg-accent-soft px-1.5 py-0.5 text-[11px] font-medium text-accent">
-              {badge}
-            </span>
-          ) : null}
-        </div>
-        {meta ? <p className="mt-0.5 truncate text-xs text-muted">{meta}</p> : null}
-      </div>
-    </li>
-  )
-}
-
-function TileGrid({ rows }: { rows: ListTileRow[] }) {
-  return (
-    <ul className="grid gap-2 sm:grid-cols-2">
-      {rows.map((row) => (
-        <ListTile key={row.id} name={row.name} meta={row.meta} badge={row.badge} />
-      ))}
-    </ul>
-  )
-}
-
-function GroupedTiles({ groups }: { groups: { title: string; rows: ListTileRow[] }[] }) {
-  return (
-    <div className="space-y-5">
-      {groups.map((group) => (
-        <section key={group.title}>
-          <h3 className="mb-2 text-xs font-semibold text-muted">
-            {group.title} {group.rows.length}
-          </h3>
-          <TileGrid rows={group.rows} />
-        </section>
-      ))}
-    </div>
+    <table className="w-full text-left text-sm">
+      <thead>
+        <tr className="sticky top-0 border-b border-line bg-card text-muted">
+          {columns.map((column) => (
+            <th key={column.key} className="py-1.5 pr-3 font-medium">
+              {column.label}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <tr key={row.id} className="border-b border-line/70 last:border-b-0">
+            {columns.map((column, index) => (
+              <td
+                key={column.key}
+                className={`whitespace-nowrap py-2 pr-4 ${index === 0 ? 'font-medium' : ''} ${
+                  column.muted ? 'text-muted' : ''
+                }`}
+              >
+                {row[column.key] || '—'}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
   )
 }
 
@@ -270,40 +237,59 @@ export function MasterDataPage() {
         ? '직원 이름'
         : `${TABS.find((item) => item.id === tab)?.label} 이름`
   const tabLabel = TABS.find((item) => item.id === tab)?.label ?? '목록'
-  const employeeGroups = [
-    ...departments.map((dept) => ({
-      title: dept.name,
-      rows: rows.filter((row) => row.department_id === dept.id).map(employeeTile),
-    })),
-    {
-      title: '부서 없음',
-      rows: rows
-        .filter(
-          (row) => !row.department_id || !departments.some((dept) => dept.id === row.department_id),
-        )
-        .map(employeeTile),
-    },
-  ].filter((group) => group.rows.length)
-  const itemGroups = [
-    { title: '비품', rows: rows.filter((row) => itemKindLabel(row) === '비품').map(itemTile) },
-    {
-      title: '회사 자산',
-      rows: rows.filter((row) => itemKindLabel(row) === '회사 자산').map(itemTile),
-    },
-    { title: '기타', rows: rows.filter((row) => itemKindLabel(row) === '품목').map(itemTile) },
-  ].filter((group) => group.rows.length)
-  const namedTiles: ListTileRow[] = rows.map((row) => ({ id: row.id, name: row.name }))
-  const fieldGroups = FIELD_ENTITIES.map((entity) => ({
-    title: entity.label,
-    rows: fields
-      .filter((field) => field.entity === entity.id)
-      .map((field) => ({
-        id: `${field.entity}-${field.key}`,
-        name: field.label,
-        meta: field.key,
-        badge: entity.label,
-      })),
-  })).filter((group) => group.rows.length)
+  const table =
+    tab === 'employees'
+      ? {
+          columns: [
+            { key: 'name', label: '이름' },
+            { key: 'department', label: '부서', muted: true },
+            { key: 'title', label: '직위', muted: true },
+            { key: 'status', label: '상태', muted: true },
+          ],
+          rows: rows.map((row) => ({
+            id: row.id,
+            name: row.name,
+            department: departments.find((dept) => dept.id === row.department_id)?.name ?? '',
+            title: row.title?.trim() ?? '',
+            status: row.left_at ? '퇴사' : '재직',
+          })),
+        }
+      : tab === 'items'
+        ? {
+            columns: [
+              { key: 'name', label: '이름' },
+              { key: 'kind', label: '구분', muted: true },
+            ],
+            rows: [...rows]
+              .sort(
+                (a, b) =>
+                  itemKindLabel(a).localeCompare(itemKindLabel(b), 'ko') ||
+                  a.name.localeCompare(b.name, 'ko'),
+              )
+              .map((row) => ({
+                id: row.id,
+                name: row.name,
+                kind: itemKindLabel(row),
+              })),
+          }
+        : tab === 'fields'
+          ? {
+              columns: [
+                { key: 'entity', label: '대상', muted: true },
+                { key: 'key', label: '키', muted: true },
+                { key: 'label', label: '라벨' },
+              ],
+              rows: fields.map((field) => ({
+                id: `${field.entity}-${field.key}`,
+                entity: FIELD_ENTITIES.find((item) => item.id === field.entity)?.label ?? field.entity,
+                key: field.key,
+                label: field.label,
+              })),
+            }
+          : {
+              columns: [{ key: 'name', label: '이름' }],
+              rows: rows.map((row) => ({ id: row.id, name: row.name })),
+            }
 
   return (
     <div className="flex flex-col gap-4">
@@ -420,27 +406,12 @@ export function MasterDataPage() {
       ) : null}
       </section>
       <section className="max-h-[calc(100svh-10rem)] overflow-auto rounded-lg border border-line bg-card p-4">
-      {tab === 'fields' ? (
-        fields.length ? (
-          <>
-            <h2 className="mb-3 text-base font-semibold">필드 {fields.length}</h2>
-            <GroupedTiles groups={fieldGroups} />
-          </>
-        ) : (
-          <p className="text-sm text-muted">아직 필드가 없습니다.</p>
-        )
-      ) : rows.length ? (
+      {(tab === 'fields' ? fields.length : rows.length) ? (
         <>
-          <h2 className="mb-3 text-base font-semibold">
-            {tabLabel} {rows.length}
+          <h2 className="mb-2 text-base font-semibold">
+            {tabLabel} {tab === 'fields' ? fields.length : rows.length}
           </h2>
-          {tab === 'employees' ? (
-            <GroupedTiles groups={employeeGroups} />
-          ) : tab === 'items' ? (
-            <GroupedTiles groups={itemGroups} />
-          ) : (
-            <TileGrid rows={namedTiles} />
-          )}
+          <MasterTable columns={table.columns} rows={table.rows} />
         </>
       ) : (
         <p className="text-sm text-muted">
