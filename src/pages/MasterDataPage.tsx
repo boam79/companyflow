@@ -18,9 +18,15 @@ import {
   partnerUpdateStatement,
   PURCHASE_KINDS,
   purchaseKindLabel,
+  purchaseKindInsertStatement,
+  purchaseKindRenameStatement,
+  purchaseKindDeactivateStatement,
+  assertUniquePurchaseKindName,
+  assertPurchaseKind,
   ACTIVE_MASTER_WHERE,
   type MasterFieldEntity,
   type MasterTable,
+  type PurchaseKindRow,
 } from '../lib/master/commands'
 import { toArrayBuffer } from '../lib/contracts/book'
 import { getCompanySqlite } from '../lib/sqlite/instance'
@@ -135,6 +141,10 @@ export function MasterDataPage() {
   const [itemCode, setItemCode] = useState('')
   const [itemUnit, setItemUnit] = useState('개')
   const [purchaseKind, setPurchaseKind] = useState('supply')
+  const [purchaseKindName, setPurchaseKindName] = useState('일반 비품')
+  const [purchaseKinds, setPurchaseKinds] = useState<PurchaseKindRow[]>(
+    PURCHASE_KINDS.map((item) => ({ id: item.id, name: item.label })),
+  )
   const [itemPartnerId, setItemPartnerId] = useState('')
   const [selectedItemId, setSelectedItemId] = useState('')
   const [partnerPhone, setPartnerPhone] = useState('')
@@ -219,6 +229,10 @@ export function MasterDataPage() {
       `select id, name from partners where ${ACTIVE_MASTER_WHERE} order by name`,
     )
     setPartners(partnerRows)
+    const kindRows = await sqlite.query<PurchaseKindRow>(
+      'select id, name, active from purchase_kinds order by name',
+    )
+    setPurchaseKinds(kindRows.length ? kindRows : PURCHASE_KINDS.map((item) => ({ id: item.id, name: item.label })))
     if (nextTab === 'fields') {
       setRows([])
       setListTab(nextTab)
@@ -288,6 +302,7 @@ export function MasterDataPage() {
           code: tab === 'items' ? itemCode : undefined,
           unit: tab === 'items' ? itemUnit : undefined,
           purchaseKind: tab === 'items' ? purchaseKind : undefined,
+          kinds: tab === 'items' ? activePurchaseKinds() : undefined,
           partnerId: tab === 'items' ? itemPartnerId : undefined,
           phone: tab === 'partners' ? partnerPhone : undefined,
           memo: tab === 'partners' ? partnerMemo : undefined,
@@ -307,6 +322,7 @@ export function MasterDataPage() {
       setItemCode('')
       setItemUnit('개')
       setPurchaseKind('supply')
+      setPurchaseKindName('일반 비품')
       setItemPartnerId('')
       setSelectedItemId('')
       resetPartnerForm()
@@ -329,6 +345,7 @@ export function MasterDataPage() {
         minStock: Number(minStock) || 0,
         purchaseKind,
         partnerId: itemPartnerId,
+        kinds: activePurchaseKinds(),
       })
       assertUniqueItemName(name, rows, selectedItemId)
       assertUniqueItemCode(itemCode, rows, selectedItemId)
@@ -440,6 +457,76 @@ export function MasterDataPage() {
     }
   }
 
+  function activePurchaseKinds() {
+    return purchaseKinds.filter((row) => row.active !== 0)
+  }
+
+  function selectPurchaseKind(id: string) {
+    setPurchaseKind(id)
+    const row = purchaseKinds.find((item) => item.id === id)
+    setPurchaseKindName(row?.name || purchaseKindLabel(id, purchaseKinds))
+  }
+
+  async function addPurchaseKind() {
+    if (!ready) return
+    setMessage('')
+    try {
+      assertUniquePurchaseKindName(purchaseKindName, purchaseKinds)
+      const row = {
+        id: `kind-${crypto.randomUUID()}`,
+        name: purchaseKindName,
+        createdAt: new Date().toISOString(),
+      }
+      const stmt = purchaseKindInsertStatement(row)
+      const result = await sqlite.runOnce(crypto.randomUUID(), async () => {
+        await sqlite.exec(stmt.sql, stmt.params)
+        return row
+      })
+      setPurchaseKind(row.id)
+      setNotice(`구매 구분 추가 (${result.status})`)
+      await reload()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  async function savePurchaseKind() {
+    if (!ready) return
+    setMessage('')
+    try {
+      assertPurchaseKind(purchaseKind, activePurchaseKinds())
+      assertUniquePurchaseKindName(purchaseKindName, purchaseKinds, purchaseKind)
+      const stmt = purchaseKindRenameStatement(purchaseKind, purchaseKindName)
+      const result = await sqlite.runOnce(crypto.randomUUID(), async () => {
+        await sqlite.exec(stmt.sql, stmt.params)
+        return { id: purchaseKind }
+      })
+      setNotice(`구매 구분 저장 (${result.status})`)
+      await reload()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  async function deactivatePurchaseKind() {
+    if (!ready) return
+    setMessage('')
+    try {
+      const remaining = activePurchaseKinds().filter((row) => row.id !== purchaseKind)
+      if (!remaining.length) throw new Error('구매 구분은 하나 이상 남겨 두세요.')
+      const stmt = purchaseKindDeactivateStatement(purchaseKind)
+      const result = await sqlite.runOnce(crypto.randomUUID(), async () => {
+        await sqlite.exec(stmt.sql, stmt.params)
+        return { id: purchaseKind }
+      })
+      selectPurchaseKind(remaining[0].id)
+      setNotice(`구매 구분 사용 안 함 (${result.status})`)
+      await reload()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
   if (!configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
   if (!user) {
@@ -499,7 +586,7 @@ export function MasterDataPage() {
                 code: row.code?.trim() ?? '',
                 name: row.name,
                 kind: itemKindLabel(row),
-                purchase: itemKindLabel(row) === '회사 자산' ? '' : purchaseKindLabel(row.purchase_kind),
+                purchase: itemKindLabel(row) === '회사 자산' ? '' : purchaseKindLabel(row.purchase_kind, purchaseKinds),
                 supplier: partners.find((partner) => partner.id === row.partner_id)?.name ?? '',
                 unit: row.unit?.trim() || '개',
                 minStock: itemKindLabel(row) === '비품' ? String(row.min_stock ?? 0) : '',
@@ -594,6 +681,7 @@ export function MasterDataPage() {
               setItemCode('')
               setItemUnit('개')
               setPurchaseKind('supply')
+              setPurchaseKindName('일반 비품')
               setItemPartnerId('')
               setSelectedNamedId('')
               resetPartnerForm()
@@ -653,15 +741,50 @@ export function MasterDataPage() {
                 <select
                   className="mt-1 w-full rounded border border-line px-3 py-2 text-sm"
                   value={purchaseKind}
-                  onChange={(e) => setPurchaseKind(e.target.value)}
+                  onChange={(e) => selectPurchaseKind(e.target.value)}
                 >
-                  {PURCHASE_KINDS.map((item) => (
+                  {activePurchaseKinds().map((item) => (
                     <option key={item.id} value={item.id}>
-                      {item.label}
+                      {item.name}
                     </option>
                   ))}
                 </select>
               </label>
+            </div>
+            <label className="text-sm">
+              구분 이름
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2 text-sm"
+                placeholder="일반 비품"
+                value={purchaseKindName}
+                onChange={(e) => setPurchaseKindName(e.target.value)}
+              />
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={!ready}
+                className="rounded border border-line px-3 py-2 text-sm disabled:opacity-50"
+                onClick={() => void addPurchaseKind()}
+              >
+                구분 추가
+              </button>
+              <button
+                type="button"
+                disabled={!ready || !purchaseKind}
+                className="rounded border border-line px-3 py-2 text-sm disabled:opacity-50"
+                onClick={() => void savePurchaseKind()}
+              >
+                구분 저장
+              </button>
+              <button
+                type="button"
+                disabled={!ready || !purchaseKind}
+                className="rounded border border-line px-3 py-2 text-sm disabled:opacity-50"
+                onClick={() => void deactivatePurchaseKind()}
+              >
+                구분 사용 안 함
+              </button>
             </div>
             <label className="text-sm">
               공급사
@@ -889,7 +1012,14 @@ export function MasterDataPage() {
                     setName(row?.name ?? '')
                     setItemCode(row?.code ?? '')
                     setItemUnit(row?.unit?.trim() || '개')
-                    setPurchaseKind(row?.purchase_kind === 'material' || row?.purchase_kind === 'service' ? row.purchase_kind : 'supply')
+                    setPurchaseKind(
+                      row?.purchase_kind && activePurchaseKinds().some((kind) => kind.id === row.purchase_kind)
+                        ? row.purchase_kind
+                        : activePurchaseKinds()[0]?.id ?? 'supply',
+                    )
+                    setPurchaseKindName(
+                      purchaseKindLabel(row?.purchase_kind, purchaseKinds),
+                    )
                     setItemPartnerId(row?.partner_id ?? '')
                     setMinStock(String(row?.min_stock ?? 0))
                     setMessage('')

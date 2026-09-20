@@ -69,6 +69,12 @@ export const SCHEMA_PATCHES = [
   'alter table departments add column active integer not null default 1',
   'alter table partners add column active integer not null default 1',
   'alter table warehouses add column active integer not null default 1',
+  `create table if not exists purchase_kinds (
+    id text primary key,
+    name text not null,
+    active integer not null default 1,
+    created_at text not null
+  )`,
   `create table if not exists employment_checks (
     employee_id text not null,
     item_key text not null,

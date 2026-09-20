@@ -13,6 +13,10 @@ import {
   assertUniquePartnerName,
   purchaseKindLabel,
   assertPurchaseKind,
+  purchaseKindInsertStatement,
+  purchaseKindRenameStatement,
+  purchaseKindDeactivateStatement,
+  assertUniquePurchaseKindName,
   duplicateItemRepairs,
   assertItemSupplier,
   masterDeactivateStatement,
@@ -110,11 +114,39 @@ describe('기준정보 SQL 명령', () => {
     expect(() => assertItemSupplier('missing', [{ id: 'partner-mfp' }])).toThrow(/공급사/)
   })
 
-  it('구매 구분은 일반 비품·자재·서비스다', () => {
+  it('구매 구분은 회사가 추가·이름 변경·사용 안 함 할 수 있다', () => {
     expect(purchaseKindLabel('supply')).toBe('일반 비품')
     expect(purchaseKindLabel('material')).toBe('자재')
     expect(purchaseKindLabel('service')).toBe('서비스')
-    expect(() => assertPurchaseKind('asset')).toThrow(/구매 구분/)
+    expect(purchaseKindLabel('kind-rent', [{ id: 'kind-rent', name: '임대' }])).toBe('임대')
+    expect(() => assertPurchaseKind('')).toThrow(/구매 구분/)
+    expect(() =>
+      assertPurchaseKind('asset', [{ id: 'supply', name: '일반 비품' }]),
+    ).toThrow(/사용 중인 구매 구분/)
+    expect(
+      purchaseKindInsertStatement({
+        id: 'kind-rent',
+        name: ' 임대 ',
+        createdAt: '2026-09-20T00:00:00.000Z',
+      }),
+    ).toEqual({
+      sql: 'insert into purchase_kinds(id, name, created_at) values(?, ?, ?)',
+      params: ['kind-rent', '임대', '2026-09-20T00:00:00.000Z'],
+    })
+    expect(purchaseKindRenameStatement('supply', ' 사무용품 ')).toEqual({
+      sql: 'update purchase_kinds set name = ? where id = ?',
+      params: ['사무용품', 'supply'],
+    })
+    expect(purchaseKindDeactivateStatement('service')).toEqual({
+      sql: 'update purchase_kinds set active = 0 where id = ?',
+      params: ['service'],
+    })
+    const kinds = [
+      { id: 'supply', name: '일반 비품' },
+      { id: 'kind-rent', name: '임대', active: 0 },
+    ]
+    expect(() => assertUniquePurchaseKindName('일반 비품', kinds)).toThrow(/같은 이름/)
+    expect(() => assertUniquePurchaseKindName('임대', kinds)).not.toThrow()
   })
 
   it('같은 이름 품목은 코드 있는 줄만 남긴다', () => {

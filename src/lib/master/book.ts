@@ -1,7 +1,7 @@
 import { ProcessedOperations, type ProcessResult } from '../idempotency'
 import type { AssetRecord } from '../asset/book'
 import { base64ToBytes } from '../contracts/book'
-import { duplicateItemRepairs } from './commands'
+import { duplicateItemRepairs, PURCHASE_KINDS } from './commands'
 
 export type MasterEntity = 'department' | 'employee' | 'item' | 'partner' | 'warehouse'
 
@@ -235,6 +235,13 @@ export async function writeDefaultMaster(db: {
     '부속창고',
     now,
   ])
+  for (const kind of PURCHASE_KINDS) {
+    await db.exec('insert or ignore into purchase_kinds(id, name, created_at) values(?, ?, ?)', [
+      kind.id,
+      kind.label,
+      now,
+    ])
+  }
   await db.exec(
     'insert or ignore into items(id, name, stock_managed, asset_managed, created_at) values(?, ?, ?, ?, ?)',
     [PAPER_ITEM.id, PAPER_ITEM.name, 1, 0, now],
@@ -414,6 +421,12 @@ export const MASTER_TABLE_SQL = [
     created_at text not null
   );`,
   `create table if not exists warehouses (
+    id text primary key,
+    name text not null,
+    active integer not null default 1,
+    created_at text not null
+  );`,
+  `create table if not exists purchase_kinds (
     id text primary key,
     name text not null,
     active integer not null default 1,
