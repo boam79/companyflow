@@ -15,7 +15,7 @@ import {
 } from '../lib/home/intro'
 
 const titleClass =
-  'whitespace-pre-line break-keep text-[2.125rem] font-semibold leading-[1.12] md:text-[3.25rem] md:leading-[1.08] lg:text-[4.25rem] lg:leading-[1.05]'
+  'whitespace-pre-line break-keep text-[2.125rem] font-semibold leading-[1.12] md:text-[3rem] md:leading-[1.08] lg:text-[3.5rem] lg:leading-[1.06]'
 const bodyClass = 'mt-5 max-w-[24rem] whitespace-pre-line text-[16px] font-normal leading-[1.5] text-white/60'
 
 function Cta({
@@ -86,7 +86,7 @@ function Film({
         <div className="absolute inset-0 bg-gradient-to-r from-black/82 via-black/48 to-black/18" />
         <div className="home-grain" />
         <div className="relative z-10 flex min-h-[calc(100svh-3.5rem)] items-center px-6 py-16 md:px-10 lg:px-16">
-          <div className="max-w-[28rem]">{children}</div>
+          <div className="max-w-[34rem]">{children}</div>
         </div>
       </div>
     </section>
@@ -129,7 +129,7 @@ export function HomePage() {
         </div>
         <div className="home-grain" />
         <div className="relative z-10 mx-auto flex min-h-[calc(58svh-3.5rem)] w-full max-w-[90rem] items-center px-6 py-16 md:px-10 lg:min-h-[calc(100svh-3.5rem)] lg:px-16">
-          <div className="max-w-[28rem]">
+          <div className="max-w-[34rem]">
             <p className="text-[13px] font-medium text-white/50">CompanyFlow</p>
             <h1 className={`${titleClass} mt-4`}>{HOME_COVER_TITLE}</h1>
             <p className={bodyClass}>{HOME_COVER_LEAD}</p>
