@@ -1,0 +1,45 @@
+import { useEffect, useState } from 'react'
+import { Link, Outlet } from 'react-router-dom'
+import { GUEST_COMPANY_ID } from '../lib/guest/ids'
+import { seedGuestCompany } from '../lib/guest/seed'
+import { getGuestSqlite } from '../lib/sqlite/instance'
+
+export function GuestLayout() {
+  const [ready, setReady] = useState(() => getGuestSqlite().isOpen(GUEST_COMPANY_ID))
+  const [message, setMessage] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const db = getGuestSqlite()
+        await db.open(GUEST_COMPANY_ID, { memory: true })
+        await seedGuestCompany(db)
+        if (!cancelled) {
+          setMessage('')
+          setReady(true)
+        }
+      } catch (error) {
+        if (!cancelled) setMessage(error instanceof Error ? error.message : String(error))
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded border border-line bg-card px-4 py-3 text-sm">
+        <p>
+          <strong>샘플입니다.</strong> 로그인 없이 만져 볼 수 있고, 새로고침하면 처음부터입니다. 지정 PC 원본은 건드리지 않습니다.
+        </p>
+        <Link className="shrink-0 text-accent underline" to="/">
+          샘플 끝내기
+        </Link>
+      </div>
+      {message ? <p className="text-sm text-danger">{message}</p> : null}
+      {ready ? <Outlet /> : <p className="text-sm text-muted">샘플을 준비하는 중입니다.</p>}
+    </div>
+  )
+}

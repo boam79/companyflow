@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../lib/AuthContext'
 import { StockLedgerTable } from '../components/StockLedgerTable'
 import { isCompanyAssetItem, isSupplyItem, loadItems, type ItemRecord } from '../lib/master/book'
 import { ACTIVE_MASTER_WHERE } from '../lib/master/commands'
@@ -9,7 +8,6 @@ import { isInboundStockAction, resolveTypedItem } from '../lib/stock/typedItem'
 import { allocateReceiptQty } from '../lib/asset/receipt'
 import { migrateProcessAssetsToChecks } from '../lib/people/onboarding'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
-import { getCompanySqlite } from '../lib/sqlite/instance'
 import { executeStockCommand, ensureDefaultStockMaster, loadOrderOriginal, loadStockState, orderAttachment } from '../lib/stock/persist'
 import { toArrayBuffer } from '../lib/contracts/book'
 import { companyOnHand, onHand, orderNetReceived, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
@@ -17,13 +15,12 @@ import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
-import { useCompanySession } from '../lib/companySession'
+import { useWorkAccess } from '../lib/guest/workAccess'
 
 type NamedRow = { id: string; name: string }
 type ActionType = StockCommand['type']
 type ExtraOrderLine = { key: string; itemId: string; qty: string }
 
-const sqlite = getCompanySqlite()
 const ACTIONS = [...DAILY_STOCK_ACTIONS, ...MORE_STOCK_ACTIONS]
 
 function downloadSupplyOrderCsv(rows: PurchaseOrderRow[]) {
@@ -37,8 +34,7 @@ function downloadSupplyOrderCsv(rows: PurchaseOrderRow[]) {
 }
 
 export function StockPage() {
-  const { configured, loading, user } = useAuth()
-  const { companies, companyId, setCompanyId } = useCompanySession(Boolean(user))
+  const { guest, sqlite, loading, configured, user, companies, companyId, setCompanyId, href } = useWorkAccess()
   const [items, setItems] = useState<ItemRecord[]>([])
   const [partners, setPartners] = useState<NamedRow[]>([])
   const [warehouses, setWarehouses] = useState<NamedRow[]>([])
@@ -434,8 +430,8 @@ export function StockPage() {
   }
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
-  if (!configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
-  if (!user) {
+  if (!guest && !configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
+  if (!guest && !user) {
     return (
       <p className="text-sm">
         구매·재고는 로그인 후 지정 PC에서 다룹니다.{' '}
@@ -467,34 +463,40 @@ export function StockPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <select
-            className="rounded border border-line px-3 py-2 text-sm"
-            value={companyId}
-            onChange={(e) => {
-              setReady(false)
-              setOpenFailed(false)
-              void openCompany(e.target.value, true)
-            }}
-          >
-            <option value="">회사 선택</option>
-            {companies.map((company) => (
-              <option key={company.id} value={company.id}>
-                {company.display_name} ({company.company_code})
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            className="rounded border border-line px-3 py-2 text-sm"
-            disabled={!companyId}
-            onClick={() => {
-              setReady(false)
-              setOpenFailed(false)
-              void openCompany(companyId, true)
-            }}
-          >
-            이 회사 DB 다시 열기
-          </button>
+          {guest ? (
+            <p className="rounded border border-line px-3 py-2 text-sm text-muted">샘플 회사</p>
+          ) : (
+            <select
+              className="rounded border border-line px-3 py-2 text-sm"
+              value={companyId}
+              onChange={(e) => {
+                setReady(false)
+                setOpenFailed(false)
+                void openCompany(e.target.value, true)
+              }}
+            >
+              <option value="">회사 선택</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.display_name} ({company.company_code})
+                </option>
+              ))}
+            </select>
+          )}
+          {guest ? null : (
+            <button
+              type="button"
+              className="rounded border border-line px-3 py-2 text-sm"
+              disabled={!companyId}
+              onClick={() => {
+                setReady(false)
+                setOpenFailed(false)
+                void openCompany(companyId, true)
+              }}
+            >
+              이 회사 DB 다시 열기
+            </button>
+          )}
         </div>
       </div>
 
@@ -516,7 +518,7 @@ export function StockPage() {
               )}
             </p>
           </div>
-          <Link className="text-sm text-accent underline" to="/assets">
+          <Link className="text-sm text-accent underline" to={href('/assets')}>
             가구·컴퓨터는 자산
           </Link>
         </div>

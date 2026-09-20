@@ -2,12 +2,12 @@
 
 마지막 갱신: 2026-09-20  
 현재 역할: Executor  
-홈을 3번 남색 표지 인트로로 바꿈. 재고 부족·입사 중·계약 기한·최근 작업은 홈에서 뺌. 지정 Chrome 확인 전. T7 완료 아님.  
+게스트 둘러보기 배포. 로그인 없이 메모리 샘플. 지정 Chrome 본사 OPFS는 열지 않음. T7 완료 아님.  
 원격: https://github.com/boam79/companyflow.git
 
 ## 지금 하는 일
 
-홈 인트로 3번(남색 표지) 배포. 지정 Chrome에서 홈에 숫자 칸이 없고 업무 시작이 구매·재고로 가는지 확인을 요청한다.
+게스트 `/guest` HTTPS 확인. 홈 둘러보기 → 샘플 입고·기준정보. 새로고침하면 처음.
 
 ## 보드
 
@@ -31,6 +31,7 @@
 - [x] 빈 QR → 스마트폰 입력 → 지정 PC 원본 반영. 지정 Chrome 확인.
 - [ ] 메뉴 전체 유저스토리 QA(회사 세션·원장 빈 안내·잘못된 QR). 지정 Chrome 확인 전.
 - [ ] 홈 인트로 3번 남색 표지. 지정 Chrome 확인 전.
+- [ ] 게스트 둘러보기. HTTPS 확인 전.
 - [x] 회사 자산은 직원에게 배정하지 않음. 퇴사 차단 해제.
 
 배포 URL: https://companyflow-opal.vercel.app  
@@ -48,6 +49,8 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 - Supabase 활성: `companyflow`, `boardroom`. 정지: `boam79_patient_data`, `qr-asset-manager`, `policyfund-ai-v2`.
 - `confirm_company_device` RPC 추가. 초기 설정 성공 후 원본 장치를 confirmed 로 올린다.
 
+- 2026-09-20: 게스트 `/guest`. 메모리 샘플. 로그인 없이 기준정보·입고·자산·입퇴사·계약. 본사 OPFS·회사 관리·QR 원본 없음. HTTPS 확인 전.
+- 2026-09-20: Planner. 게스트는 로그인 없이 `/guest`에서 샘플만 만진다. 메모리 SQLite. 본사 OPFS·회사 관리·QR 원본은 빼다.
 - 2026-09-20: 홈 인트로 3번 남색 표지. 재고 부족·입사 중·계약 기한·최근 작업·상태 카드를 홈에서 뺌. 업무 시작은 구매·재고. 지정 Chrome 확인 전.
 - 2026-09-20: 메뉴 전체 유저스토리 QA. 마지막 회사 세션, 원장 빈 안내를 입고·반출로, 잘못된 QR은 한글 안내. 지정 Chrome 확인 전.
 - 2026-09-20: Planner. 구매·재고 매일 화면을 입고·반출·재고현황으로 줄이자는 제안. 사용자 확인 후 구현.

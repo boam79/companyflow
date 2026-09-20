@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
+import { GUEST_MENUS, isGuestPath } from '../lib/guest/ids'
 
 const MENUS = [
   { to: '/', label: '홈' },
@@ -16,6 +17,8 @@ export function AppShell() {
   const { loading, user, operator, signOut } = useAuth()
   const location = useLocation()
   const scanMode = location.pathname.startsWith('/q/')
+  const guest = isGuestPath(location.pathname)
+  const menus = guest ? GUEST_MENUS : MENUS
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -27,14 +30,14 @@ export function AppShell() {
           <nav className="flex flex-wrap items-center gap-4 text-sm">
             {scanMode
               ? null
-              : MENUS.map((menu) => (
+              : menus.map((menu) => (
                   <NavLink
                     key={menu.to}
                     to={menu.to}
                     className={({ isActive }) =>
                       isActive ? 'font-semibold text-accent' : 'text-muted'
                     }
-                    end={menu.to === '/'}
+                    end={menu.to === '/' || menu.to === '/guest'}
                   >
                     {menu.label}
                   </NavLink>

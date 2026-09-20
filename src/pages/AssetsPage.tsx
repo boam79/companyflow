@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../lib/AuthContext'
 import { assetNumber, loadAssets, type AssetRecord } from '../lib/asset/book'
 import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
 import {
@@ -18,14 +17,11 @@ import { isCompanyAssetItem, loadItems, writeDefaultMaster, type ItemRecord } fr
 import { ACTIVE_MASTER_WHERE } from '../lib/master/commands'
 import { migrateProcessAssetsToChecks } from '../lib/people/onboarding'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
-import { getCompanySqlite } from '../lib/sqlite/instance'
-import { useCompanySession } from '../lib/companySession'
+import { useWorkAccess } from '../lib/guest/workAccess'
 import { getSupabase } from '../lib/supabase'
 
 type NamedRow = { id: string; name: string }
 type PrintedQr = { id: string; url: string; dataUrl: string }
-
-const sqlite = getCompanySqlite()
 
 function todayStamp() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date())
@@ -52,8 +48,7 @@ function payloadFromUnknown(value: unknown): QrAssetPayload {
 }
 
 export function AssetsPage() {
-  const { configured, loading, user } = useAuth()
-  const { companies, companyId, setCompanyId } = useCompanySession(Boolean(user))
+  const { guest, sqlite, loading, configured, user, companies, companyId, setCompanyId, href } = useWorkAccess()
   const [items, setItems] = useState<ItemRecord[]>([])
   const [warehouses, setWarehouses] = useState<NamedRow[]>([])
   const [assets, setAssets] = useState<AssetRecord[]>([])
@@ -99,6 +94,7 @@ export function AssetsPage() {
   }, [assets, selectedId])
 
   async function refreshInbox(nextId: string) {
+    if (guest) return
     const client = getSupabase()
     if (!client) return
     setInbox(await fetchPendingQrInbox(client, nextId))
@@ -150,6 +146,10 @@ export function AssetsPage() {
   }
 
   async function makeBlankQrs() {
+    if (guest) {
+      setMessage('샘플에서는 중앙 QR을 만들지 않습니다.')
+      return
+    }
     const client = getSupabase()
     if (!client || !companyId || !ready) {
       setMessage('지정 PC에서 회사를 연 뒤에 빈 QR을 만듭니다.')
@@ -278,8 +278,8 @@ export function AssetsPage() {
   const selected = assets.find((row) => row.id === selectedId)
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
-  if (!configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
-  if (!user) {
+  if (!guest && !configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
+  if (!guest && !user) {
     return (
       <p className="text-sm">
         자산은 로그인 후 지정 PC에서 다룹니다.{' '}
@@ -301,22 +301,26 @@ export function AssetsPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <select
-            className="rounded border border-line px-3 py-2 text-sm"
-            value={companyId}
-            onChange={(e) => {
-              setReady(false)
-              void openCompany(e.target.value, true)
-            }}
-          >
-            <option value="">회사 선택</option>
-            {companies.map((company) => (
-              <option key={company.id} value={company.id}>
-                {company.display_name} ({company.company_code})
-              </option>
-            ))}
-          </select>
-          <Link className="rounded border border-line px-3 py-2 text-sm" to="/stock">
+          {guest ? (
+            <p className="rounded border border-line px-3 py-2 text-sm text-muted">샘플 회사</p>
+          ) : (
+            <select
+              className="rounded border border-line px-3 py-2 text-sm"
+              value={companyId}
+              onChange={(e) => {
+                setReady(false)
+                void openCompany(e.target.value, true)
+              }}
+            >
+              <option value="">회사 선택</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.display_name} ({company.company_code})
+                </option>
+              ))}
+            </select>
+          )}
+          <Link className="rounded border border-line px-3 py-2 text-sm" to={href('/stock')}>
             비품 재고
           </Link>
         </div>
@@ -324,6 +328,7 @@ export function AssetsPage() {
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
 
+      {guest ? null : (
       <div className="grid gap-3 lg:grid-cols-2">
       <section className="rounded-lg border border-line bg-card p-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
@@ -421,6 +426,7 @@ export function AssetsPage() {
         )}
       </section>
       </div>
+      )}
 
       <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.9fr)] lg:items-start">
       <div className="flex min-h-0 flex-col gap-3">
@@ -517,9 +523,11 @@ export function AssetsPage() {
               <div className="space-y-2 text-sm">
                 <p className="text-muted">이 QR을 지정 PC에서 읽으면 상세와 이력이 열립니다. 자산번호는 QR에 넣지 않습니다.</p>
                 <div className="flex flex-wrap gap-2">
-                  <Link className="rounded border border-line px-2 py-1 text-xs font-semibold" to={`/q/${boundQr.id}`}>
-                    QR로 상세 보기
-                  </Link>
+                  {guest ? null : (
+                    <Link className="rounded border border-line px-2 py-1 text-xs font-semibold" to={`/q/${boundQr.id}`}>
+                      QR로 상세 보기
+                    </Link>
+                  )}
                   <button
                     type="button"
                     className="rounded border border-line px-2 py-1 text-xs font-semibold"

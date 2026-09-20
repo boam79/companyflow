@@ -1,6 +1,12 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
-import { HOME_COVER_LEAD, HOME_COVER_START, HOME_COVER_TITLE, HOME_SHORTCUTS } from '../lib/home/intro'
+import {
+  HOME_COVER_GUEST,
+  HOME_COVER_LEAD,
+  HOME_COVER_START,
+  HOME_COVER_TITLE,
+  HOME_SHORTCUTS,
+} from '../lib/home/intro'
 
 export function HomePage() {
   const { user } = useAuth()
@@ -13,12 +19,25 @@ export function HomePage() {
           <p className="text-3xl font-semibold tracking-tight md:text-5xl">CompanyFlow</p>
           <h1 className="mt-3 max-w-4xl text-3xl font-semibold leading-tight md:text-5xl">{HOME_COVER_TITLE}</h1>
           <p className="mt-5 max-w-2xl text-base text-white/80 md:text-lg">{HOME_COVER_LEAD}</p>
-          <Link
-            to={startTo}
-            className="mt-8 inline-flex rounded bg-white px-5 py-2.5 text-sm font-semibold text-accent"
-          >
-            {user ? HOME_COVER_START : '로그인'}
-          </Link>
+          <div className="mt-8 flex flex-wrap gap-3">
+            {user ? (
+              <Link to={startTo} className="inline-flex rounded bg-white px-5 py-2.5 text-sm font-semibold text-accent">
+                {HOME_COVER_START}
+              </Link>
+            ) : (
+              <>
+                <Link to="/guest" className="inline-flex rounded bg-white px-5 py-2.5 text-sm font-semibold text-accent">
+                  {HOME_COVER_GUEST}
+                </Link>
+                <Link
+                  to="/login"
+                  className="inline-flex rounded border border-white/40 px-5 py-2.5 text-sm font-semibold text-white"
+                >
+                  로그인
+                </Link>
+              </>
+            )}
+          </div>
         </div>
       </section>
       <nav className="border-b border-line bg-paper px-5 py-8">

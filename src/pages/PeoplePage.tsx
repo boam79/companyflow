@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../lib/AuthContext'
 import { writeDefaultMaster } from '../lib/master/book'
 import { ACTIVE_MASTER_WHERE } from '../lib/master/commands'
 import { toArrayBuffer } from '../lib/contracts/book'
@@ -64,12 +63,9 @@ import {
   type HireDocumentCheck,
   type HireWorkflowRecord,
 } from '../lib/people/hireWorkflow'
-import { useCompanySession } from '../lib/companySession'
-import { getCompanySqlite } from '../lib/sqlite/instance'
+import { useWorkAccess } from '../lib/guest/workAccess'
 
 type NamedRow = { id: string; name: string }
-
-const sqlite = getCompanySqlite()
 
 function todayStamp() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date())
@@ -105,8 +101,7 @@ function printBadge(lines: string[]) {
 }
 
 export function PeoplePage() {
-  const { configured, loading, user } = useAuth()
-  const { companies, companyId, setCompanyId } = useCompanySession(Boolean(user))
+  const { guest, sqlite, loading, configured, user, companies, companyId, setCompanyId, href } = useWorkAccess()
   const [departments, setDepartments] = useState<NamedRow[]>([])
   const [employees, setEmployees] = useState<EmployeeRecord[]>([])
   const [checks, setChecks] = useState<CheckRow[]>([])
@@ -565,8 +560,8 @@ export function PeoplePage() {
   const panels = selectedPhase ? visiblePeoplePanels(selectedPhase) : { hire: false, documents: false, leave: false }
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
-  if (!configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
-  if (!user) {
+  if (!guest && !configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
+  if (!guest && !user) {
     return (
       <p className="text-sm">
         입퇴사는 로그인 후 지정 PC에서 다룹니다.{' '}
@@ -587,25 +582,29 @@ export function PeoplePage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <select
-            className="rounded border border-line px-3 py-2 text-sm"
-            value={companyId}
-            onChange={(e) => {
-              setReady(false)
-              void openCompany(e.target.value, true)
-            }}
-          >
-            <option value="">회사 선택</option>
-            {companies.map((company) => (
-              <option key={company.id} value={company.id}>
-                {company.display_name} ({company.company_code})
-              </option>
-            ))}
-          </select>
-          <Link className="rounded border border-line px-3 py-2 text-sm" to="/master">
+          {guest ? (
+            <p className="rounded border border-line px-3 py-2 text-sm text-muted">샘플 회사</p>
+          ) : (
+            <select
+              className="rounded border border-line px-3 py-2 text-sm"
+              value={companyId}
+              onChange={(e) => {
+                setReady(false)
+                void openCompany(e.target.value, true)
+              }}
+            >
+              <option value="">회사 선택</option>
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.display_name} ({company.company_code})
+                </option>
+              ))}
+            </select>
+          )}
+          <Link className="rounded border border-line px-3 py-2 text-sm" to={href('/master')}>
             기준정보
           </Link>
-          <Link className="rounded border border-line px-3 py-2 text-sm" to="/assets">
+          <Link className="rounded border border-line px-3 py-2 text-sm" to={href('/assets')}>
             회사 자산
           </Link>
         </div>

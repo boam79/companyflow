@@ -1,9 +1,10 @@
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm'
 import { companyDbFileName } from '../lib/companyPaths'
+import { sqliteOpenMode } from '../lib/sqlite/openPlan'
 import { LOCAL_MIGRATIONS, SCHEMA_PATCHES } from '../lib/sqlite/schema'
 
 type Incoming =
-  | { id: number; type: 'open'; companyId: string }
+  | { id: number; type: 'open'; companyId: string; memory?: boolean }
   | { id: number; type: 'exec'; sql: string; params?: unknown[] }
   | { id: number; type: 'query'; sql: string; params?: unknown[] }
   | { id: number; type: 'batch'; statements: { sql: string; params?: unknown[] }[] }
@@ -76,44 +77,54 @@ async function closeDb() {
   pool = null
 }
 
-async function openDb(companyId: string) {
-  if (db && persistOk && openCompanyId === companyId) return
-  if (!navigator.storage?.getDirectory) {
-    throw new Error('이 브라우저는 OPFS를 지원하지 않습니다. 지정 Chrome을 사용하세요.')
-  }
+async function openDb(companyId: string, memory = false) {
+  const mode = sqliteOpenMode({ companyId, memory })
+  if (db && persistOk && openCompanyId === companyId && vfsName === mode.vfsName) return
 
   await closeDb()
 
   const sqlite3 = (await sqlite3InitModule()) as unknown as Sqlite3Ns
-  const fileName = companyDbFileName(companyId)
-  const sahErrors: string[] = []
 
-  try {
-    pool = await sqlite3.installOpfsSAHPoolVfs({
-      name: 'companyflow',
-      directory: '.companyflow-sah',
-      initialCapacity: 8,
-      forceReinitIfPreviouslyFailed: true,
-    })
-    db = new pool.OpfsSAHPoolDb(fileName)
+  if (mode.memory) {
+    db = new sqlite3.oo1.DB(':memory:')
     persistOk = true
-    vfsName = 'opfs-sahpool'
+    vfsName = mode.vfsName
     openCompanyId = companyId
-  } catch (error) {
-    sahErrors.push(errorMessage(error))
-    pool = null
-    if ('opfs' in sqlite3 && sqlite3.oo1.OpfsDb) {
-      db = new sqlite3.oo1.OpfsDb(`/${fileName}`)
-      persistOk = true
-      vfsName = 'opfs'
-      openCompanyId = companyId
+  } else {
+    if (!navigator.storage?.getDirectory) {
+      throw new Error('이 브라우저는 OPFS를 지원하지 않습니다. 지정 Chrome을 사용하세요.')
     }
-  }
 
-  if (!db || !persistOk) {
-    throw new Error(
-      `OPFS 영속 DB를 열 수 없습니다. isolated=${String((self as unknown as { crossOriginIsolated?: boolean }).crossOriginIsolated)} sah=${sahErrors.join('; ') || '없음'} classicOpfs=${'opfs' in sqlite3}`,
-    )
+    const fileName = companyDbFileName(companyId)
+    const sahErrors: string[] = []
+
+    try {
+      pool = await sqlite3.installOpfsSAHPoolVfs({
+        name: 'companyflow',
+        directory: '.companyflow-sah',
+        initialCapacity: 8,
+        forceReinitIfPreviouslyFailed: true,
+      })
+      db = new pool.OpfsSAHPoolDb(fileName)
+      persistOk = true
+      vfsName = 'opfs-sahpool'
+      openCompanyId = companyId
+    } catch (error) {
+      sahErrors.push(errorMessage(error))
+      pool = null
+      if ('opfs' in sqlite3 && sqlite3.oo1.OpfsDb) {
+        db = new sqlite3.oo1.OpfsDb(`/${fileName}`)
+        persistOk = true
+        vfsName = 'opfs'
+        openCompanyId = companyId
+      }
+    }
+
+    if (!db || !persistOk) {
+      throw new Error(
+        `OPFS 영속 DB를 열 수 없습니다. isolated=${String((self as unknown as { crossOriginIsolated?: boolean }).crossOriginIsolated)} sah=${sahErrors.join('; ') || '없음'} classicOpfs=${'opfs' in sqlite3}`,
+      )
+    }
   }
 
   for (const sql of LOCAL_MIGRATIONS) {
@@ -144,7 +155,7 @@ self.onmessage = async (event: MessageEvent<Incoming>) => {
   const msg = event.data
   try {
     if (msg.type === 'open') {
-      await openDb(msg.companyId)
+      await openDb(msg.companyId, msg.memory)
       reply(msg.id, { persistOk, vfsName })
       return
     }
