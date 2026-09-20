@@ -5,9 +5,13 @@ import { writeDefaultMaster } from '../lib/master/book'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import {
   assertMasterTable,
+  assertUniqueItemCode,
+  assertUniqueItemName,
   fieldEntityFromTable,
   itemCatalogUpdateStatement,
   masterInsertStatement,
+  PURCHASE_KINDS,
+  purchaseKindLabel,
   type MasterFieldEntity,
   type MasterTable,
 } from '../lib/master/commands'
@@ -25,6 +29,7 @@ type NamedRow = {
   min_stock?: number | null
   code?: string | null
   unit?: string | null
+  purchase_kind?: string | null
 }
 type FieldRow = { entity: string; key: string; label: string }
 type TabId = MasterTable | 'fields'
@@ -115,6 +120,7 @@ export function MasterDataPage() {
   const [minStock, setMinStock] = useState('0')
   const [itemCode, setItemCode] = useState('')
   const [itemUnit, setItemUnit] = useState('개')
+  const [purchaseKind, setPurchaseKind] = useState('supply')
   const [selectedItemId, setSelectedItemId] = useState('')
   const [departmentId, setDepartmentId] = useState('')
   const [fieldEntity, setFieldEntity] = useState<MasterFieldEntity>('employee')
@@ -193,7 +199,7 @@ export function MasterDataPage() {
           )
         : nextTab === 'items'
           ? await sqlite.query<NamedRow>(
-              'select id, name, stock_managed, asset_managed, min_stock, code, unit from items order by name',
+              'select id, name, stock_managed, asset_managed, min_stock, code, unit, purchase_kind from items order by name',
             )
           : await sqlite.query<NamedRow>(`select id, name from ${nextTab} order by name`)
     setRows(named)
@@ -224,6 +230,10 @@ export function MasterDataPage() {
         setNotice(`필드 저장 (${result.status})`)
       } else {
         assertMasterTable(tab)
+        if (tab === 'items') {
+          assertUniqueItemName(name, rows)
+          assertUniqueItemCode(itemCode, rows)
+        }
         const row = {
           id: crypto.randomUUID(),
           name: name.trim(),
@@ -232,6 +242,7 @@ export function MasterDataPage() {
           minStock: tab === 'items' ? Number(minStock) || 0 : undefined,
           code: tab === 'items' ? itemCode : undefined,
           unit: tab === 'items' ? itemUnit : undefined,
+          purchaseKind: tab === 'items' ? purchaseKind : undefined,
         }
         const stmt = masterInsertStatement(tab, row)
         const result = await sqlite.runOnce(operationId, async () => {
@@ -244,6 +255,7 @@ export function MasterDataPage() {
       setMinStock('0')
       setItemCode('')
       setItemUnit('개')
+      setPurchaseKind('supply')
       setSelectedItemId('')
       await reload()
     } catch (error) {
@@ -258,13 +270,17 @@ export function MasterDataPage() {
     try {
       const stmt = itemCatalogUpdateStatement({
         id: selectedItemId,
+        name,
         code: itemCode,
         unit: itemUnit,
         minStock: Number(minStock) || 0,
+        purchaseKind,
       })
+      assertUniqueItemName(name, rows, selectedItemId)
+      assertUniqueItemCode(itemCode, rows, selectedItemId)
       const result = await sqlite.runOnce(operationId, async () => {
         await sqlite.exec(stmt.sql, stmt.params)
-        return { itemId: selectedItemId, code: stmt.params[0], unit: stmt.params[1], minStock: stmt.params[2] }
+        return { itemId: selectedItemId, name: stmt.params[0], code: stmt.params[1] }
       })
       setNotice(`품목 저장 (${result.status})`)
       await reload()
@@ -316,6 +332,7 @@ export function MasterDataPage() {
               { key: 'code', label: '코드', muted: true },
               { key: 'name', label: '이름' },
               { key: 'kind', label: '구분', muted: true },
+              { key: 'purchase', label: '구매', muted: true },
               { key: 'unit', label: '단위', muted: true },
               { key: 'minStock', label: '최소재고', muted: true },
             ],
@@ -330,6 +347,7 @@ export function MasterDataPage() {
                 code: row.code?.trim() ?? '',
                 name: row.name,
                 kind: itemKindLabel(row),
+                purchase: itemKindLabel(row) === '회사 자산' ? '' : purchaseKindLabel(row.purchase_kind),
                 unit: row.unit?.trim() || '개',
                 minStock: itemKindLabel(row) === '비품' ? String(row.min_stock ?? 0) : '',
               })),
@@ -393,7 +411,7 @@ export function MasterDataPage() {
           </button>
         </div>
       </div>
-      <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(18rem,22rem)_minmax(0,1fr)] lg:items-start">
+      <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(20rem,24rem)_minmax(0,1fr)] lg:items-start">
       <section className="rounded-lg border border-line bg-card p-4">
       <div className="flex flex-wrap gap-2 text-sm">
         {TABS.map((item) => (
@@ -406,6 +424,7 @@ export function MasterDataPage() {
               setMinStock('0')
               setItemCode('')
               setItemUnit('개')
+              setPurchaseKind('supply')
               setTab(item.id)
             }}
           >
@@ -413,7 +432,85 @@ export function MasterDataPage() {
           </button>
         ))}
       </div>
-      <form className="mt-3 flex flex-wrap gap-2" onSubmit={onSubmit}>
+      <form className="mt-3 grid gap-2" onSubmit={onSubmit}>
+        {tab === 'items' ? (
+          <>
+            <label className="text-sm">
+              이름
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2 text-sm"
+                placeholder="품목 이름"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-sm">
+                코드
+                <input
+                  className="mt-1 w-full rounded border border-line px-3 py-2 text-sm"
+                  placeholder="PAPER"
+                  value={itemCode}
+                  onChange={(e) => setItemCode(e.target.value)}
+                />
+              </label>
+              <label className="text-sm">
+                단위
+                <input
+                  className="mt-1 w-full rounded border border-line px-3 py-2 text-sm"
+                  placeholder="개"
+                  value={itemUnit}
+                  onChange={(e) => setItemUnit(e.target.value)}
+                />
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-sm">
+                최소재고
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  className="mt-1 w-full rounded border border-line px-3 py-2 text-sm"
+                  value={minStock}
+                  onChange={(e) => setMinStock(e.target.value)}
+                />
+              </label>
+              <label className="text-sm">
+                구매 구분
+                <select
+                  className="mt-1 w-full rounded border border-line px-3 py-2 text-sm"
+                  value={purchaseKind}
+                  onChange={(e) => setPurchaseKind(e.target.value)}
+                >
+                  {PURCHASE_KINDS.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="submit"
+                disabled={!ready}
+                className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                추가
+              </button>
+              <button
+                type="button"
+                disabled={!ready || !selectedItemId}
+                className="rounded border border-line px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                onClick={() => void saveItemCatalog()}
+              >
+                품목 저장
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
         {tab === 'fields' ? (
           <>
             <select
@@ -448,37 +545,13 @@ export function MasterDataPage() {
             ))}
           </select>
         ) : null}
+        <div className="flex flex-wrap gap-2">
         <input
           className="min-w-48 flex-1 rounded border border-line px-3 py-2 text-sm"
           placeholder={fieldHint}
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        {tab === 'items' ? (
-          <>
-            <input
-              className="w-28 rounded border border-line px-3 py-2 text-sm"
-              placeholder="코드"
-              value={itemCode}
-              onChange={(e) => setItemCode(e.target.value)}
-            />
-            <input
-              className="w-20 rounded border border-line px-3 py-2 text-sm"
-              placeholder="단위"
-              value={itemUnit}
-              onChange={(e) => setItemUnit(e.target.value)}
-            />
-            <input
-              type="number"
-              min="0"
-              step="1"
-              className="w-28 rounded border border-line px-3 py-2 text-sm"
-              placeholder="최소재고"
-              value={minStock}
-              onChange={(e) => setMinStock(e.target.value)}
-            />
-          </>
-        ) : null}
         <button
           type="submit"
           disabled={!ready}
@@ -486,16 +559,9 @@ export function MasterDataPage() {
         >
           추가
         </button>
-        {tab === 'items' ? (
-          <button
-            type="button"
-            disabled={!ready || !selectedItemId}
-            className="rounded border border-line px-4 py-2 text-sm font-semibold disabled:opacity-50"
-            onClick={() => void saveItemCatalog()}
-          >
-            품목 저장
-          </button>
-        ) : null}
+        </div>
+          </>
+        )}
       </form>
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
@@ -523,6 +589,7 @@ export function MasterDataPage() {
                     setName(row?.name ?? '')
                     setItemCode(row?.code ?? '')
                     setItemUnit(row?.unit?.trim() || '개')
+                    setPurchaseKind(row?.purchase_kind === 'material' || row?.purchase_kind === 'service' ? row.purchase_kind : 'supply')
                     setMinStock(String(row?.min_stock ?? 0))
                     setMessage('')
                     setNotice('')

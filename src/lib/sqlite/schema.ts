@@ -58,6 +58,7 @@ export const SCHEMA_PATCHES = [
   'alter table items add column min_stock integer not null default 0',
   'alter table items add column code text',
   "alter table items add column unit text not null default '개'",
+  "alter table items add column purchase_kind text not null default 'supply'",
   `create table if not exists employment_checks (
     employee_id text not null,
     item_key text not null,

@@ -22,6 +22,7 @@ export type ItemRecord = {
   minStock?: number
   code?: string
   unit?: string
+  purchaseKind?: string
 }
 
 export const PAPER_ITEM: ItemRecord = {
@@ -278,7 +279,8 @@ export async function loadItems(
     min_stock?: number | null
     code?: string | null
     unit?: string | null
-  }>('select id, name, stock_managed, asset_managed, min_stock, code, unit from items order by name')
+    purchase_kind?: string | null
+  }>('select id, name, stock_managed, asset_managed, min_stock, code, unit, purchase_kind from items order by name')
   return rows
     .filter((row) => !ISSUE_ITEMS.some((item) => item.id === row.id))
     .map((row) => ({
@@ -289,6 +291,7 @@ export async function loadItems(
       minStock: row.min_stock ?? 0,
       code: row.code ?? undefined,
       unit: row.unit ?? '개',
+      purchaseKind: row.purchase_kind ?? 'supply',
     }))
 }
 
@@ -334,6 +337,7 @@ export const MASTER_TABLE_SQL = [
     min_stock integer not null default 0,
     code text,
     unit text not null default '개',
+    purchase_kind text not null default 'supply',
     created_at text not null
   );`,
   `create table if not exists partners (

@@ -30,6 +30,53 @@ export function fieldEntityFromTable(table: MasterTable): MasterFieldEntity {
   return TABLE_ENTITY[table]
 }
 
+export const PURCHASE_KINDS = [
+  { id: 'supply', label: '일반 비품' },
+  { id: 'material', label: '자재' },
+  { id: 'service', label: '서비스' },
+] as const
+
+export type PurchaseKind = (typeof PURCHASE_KINDS)[number]['id']
+
+export function assertPurchaseKind(value: string): asserts value is PurchaseKind {
+  if (!PURCHASE_KINDS.some((item) => item.id === value)) {
+    throw new Error('구매 구분은 일반 비품·자재·서비스입니다.')
+  }
+}
+
+export function purchaseKindLabel(value?: string | null) {
+  return PURCHASE_KINDS.find((item) => item.id === value)?.label ?? '일반 비품'
+}
+
+export function assertUniqueItemName(
+  name: string,
+  items: { id: string; name: string }[],
+  itemId?: string,
+) {
+  const normalized = normalizeHangulField(name)
+  if (!normalized) throw new Error('품목 이름을 입력하세요.')
+  if (items.some((row) => row.id !== itemId && normalizeHangulField(row.name) === normalized)) {
+    throw new Error('같은 이름의 품목이 있습니다. 목록에서 고르고 품목 저장하세요.')
+  }
+}
+
+export function assertUniqueItemCode(
+  code: string,
+  items: { id: string; code?: string | null }[],
+  itemId?: string,
+) {
+  const normalized = normalizeHangulField(code)
+  if (!normalized) return
+  const key = normalized.toLowerCase()
+  if (
+    items.some(
+      (row) => row.id !== itemId && normalizeHangulField(row.code ?? '').toLowerCase() === key,
+    )
+  ) {
+    throw new Error('같은 코드의 품목이 있습니다. 코드를 바꾸세요.')
+  }
+}
+
 export function masterInsertStatement(
   table: string,
   row: {
@@ -40,6 +87,7 @@ export function masterInsertStatement(
     minStock?: number
     code?: string
     unit?: string
+    purchaseKind?: string
   },
 ): { sql: string; params: unknown[] } {
   assertMasterTable(table)
@@ -52,13 +100,15 @@ export function masterInsertStatement(
   if (table === 'items') {
     const catalog = itemCatalogValues({
       id: row.id,
+      name: row.name,
       code: row.code ?? '',
       unit: row.unit ?? '개',
       minStock: row.minStock ?? 0,
+      purchaseKind: row.purchaseKind ?? 'supply',
     })
     return {
-      sql: 'insert into items(id, name, code, unit, min_stock, created_at) values(?, ?, ?, ?, ?, ?)',
-      params: [row.id, row.name, catalog.code, catalog.unit, catalog.minStock, row.createdAt],
+      sql: 'insert into items(id, name, code, unit, min_stock, purchase_kind, created_at) values(?, ?, ?, ?, ?, ?, ?)',
+      params: [row.id, catalog.name, catalog.code, catalog.unit, catalog.minStock, catalog.purchaseKind, row.createdAt],
     }
   }
   return {
@@ -79,23 +129,36 @@ export function minStockUpdateStatement(itemId: string, minStock: number) {
 
 export function itemCatalogUpdateStatement(row: {
   id: string
+  name: string
   code: string
   unit: string
   minStock: number
+  purchaseKind?: string
 }) {
   const catalog = itemCatalogValues(row)
   return {
-    sql: 'update items set code = ?, unit = ?, min_stock = ? where id = ?',
-    params: [catalog.code, catalog.unit, catalog.minStock, row.id],
+    sql: 'update items set name = ?, code = ?, unit = ?, min_stock = ?, purchase_kind = ? where id = ?',
+    params: [catalog.name, catalog.code, catalog.unit, catalog.minStock, catalog.purchaseKind, row.id],
   }
 }
 
-function itemCatalogValues(row: { id: string; code: string; unit: string; minStock: number }) {
+function itemCatalogValues(row: {
+  id: string
+  name: string
+  code: string
+  unit: string
+  minStock: number
+  purchaseKind?: string
+}) {
   if (!Number.isInteger(row.minStock) || row.minStock < 0) {
     throw new Error('최소재고는 0 이상 정수입니다.')
   }
+  const name = normalizeHangulField(row.name)
+  if (!name) throw new Error('품목 이름을 입력하세요.')
   const unit = normalizeHangulField(row.unit)
   if (!unit) throw new Error('단위를 입력하세요.')
+  const purchaseKind = row.purchaseKind ?? 'supply'
+  assertPurchaseKind(purchaseKind)
   const code = normalizeHangulField(row.code)
-  return { code: code || null, unit, minStock: row.minStock }
+  return { name, code: code || null, unit, minStock: row.minStock, purchaseKind }
 }
