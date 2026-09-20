@@ -28,6 +28,7 @@ import {
 } from '../lib/master/commands'
 import { toArrayBuffer } from '../lib/contracts/book'
 import { useWorkAccess } from '../lib/guest/workAccess'
+import { assertGuestOpensMemory } from '../lib/guest/seed'
 
 type NamedRow = {
   id: string
@@ -175,15 +176,18 @@ export function MasterDataPage() {
     setOpenFailed(false)
     try {
       await sqlite.open(nextId, { force })
+      assertGuestOpensMemory(guest, sqlite.vfsName)
       setReady(sqlite.persistOk)
       if (!sqlite.persistOk) {
         setOpenFailed(true)
         setMessage('이 브라우저에서 영속 DB를 열 수 없습니다. 지정 Chrome에서 초기 설정을 먼저 하세요.')
         return
       }
-      await writeDefaultMaster(sqlite)
-      await retireSupplyAssets(sqlite)
-      setNotice(`로컬 원본이 열렸습니다. VFS ${sqlite.vfsName}`)
+      if (!guest) {
+        await writeDefaultMaster(sqlite)
+        await retireSupplyAssets(sqlite)
+      }
+      setNotice(guest ? '샘플이 열렸습니다. 저장되지 않습니다.' : `로컬 원본이 열렸습니다. VFS ${sqlite.vfsName}`)
       await reload(tab)
     } catch (error) {
       setReady(false)

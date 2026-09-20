@@ -27,6 +27,7 @@ describe('재고 자산화', () => {
     expect(assetIdsForConvert('op-asset', 2)).toEqual(['op-asset:1', 'op-asset:2'])
     expect(assetNumber('c269b67f-c44f-4015-9e3a-86af05a45077:1')).toBe('AST-C269B67F-1')
     expect(assetNumber('sample:desk-1', 'DSK-001')).toBe('AST-DSK-001')
+    expect(assetNumber('guest:desk-1', 'DEMO-DSK-01')).toBe('AST-DEMO-DSK-01')
     expect(assetNumber('sample:chair-1')).toBe('AST-CHAIR-1')
     expect(assetsFromConvert('op-asset', ITEM, MAIN, 2, 't').map((row) => row.status)).toEqual([
       'in_storage',

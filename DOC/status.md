@@ -7,7 +7,7 @@
 
 ## 지금 하는 일
 
-게스트 `/guest` HTTPS 확인. 홈 둘러보기 → 샘플 입고·기준정보. 새로고침하면 처음.
+게스트 샘플을 본사 시드와 분리. HTTPS에서 견본 김대리·샘플 책상인지 확인을 요청한다.
 
 ## 보드
 
@@ -49,6 +49,7 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 - Supabase 활성: `companyflow`, `boardroom`. 정지: `boam79_patient_data`, `qr-asset-manager`, `policyfund-ai-v2`.
 - `confirm_company_device` RPC 추가. 초기 설정 성공 후 원본 장치를 confirmed 로 올린다.
 
+- 2026-09-20: 게스트 시드를 본사와 분리. 견본 김대리·샘플 복사용지 7·자산 2. 본사 writeDefaultMaster를 게스트에서 돌리지 않음.
 - 2026-09-20: 게스트 `/guest`. 메모리 샘플. 로그인 없이 기준정보·입고·자산·입퇴사·계약. 본사 OPFS·회사 관리·QR 원본 없음. HTTPS 확인 전.
 - 2026-09-20: Planner. 게스트는 로그인 없이 `/guest`에서 샘플만 만진다. 메모리 SQLite. 본사 OPFS·회사 관리·QR 원본은 빼다.
 - 2026-09-20: 홈 인트로 3번 남색 표지. 재고 부족·입사 중·계약 기한·최근 작업·상태 카드를 홈에서 뺌. 업무 시작은 구매·재고. 지정 Chrome 확인 전.

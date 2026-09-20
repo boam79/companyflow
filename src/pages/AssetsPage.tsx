@@ -18,6 +18,7 @@ import { ACTIVE_MASTER_WHERE } from '../lib/master/commands'
 import { migrateProcessAssetsToChecks } from '../lib/people/onboarding'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { useWorkAccess } from '../lib/guest/workAccess'
+import { assertGuestOpensMemory } from '../lib/guest/seed'
 import { getSupabase } from '../lib/supabase'
 
 type NamedRow = { id: string; name: string }
@@ -106,14 +107,17 @@ export function AssetsPage() {
     setMessage('')
     try {
       await sqlite.open(nextId, { force })
+      assertGuestOpensMemory(guest, sqlite.vfsName)
       setReady(sqlite.persistOk)
       if (!sqlite.persistOk) {
         setMessage('이 브라우저에서 영속 DB를 열 수 없습니다. 지정 Chrome에서 초기 설정을 먼저 하세요.')
         return
       }
-      await writeDefaultMaster(sqlite)
-      await migrateProcessAssetsToChecks(sqlite)
-      await retireSupplyAssets(sqlite)
+      if (!guest) {
+        await writeDefaultMaster(sqlite)
+        await migrateProcessAssetsToChecks(sqlite)
+        await retireSupplyAssets(sqlite)
+      }
       const [itemRows, warehouseRows, assetRows] = await Promise.all([
         loadItems(sqlite),
         sqlite.query<NamedRow>(`select id, name from warehouses where ${ACTIVE_MASTER_WHERE} order by name`),

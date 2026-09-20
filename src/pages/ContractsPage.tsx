@@ -19,6 +19,7 @@ import {
 import { applyOcrCandidates } from '../lib/contracts/parseFields'
 import { writeDefaultMaster } from '../lib/master/book'
 import { useWorkAccess } from '../lib/guest/workAccess'
+import { assertGuestOpensMemory } from '../lib/guest/seed'
 
 function todayStamp() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date())
@@ -68,12 +69,13 @@ export function ContractsPage() {
     setMessage('')
     try {
       await sqlite.open(nextId, { force })
+      assertGuestOpensMemory(guest, sqlite.vfsName)
       setReady(sqlite.persistOk)
       if (!sqlite.persistOk) {
         setMessage('이 브라우저에서 영속 DB를 열 수 없습니다. 지정 Chrome에서 초기 설정을 먼저 하세요.')
         return
       }
-      await writeDefaultMaster(sqlite)
+      if (!guest) await writeDefaultMaster(sqlite)
       const nextRows = await loadContracts(sqlite)
       const groups = groupContracts(nextRows, todayStamp())
       setRows(nextRows)

@@ -64,6 +64,7 @@ import {
   type HireWorkflowRecord,
 } from '../lib/people/hireWorkflow'
 import { useWorkAccess } from '../lib/guest/workAccess'
+import { assertGuestOpensMemory } from '../lib/guest/seed'
 
 type NamedRow = { id: string; name: string }
 
@@ -139,14 +140,17 @@ export function PeoplePage() {
     setMessage('')
     try {
       await sqlite.open(nextId, { force })
+      assertGuestOpensMemory(guest, sqlite.vfsName)
       setReady(sqlite.persistOk)
       if (!sqlite.persistOk) {
         setMessage('이 브라우저에서 영속 DB를 열 수 없습니다. 지정 Chrome에서 초기 설정을 먼저 하세요.')
         return
       }
-      await writeDefaultMaster(sqlite)
-      await migrateProcessAssetsToChecks(sqlite)
-      await retireSupplyAssets(sqlite)
+      if (!guest) {
+        await writeDefaultMaster(sqlite)
+        await migrateProcessAssetsToChecks(sqlite)
+        await retireSupplyAssets(sqlite)
+      }
       const [deptRows, employeeRows, checkRows, template, notifyRow, workflowRows, eventRows] = await Promise.all([
         sqlite.query<NamedRow>(`select id, name from departments where ${ACTIVE_MASTER_WHERE} order by name`),
         loadEmployees(sqlite),

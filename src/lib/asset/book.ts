@@ -31,10 +31,11 @@ export type AssetRecord = {
 }
 
 export function assetNumber(id: string, serialNo?: string): string {
-  if (id.startsWith('sample:')) {
+  if (id.startsWith('sample:') || id.startsWith('guest:')) {
     const serial = serialNo?.trim().replace(/\s+/g, '-')
     if (serial) return `AST-${serial}`
-    return `AST-${id.slice(7).replace(/[^a-z0-9]+/gi, '-').toUpperCase()}`
+    const rest = id.replace(/^(sample|guest):/, '')
+    return `AST-${rest.replace(/[^a-z0-9]+/gi, '-').toUpperCase()}`
   }
   const [operationId, seq] = id.split(':')
   const short = operationId.replace(/-/g, '').slice(0, 8).toUpperCase()

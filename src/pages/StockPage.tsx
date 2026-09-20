@@ -16,6 +16,7 @@ import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
 import { useWorkAccess } from '../lib/guest/workAccess'
+import { assertGuestOpensMemory } from '../lib/guest/seed'
 
 type NamedRow = { id: string; name: string }
 type ActionType = StockCommand['type']
@@ -89,17 +90,20 @@ export function StockPage() {
     setOpenFailed(false)
     try {
       await sqlite.open(nextId, { force })
+      assertGuestOpensMemory(guest, sqlite.vfsName)
       setReady(sqlite.persistOk)
       if (!sqlite.persistOk) {
         setOpenFailed(true)
         setMessage('이 브라우저에서 영속 DB를 열 수 없습니다. 지정 Chrome에서 초기 설정을 먼저 하세요.')
         return
       }
-      await ensureDefaultStockMaster(sqlite)
-      await migrateProcessAssetsToChecks(sqlite)
-      await retireSupplyAssets(sqlite)
+      if (!guest) {
+        await ensureDefaultStockMaster(sqlite)
+        await migrateProcessAssetsToChecks(sqlite)
+        await retireSupplyAssets(sqlite)
+      }
       await reload()
-      setNotice(`로컬 원본이 열렸습니다. VFS ${sqlite.vfsName}`)
+      setNotice(guest ? '샘플이 열렸습니다. 저장되지 않습니다.' : `로컬 원본이 열렸습니다. VFS ${sqlite.vfsName}`)
     } catch (error) {
       setReady(false)
       setOpenFailed(true)
