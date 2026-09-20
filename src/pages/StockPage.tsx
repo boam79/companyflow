@@ -13,7 +13,7 @@ import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { executeStockCommand, ensureDefaultStockMaster, loadOrderOriginal, loadStockState, orderAttachment } from '../lib/stock/persist'
 import { toArrayBuffer } from '../lib/contracts/book'
-import { companyOnHand, onHand, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
+import { companyOnHand, onHand, orderNetReceived, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, orderRemainingCaption, resolveOrderPartnerId, supplyItems, supplyOrderCsv, todayYmd, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { commandFromSuggestion, stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -27,6 +27,7 @@ const sqlite = getCompanySqlite()
 const ACTIONS: { id: ActionType; label: string }[] = [
   { id: 'confirm_order', label: '발주 확정' },
   { id: 'post_receipt', label: '수령' },
+  { id: 'post_supplier_return', label: '공급사 반품' },
   { id: 'post_issue', label: '반출' },
   { id: 'post_return', label: '반납' },
   { id: 'draft_order', label: '발주 초안' },
@@ -250,7 +251,7 @@ export function StockPage() {
     setQty(next.qty)
     const nextItemId = stockActionItemId(next.action, itemId, items, next.itemId)
     if (nextItemId && nextItemId !== itemId) {
-      if (next.action === 'post_issue' || next.action === 'post_outbound') chooseItem(nextItemId)
+      if (next.action === 'post_issue' || next.action === 'post_outbound' || next.action === 'post_supplier_return') chooseItem(nextItemId)
       else setItemId(nextItemId)
     }
     if (next.sourceOperationId) setSourceOperationId(next.sourceOperationId)
@@ -274,11 +275,14 @@ export function StockPage() {
       setQty(String(remainingQty > 0 ? remainingQty : 1))
       return
     }
-    if (nextAction === 'post_issue' || nextAction === 'post_outbound') {
+    if (nextAction === 'post_issue' || nextAction === 'post_outbound' || nextAction === 'post_supplier_return') {
       const supplyId = stockActionItemId(nextAction, itemId, items)
       if (supplyId && supplyId !== itemId) chooseItem(supplyId)
-      const onHandQty = onHand(state, supplyId && supplyId !== itemId ? supplyId : itemId, warehouseId)
-      setQty(String(onHandQty > 0 ? Math.min(1, onHandQty) : 1))
+      const useItem = supplyId && supplyId !== itemId ? supplyId : itemId
+      const onHandQty = onHand(state, useItem, warehouseId)
+      const returnable =
+        nextAction === 'post_supplier_return' ? Math.min(onHandQty, orderNetReceived(state, orderId, useItem)) : onHandQty
+      setQty(String(returnable > 0 ? Math.min(1, returnable) : 1))
       return
     }
     if (nextAction === 'post_return') setQty('1')
@@ -322,6 +326,15 @@ export function StockPage() {
           warehouseId,
           qty: quantity,
           ...(Number(defectQty) > 0 ? { defectQty: Number(defectQty) } : {}),
+        }
+      case 'post_supplier_return':
+        return {
+          type: action,
+          operationId: nextOperationId,
+          orderId,
+          itemId: nextItemId,
+          warehouseId,
+          qty: quantity,
         }
       case 'post_direct_in':
       case 'post_outbound':
@@ -660,7 +673,7 @@ export function StockPage() {
                     목록 받기
                   </button>
                 </div>
-                <p className="mt-1 text-xs text-muted">한 발주서에 여러 품목을 넣으면 같은 번호로 줄이 늘어납니다. 수령의 정상만 재고에 넣고 불량은 잔량에 남깁니다. 책상·컴퓨터는 자산 발주입니다.</p>
+                <p className="mt-1 text-xs text-muted">한 발주서에 여러 품목을 넣으면 같은 번호로 줄이 늘어납니다. 수령의 정상만 재고에 넣고 불량은 잔량에 남깁니다. 공급사 반품은 검수 통과분만 현재고에서 빼 잔량을 되돌립니다.</p>
                 <div className="mt-2 overflow-x-auto">
                   <table className="min-w-max w-full text-left text-sm">
                     <thead>
@@ -675,6 +688,7 @@ export function StockPage() {
                         <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">발주</th>
                         <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">수령</th>
                         <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">불량</th>
+                        <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">반품</th>
                         <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">잔량</th>
                         <th className="whitespace-nowrap py-1.5 font-medium">상태</th>
                       </tr>
@@ -700,6 +714,7 @@ export function StockPage() {
                             <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{row.orderedQty}</td>
                             <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{row.receivedQty}</td>
                             <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{row.rejectedQty}</td>
+                            <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{row.returnedQty}</td>
                             <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{row.remainingQty}</td>
                             <td className="whitespace-nowrap py-1.5">{row.status === 'draft' ? '초안' : '확정'}</td>
                           </tr>
@@ -1053,6 +1068,9 @@ export function StockPage() {
               </select>
             </label>
           </>
+        ) : null}
+        {action === 'post_supplier_return' ? (
+          <p className="text-sm text-muted">검수 통과분만 공급사에 돌려 보냅니다. 현재고가 줄고 발주 잔량이 늘어납니다. 불량 거절품 반환은 아직입니다.</p>
         ) : null}
         {action === 'post_return' ? (
           <p className="text-sm text-muted">

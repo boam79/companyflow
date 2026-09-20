@@ -90,7 +90,7 @@ export function stockActionItemId(
   suggestedItemId?: string,
 ) {
   const candidate = suggestedItemId ?? currentItemId
-  if (action === 'post_issue' || action === 'post_outbound') {
+  if (action === 'post_issue' || action === 'post_outbound' || action === 'post_supplier_return') {
     const item = items.find((row) => row.id === candidate)
     if (!isSupplyItem(item)) {
       return items.find(isSupplyItem)?.id ?? currentItemId

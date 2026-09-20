@@ -58,6 +58,14 @@ export type StockCommand =
       sourceOperationId: string
     }
   | {
+      type: 'post_supplier_return'
+      operationId: string
+      orderId: string
+      itemId: string
+      warehouseId: string
+      qty: number
+    }
+  | {
       type: 'transfer_stock'
       operationId: string
       itemId: string
@@ -98,6 +106,7 @@ export type LedgerTxnType =
   | 'reversal'
   | 'convert_out'
   | 'reject'
+  | 'supplier_return'
 
 export type LedgerLine = {
   id: string
@@ -216,6 +225,21 @@ export function orderRejected(state: StockState, orderId: string, itemId?: strin
     .reduce((sum, line) => sum + line.qtyDelta, 0)
 }
 
+export function orderSupplierReturned(state: StockState, orderId: string, itemId?: string): number {
+  return state.ledger
+    .filter(
+      (line) =>
+        line.orderId === orderId &&
+        line.txnType === 'supplier_return' &&
+        (!itemId || line.itemId === itemId),
+    )
+    .reduce((sum, line) => sum + Math.abs(line.qtyDelta), 0)
+}
+
+export function orderNetReceived(state: StockState, orderId: string, itemId?: string): number {
+  return Math.max(0, orderReceived(state, orderId, itemId) - orderSupplierReturned(state, orderId, itemId))
+}
+
 export function orderRemaining(state: StockState, orderId: string, itemId?: string): number {
   const order = state.orders.get(orderId)
   if (!order || order.status !== 'confirmed') return 0
@@ -223,9 +247,9 @@ export function orderRemaining(state: StockState, orderId: string, itemId?: stri
   if (itemId) {
     const line = lines.find((row) => row.itemId === itemId)
     if (!line) return 0
-    return Math.max(0, line.qty - orderReceived(state, orderId, itemId))
+    return Math.max(0, line.qty - orderNetReceived(state, orderId, itemId))
   }
-  return lines.reduce((sum, line) => sum + Math.max(0, line.qty - orderReceived(state, orderId, line.itemId)), 0)
+  return lines.reduce((sum, line) => sum + Math.max(0, line.qty - orderNetReceived(state, orderId, line.itemId)), 0)
 }
 
 export function applyStockCommand(
@@ -376,6 +400,31 @@ export function applyStockCommand(
         warehouseId: command.warehouseId,
         qtyDelta: command.qty,
         sourceOperationId: command.sourceOperationId,
+      })
+      break
+    }
+    case 'post_supplier_return': {
+      requirePositive(command.qty)
+      const order = next.orders.get(command.orderId)
+      if (!order || order.status !== 'confirmed') {
+        throw new Error('확정된 발주만 반품할 수 있습니다.')
+      }
+      if (!stockOrderLines(order).some((line) => line.itemId === command.itemId)) {
+        throw new Error('발주 품목이 다릅니다.')
+      }
+      const net = orderNetReceived(next, command.orderId, command.itemId)
+      if (command.qty > net) throw new Error('검수 통과 수량을 초과해 반품할 수 없습니다.')
+      if (command.qty > onHand(next, command.itemId, command.warehouseId)) {
+        throw new Error('현재고를 초과해 반품할 수 없습니다.')
+      }
+      next.ledger.push({
+        id: `${command.operationId}:supplier-return`,
+        operationId: command.operationId,
+        txnType: 'supplier_return',
+        itemId: command.itemId,
+        warehouseId: command.warehouseId,
+        qtyDelta: -command.qty,
+        orderId: command.orderId,
       })
       break
     }

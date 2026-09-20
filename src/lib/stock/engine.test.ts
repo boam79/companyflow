@@ -385,4 +385,44 @@ describe('복사용지 재고 원장', () => {
     expect(orderRemaining(state, 'ord-1')).toBe(4)
     expect(state.ledger.some((line) => line.txnType === 'reject' && line.qtyDelta === 2)).toBe(true)
   })
+
+  it('검수 통과분 반품은 현재고를 줄이고 발주 잔량을 되돌린다', () => {
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'confirm_order',
+      operationId: 'op-order',
+      orderId: 'ord-1',
+      itemId: ITEM,
+      qty: 10,
+    }).state
+    state = applyStockCommand(state, {
+      type: 'post_receipt',
+      operationId: 'op-recv',
+      orderId: 'ord-1',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 6,
+      defectQty: 2,
+    }).state
+    state = applyStockCommand(state, {
+      type: 'post_supplier_return',
+      operationId: 'op-back',
+      orderId: 'ord-1',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 2,
+    }).state
+    expect(onHand(state, ITEM, MAIN)).toBe(4)
+    expect(orderRemaining(state, 'ord-1')).toBe(6)
+    expect(() =>
+      applyStockCommand(state, {
+        type: 'post_supplier_return',
+        operationId: 'op-back-too-many',
+        orderId: 'ord-1',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qty: 5,
+      }),
+    ).toThrow(/검수 통과/)
+  })
 })

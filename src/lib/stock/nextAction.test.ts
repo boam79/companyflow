@@ -202,7 +202,7 @@ describe('반출 품목', () => {
   it('반출·출고는 책상 대신 비품을 고른다', () => {
     const items = [PAPER_ITEM, ...COMPANY_ASSET_ITEMS]
     expect(stockActionItemId('post_issue', 'item-desk', items)).toBe('item-paper')
-    expect(stockActionItemId('post_outbound', 'item-desk', items)).toBe('item-paper')
+    expect(stockActionItemId('post_supplier_return', 'item-desk', items)).toBe('item-paper')
     expect(stockActionItemId('post_receipt', 'item-desk', items)).toBe('item-desk')
     expect(stockActionItemId('post_issue', 'item-paper', items)).toBe('item-paper')
   })

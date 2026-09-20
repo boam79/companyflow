@@ -14,6 +14,7 @@ export const TXN_LABELS: Record<LedgerTxnType, string> = {
   adjust: '실사 조정',
   reversal: '정정',
   reject: '검수 불량',
+  supplier_return: '공급사 반품',
 }
 
 export type LedgerViewRow = {
