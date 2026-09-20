@@ -218,6 +218,34 @@ describe('비품 발주 목록', () => {
     })
   })
 
+  it('한 발주서의 비품 줄과 자산 줄을 같은 번호로 나눈다', () => {
+    const clip = { id: 'item-clip', name: '클립', stockManaged: true, assetManaged: false }
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'confirm_order',
+      operationId: 'op-mix',
+      orderId: 'ord-mix',
+      itemId: PAPER_ITEM.id,
+      qty: 10,
+      lines: [
+        { itemId: PAPER_ITEM.id, qty: 10 },
+        { itemId: clip.id, qty: 3 },
+        { itemId: desk.id, qty: 1 },
+      ],
+    }).state
+    const mixedItems = [PAPER_ITEM, clip, ...COMPANY_ASSET_ITEMS]
+    expect(buildSupplyOrderList(mixedItems, state).map((row) => [row.orderId, row.itemName, row.orderedQty])).toEqual([
+      ['ord-mix', '복사용지', 10],
+      ['ord-mix', '클립', 3],
+    ])
+    expect(buildAssetOrderList(mixedItems, state).map((row) => [row.orderId, row.itemName, row.orderedQty])).toEqual([
+      ['ord-mix', '책상', 1],
+    ])
+    const csv = supplyOrderCsv(buildSupplyOrderList(mixedItems, state))
+    expect(csv).toContain('ord-mix,복사용지,,,,,원,10,0,10,확정')
+    expect(csv).toContain('ord-mix,클립,,,,,원,3,0,3,확정')
+  })
+
   it('오늘 날짜는 YYYY-MM-DD다', () => {
     expect(todayYmd(new Date(2026, 8, 20))).toBe('2026-09-20')
   })

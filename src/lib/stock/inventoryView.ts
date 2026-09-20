@@ -1,5 +1,5 @@
 import { isCompanyAssetItem, isSupplyItem, type ItemRecord } from '../master/book'
-import { companyOnHand, onHand, orderReceived, orderRemaining, type StockOrder, type StockState } from './engine'
+import { companyOnHand, onHand, orderReceived, orderRemaining, stockOrderLines, type StockOrder, type StockState } from './engine'
 
 export type NamedWarehouse = { id: string; name: string }
 
@@ -32,7 +32,7 @@ export function orderRemainingCaption(
   order: StockOrder | undefined,
   remaining: number,
 ): string {
-  if (!selected || !order || order.itemId !== selected.itemId) return ''
+  if (!selected || !order || !stockOrderLines(order).some((line) => line.itemId === selected.itemId)) return ''
   return ` · 발주 ${order.id} 잔량 ${remaining}`
 }
 
@@ -81,28 +81,32 @@ function orderRows(
   partners: NamedPartner[] = [],
 ): PurchaseOrderRow[] {
   return [...state.orders.values()]
-    .filter((order) => match(items.find((item) => item.id === order.itemId)))
-    .map((order) => {
-      const item = items.find((row) => row.id === order.itemId)
+    .flatMap((order) => {
       const partnerId = order.partnerId
-      return {
-        orderId: order.id,
-        itemId: order.itemId,
-        itemName: item?.name ?? order.itemId,
-        orderedQty: order.qty,
-        receivedQty: orderReceived(state, order.id),
-        remainingQty: orderRemaining(state, order.id),
-        status: order.status,
-        ...(partnerId ? { partnerId } : {}),
-        supplierName: partners.find((row) => row.id === partnerId)?.name ?? '',
-        dueDate: order.dueDate ?? '',
-        orderDate: order.orderDate ?? '',
-        fileName: order.fileName ?? '',
-        currency: order.currency || 'KRW',
-        currencyName: orderCurrencyLabel(order.currency),
-      }
+      return stockOrderLines(order).flatMap((line) => {
+        const item = items.find((row) => row.id === line.itemId)
+        if (!match(item)) return []
+        return [
+          {
+            orderId: order.id,
+            itemId: line.itemId,
+            itemName: item?.name ?? line.itemId,
+            orderedQty: line.qty,
+            receivedQty: orderReceived(state, order.id, line.itemId),
+            remainingQty: orderRemaining(state, order.id, line.itemId),
+            status: order.status,
+            ...(partnerId ? { partnerId } : {}),
+            supplierName: partners.find((row) => row.id === partnerId)?.name ?? '',
+            dueDate: order.dueDate ?? '',
+            orderDate: order.orderDate ?? '',
+            fileName: order.fileName ?? '',
+            currency: order.currency || 'KRW',
+            currencyName: orderCurrencyLabel(order.currency),
+          },
+        ]
+      })
     })
-    .sort((a, b) => a.orderId.localeCompare(b.orderId))
+    .sort((a, b) => a.orderId.localeCompare(b.orderId) || a.itemName.localeCompare(b.itemName, 'ko'))
 }
 
 export function buildSupplyOrderList(

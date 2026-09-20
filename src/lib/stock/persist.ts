@@ -7,10 +7,12 @@ import { supplyItemInsert } from './typedItem'
 import {
   applyStockCommand,
   createStockState,
+  stockOrderLines,
   type LedgerLine,
   type LedgerTxnType,
   type StockCommand,
   type StockOrder,
+  type StockOrderLine,
   type StockState,
 } from './engine'
 
@@ -44,6 +46,12 @@ export type OrderRow = {
   file_mime?: string | null
   file_base64?: string | null
   currency?: string | null
+}
+
+export type OrderLineRow = {
+  order_id: string
+  item_id: string
+  qty: number
 }
 
 type StockDb = Pick<CompanySqlite, 'query' | 'batch'>
@@ -116,6 +124,16 @@ export function statementsForCommand(
           createdAt,
         ],
       })
+      statements.push({
+        sql: 'delete from stock_order_lines where order_id = ?',
+        params: [order.id],
+      })
+      for (const line of stockOrderLines(order)) {
+        statements.push({
+          sql: 'insert into stock_order_lines(order_id, item_id, qty) values(?, ?, ?)',
+          params: [order.id, line.itemId, line.qty],
+        })
+      }
     }
   }
   const prevIds = new Set(prev.ledger.map((line) => line.id))
@@ -181,14 +199,23 @@ export function stateFromRows(
   orders: OrderRow[],
   ledger: LedgerRow[],
   processedIds: string[],
+  lineRows: OrderLineRow[] = [],
 ): StockState {
   const state = createStockState()
   for (const id of processedIds) state.processed.set(id, 'applied')
+  const linesByOrder = new Map<string, StockOrderLine[]>()
+  for (const row of lineRows) {
+    const list = linesByOrder.get(row.order_id) ?? []
+    list.push({ itemId: row.item_id, qty: row.qty })
+    linesByOrder.set(row.order_id, list)
+  }
   for (const order of orders) {
+    const lines = linesByOrder.get(order.id)
     const row: StockOrder = {
       id: order.id,
       itemId: order.item_id,
       qty: order.qty,
+      ...(lines?.length ? { lines } : {}),
       status: order.status,
       partnerId: order.partner_id ?? undefined,
       dueDate: order.due_date ?? undefined,
@@ -223,7 +250,7 @@ export function stateFromRows(
 }
 
 export async function loadStockState(db: Pick<CompanySqlite, 'query'>): Promise<StockState> {
-  const [orders, ledger, processed] = await Promise.all([
+  const [orders, ledger, processed, lineRows] = await Promise.all([
     db.query<OrderRow>(
       `select id, item_id, qty, status, partner_id, due_date, order_date, currency,
         file_name, file_mime, file_base64, operation_id from stock_orders`,
@@ -234,11 +261,13 @@ export async function loadStockState(db: Pick<CompanySqlite, 'query'>): Promise<
        from stock_ledger order by created_at, id`,
     ),
     db.query<{ operation_id: string }>('select operation_id from processed_operations'),
+    db.query<OrderLineRow>('select order_id, item_id, qty from stock_order_lines order by order_id, item_id'),
   ])
   return stateFromRows(
     orders,
     ledger,
     processed.map((row) => row.operation_id),
+    lineRows,
   )
 }
 
@@ -264,7 +293,7 @@ export async function executeStockCommand(
   db: StockDb,
   command: StockCommand,
   createdAt = new Date().toISOString(),
-  options?: { newItem?: ItemRecord },
+  options?: { newItem?: ItemRecord; newItems?: ItemRecord[] },
 ): Promise<{ status: 'applied' | 'duplicate'; state: StockState }> {
   if (command.type === 'convert_to_asset') {
     const items = await loadItems(db)
@@ -283,8 +312,12 @@ export async function executeStockCommand(
   const result = applyStockCommand(prev, nextCommand)
   if (result.status === 'duplicate') return result
 
+  const createdItems = [
+    ...(options?.newItem ? [options.newItem] : []),
+    ...(options?.newItems ?? []).filter((item) => item.id !== options?.newItem?.id),
+  ]
   const statements: SqlStatement[] = [
-    ...(options?.newItem ? [supplyItemInsert(options.newItem, createdAt)] : []),
+    ...createdItems.map((item) => supplyItemInsert(item, createdAt)),
     {
       sql: 'insert into processed_operations(operation_id, result_json, created_at) values(?, ?, ?)',
       params: [nextCommand.operationId, JSON.stringify({ type: nextCommand.type }), createdAt],

@@ -13,7 +13,7 @@ import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { executeStockCommand, ensureDefaultStockMaster, loadOrderOriginal, loadStockState, orderAttachment } from '../lib/stock/persist'
 import { toArrayBuffer } from '../lib/contracts/book'
-import { companyOnHand, onHand, orderRemaining, type LedgerLine, type StockCommand, type StockState } from '../lib/stock/engine'
+import { companyOnHand, onHand, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, orderRemainingCaption, resolveOrderPartnerId, supplyItems, supplyOrderCsv, todayYmd, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { commandFromSuggestion, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -21,6 +21,7 @@ import { getSupabase, type CompanyRow } from '../lib/supabase'
 
 type NamedRow = { id: string; name: string }
 type ActionType = StockCommand['type']
+type ExtraOrderLine = { key: string; itemId: string; qty: string }
 
 const sqlite = getCompanySqlite()
 const ACTIONS: { id: ActionType; label: string }[] = [
@@ -57,6 +58,7 @@ export function StockPage() {
   const [orderDueDate, setOrderDueDate] = useState('')
   const [orderDate, setOrderDate] = useState(todayYmd)
   const [orderCurrency, setOrderCurrency] = useState('KRW')
+  const [extraLines, setExtraLines] = useState<ExtraOrderLine[]>([])
   const [orderFileName, setOrderFileName] = useState('')
   const [pendingOrderFile, setPendingOrderFile] = useState<{
     fileName: string
@@ -194,6 +196,17 @@ export function StockPage() {
     setOrderCurrency(row.currency || 'KRW')
     setOrderFileName(row.fileName)
     setPendingOrderFile(null)
+    const order = state?.orders.get(row.orderId)
+    const others = stockOrderLines(order ?? { itemId: row.itemId, qty: row.orderedQty }).filter(
+      (line) => line.itemId !== row.itemId,
+    )
+    setExtraLines(
+      others.map((line) => ({
+        key: `${row.orderId}-${line.itemId}`,
+        itemId: line.itemId,
+        qty: String(line.qty),
+      })),
+    )
   }
 
   async function pickOrderFile(file: File) {
@@ -232,6 +245,7 @@ export function StockPage() {
     }
     setAction(next.action)
     setQty(next.qty)
+    if (next.itemId) setItemId(next.itemId)
     if (next.sourceOperationId) setSourceOperationId(next.sourceOperationId)
     if (next.warehouseId) setWarehouseId(next.warehouseId)
   }
@@ -249,7 +263,7 @@ export function StockPage() {
       return
     }
     if (nextAction === 'post_receipt') {
-      const remainingQty = orderRemaining(state, orderId)
+      const remainingQty = orderRemaining(state, orderId, itemId)
       setQty(String(remainingQty > 0 ? remainingQty : 1))
       return
     }
@@ -265,7 +279,12 @@ export function StockPage() {
     if (nextAction === 'transfer_stock') setQty('2')
   }
 
-  function buildCommand(nextOperationId: string, nextItemId = itemId, nextItem?: ItemRecord): StockCommand {
+  function buildCommand(
+    nextOperationId: string,
+    nextItemId = itemId,
+    nextItem?: ItemRecord,
+    moreLines: StockOrderLine[] = [],
+  ): StockCommand {
     const quantity = Number(qty)
     switch (action) {
       case 'draft_order':
@@ -284,6 +303,9 @@ export function StockPage() {
           orderDate: orderDate.trim() || undefined,
           currency: orderCurrency,
           ...(pendingOrderFile ?? {}),
+          ...(moreLines.length
+            ? { lines: [{ itemId: nextItemId, qty: quantity }, ...moreLines] }
+            : {}),
         }
       case 'post_receipt':
         return {
@@ -387,6 +409,7 @@ export function StockPage() {
     const nextOperationId = operationId.trim() || crypto.randomUUID()
     try {
       const typedName = String(new FormData(event.currentTarget).get('itemName') ?? '')
+      const formData = new FormData(event.currentTarget)
       const resolved =
         action === 'reverse_transaction'
           ? { item: items.find((row) => row.id === itemId) ?? { id: itemId, name: typedName, stockManaged: true, assetManaged: false }, created: false }
@@ -394,12 +417,37 @@ export function StockPage() {
               createIfMissing: isInboundStockAction(action),
               newId: `item-${crypto.randomUUID()}`,
             })
+      const extraResolved: { item: ItemRecord; created: boolean; qty: number }[] = []
+      if (action === 'draft_order' || action === 'confirm_order') {
+        const known = [...items]
+        if (resolved.created) known.push(resolved.item)
+        for (const extra of extraLines) {
+          const extraName = String(formData.get(`lineItemName-${extra.key}`) ?? '')
+          if (!extraName.trim()) continue
+          const extraQty = Number(String(formData.get(`lineQty-${extra.key}`) ?? extra.qty))
+          const nextExtra = resolveTypedItem(known, extraName, {
+            createIfMissing: true,
+            newId: `item-${crypto.randomUUID()}`,
+          })
+          extraResolved.push({ ...nextExtra, qty: extraQty })
+          if (nextExtra.created) known.push(nextExtra.item)
+        }
+      }
       setItemId(resolved.item.id)
+      const createdItems = [
+        ...(resolved.created ? [resolved.item] : []),
+        ...extraResolved.filter((row) => row.created).map((row) => row.item),
+      ]
       const result = await executeStockCommand(
         sqlite,
-        buildCommand(nextOperationId, resolved.item.id, resolved.item),
+        buildCommand(
+          nextOperationId,
+          resolved.item.id,
+          resolved.item,
+          extraResolved.map((row) => ({ itemId: row.item.id, qty: row.qty })),
+        ),
         undefined,
-        resolved.created ? { newItem: resolved.item } : undefined,
+        createdItems.length ? { newItem: createdItems[0], newItems: createdItems.slice(1) } : undefined,
       )
       setLastOperationId(nextOperationId)
       setOperationId('')
@@ -450,7 +498,7 @@ export function StockPage() {
   const formItems =
     action === 'draft_order' || action === 'confirm_order' || action === 'post_receipt' ? orderableItems : stockItems
   const paperQty = state ? companyOnHand(state, itemId) : 0
-  const remaining = state ? orderRemaining(state, orderId) : 0
+  const remaining = state ? orderRemaining(state, orderId, itemId) : 0
   const suggested = state
     ? suggestNextStockForm(state, orderId, items.find((row) => row.id === itemId) ?? stockItems.find((row) => row.id === itemId))
     : null
@@ -604,7 +652,7 @@ export function StockPage() {
                     목록 받기
                   </button>
                 </div>
-                <p className="mt-1 text-xs text-muted">일반 비품만 발주 항목별로 모읍니다. 책상·컴퓨터는 자산 발주입니다. 공급사·발주일·납기·첨부·통화는 발주에서 넣습니다.</p>
+                <p className="mt-1 text-xs text-muted">한 발주서에 여러 품목을 넣으면 같은 번호로 줄이 늘어납니다. 일반 비품은 여기, 책상·컴퓨터는 자산 발주입니다. 공급사·발주일·납기·첨부·통화는 발주에서 넣습니다.</p>
                 <div className="mt-2 overflow-x-auto">
                   <table className="min-w-max w-full text-left text-sm">
                     <thead>
@@ -624,10 +672,10 @@ export function StockPage() {
                     </thead>
                     <tbody>
                       {supplyOrders.map((row) => {
-                        const active = row.orderId === orderId
+                        const active = row.orderId === orderId && row.itemId === itemId
                         return (
                           <tr
-                            key={row.orderId}
+                            key={`${row.orderId}:${row.itemId}`}
                             className={`cursor-pointer border-b border-line/70 ${
                               active ? 'bg-accent-soft' : 'hover:bg-paper'
                             }`}
@@ -655,7 +703,7 @@ export function StockPage() {
             {assetOrders.length ? (
               <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
                 {assetOrders.map((row) => (
-                  <li key={row.orderId}>
+                  <li key={`${row.orderId}:${row.itemId}`}>
                     <button
                       type="button"
                       className={`text-left ${row.orderId === orderId ? 'font-semibold text-accent' : 'hover:text-ink'}`}
@@ -901,6 +949,60 @@ export function StockPage() {
                   : '있는 비품 이름만 반출·출고할 수 있습니다.'}
               </span>
             </label>
+          ) : null}
+          {action === 'draft_order' || action === 'confirm_order' ? (
+            <div className="text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <span>품목 줄</span>
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-accent"
+                  onClick={() =>
+                    setExtraLines((prev) => [...prev, { key: crypto.randomUUID(), itemId: '', qty: '1' }])
+                  }
+                >
+                  품목 줄 추가
+                </button>
+              </div>
+              {extraLines.length ? (
+                <ul className="mt-2 space-y-2">
+                  {extraLines.map((line) => (
+                    <li key={line.key} className="flex flex-wrap items-end gap-2">
+                      <label className="min-w-[8rem] flex-1 text-sm">
+                        품목
+                        <input
+                          key={`${line.key}-${line.itemId}`}
+                          name={`lineItemName-${line.key}`}
+                          list="stock-item-names"
+                          autoComplete="off"
+                          className="mt-1 w-full rounded border border-line px-3 py-2"
+                          defaultValue={items.find((row) => row.id === line.itemId)?.name ?? ''}
+                          placeholder="이름을 치세요"
+                        />
+                      </label>
+                      <label className="w-24 text-sm">
+                        수량
+                        <input
+                          name={`lineQty-${line.key}`}
+                          className="mt-1 w-full rounded border border-line px-3 py-2"
+                          inputMode="numeric"
+                          defaultValue={line.qty}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="mb-0.5 text-xs text-muted"
+                        onClick={() => setExtraLines((prev) => prev.filter((row) => row.key !== line.key))}
+                      >
+                        줄 삭제
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1 text-xs text-muted">같은 발주서에 비품·자재·서비스·자산을 더 넣을 수 있습니다.</p>
+              )}
+            </div>
           ) : null}
         </div>
         {action === 'post_issue' ? (

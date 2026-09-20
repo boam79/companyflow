@@ -277,6 +277,68 @@ describe('복사용지 재고 원장', () => {
     expect(state.orders.get('ord-krw')?.currency).toBe('KRW')
   })
 
+  it('한 발주서에 비품과 자산을 함께 넣고 품목별 잔량만 수령한다', () => {
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'confirm_order',
+      operationId: 'op-mix',
+      orderId: 'ord-mix',
+      itemId: ITEM,
+      qty: 10,
+      lines: [
+        { itemId: ITEM, qty: 10 },
+        { itemId: 'item-desk', qty: 2 },
+      ],
+    }).state
+    const order = state.orders.get('ord-mix')
+    expect(order?.itemId).toBe(ITEM)
+    expect(order?.qty).toBe(10)
+    expect(order?.lines).toEqual([
+      { itemId: ITEM, qty: 10 },
+      { itemId: 'item-desk', qty: 2 },
+    ])
+    expect(orderRemaining(state, 'ord-mix')).toBe(12)
+    expect(orderRemaining(state, 'ord-mix', ITEM)).toBe(10)
+    expect(orderRemaining(state, 'ord-mix', 'item-desk')).toBe(2)
+
+    state = applyStockCommand(state, {
+      type: 'post_receipt',
+      operationId: 'op-recv-paper',
+      orderId: 'ord-mix',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 4,
+    }).state
+    expect(orderRemaining(state, 'ord-mix', ITEM)).toBe(6)
+    expect(orderRemaining(state, 'ord-mix', 'item-desk')).toBe(2)
+    expect(() =>
+      applyStockCommand(state, {
+        type: 'post_receipt',
+        operationId: 'op-recv-too-many',
+        orderId: 'ord-mix',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qty: 7,
+      }),
+    ).toThrow(/잔량/)
+  })
+
+  it('같은 품목을 두 줄로 넣지 않는다', () => {
+    expect(() =>
+      applyStockCommand(createStockState(), {
+        type: 'confirm_order',
+        operationId: 'op-dup',
+        orderId: 'ord-dup',
+        itemId: ITEM,
+        qty: 1,
+        lines: [
+          { itemId: ITEM, qty: 1 },
+          { itemId: ITEM, qty: 2 },
+        ],
+      }),
+    ).toThrow(/한 줄/)
+  })
+
   it('가구 수령은 발주 잔량만 줄이고 현재고는 늘리지 않는다', () => {
     let state = createStockState()
     state = applyStockCommand(state, {

@@ -2,6 +2,7 @@ import { isCompanyAssetItem, type ItemRecord } from '../master/book'
 import {
   applyStockCommand,
   orderRemaining,
+  stockOrderLines,
   type LedgerLine,
   type StockCommand,
   type StockState,
@@ -15,6 +16,7 @@ export function objectMarker(qty: number): '을' | '를' {
 export type NextStockForm = {
   action: StockCommand['type']
   qty: string
+  itemId?: string
   sourceOperationId?: string
   warehouseId?: string
   hint: string
@@ -49,12 +51,18 @@ export function suggestNextStockForm(
     }
   }
 
-  const remaining = orderRemaining(state, orderId)
-  if (order?.status === 'confirmed' && remaining > 0) {
+  const remainingLine =
+    order?.status === 'confirmed'
+      ? stockOrderLines(order).find((line) => orderRemaining(state, orderId, line.itemId) > 0 && (!item || line.itemId === item.id)) ??
+        stockOrderLines(order).find((line) => orderRemaining(state, orderId, line.itemId) > 0)
+      : undefined
+  const remaining = remainingLine ? orderRemaining(state, orderId, remainingLine.itemId) : 0
+  if (order?.status === 'confirmed' && remainingLine && remaining > 0) {
     const qty = remaining >= 10 ? 6 : remaining
     return {
       action: 'post_receipt',
       qty: String(qty),
+      itemId: remainingLine.itemId,
       hint: isCompanyAssetItem(item)
         ? `발주 잔량 ${remaining} 중 ${qty}개를 수령하면 개별 자산으로 등록됩니다.`
         : `발주 잔량 ${remaining} 중 ${qty}${objectMarker(qty)} 수령하면 수불부에 입고로 이어집니다.`,
@@ -92,6 +100,7 @@ export function commandFromSuggestion(
   ctx: SuggestionContext,
 ): StockCommand {
   const qty = Number(suggestion.qty)
+  const itemId = suggestion.itemId ?? ctx.itemId
   switch (suggestion.action) {
     case 'draft_order':
     case 'confirm_order':
@@ -99,7 +108,7 @@ export function commandFromSuggestion(
         type: suggestion.action,
         operationId,
         orderId: ctx.orderId,
-        itemId: ctx.itemId,
+        itemId,
         qty,
         partnerId: ctx.partnerId,
         dueDate: ctx.dueDate,
@@ -111,7 +120,7 @@ export function commandFromSuggestion(
         type: 'post_receipt',
         operationId,
         orderId: ctx.orderId,
-        itemId: ctx.itemId,
+        itemId,
         warehouseId: ctx.warehouseId,
         qty,
       }
@@ -120,7 +129,7 @@ export function commandFromSuggestion(
       return {
         type: 'post_return',
         operationId,
-        itemId: ctx.itemId,
+        itemId,
         warehouseId: ctx.warehouseId,
         qty,
         sourceOperationId: suggestion.sourceOperationId,
@@ -129,7 +138,7 @@ export function commandFromSuggestion(
       return {
         type: 'transfer_stock',
         operationId,
-        itemId: ctx.itemId,
+        itemId,
         fromWarehouseId: ctx.fromWarehouseId,
         toWarehouseId: ctx.toWarehouseId,
         qty,
@@ -138,7 +147,7 @@ export function commandFromSuggestion(
       return {
         type: 'convert_to_asset',
         operationId,
-        itemId: ctx.itemId,
+        itemId,
         warehouseId: suggestion.warehouseId ?? ctx.warehouseId,
         qty,
       }

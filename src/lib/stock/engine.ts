@@ -14,6 +14,7 @@ export type StockCommand =
       fileMime?: string
       fileBase64?: string
       currency?: string
+      lines?: StockOrderLine[]
     }
   | {
       type: 'post_receipt'
@@ -111,10 +112,16 @@ export type LedgerLine = {
   createdAt?: string
 }
 
+export type StockOrderLine = {
+  itemId: string
+  qty: number
+}
+
 export type StockOrder = {
   id: string
   itemId: string
   qty: number
+  lines?: StockOrderLine[]
   status: 'draft' | 'confirmed'
   partnerId?: string
   dueDate?: string
@@ -155,16 +162,53 @@ function requirePositive(qty: number) {
   if (!(qty > 0)) throw new Error('수량은 0보다 커야 합니다.')
 }
 
-export function orderReceived(state: StockState, orderId: string): number {
+export function stockOrderLines(order: Pick<StockOrder, 'itemId' | 'qty' | 'lines'>): StockOrderLine[] {
+  return order.lines?.length ? order.lines : [{ itemId: order.itemId, qty: order.qty }]
+}
+
+function resolveOrderLines(
+  command: { itemId: string; qty: number; lines?: StockOrderLine[] },
+  existing?: StockOrder,
+): StockOrderLine[] {
+  const raw = command.lines?.length
+    ? command.lines
+    : existing?.lines?.length && command.itemId === existing.itemId && command.qty === existing.qty
+      ? existing.lines
+      : [{ itemId: command.itemId, qty: command.qty }]
+  if (!raw.length) throw new Error('발주 품목을 입력하세요.')
+  const seen = new Set<string>()
+  const lines: StockOrderLine[] = []
+  for (const line of raw) {
+    requirePositive(line.qty)
+    if (!line.itemId) throw new Error('발주 품목을 입력하세요.')
+    if (seen.has(line.itemId)) throw new Error('같은 품목은 한 줄로 모으세요.')
+    seen.add(line.itemId)
+    lines.push({ itemId: line.itemId, qty: line.qty })
+  }
+  return lines
+}
+
+export function orderReceived(state: StockState, orderId: string, itemId?: string): number {
   return state.ledger
-    .filter((line) => line.orderId === orderId && (line.txnType === 'receipt' || line.txnType === 'direct_in'))
+    .filter(
+      (line) =>
+        line.orderId === orderId &&
+        (line.txnType === 'receipt' || line.txnType === 'direct_in') &&
+        (!itemId || line.itemId === itemId),
+    )
     .reduce((sum, line) => sum + line.qtyDelta, 0)
 }
 
-export function orderRemaining(state: StockState, orderId: string): number {
+export function orderRemaining(state: StockState, orderId: string, itemId?: string): number {
   const order = state.orders.get(orderId)
   if (!order || order.status !== 'confirmed') return 0
-  return Math.max(0, order.qty - orderReceived(state, orderId))
+  const lines = stockOrderLines(order)
+  if (itemId) {
+    const line = lines.find((row) => row.itemId === itemId)
+    if (!line) return 0
+    return Math.max(0, line.qty - orderReceived(state, orderId, itemId))
+  }
+  return lines.reduce((sum, line) => sum + Math.max(0, line.qty - orderReceived(state, orderId, line.itemId)), 0)
 }
 
 export function applyStockCommand(
@@ -184,12 +228,13 @@ export function applyStockCommand(
   switch (command.type) {
     case 'draft_order':
     case 'confirm_order': {
-      requirePositive(command.qty)
       const existing = next.orders.get(command.orderId)
+      const lines = resolveOrderLines(command, existing)
       next.orders.set(command.orderId, {
         id: command.orderId,
-        itemId: command.itemId,
-        qty: command.qty,
+        itemId: lines[0].itemId,
+        qty: lines[0].qty,
+        lines,
         status: command.type === 'draft_order' ? 'draft' : 'confirmed',
         partnerId: command.partnerId ?? existing?.partnerId,
         dueDate: command.dueDate ?? existing?.dueDate,
@@ -207,8 +252,9 @@ export function applyStockCommand(
       if (!order || order.status !== 'confirmed') {
         throw new Error('확정된 발주만 수령할 수 있습니다.')
       }
-      if (order.itemId !== command.itemId) throw new Error('발주 품목이 다릅니다.')
-      const remaining = order.qty - orderReceived(next, command.orderId)
+      const line = stockOrderLines(order).find((row) => row.itemId === command.itemId)
+      if (!line) throw new Error('발주 품목이 다릅니다.')
+      const remaining = line.qty - orderReceived(next, command.orderId, command.itemId)
       if (command.qty > remaining) throw new Error('발주 잔량을 초과해 수령할 수 없습니다.')
       next.ledger.push({
         id: `${command.operationId}:receipt`,
@@ -410,6 +456,12 @@ export const STOCK_TABLE_SQL = [
     currency text not null default 'KRW',
     operation_id text not null unique,
     created_at text not null
+  );`,
+  `create table if not exists stock_order_lines (
+    order_id text not null,
+    item_id text not null,
+    qty integer not null,
+    primary key (order_id, item_id)
   );`,
   `create table if not exists stock_ledger (
     id text primary key,

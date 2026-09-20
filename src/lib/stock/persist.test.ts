@@ -260,4 +260,44 @@ describe('재고 영속 묶음', () => {
     expect(restored.orders.get('ord-file')?.fileName).toBe('quote.png')
     expect(restored.orders.get('ord-file')?.fileBase64).toBe(attached.fileBase64)
   })
+
+  it('발주 SQL에 품목 줄을 넣고 다시 읽는다', () => {
+    const prev = createStockState()
+    const command = {
+      type: 'confirm_order' as const,
+      operationId: 'op-lines',
+      orderId: 'ord-mix',
+      itemId: ITEM,
+      qty: 10,
+      lines: [
+        { itemId: ITEM, qty: 10 },
+        { itemId: 'item-desk', qty: 2 },
+      ],
+    }
+    const next = applyStockCommand(prev, command).state
+    const statements = statementsForCommand(command, prev, next, '2026-09-20T00:00:00.000Z')
+    expect(statements.some((stmt) => stmt.sql.includes('delete from stock_order_lines'))).toBe(true)
+    expect(statements.filter((stmt) => stmt.sql.includes('insert into stock_order_lines'))).toHaveLength(2)
+    const restored = stateFromRows(
+      [
+        {
+          id: 'ord-mix',
+          item_id: ITEM,
+          qty: 10,
+          status: 'confirmed',
+          operation_id: 'op-lines',
+        },
+      ],
+      [],
+      [],
+      [
+        { order_id: 'ord-mix', item_id: ITEM, qty: 10 },
+        { order_id: 'ord-mix', item_id: 'item-desk', qty: 2 },
+      ],
+    )
+    expect(restored.orders.get('ord-mix')?.lines).toEqual([
+      { itemId: ITEM, qty: 10 },
+      { itemId: 'item-desk', qty: 2 },
+    ])
+  })
 })
