@@ -18,7 +18,7 @@ import {
 const kickerClass = 'text-[14px] font-semibold leading-none'
 const titleClass =
   'whitespace-pre-line break-keep text-[34px] font-semibold leading-[1.15] md:text-[40px] md:leading-[1.1] lg:text-[56px] lg:leading-[1.07]'
-const bodyClass = 'mt-6 max-w-[22rem] text-[17px] font-normal leading-[1.47]'
+const bodyClass = 'mt-6 max-w-[26rem] whitespace-pre-line text-[17px] font-normal leading-[1.47]'
 
 function Cta({
   to,
