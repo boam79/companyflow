@@ -30,7 +30,7 @@ export function fieldEntityFromTable(table: MasterTable): MasterFieldEntity {
 
 export function masterInsertStatement(
   table: string,
-  row: { id: string; name: string; createdAt: string; departmentId?: string },
+  row: { id: string; name: string; createdAt: string; departmentId?: string; minStock?: number },
 ): { sql: string; params: unknown[] } {
   assertMasterTable(table)
   if (table === 'employees') {
@@ -39,8 +39,24 @@ export function masterInsertStatement(
       params: [row.id, row.name, row.departmentId ?? null, row.createdAt],
     }
   }
+  if (table === 'items') {
+    return {
+      sql: 'insert into items(id, name, min_stock, created_at) values(?, ?, ?, ?)',
+      params: [row.id, row.name, row.minStock ?? 0, row.createdAt],
+    }
+  }
   return {
     sql: `insert into ${table}(id, name, created_at) values(?, ?, ?)`,
     params: [row.id, row.name, row.createdAt],
+  }
+}
+
+export function minStockUpdateStatement(itemId: string, minStock: number) {
+  if (!Number.isInteger(minStock) || minStock < 0) {
+    throw new Error('최소재고는 0 이상 정수입니다.')
+  }
+  return {
+    sql: 'update items set min_stock = ? where id = ?',
+    params: [minStock, itemId],
   }
 }

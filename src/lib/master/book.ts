@@ -19,6 +19,7 @@ export type ItemRecord = {
   name: string
   stockManaged: boolean
   assetManaged: boolean
+  minStock?: number
 }
 
 export const PAPER_ITEM: ItemRecord = {
@@ -258,7 +259,8 @@ export async function loadItems(
     name: string
     stock_managed?: number | null
     asset_managed?: number | null
-  }>('select id, name, stock_managed, asset_managed from items order by name')
+    min_stock?: number | null
+  }>('select id, name, stock_managed, asset_managed, min_stock from items order by name')
   return rows
     .filter((row) => !ISSUE_ITEMS.some((item) => item.id === row.id))
     .map((row) => ({
@@ -266,6 +268,7 @@ export async function loadItems(
       name: row.name,
       stockManaged: row.stock_managed !== 0,
       assetManaged: row.asset_managed === 1,
+      minStock: row.min_stock ?? 0,
     }))
 }
 
@@ -308,6 +311,7 @@ export const MASTER_TABLE_SQL = [
     name text not null,
     stock_managed integer not null default 1,
     asset_managed integer not null default 0,
+    min_stock integer not null default 0,
     created_at text not null
   );`,
   `create table if not exists partners (

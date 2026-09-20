@@ -4,6 +4,7 @@ import {
   assertMasterTable,
   fieldEntityFromTable,
   masterInsertStatement,
+  minStockUpdateStatement,
 } from './commands'
 
 describe('기준정보 SQL 명령', () => {
@@ -17,11 +18,22 @@ describe('기준정보 SQL 명령', () => {
       expect(stmt.sql.startsWith(`insert into ${table}`)).toBe(true)
       if (table === 'employees') {
         expect(stmt.params).toEqual(['id-1', '총무', null, '2026-09-16T00:00:00.000Z'])
+      } else if (table === 'items') {
+        expect(stmt.params).toEqual(['id-1', '총무', 0, '2026-09-16T00:00:00.000Z'])
       } else {
         expect(stmt.params).toEqual(['id-1', '총무', '2026-09-16T00:00:00.000Z'])
       }
     }
     expect(() => assertMasterTable('processed_operations')).toThrow(/허용되지 않은/)
+  })
+
+  it('품목 최소재고를 고친다', () => {
+    expect(minStockUpdateStatement('item-paper', 10)).toEqual({
+      sql: 'update items set min_stock = ? where id = ?',
+      params: [10, 'item-paper'],
+    })
+    expect(() => minStockUpdateStatement('item-paper', -1)).toThrow(/최소재고/)
+    expect(() => minStockUpdateStatement('item-paper', 1.5)).toThrow(/최소재고/)
   })
 
   it('직원 화면의 기본 추가 필드는 employee 엔티티다', () => {

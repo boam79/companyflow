@@ -3,13 +3,14 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { loadContracts } from '../lib/contracts/book'
-import { contractRecent, peopleRecent, recentWork, stockRecent, waitingReceipts, watchContracts, type ContractWatch, type ReceiptWait, type RecentWork } from '../lib/home/work'
-import { writeDefaultMaster, loadItems } from '../lib/master/book'
+import { contractRecent, lowStock, peopleRecent, recentWork, stockRecent, waitingReceipts, watchContracts, type ContractWatch, type LowStock, type ReceiptWait, type RecentWork } from '../lib/home/work'
+import { isSupplyItem, loadItems, writeDefaultMaster } from '../lib/master/book'
 import { groupRoster, loadEmployees, rosterCaption } from '../lib/people/employment'
 import { loadHireEvents } from '../lib/people/hireWorkflow'
 import { loadOnboardingChecks, migrateProcessAssetsToChecks, onboardingView } from '../lib/people/onboarding'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { buildAssetOrderList, buildSupplyOrderList } from '../lib/stock/inventoryView'
+import { companyOnHand } from '../lib/stock/engine'
 import { loadStockState } from '../lib/stock/persist'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
@@ -37,6 +38,7 @@ export function HomePage() {
   const [receipts, setReceipts] = useState<ReceiptWait[]>([])
   const [contracts, setContracts] = useState<ContractWatch[]>([])
   const [joining, setJoining] = useState<JoiningRow[]>([])
+  const [shortage, setShortage] = useState<LowStock[]>([])
   const [recent, setRecent] = useState<RecentWork[]>([])
   const [ready, setReady] = useState(false)
   const [openFailed, setOpenFailed] = useState(false)
@@ -143,6 +145,17 @@ export function HomePage() {
         ...contractRecent(contractRows),
       ]),
     )
+    setShortage(
+      lowStock(
+        items.map((item) => ({
+          itemId: item.id,
+          itemName: item.name,
+          onHand: companyOnHand(stock, item.id),
+          minStock: item.minStock ?? 0,
+          managed: isSupplyItem(item),
+        })),
+      ),
+    )
   }
 
   return (
@@ -152,7 +165,7 @@ export function HomePage() {
           <p className="text-sm text-muted">지정 PC 로컬 원본 · 한글 업무 화면</p>
           <h1 className="mt-1 text-2xl font-semibold">홈</h1>
           <p className="mt-2 max-w-2xl text-sm text-muted">
-            수령 잔량, 60일 안 계약, 입사 중, 최근 작업을 먼저 봅니다. 결재와 통계는 두지 않습니다.
+            수령 잔량, 60일 안 계약, 입사 중, 재고 부족, 최근 작업을 먼저 봅니다. 결재와 통계는 두지 않습니다.
           </p>
         </div>
         {user ? (
@@ -179,7 +192,7 @@ export function HomePage() {
       {message ? <p className="text-sm text-danger">{message}</p> : null}
 
       {user ? (
-        <section className="grid gap-4 lg:grid-cols-3">
+        <section className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
           <WorkPanel
             title="수령 대기"
             count={receipts.length}
@@ -212,6 +225,18 @@ export function HomePage() {
             rows={joining.map((row) => ({
               id: row.id,
               cells: [row.name, row.caption],
+            }))}
+          />
+          <WorkPanel
+            title="재고 부족"
+            count={shortage.length}
+            to="/stock"
+            empty="최소재고보다 적은 비품이 없습니다."
+            columns={['품목', '현재', '최소']}
+            rows={shortage.map((row) => ({
+              id: row.itemId,
+              cells: [row.itemName, String(row.onHand), String(row.minStock)],
+              tone: 'danger',
             }))}
           />
         </section>

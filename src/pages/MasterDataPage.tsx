@@ -7,6 +7,7 @@ import {
   assertMasterTable,
   fieldEntityFromTable,
   masterInsertStatement,
+  minStockUpdateStatement,
   type MasterFieldEntity,
   type MasterTable,
 } from '../lib/master/commands'
@@ -21,6 +22,7 @@ type NamedRow = {
   left_at?: string | null
   stock_managed?: number | null
   asset_managed?: number | null
+  min_stock?: number | null
 }
 type FieldRow = { entity: string; key: string; label: string }
 type TabId = MasterTable | 'fields'
@@ -33,7 +35,17 @@ function itemKindLabel(row: NamedRow) {
   return '품목'
 }
 
-function MasterTable({ columns, rows }: { columns: TableColumn[]; rows: TableRow[] }) {
+function MasterTable({
+  columns,
+  rows,
+  selectedId,
+  onRowClick,
+}: {
+  columns: TableColumn[]
+  rows: TableRow[]
+  selectedId?: string
+  onRowClick?: (id: string) => void
+}) {
   return (
     <table className="w-full text-left text-sm">
       <thead>
@@ -47,7 +59,13 @@ function MasterTable({ columns, rows }: { columns: TableColumn[]; rows: TableRow
       </thead>
       <tbody>
         {rows.map((row) => (
-          <tr key={row.id} className="border-b border-line/70 last:border-b-0">
+          <tr
+            key={row.id}
+            className={`border-b border-line/70 last:border-b-0 ${
+              onRowClick ? 'cursor-pointer hover:bg-paper' : ''
+            } ${selectedId === row.id ? 'bg-accent-soft' : ''}`}
+            onClick={() => onRowClick?.(row.id)}
+          >
             {columns.map((column, index) => (
               <td
                 key={column.key}
@@ -91,6 +109,8 @@ export function MasterDataPage() {
   const [departments, setDepartments] = useState<NamedRow[]>([])
   const [fields, setFields] = useState<FieldRow[]>([])
   const [name, setName] = useState('')
+  const [minStock, setMinStock] = useState('0')
+  const [selectedItemId, setSelectedItemId] = useState('')
   const [departmentId, setDepartmentId] = useState('')
   const [fieldEntity, setFieldEntity] = useState<MasterFieldEntity>('employee')
   const [fieldKey, setFieldKey] = useState('employee_no')
@@ -167,7 +187,7 @@ export function MasterDataPage() {
           )
         : nextTab === 'items'
           ? await sqlite.query<NamedRow>(
-              'select id, name, stock_managed, asset_managed from items order by name',
+              'select id, name, stock_managed, asset_managed, min_stock from items order by name',
             )
           : await sqlite.query<NamedRow>(`select id, name from ${nextTab} order by name`)
     setRows(named)
@@ -202,6 +222,7 @@ export function MasterDataPage() {
           name: name.trim(),
           createdAt: new Date().toISOString(),
           departmentId: tab === 'employees' ? departmentId || undefined : undefined,
+          minStock: tab === 'items' ? Number(minStock) || 0 : undefined,
         }
         const stmt = masterInsertStatement(tab, row)
         const result = await sqlite.runOnce(operationId, async () => {
@@ -211,6 +232,25 @@ export function MasterDataPage() {
         setNotice(`${TABS.find((item) => item.id === tab)?.label} 저장 (${result.status})`)
       }
       setName('')
+      setMinStock('0')
+      setSelectedItemId('')
+      await reload()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  async function saveMinStock() {
+    if (!ready || !selectedItemId) return
+    setMessage('')
+    const operationId = crypto.randomUUID()
+    try {
+      const stmt = minStockUpdateStatement(selectedItemId, Number(minStock) || 0)
+      const result = await sqlite.runOnce(operationId, async () => {
+        await sqlite.exec(stmt.sql, stmt.params)
+        return { itemId: selectedItemId, minStock: stmt.params[0] }
+      })
+      setNotice(`최소재고 저장 (${result.status})`)
       await reload()
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
@@ -259,6 +299,7 @@ export function MasterDataPage() {
             columns: [
               { key: 'name', label: '이름' },
               { key: 'kind', label: '구분', muted: true },
+              { key: 'minStock', label: '최소재고', muted: true },
             ],
             rows: [...rows]
               .sort(
@@ -270,6 +311,7 @@ export function MasterDataPage() {
                 id: row.id,
                 name: row.name,
                 kind: itemKindLabel(row),
+                minStock: itemKindLabel(row) === '비품' ? String(row.min_stock ?? 0) : '',
               })),
           }
         : tab === 'fields'
@@ -341,6 +383,8 @@ export function MasterDataPage() {
             className={tab === item.id ? 'font-semibold text-accent' : 'text-muted'}
             onClick={() => {
               setRows([])
+              setSelectedItemId('')
+              setMinStock('0')
               setTab(item.id)
             }}
           >
@@ -389,6 +433,17 @@ export function MasterDataPage() {
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
+        {tab === 'items' ? (
+          <input
+            type="number"
+            min="0"
+            step="1"
+            className="w-28 rounded border border-line px-3 py-2 text-sm"
+            placeholder="최소재고"
+            value={minStock}
+            onChange={(e) => setMinStock(e.target.value)}
+          />
+        ) : null}
         <button
           type="submit"
           disabled={!ready}
@@ -396,6 +451,16 @@ export function MasterDataPage() {
         >
           추가
         </button>
+        {tab === 'items' ? (
+          <button
+            type="button"
+            disabled={!ready || !selectedItemId}
+            className="rounded border border-line px-4 py-2 text-sm font-semibold disabled:opacity-50"
+            onClick={() => void saveMinStock()}
+          >
+            최소재고 저장
+          </button>
+        ) : null}
       </form>
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
@@ -411,7 +476,23 @@ export function MasterDataPage() {
           <h2 className="mb-2 text-base font-semibold">
             {tabLabel} {tab === 'fields' ? fields.length : rows.length}
           </h2>
-          <MasterTable columns={table.columns} rows={table.rows} />
+          <MasterTable
+            columns={table.columns}
+            rows={table.rows}
+            selectedId={tab === 'items' ? selectedItemId : undefined}
+            onRowClick={
+              tab === 'items'
+                ? (id) => {
+                    const row = rows.find((item) => item.id === id)
+                    setSelectedItemId(id)
+                    setName(row?.name ?? '')
+                    setMinStock(String(row?.min_stock ?? 0))
+                    setMessage('')
+                    setNotice('')
+                  }
+                : undefined
+            }
+          />
         </>
       ) : (
         <p className="text-sm text-muted">

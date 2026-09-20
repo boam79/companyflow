@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { contractRecent, contractWatchLabel, peopleRecent, recentWork, stockRecent, waitingReceipts, watchContracts } from './work'
+import { contractRecent, contractWatchLabel, lowStock, peopleRecent, recentWork, stockRecent, waitingReceipts, watchContracts } from './work'
 
 describe('홈 업무', () => {
   it('확정 발주 잔량만 수령 대기다', () => {
@@ -111,5 +111,16 @@ describe('홈 업무', () => {
       ['직접 입고', '볼펜 6', '/stock'],
       ['직접 입고', '볼펜 5', '/stock'],
     ])
+  })
+
+  it('최소재고보다 적은 비품만 재고 부족이다', () => {
+    expect(
+      lowStock([
+        { itemId: 'item-paper', itemName: '복사용지', onHand: 8, minStock: 10 },
+        { itemId: 'item-pen', itemName: '볼펜', onHand: 1, minStock: 0 },
+        { itemId: 'item-desk', itemName: '책상', onHand: 0, minStock: 2, managed: false },
+        { itemId: 'item-clip', itemName: '클립', onHand: 20, minStock: 5 },
+      ]).map((row) => [row.itemName, row.onHand, row.minStock]),
+    ).toEqual([['복사용지', 8, 10]])
   })
 })

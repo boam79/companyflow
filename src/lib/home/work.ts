@@ -139,3 +139,17 @@ export function recentWork(rows: RecentWork[], limit = RECENT_WORK_LIMIT): Recen
     .sort((a, b) => b.at.localeCompare(a.at) || a.id.localeCompare(b.id))
     .slice(0, limit)
 }
+
+export type LowStock = {
+  itemId: string
+  itemName: string
+  onHand: number
+  minStock: number
+  managed?: boolean
+}
+
+export function lowStock(rows: LowStock[]): LowStock[] {
+  return rows
+    .filter((row) => row.managed !== false && row.minStock > 0 && row.onHand < row.minStock)
+    .sort((a, b) => a.onHand - a.minStock - (b.onHand - b.minStock) || a.itemName.localeCompare(b.itemName, 'ko'))
+}
