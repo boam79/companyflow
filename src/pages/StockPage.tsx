@@ -10,7 +10,7 @@ import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { executeStockCommand, ensureDefaultStockMaster, loadStockState } from '../lib/stock/persist'
 import { companyOnHand, onHand, orderRemaining, type LedgerLine, type StockCommand, type StockState } from '../lib/stock/engine'
-import { buildSupplyInventory, supplyItems } from '../lib/stock/inventoryView'
+import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { commandFromSuggestion, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
@@ -30,6 +30,16 @@ const ACTIONS: { id: ActionType; label: string }[] = [
   { id: 'adjust_stock', label: '실사 조정' },
   { id: 'reverse_transaction', label: '정정' },
 ]
+
+function downloadSupplyOrderCsv(rows: PurchaseOrderRow[]) {
+  const blob = new Blob([supplyOrderCsv(rows)], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = '비품-발주.csv'
+  link.click()
+  URL.revokeObjectURL(url)
+}
 
 export function StockPage() {
   const { configured, loading, user } = useAuth()
@@ -341,6 +351,8 @@ export function StockPage() {
   const inventory =
     state && stockItems.length && warehouses.length ? buildSupplyInventory(stockItems, warehouses, state) : []
   const selectedInventory = inventory.find((row) => row.itemId === itemId) ?? inventory[0]
+  const supplyOrders = state ? buildSupplyOrderList(items, state) : []
+  const assetOrders = state ? buildAssetOrderList(items, state) : []
 
   return (
     <div className="flex flex-col gap-4">
@@ -471,16 +483,83 @@ export function StockPage() {
             ))}
           </div>
         </div>
-        {state?.orders.size ? (
-          <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
-            {[...state.orders.values()].map((order) => (
-              <li key={order.id}>
-                발주 {order.id} · {items.find((item) => item.id === order.itemId)?.name ?? order.itemId}{' '}
-                {order.qty} · {order.status === 'draft' ? '초안' : '확정'} · 잔량{' '}
-                {orderRemaining(state, order.id)}
-              </li>
-            ))}
-          </ul>
+        {supplyOrders.length || assetOrders.length ? (
+          <div className="mt-3 space-y-3">
+            {supplyOrders.length ? (
+              <div>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold">비품 발주 {supplyOrders.length}</h3>
+                  <button
+                    type="button"
+                    className="rounded border border-line px-2 py-1 text-xs font-semibold"
+                    onClick={() => downloadSupplyOrderCsv(supplyOrders)}
+                  >
+                    목록 받기
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-muted">일반 비품만 발주 항목별로 모읍니다. 책상·컴퓨터는 자산 발주입니다.</p>
+                <div className="mt-2 overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-line text-muted">
+                        <th className="py-1.5 pr-3 font-medium">발주번호</th>
+                        <th className="py-1.5 pr-3 font-medium">품목</th>
+                        <th className="py-1.5 pr-3 text-right font-medium">발주</th>
+                        <th className="py-1.5 pr-3 text-right font-medium">수령</th>
+                        <th className="py-1.5 pr-3 text-right font-medium">잔량</th>
+                        <th className="py-1.5 font-medium">상태</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {supplyOrders.map((row) => {
+                        const active = row.orderId === orderId
+                        return (
+                          <tr
+                            key={row.orderId}
+                            className={`cursor-pointer border-b border-line/70 ${
+                              active ? 'bg-accent-soft' : 'hover:bg-paper'
+                            }`}
+                            onClick={() => {
+                              setOrderId(row.orderId)
+                              setItemId(row.itemId)
+                            }}
+                          >
+                            <td className="whitespace-nowrap py-1.5 pr-3 font-medium">{row.orderId}</td>
+                            <td className="py-1.5 pr-3">{row.itemName}</td>
+                            <td className="py-1.5 pr-3 text-right tabular-nums">{row.orderedQty}</td>
+                            <td className="py-1.5 pr-3 text-right tabular-nums">{row.receivedQty}</td>
+                            <td className="py-1.5 pr-3 text-right tabular-nums">{row.remainingQty}</td>
+                            <td className="py-1.5">{row.status === 'draft' ? '초안' : '확정'}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
+            {assetOrders.length ? (
+              <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
+                {assetOrders.map((row) => (
+                  <li key={row.orderId}>
+                    <button
+                      type="button"
+                      className={`text-left ${row.orderId === orderId ? 'font-semibold text-accent' : 'hover:text-ink'}`}
+                      onClick={() => {
+                        setOrderId(row.orderId)
+                        setItemId(row.itemId)
+                      }}
+                    >
+                      자산 발주 {row.orderId} · {row.itemName} {row.orderedQty} ·{' '}
+                      {row.status === 'draft' ? '초안' : `잔량 ${row.remainingQty}`}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : ready ? (
+          <p className="mt-2 text-sm text-muted">아직 비품 발주가 없습니다. 오른쪽에서 발주 초안·확정을 남기면 이 목록에 모입니다.</p>
         ) : null}
         <div className="mt-1 min-h-0 max-h-[calc(100svh-14rem)] overflow-auto">
         <StockLedgerTable

@@ -141,7 +141,7 @@ function requirePositive(qty: number) {
   if (!(qty > 0)) throw new Error('수량은 0보다 커야 합니다.')
 }
 
-function receivedQty(state: StockState, orderId: string): number {
+export function orderReceived(state: StockState, orderId: string): number {
   return state.ledger
     .filter((line) => line.orderId === orderId && (line.txnType === 'receipt' || line.txnType === 'direct_in'))
     .reduce((sum, line) => sum + line.qtyDelta, 0)
@@ -150,7 +150,7 @@ function receivedQty(state: StockState, orderId: string): number {
 export function orderRemaining(state: StockState, orderId: string): number {
   const order = state.orders.get(orderId)
   if (!order || order.status !== 'confirmed') return 0
-  return Math.max(0, order.qty - receivedQty(state, orderId))
+  return Math.max(0, order.qty - orderReceived(state, orderId))
 }
 
 export function applyStockCommand(
@@ -193,7 +193,7 @@ export function applyStockCommand(
         throw new Error('확정된 발주만 수령할 수 있습니다.')
       }
       if (order.itemId !== command.itemId) throw new Error('발주 품목이 다릅니다.')
-      const remaining = order.qty - receivedQty(next, command.orderId)
+      const remaining = order.qty - orderReceived(next, command.orderId)
       if (command.qty > remaining) throw new Error('발주 잔량을 초과해 수령할 수 없습니다.')
       next.ledger.push({
         id: `${command.operationId}:receipt`,
