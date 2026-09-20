@@ -49,6 +49,7 @@ export type PurchaseOrderRow = {
   partnerId?: string
   supplierName: string
   dueDate: string
+  orderDate: string
 }
 
 export function resolveOrderPartnerId(
@@ -82,6 +83,7 @@ function orderRows(
         ...(partnerId ? { partnerId } : {}),
         supplierName: partners.find((row) => row.id === partnerId)?.name ?? '',
         dueDate: order.dueDate ?? '',
+        orderDate: order.orderDate ?? '',
       }
     })
     .sort((a, b) => a.orderId.localeCompare(b.orderId))
@@ -103,6 +105,13 @@ export function buildAssetOrderList(
   return orderRows(items, state, isCompanyAssetItem, partners)
 }
 
+export function todayYmd(now = new Date()): string {
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 function csvCell(value: string | number) {
   const text = String(value)
   if (/[",\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`
@@ -111,12 +120,13 @@ function csvCell(value: string | number) {
 
 export function supplyOrderCsv(rows: PurchaseOrderRow[]): string {
   const lines = [
-    ['발주번호', '품목', '공급사', '납기', '발주', '수령', '잔량', '상태'].join(','),
+    ['발주번호', '품목', '공급사', '발주일', '납기', '발주', '수령', '잔량', '상태'].join(','),
     ...rows.map((row) =>
       [
         csvCell(row.orderId),
         csvCell(row.itemName),
         csvCell(row.supplierName),
+        csvCell(row.orderDate),
         csvCell(row.dueDate),
         row.orderedQty,
         row.receivedQty,

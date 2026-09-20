@@ -9,6 +9,7 @@ import {
   resolveOrderPartnerId,
   supplyItems,
   supplyOrderCsv,
+  todayYmd,
 } from './inventoryView'
 
 const WAREHOUSES = [
@@ -96,6 +97,7 @@ describe('비품 발주 목록', () => {
         status: 'confirmed',
         supplierName: '',
         dueDate: '',
+        orderDate: '',
       },
     ])
     expect(buildAssetOrderList(items, state)).toEqual([
@@ -109,6 +111,7 @@ describe('비품 발주 목록', () => {
         status: 'draft',
         supplierName: '',
         dueDate: '',
+        orderDate: '',
       },
     ])
   })
@@ -137,6 +140,7 @@ describe('비품 발주 목록', () => {
         partnerId: 'partner-mfp',
         supplierName: '사무기기코리아',
         dueDate: '',
+        orderDate: '',
       },
     ])
   })
@@ -157,6 +161,26 @@ describe('비품 발주 목록', () => {
     })
   })
 
+  it('발주 목록은 발주일을 붙인다', () => {
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'confirm_order',
+      operationId: 'op-paper',
+      orderId: 'ord-paper',
+      itemId: PAPER_ITEM.id,
+      qty: 10,
+      orderDate: '2026-09-20',
+    }).state
+    expect(buildSupplyOrderList([PAPER_ITEM], state)[0]).toMatchObject({
+      orderId: 'ord-paper',
+      orderDate: '2026-09-20',
+    })
+  })
+
+  it('오늘 날짜는 YYYY-MM-DD다', () => {
+    expect(todayYmd(new Date(2026, 8, 20))).toBe('2026-09-20')
+  })
+
   it('발주 공급사는 고른 값이 있으면 그걸 쓰고 없으면 품목 기본이다', () => {
     expect(resolveOrderPartnerId('partner-kt', { partnerId: 'partner-mfp' })).toBe('partner-kt')
     expect(resolveOrderPartnerId('', { partnerId: 'partner-mfp' })).toBe('partner-mfp')
@@ -174,7 +198,7 @@ describe('비품 발주 목록', () => {
     }).state
     const csv = supplyOrderCsv(buildSupplyOrderList(items, state))
     expect(csv.startsWith('\uFEFF')).toBe(true)
-    expect(csv).toContain('발주번호,품목,공급사,납기,발주,수령,잔량,상태')
-    expect(csv).toContain('ord-paper,복사용지,,,10,0,10,확정')
+    expect(csv).toContain('발주번호,품목,공급사,발주일,납기,발주,수령,잔량,상태')
+    expect(csv).toContain('ord-paper,복사용지,,,,10,0,10,확정')
   })
 })

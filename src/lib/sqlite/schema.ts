@@ -77,6 +77,7 @@ export const SCHEMA_PATCHES = [
   )`,
   'alter table stock_orders add column partner_id text',
   'alter table stock_orders add column due_date text',
+  'alter table stock_orders add column order_date text',
   `create table if not exists employment_checks (
     employee_id text not null,
     item_key text not null,

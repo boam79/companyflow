@@ -38,6 +38,7 @@ export type OrderRow = {
   operation_id: string
   partner_id?: string | null
   due_date?: string | null
+  order_date?: string | null
 }
 
 type StockDb = Pick<CompanySqlite, 'query' | 'batch'>
@@ -81,8 +82,8 @@ export function statementsForCommand(
     const order = next.orders.get(command.orderId)
     if (order) {
       statements.push({
-        sql: `insert or replace into stock_orders(id, item_id, qty, status, partner_id, due_date, operation_id, created_at)
-          values(?, ?, ?, ?, ?, ?, ?, ?)`,
+        sql: `insert or replace into stock_orders(id, item_id, qty, status, partner_id, due_date, order_date, operation_id, created_at)
+          values(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         params: [
           order.id,
           order.itemId,
@@ -90,6 +91,7 @@ export function statementsForCommand(
           order.status,
           order.partnerId ?? null,
           order.dueDate ?? null,
+          order.orderDate ?? null,
           command.operationId,
           createdAt,
         ],
@@ -170,6 +172,7 @@ export function stateFromRows(
       status: order.status,
       partnerId: order.partner_id ?? undefined,
       dueDate: order.due_date ?? undefined,
+      orderDate: order.order_date ?? undefined,
     }
     state.orders.set(order.id, row)
     state.processed.set(order.operation_id, 'applied')
@@ -197,7 +200,7 @@ export function stateFromRows(
 
 export async function loadStockState(db: Pick<CompanySqlite, 'query'>): Promise<StockState> {
   const [orders, ledger, processed] = await Promise.all([
-    db.query<OrderRow>('select id, item_id, qty, status, partner_id, due_date, operation_id from stock_orders'),
+    db.query<OrderRow>('select id, item_id, qty, status, partner_id, due_date, order_date, operation_id from stock_orders'),
     db.query<LedgerRow>(
       `select id, operation_id, txn_type, item_id, warehouse_id, qty_delta,
         person_name, department_id, source_operation_id, order_id, reason, created_at

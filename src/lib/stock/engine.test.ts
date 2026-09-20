@@ -197,6 +197,29 @@ describe('복사용지 재고 원장', () => {
     expect(state.orders.get('ord-due')?.dueDate).toBe('2026-09-27')
   })
 
+  it('발주 확정은 발주일을 남기고 초안 발주일을 유지한다', () => {
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'draft_order',
+      operationId: 'op-draft-ordered',
+      orderId: 'ord-ordered',
+      itemId: ITEM,
+      qty: 10,
+      orderDate: '2026-09-20',
+    }).state
+    expect(state.orders.get('ord-ordered')?.orderDate).toBe('2026-09-20')
+
+    state = applyStockCommand(state, {
+      type: 'confirm_order',
+      operationId: 'op-confirm-ordered',
+      orderId: 'ord-ordered',
+      itemId: ITEM,
+      qty: 10,
+    }).state
+    expect(state.orders.get('ord-ordered')?.status).toBe('confirmed')
+    expect(state.orders.get('ord-ordered')?.orderDate).toBe('2026-09-20')
+  })
+
   it('가구 수령은 발주 잔량만 줄이고 현재고는 늘리지 않는다', () => {
     let state = createStockState()
     state = applyStockCommand(state, {

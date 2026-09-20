@@ -13,7 +13,7 @@ import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { executeStockCommand, ensureDefaultStockMaster, loadStockState } from '../lib/stock/persist'
 import { companyOnHand, onHand, orderRemaining, type LedgerLine, type StockCommand, type StockState } from '../lib/stock/engine'
-import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, orderRemainingCaption, resolveOrderPartnerId, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, orderRemainingCaption, resolveOrderPartnerId, supplyItems, supplyOrderCsv, todayYmd, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { commandFromSuggestion, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
@@ -54,6 +54,7 @@ export function StockPage() {
   const [departments, setDepartments] = useState<NamedRow[]>([])
   const [orderPartnerId, setOrderPartnerId] = useState('')
   const [orderDueDate, setOrderDueDate] = useState('')
+  const [orderDate, setOrderDate] = useState(todayYmd)
   const [state, setState] = useState<StockState | null>(null)
   const [action, setAction] = useState<ActionType>('confirm_order')
   const [operationId, setOperationId] = useState('')
@@ -180,6 +181,7 @@ export function StockPage() {
     setItemId(row.itemId)
     setOrderPartnerId(row.partnerId ?? '')
     setOrderDueDate(row.dueDate ?? '')
+    setOrderDate(row.orderDate || todayYmd())
   }
 
   function applySuggestedForm(next: NextStockForm | null) {
@@ -239,6 +241,7 @@ export function StockPage() {
             nextItem ?? items.find((row) => row.id === nextItemId),
           ),
           dueDate: orderDueDate.trim() || undefined,
+          orderDate: orderDate.trim() || undefined,
         }
       case 'post_receipt':
         return {
@@ -316,6 +319,7 @@ export function StockPage() {
             toWarehouseId,
             partnerId: orderPartnerId.trim() || undefined,
             dueDate: orderDueDate.trim() || undefined,
+            orderDate: orderDate.trim() || undefined,
           }),
         )
         current = result.state
@@ -553,7 +557,7 @@ export function StockPage() {
                     목록 받기
                   </button>
                 </div>
-                <p className="mt-1 text-xs text-muted">일반 비품만 발주 항목별로 모읍니다. 책상·컴퓨터는 자산 발주입니다. 공급사·납기는 발주에서 넣습니다.</p>
+                <p className="mt-1 text-xs text-muted">일반 비품만 발주 항목별로 모읍니다. 책상·컴퓨터는 자산 발주입니다. 공급사·발주일·납기는 발주에서 넣습니다.</p>
                 <div className="mt-2 overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead>
@@ -561,6 +565,7 @@ export function StockPage() {
                         <th className="py-1.5 pr-3 font-medium">발주번호</th>
                         <th className="py-1.5 pr-3 font-medium">품목</th>
                         <th className="py-1.5 pr-3 font-medium">공급사</th>
+                        <th className="py-1.5 pr-3 font-medium">발주일</th>
                         <th className="py-1.5 pr-3 font-medium">납기</th>
                         <th className="py-1.5 pr-3 text-right font-medium">발주</th>
                         <th className="py-1.5 pr-3 text-right font-medium">수령</th>
@@ -582,6 +587,7 @@ export function StockPage() {
                             <td className="whitespace-nowrap py-1.5 pr-3 font-medium">{row.orderId}</td>
                             <td className="py-1.5 pr-3">{row.itemName}</td>
                             <td className="py-1.5 pr-3">{row.supplierName || '—'}</td>
+                            <td className="whitespace-nowrap py-1.5 pr-3">{row.orderDate || '—'}</td>
                             <td className="whitespace-nowrap py-1.5 pr-3">{row.dueDate || '—'}</td>
                             <td className="py-1.5 pr-3 text-right tabular-nums">{row.orderedQty}</td>
                             <td className="py-1.5 pr-3 text-right tabular-nums">{row.receivedQty}</td>
@@ -606,6 +612,7 @@ export function StockPage() {
                     >
                       자산 발주 {row.orderId} · {row.itemName} {row.orderedQty}
                       {row.supplierName ? ` · ${row.supplierName}` : ''}
+                      {row.orderDate ? ` · 발주일 ${row.orderDate}` : ''}
                       {row.dueDate ? ` · 납기 ${row.dueDate}` : ''} ·{' '}
                       {row.status === 'draft' ? '초안' : `잔량 ${row.remainingQty}`}
                     </button>
@@ -741,6 +748,17 @@ export function StockPage() {
                   </option>
                 ))}
               </select>
+            </label>
+          ) : null}
+          {action === 'draft_order' || action === 'confirm_order' ? (
+            <label className="text-sm">
+              발주일
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                type="date"
+                value={orderDate}
+                onChange={(e) => setOrderDate(e.target.value)}
+              />
             </label>
           ) : null}
           {action === 'draft_order' || action === 'confirm_order' ? (
