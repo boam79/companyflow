@@ -20,7 +20,7 @@ import {
 import { applyOcrCandidates } from '../lib/contracts/parseFields'
 import { writeDefaultMaster } from '../lib/master/book'
 import { getCompanySqlite } from '../lib/sqlite/instance'
-import { getSupabase, type CompanyRow } from '../lib/supabase'
+import { useCompanySession } from '../lib/companySession'
 
 const sqlite = getCompanySqlite()
 
@@ -43,8 +43,7 @@ function emptyForm() {
 
 export function ContractsPage() {
   const { configured, loading, user } = useAuth()
-  const [companies, setCompanies] = useState<CompanyRow[]>([])
-  const [companyId, setCompanyId] = useState('')
+  const { companies, companyId, setCompanyId } = useCompanySession(Boolean(user))
   const [rows, setRows] = useState<ContractDraft[]>([])
   const [query, setQuery] = useState('')
   const [lifeTab, setLifeTab] = useState<ContractPhase>('active')
@@ -58,30 +57,15 @@ export function ContractsPage() {
   const [ocrBusy, setOcrBusy] = useState(false)
   const [notice, setNotice] = useState('')
   const [message, setMessage] = useState('')
-  const [ready, setReady] = useState(false)
+  const [ready, setReady] = useState(() => sqlite.isOpen(sqlite.companyId))
   const opening = useRef(false)
   const fileInput = useRef<HTMLInputElement>(null)
   const ocrPanel = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!user) return
-    const client = getSupabase()
-    if (!client) return
-    void client
-      .from('companies')
-      .select('id, display_name, company_code, registration_status')
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        if (!data?.length) return
-        setCompanies(data as CompanyRow[])
-        setCompanyId((prev) => prev || data[0].id)
-      })
-  }, [user])
-
-  useEffect(() => {
-    if (!companyId || ready || opening.current) return
+    if (!companyId || opening.current) return
     void openCompany(companyId)
-  }, [companyId, ready])
+  }, [companyId])
 
   async function openCompany(nextId: string, force = false) {
     opening.current = true

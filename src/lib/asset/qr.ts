@@ -2,9 +2,13 @@ import QRCode from 'qrcode'
 
 const LABEL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+export function isQrLabelId(labelId: string) {
+  return LABEL_ID.test(labelId.trim())
+}
+
 export function assertLabelId(labelId: string): string {
   const id = labelId.trim()
-  if (!LABEL_ID.test(id)) throw new Error('빈 QR 표식이 올바르지 않습니다.')
+  if (!isQrLabelId(id)) throw new Error('빈 QR 표식이 올바르지 않습니다.')
   return id
 }
 

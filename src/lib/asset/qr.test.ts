@@ -5,6 +5,7 @@ import {
   blankQrDataUrl,
   blankQrFileName,
   blankQrScanUrl,
+  isQrLabelId,
 } from './qr'
 
 const ORIGIN = 'https://companyflow-opal.vercel.app'
@@ -15,6 +16,8 @@ describe('빈 자산 QR', () => {
     expect(blankQrScanUrl(ORIGIN, LABEL)).toBe(`${ORIGIN}/q/${LABEL}`)
     expect(() => assertBlankQrUrl(`${ORIGIN}/q/${LABEL}`)).not.toThrow()
     expect(() => blankQrScanUrl(ORIGIN, 'AST-C269B67F-1')).toThrow(/표식/)
+    expect(isQrLabelId(LABEL)).toBe(true)
+    expect(isQrLabelId('not-a-token')).toBe(false)
     expect(() => assertBlankQrUrl('companyflow:asset:AST-C269B67F-1')).toThrow(/자산번호/)
     expect(() => assertBlankQrUrl(`${ORIGIN}/assets/AST-C269B67F-1`)).toThrow(/자산번호/)
     expect(() => assertBlankQrUrl(`${ORIGIN}/assets/${LABEL}`)).toThrow(/주소/)

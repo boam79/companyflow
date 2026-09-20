@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ProcessedOperations } from '../lib/idempotency'
 import { useAuth } from '../lib/AuthContext'
+import { rememberCompanies, rememberedCompanies } from '../lib/companySession'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
 type CreateState = {
@@ -23,7 +24,7 @@ export function OperatorCompaniesPage() {
     message: '',
     error: false,
   })
-  const [companies, setCompanies] = useState<CompanyRow[]>([])
+  const [companies, setCompanies] = useState<CompanyRow[]>(() => rememberedCompanies())
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -41,7 +42,9 @@ export function OperatorCompaniesPage() {
           setForm((prev) => ({ ...prev, error: true, message: error.message }))
           return
         }
-        setCompanies((data ?? []) as CompanyRow[])
+        const rows = (data ?? []) as CompanyRow[]
+        rememberCompanies(rows)
+        setCompanies(rows)
       })
     return () => {
       cancelled = true
@@ -69,7 +72,11 @@ export function OperatorCompaniesPage() {
       })
       if (error) throw error
       const row = data as CompanyRow
-      setCompanies((prev) => [row, ...prev.filter((item) => item.id !== row.id)])
+      setCompanies((prev) => {
+        const next = [row, ...prev.filter((item) => item.id !== row.id)]
+        rememberCompanies(next)
+        return next
+      })
       setForm({
         name: '',
         code: '',

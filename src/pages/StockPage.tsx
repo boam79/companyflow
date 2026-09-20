@@ -17,7 +17,7 @@ import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
-import { getSupabase, type CompanyRow } from '../lib/supabase'
+import { useCompanySession } from '../lib/companySession'
 
 type NamedRow = { id: string; name: string }
 type ActionType = StockCommand['type']
@@ -38,8 +38,7 @@ function downloadSupplyOrderCsv(rows: PurchaseOrderRow[]) {
 
 export function StockPage() {
   const { configured, loading, user } = useAuth()
-  const [companies, setCompanies] = useState<CompanyRow[]>([])
-  const [companyId, setCompanyId] = useState('')
+  const { companies, companyId, setCompanyId } = useCompanySession(Boolean(user))
   const [items, setItems] = useState<ItemRecord[]>([])
   const [partners, setPartners] = useState<NamedRow[]>([])
   const [warehouses, setWarehouses] = useState<NamedRow[]>([])
@@ -74,7 +73,7 @@ export function StockPage() {
   const [message, setMessage] = useState('')
   const [notice, setNotice] = useState('')
   const [lastOperationId, setLastOperationId] = useState('')
-  const [ready, setReady] = useState(false)
+  const [ready, setReady] = useState(() => sqlite.isOpen(sqlite.companyId))
   const [openFailed, setOpenFailed] = useState(false)
   const [saving, setSaving] = useState(false)
   const [ledgerFilter, setLedgerFilter] = useState<LedgerFilter>('all')
@@ -82,24 +81,9 @@ export function StockPage() {
   const opening = useRef(false)
 
   useEffect(() => {
-    if (!user) return
-    const client = getSupabase()
-    if (!client) return
-    void client
-      .from('companies')
-      .select('id, display_name, company_code, registration_status')
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        if (!data?.length) return
-        setCompanies(data as CompanyRow[])
-        setCompanyId((prev) => prev || data[0].id)
-      })
-  }, [user])
-
-  useEffect(() => {
-    if (!companyId || ready || opening.current || openFailed) return
+    if (!companyId || opening.current || openFailed) return
     void openCompany(companyId)
-  }, [companyId, ready, openFailed])
+  }, [companyId, openFailed])
 
   async function openCompany(nextId: string, force = false) {
     opening.current = true

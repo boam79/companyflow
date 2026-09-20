@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { companyDbFileName } from '../lib/companyPaths'
@@ -13,36 +13,17 @@ import {
 } from '../lib/setupMachine'
 import { CompanyMasterBook, seedDefaultMaster, writeDefaultMaster } from '../lib/master/book'
 import { canStartRealData } from '../lib/sqlite/durableStore'
-import { getSupabase, type CompanyRow } from '../lib/supabase'
+import { useCompanySession } from '../lib/companySession'
+import { getSupabase } from '../lib/supabase'
 
 const sqlite = getCompanySqlite()
 
 export function DeviceSetupPage() {
   const { configured, loading, user, operator } = useAuth()
-  const [companyId, setCompanyId] = useState('')
-  const [companies, setCompanies] = useState<CompanyRow[]>([])
+  const { companies, companyId, setCompanyId } = useCompanySession(Boolean(user))
   const [state, setState] = useState<SetupState>(initialSetupState())
   const [log, setLog] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
-
-  useEffect(() => {
-    if (!user) return
-    const client = getSupabase()
-    if (!client) return
-    let cancelled = false
-    void client
-      .from('companies')
-      .select('id, display_name, company_code, registration_status')
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        if (cancelled || !data?.length) return
-        setCompanies(data as CompanyRow[])
-        setCompanyId((prev) => prev || data[0].id)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [user])
 
   function push(line: string) {
     setLog((prev) => [...prev, line])

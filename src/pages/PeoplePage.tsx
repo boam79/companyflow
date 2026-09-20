@@ -64,8 +64,8 @@ import {
   type HireDocumentCheck,
   type HireWorkflowRecord,
 } from '../lib/people/hireWorkflow'
+import { useCompanySession } from '../lib/companySession'
 import { getCompanySqlite } from '../lib/sqlite/instance'
-import { getSupabase, type CompanyRow } from '../lib/supabase'
 
 type NamedRow = { id: string; name: string }
 
@@ -106,8 +106,7 @@ function printBadge(lines: string[]) {
 
 export function PeoplePage() {
   const { configured, loading, user } = useAuth()
-  const [companies, setCompanies] = useState<CompanyRow[]>([])
-  const [companyId, setCompanyId] = useState('')
+  const { companies, companyId, setCompanyId } = useCompanySession(Boolean(user))
   const [departments, setDepartments] = useState<NamedRow[]>([])
   const [employees, setEmployees] = useState<EmployeeRecord[]>([])
   const [checks, setChecks] = useState<CheckRow[]>([])
@@ -119,7 +118,7 @@ export function PeoplePage() {
   >({})
   const [notice, setNotice] = useState('')
   const [message, setMessage] = useState('')
-  const [ready, setReady] = useState(false)
+  const [ready, setReady] = useState(() => sqlite.isOpen(sqlite.companyId))
   const [badgeTemplate, setBadgeTemplate] = useState<BadgeTemplateRecord | undefined>()
   const [badgeFile, setBadgeFile] = useState<File | null>(null)
   const [badgePreview, setBadgePreview] = useState('')
@@ -135,24 +134,9 @@ export function PeoplePage() {
   const previewSeq = useRef(0)
 
   useEffect(() => {
-    if (!user) return
-    const client = getSupabase()
-    if (!client) return
-    void client
-      .from('companies')
-      .select('id, display_name, company_code, registration_status')
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        if (!data?.length) return
-        setCompanies(data as CompanyRow[])
-        setCompanyId((prev) => prev || data[0].id)
-      })
-  }, [user])
-
-  useEffect(() => {
-    if (!companyId || ready || opening.current) return
+    if (!companyId || opening.current) return
     void openCompany(companyId)
-  }, [companyId, ready])
+  }, [companyId])
 
   async function openCompany(nextId: string, force = false) {
     opening.current = true

@@ -19,7 +19,8 @@ import { ACTIVE_MASTER_WHERE } from '../lib/master/commands'
 import { migrateProcessAssetsToChecks } from '../lib/people/onboarding'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { getCompanySqlite } from '../lib/sqlite/instance'
-import { getSupabase, type CompanyRow } from '../lib/supabase'
+import { useCompanySession } from '../lib/companySession'
+import { getSupabase } from '../lib/supabase'
 
 type NamedRow = { id: string; name: string }
 type PrintedQr = { id: string; url: string; dataUrl: string }
@@ -52,8 +53,7 @@ function payloadFromUnknown(value: unknown): QrAssetPayload {
 
 export function AssetsPage() {
   const { configured, loading, user } = useAuth()
-  const [companies, setCompanies] = useState<CompanyRow[]>([])
-  const [companyId, setCompanyId] = useState('')
+  const { companies, companyId, setCompanyId } = useCompanySession(Boolean(user))
   const [items, setItems] = useState<ItemRecord[]>([])
   const [warehouses, setWarehouses] = useState<NamedRow[]>([])
   const [assets, setAssets] = useState<AssetRecord[]>([])
@@ -67,29 +67,14 @@ export function AssetsPage() {
   const [formTick, setFormTick] = useState(0)
   const [notice, setNotice] = useState('')
   const [message, setMessage] = useState('')
-  const [ready, setReady] = useState(false)
+  const [ready, setReady] = useState(() => sqlite.isOpen(sqlite.companyId))
   const [busy, setBusy] = useState(false)
   const opening = useRef(false)
 
   useEffect(() => {
-    if (!user) return
-    const client = getSupabase()
-    if (!client) return
-    void client
-      .from('companies')
-      .select('id, display_name, company_code, registration_status')
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        if (!data?.length) return
-        setCompanies(data as CompanyRow[])
-        setCompanyId((prev) => prev || data[0].id)
-      })
-  }, [user])
-
-  useEffect(() => {
-    if (!companyId || ready || opening.current) return
+    if (!companyId || opening.current) return
     void openCompany(companyId)
-  }, [companyId, ready])
+  }, [companyId])
 
   useEffect(() => {
     const token = assets.find((row) => row.id === selectedId)?.qrToken

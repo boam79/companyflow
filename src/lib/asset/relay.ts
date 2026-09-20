@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { isQrLabelId } from './qr'
 import { assertQrAssetPayload, type QrAssetPayload } from './register'
 
 export type AssetQrLabelRow = {
@@ -38,6 +39,7 @@ export async function insertBlankQrLabels(
 }
 
 export async function fetchQrLabel(client: SupabaseClient, labelId: string) {
+  if (!isQrLabelId(labelId)) return null
   const { data, error } = await client
     .from('asset_qr_labels')
     .select('id, company_id, status, created_at')

@@ -10,7 +10,6 @@ import {
   assertUniqueItemName,
   assertUniquePartnerName,
   assertItemSupplier,
-  fieldEntityFromTable,
   itemCatalogUpdateStatement,
   masterDeactivateStatement,
   masterInsertStatement,
@@ -29,8 +28,8 @@ import {
   type PurchaseKindRow,
 } from '../lib/master/commands'
 import { toArrayBuffer } from '../lib/contracts/book'
+import { useCompanySession } from '../lib/companySession'
 import { getCompanySqlite } from '../lib/sqlite/instance'
-import { getSupabase, type CompanyRow } from '../lib/supabase'
 
 type NamedRow = {
   id: string
@@ -128,8 +127,7 @@ const FIELD_ENTITIES: { id: MasterFieldEntity; label: string }[] = [
 
 export function MasterDataPage() {
   const { configured, loading, user } = useAuth()
-  const [companies, setCompanies] = useState<CompanyRow[]>([])
-  const [companyId, setCompanyId] = useState('')
+  const { companies, companyId, setCompanyId } = useCompanySession(Boolean(user))
   const [tab, setTab] = useState<TabId>('departments')
   const [listTab, setListTab] = useState<TabId>('departments')
   const [rows, setRows] = useState<NamedRow[]>([])
@@ -164,29 +162,14 @@ export function MasterDataPage() {
   const [fieldKey, setFieldKey] = useState('employee_no')
   const [message, setMessage] = useState('')
   const [notice, setNotice] = useState('')
-  const [ready, setReady] = useState(false)
+  const [ready, setReady] = useState(() => sqlite.isOpen(sqlite.companyId))
   const [openFailed, setOpenFailed] = useState(false)
   const opening = useRef(false)
 
   useEffect(() => {
-    if (!user) return
-    const client = getSupabase()
-    if (!client) return
-    void client
-      .from('companies')
-      .select('id, display_name, company_code, registration_status')
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        if (!data?.length) return
-        setCompanies(data as CompanyRow[])
-        setCompanyId((prev) => prev || data[0].id)
-      })
-  }, [user])
-
-  useEffect(() => {
-    if (!companyId || ready || opening.current || openFailed) return
+    if (!companyId || opening.current || openFailed) return
     void openCompany(companyId)
-  }, [companyId, ready, openFailed])
+  }, [companyId, openFailed])
 
   async function openCompany(nextId: string, force = false) {
     opening.current = true
@@ -980,11 +963,6 @@ export function MasterDataPage() {
       </form>
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
-      {tab !== 'fields' ? (
-        <p className="mt-3 text-xs text-muted">
-          이 탭의 기본 필드 엔티티는 {fieldEntityFromTable(tab)} 입니다.
-        </p>
-      ) : null}
       </section>
       <section className="max-h-[calc(100svh-10rem)] overflow-auto rounded-lg border border-line bg-card p-4">
       {tab === listTab && (tab === 'fields' ? fields.length : rows.length) ? (

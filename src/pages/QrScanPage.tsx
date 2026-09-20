@@ -6,6 +6,7 @@ import { loadQrAssetDetail, phoneQrSavedMessage, type QrAssetDetail } from '../l
 import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
 import { readQrAssetForm } from '../lib/asset/register'
 import { fetchQrLabel, submitAssetQr, type AssetQrLabelRow } from '../lib/asset/relay'
+import { lastOpenedCompanyId, rememberCompanies, rememberOpenedCompany } from '../lib/companySession'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
@@ -34,13 +35,19 @@ export function QrScanPage() {
         const row = await fetchQrLabel(client, token)
         if (cancelled) return
         setLabel(row)
-        if (!row) setMessage('이 QR은 회사 PC에서 만든 빈 QR이 아닙니다.')
+        if (!row) {
+          setMessage('이 QR은 회사 PC에서 만든 빈 QR이 아닙니다.')
+          return
+        }
         const { data } = await client
           .from('companies')
           .select('id, display_name, company_code, registration_status')
           .order('created_at', { ascending: false })
-        const companyId = (data as CompanyRow[] | null)?.[0]?.id
+        const rows = (data as CompanyRow[] | null) ?? []
+        if (rows.length) rememberCompanies(rows)
+        const companyId = lastOpenedCompanyId() || rows[0]?.id
         if (!companyId) return
+        rememberOpenedCompany(companyId)
         if (!sqlite.isOpen(companyId)) {
           await sqlite.open(companyId)
         }
@@ -57,6 +64,10 @@ export function QrScanPage() {
         const text = error instanceof Error ? error.message : String(error)
         if (/다른 탭/.test(text)) {
           setMessage('다른 탭이 이 회사 원본을 사용 중입니다. 그 탭을 닫거나, 자산 화면에서 QR로 상세 보기를 누르세요.')
+          return
+        }
+        if (/invalid input syntax for type uuid/i.test(text)) {
+          setMessage('이 QR은 회사 PC에서 만든 빈 QR이 아닙니다.')
           return
         }
         if (/영속|OPFS|지정 Chrome|초기 설정/i.test(text)) return

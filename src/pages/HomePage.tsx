@@ -8,11 +8,11 @@ import { isSupplyItem, loadItems, writeDefaultMaster } from '../lib/master/book'
 import { groupRoster, loadEmployees, rosterCaption } from '../lib/people/employment'
 import { loadHireEvents } from '../lib/people/hireWorkflow'
 import { loadOnboardingChecks, migrateProcessAssetsToChecks, onboardingView } from '../lib/people/onboarding'
+import { useCompanySession } from '../lib/companySession'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { buildAssetOrderList, buildSupplyOrderList } from '../lib/stock/inventoryView'
 import { companyOnHand } from '../lib/stock/engine'
 import { loadStockState } from '../lib/stock/persist'
-import { getSupabase, type CompanyRow } from '../lib/supabase'
 
 const sqlite = getCompanySqlite()
 
@@ -29,18 +29,17 @@ type StoreStatus = {
 
 export function HomePage() {
   const { configured, loading, user, operator } = useAuth()
+  const { companies, companyId, setCompanyId } = useCompanySession(Boolean(user))
   const [store, setStore] = useState<StoreStatus>({
     persisted: null,
     quota: '확인 전',
   })
-  const [companies, setCompanies] = useState<CompanyRow[]>([])
-  const [companyId, setCompanyId] = useState('')
   const [receipts, setReceipts] = useState<ReceiptWait[]>([])
   const [contracts, setContracts] = useState<ContractWatch[]>([])
   const [joining, setJoining] = useState<JoiningRow[]>([])
   const [shortage, setShortage] = useState<LowStock[]>([])
   const [recent, setRecent] = useState<RecentWork[]>([])
-  const [ready, setReady] = useState(false)
+  const [ready, setReady] = useState(() => sqlite.isOpen(sqlite.companyId))
   const [openFailed, setOpenFailed] = useState(false)
   const [message, setMessage] = useState('')
   const [notice, setNotice] = useState('')
@@ -72,24 +71,9 @@ export function HomePage() {
   }, [])
 
   useEffect(() => {
-    if (!user) return
-    const client = getSupabase()
-    if (!client) return
-    void client
-      .from('companies')
-      .select('id, display_name, company_code, registration_status')
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
-        if (!data?.length) return
-        setCompanies(data as CompanyRow[])
-        setCompanyId((prev) => prev || data[0].id)
-      })
-  }, [user])
-
-  useEffect(() => {
-    if (!companyId || ready || opening.current || openFailed) return
+    if (!companyId || opening.current || openFailed) return
     void openCompany(companyId)
-  }, [companyId, ready, openFailed])
+  }, [companyId, openFailed])
 
   async function openCompany(nextId: string, force = false) {
     opening.current = true
@@ -197,7 +181,7 @@ export function HomePage() {
             title={HOME_FRONT_PANEL_TITLES[0]}
             count={shortage.length}
             to="/stock"
-            empty="최소재고보다 적은 비품이 없습니다."
+            empty={ready ? '최소재고보다 적은 비품이 없습니다.' : '회사 DB를 여는 중입니다.'}
             columns={['품목', '현재', '최소']}
             rows={shortage.map((row) => ({
               id: row.itemId,
@@ -209,7 +193,7 @@ export function HomePage() {
             title={HOME_FRONT_PANEL_TITLES[1]}
             count={joining.length}
             to="/people"
-            empty="입사 중인 직원이 없습니다."
+            empty={ready ? '입사 중인 직원이 없습니다.' : '회사 DB를 여는 중입니다.'}
             columns={['이름', '진행']}
             rows={joining.map((row) => ({
               id: row.id,
@@ -220,7 +204,7 @@ export function HomePage() {
             title={HOME_FRONT_PANEL_TITLES[2]}
             count={contracts.length}
             to="/contracts"
-            empty="60일 안에 끝나는 계약이 없습니다."
+            empty={ready ? '60일 안에 끝나는 계약이 없습니다.' : '회사 DB를 여는 중입니다.'}
             columns={['계약', '종료', '상태']}
             rows={contracts.map((row) => ({
               id: `${row.title}-${row.endAt ?? ''}`,
@@ -270,7 +254,7 @@ export function HomePage() {
               </tbody>
             </table>
           ) : (
-            <p className="mt-3 text-sm text-muted">최근 입고·반출·입퇴사·계약이 없습니다.</p>
+            <p className="mt-3 text-sm text-muted">{ready ? '최근 입고·반출·입퇴사·계약이 없습니다.' : '회사 DB를 여는 중입니다.'}</p>
           )}
         </section>
       ) : null}
