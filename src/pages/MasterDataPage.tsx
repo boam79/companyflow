@@ -13,9 +13,90 @@ import {
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
-type NamedRow = { id: string; name: string; department_id?: string | null }
+type NamedRow = {
+  id: string
+  name: string
+  department_id?: string | null
+  title?: string | null
+  left_at?: string | null
+  stock_managed?: number | null
+  asset_managed?: number | null
+}
 type FieldRow = { entity: string; key: string; label: string }
 type TabId = MasterTable | 'fields'
+type ListTileRow = { id: string; name: string; meta?: string; badge?: string }
+
+function nameInitial(name: string) {
+  return Array.from(name.trim())[0] || '?'
+}
+
+function itemKindLabel(row: NamedRow) {
+  if (row.asset_managed === 1) return '회사 자산'
+  if (row.stock_managed === 1) return '비품'
+  return '품목'
+}
+
+function employeeTile(row: NamedRow): ListTileRow {
+  return {
+    id: row.id,
+    name: row.name,
+    meta: row.title?.trim() || undefined,
+    badge: row.left_at ? '퇴사' : undefined,
+  }
+}
+
+function itemTile(row: NamedRow): ListTileRow {
+  return {
+    id: row.id,
+    name: row.name,
+  }
+}
+
+function ListTile({ name, meta, badge }: { name: string; meta?: string; badge?: string }) {
+  return (
+    <li className="flex items-center gap-3 rounded-lg border border-line px-3 py-2.5">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent">
+        {nameInitial(name)}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <p className="truncate font-medium">{name}</p>
+          {badge ? (
+            <span className="shrink-0 rounded bg-accent-soft px-1.5 py-0.5 text-[11px] font-medium text-accent">
+              {badge}
+            </span>
+          ) : null}
+        </div>
+        {meta ? <p className="mt-0.5 truncate text-xs text-muted">{meta}</p> : null}
+      </div>
+    </li>
+  )
+}
+
+function TileGrid({ rows }: { rows: ListTileRow[] }) {
+  return (
+    <ul className="grid gap-2 sm:grid-cols-2">
+      {rows.map((row) => (
+        <ListTile key={row.id} name={row.name} meta={row.meta} badge={row.badge} />
+      ))}
+    </ul>
+  )
+}
+
+function GroupedTiles({ groups }: { groups: { title: string; rows: ListTileRow[] }[] }) {
+  return (
+    <div className="space-y-5">
+      {groups.map((group) => (
+        <section key={group.title}>
+          <h3 className="mb-2 text-xs font-semibold text-muted">
+            {group.title} {group.rows.length}
+          </h3>
+          <TileGrid rows={group.rows} />
+        </section>
+      ))}
+    </div>
+  )
+}
 
 const sqlite = getCompanySqlite()
 const TABS: { id: TabId; label: string }[] = [
@@ -115,9 +196,13 @@ export function MasterDataPage() {
     const named =
       nextTab === 'employees'
         ? await sqlite.query<NamedRow>(
-            'select id, name, department_id from employees order by name',
+            'select id, name, department_id, title, left_at from employees order by name',
           )
-        : await sqlite.query<NamedRow>(`select id, name from ${nextTab} order by name`)
+        : nextTab === 'items'
+          ? await sqlite.query<NamedRow>(
+              'select id, name, stock_managed, asset_managed from items order by name',
+            )
+          : await sqlite.query<NamedRow>(`select id, name from ${nextTab} order by name`)
     setRows(named)
   }
 
@@ -184,6 +269,41 @@ export function MasterDataPage() {
       : tab === 'employees'
         ? '직원 이름'
         : `${TABS.find((item) => item.id === tab)?.label} 이름`
+  const tabLabel = TABS.find((item) => item.id === tab)?.label ?? '목록'
+  const employeeGroups = [
+    ...departments.map((dept) => ({
+      title: dept.name,
+      rows: rows.filter((row) => row.department_id === dept.id).map(employeeTile),
+    })),
+    {
+      title: '부서 없음',
+      rows: rows
+        .filter(
+          (row) => !row.department_id || !departments.some((dept) => dept.id === row.department_id),
+        )
+        .map(employeeTile),
+    },
+  ].filter((group) => group.rows.length)
+  const itemGroups = [
+    { title: '비품', rows: rows.filter((row) => itemKindLabel(row) === '비품').map(itemTile) },
+    {
+      title: '회사 자산',
+      rows: rows.filter((row) => itemKindLabel(row) === '회사 자산').map(itemTile),
+    },
+    { title: '기타', rows: rows.filter((row) => itemKindLabel(row) === '품목').map(itemTile) },
+  ].filter((group) => group.rows.length)
+  const namedTiles: ListTileRow[] = rows.map((row) => ({ id: row.id, name: row.name }))
+  const fieldGroups = FIELD_ENTITIES.map((entity) => ({
+    title: entity.label,
+    rows: fields
+      .filter((field) => field.entity === entity.id)
+      .map((field) => ({
+        id: `${field.entity}-${field.key}`,
+        name: field.label,
+        meta: field.key,
+        badge: entity.label,
+      })),
+  })).filter((group) => group.rows.length)
 
   return (
     <div className="flex flex-col gap-4">
@@ -302,27 +422,26 @@ export function MasterDataPage() {
       <section className="max-h-[calc(100svh-10rem)] overflow-auto rounded-lg border border-line bg-card p-4">
       {tab === 'fields' ? (
         fields.length ? (
-          <ul className="space-y-1 text-sm">
-            {fields.map((field) => (
-              <li key={`${field.entity}-${field.key}`}>
-                {field.entity} · {field.key} · {field.label}
-              </li>
-            ))}
-          </ul>
+          <>
+            <h2 className="mb-3 text-base font-semibold">필드 {fields.length}</h2>
+            <GroupedTiles groups={fieldGroups} />
+          </>
         ) : (
           <p className="text-sm text-muted">아직 필드가 없습니다.</p>
         )
       ) : rows.length ? (
-        <ul className="columns-1 gap-x-8 text-sm sm:columns-2">
-          {rows.map((row) => (
-            <li key={row.id} className="break-inside-avoid py-0.5">
-              {row.name}
-              {tab === 'employees' && row.department_id
-                ? ` · ${departments.find((dept) => dept.id === row.department_id)?.name ?? ''}`
-                : ''}
-            </li>
-          ))}
-        </ul>
+        <>
+          <h2 className="mb-3 text-base font-semibold">
+            {tabLabel} {rows.length}
+          </h2>
+          {tab === 'employees' ? (
+            <GroupedTiles groups={employeeGroups} />
+          ) : tab === 'items' ? (
+            <GroupedTiles groups={itemGroups} />
+          ) : (
+            <TileGrid rows={namedTiles} />
+          )}
+        </>
       ) : (
         <p className="text-sm text-muted">
           {ready ? '아직 항목이 없습니다. 왼쪽에서 추가하세요.' : '회사 DB를 여는 중입니다.'}
