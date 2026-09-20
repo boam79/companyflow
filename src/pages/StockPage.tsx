@@ -294,7 +294,7 @@ export function StockPage() {
     }
   }
 
-  async function onSubmit(event: FormEvent) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!ready || !companyId) return
     setMessage('')
