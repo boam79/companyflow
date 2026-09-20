@@ -15,12 +15,6 @@ import {
   type ContractDraft,
 } from '../lib/contracts/book'
 import { applyOcrCandidates } from '../lib/contracts/parseFields'
-import {
-  SAMPLE_CONTRACT_DOCS,
-  buildSampleContractFile,
-  downloadSampleContractFile,
-  sampleContractFileName,
-} from '../lib/contracts/sampleDocs'
 import { writeDefaultMaster } from '../lib/master/book'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
@@ -58,7 +52,6 @@ export function ContractsPage() {
   const [ocrText, setOcrText] = useState('')
   const [ocrReviewed, setOcrReviewed] = useState(false)
   const [ocrBusy, setOcrBusy] = useState(false)
-  const [sampleBusy, setSampleBusy] = useState('')
   const [notice, setNotice] = useState('')
   const [message, setMessage] = useState('')
   const [ready, setReady] = useState(false)
@@ -160,35 +153,6 @@ export function ContractsPage() {
     }
   }
 
-  async function makeSampleFile(kind: (typeof SAMPLE_CONTRACT_DOCS)[number]['kind']) {
-    const doc = SAMPLE_CONTRACT_DOCS.find((row) => row.kind === kind)
-    if (!doc) return
-    setMessage('')
-    setNotice('')
-    setSampleBusy(doc.contractNo)
-    try {
-      return await buildSampleContractFile(doc)
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
-      return undefined
-    } finally {
-      setSampleBusy('')
-    }
-  }
-
-  async function downloadSample(kind: (typeof SAMPLE_CONTRACT_DOCS)[number]['kind']) {
-    const file = await makeSampleFile(kind)
-    if (!file) return
-    downloadSampleContractFile(file)
-    setNotice(`${file.name}을 이 PC에서 받았습니다. 첨부파일로 올리면 OCR이 칸을 채웁니다.`)
-  }
-
-  async function attachSample(kind: (typeof SAMPLE_CONTRACT_DOCS)[number]['kind']) {
-    const file = await makeSampleFile(kind)
-    if (!file) return
-    await pickFile(file)
-  }
-
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
     if (!ready) return
@@ -281,38 +245,6 @@ export function ContractsPage() {
           같은 파일은 한 번만 받습니다. OCR만으로 체결하지 않습니다.
         </p>
       </div>
-      <section className="rounded-lg border border-line bg-card p-4">
-        <h2 className="text-sm font-semibold">샘플 계약서</h2>
-        <p className="mt-1 text-xs text-muted">
-          글자가 보이는 PDF·PNG·JPEG입니다. 이 PC에서 만든 뒤 받아 첨부하거나 바로 붙여 OCR을 시험하세요. 서명·체결
-          효력은 없습니다.
-        </p>
-        <ul className="mt-3 space-y-2">
-          {SAMPLE_CONTRACT_DOCS.map((doc) => (
-            <li key={doc.contractNo} className="flex flex-wrap items-center gap-2 text-sm">
-              <span className="min-w-[16rem]">
-                {doc.title} · {sampleContractFileName(doc)}
-              </span>
-              <button
-                type="button"
-                className="rounded border border-line px-2 py-1 text-xs font-semibold disabled:opacity-50"
-                disabled={Boolean(sampleBusy) || ocrBusy}
-                onClick={() => void downloadSample(doc.kind)}
-              >
-                {sampleBusy === doc.contractNo ? '만드는 중' : '받기'}
-              </button>
-              <button
-                type="button"
-                className="rounded border border-accent px-2 py-1 text-xs font-semibold text-accent disabled:opacity-50"
-                disabled={!ready || Boolean(sampleBusy) || ocrBusy}
-                onClick={() => void attachSample(doc.kind)}
-              >
-                바로 첨부
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
       <div className="flex flex-wrap gap-3">
         <select
           className="rounded border border-line px-3 py-2 text-sm"
@@ -560,7 +492,7 @@ export function ContractsPage() {
               ) : null}
             </div>
             <div className="sm:col-span-2">
-              <button type="submit" disabled={!ready || ocrBusy || Boolean(sampleBusy)} className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+              <button type="submit" disabled={!ready || ocrBusy} className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
                 초안 저장
               </button>
             </div>
