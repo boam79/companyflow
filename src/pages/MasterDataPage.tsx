@@ -6,8 +6,8 @@ import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import {
   assertMasterTable,
   fieldEntityFromTable,
+  itemCatalogUpdateStatement,
   masterInsertStatement,
-  minStockUpdateStatement,
   type MasterFieldEntity,
   type MasterTable,
 } from '../lib/master/commands'
@@ -23,6 +23,8 @@ type NamedRow = {
   stock_managed?: number | null
   asset_managed?: number | null
   min_stock?: number | null
+  code?: string | null
+  unit?: string | null
 }
 type FieldRow = { entity: string; key: string; label: string }
 type TabId = MasterTable | 'fields'
@@ -111,6 +113,8 @@ export function MasterDataPage() {
   const [fields, setFields] = useState<FieldRow[]>([])
   const [name, setName] = useState('')
   const [minStock, setMinStock] = useState('0')
+  const [itemCode, setItemCode] = useState('')
+  const [itemUnit, setItemUnit] = useState('개')
   const [selectedItemId, setSelectedItemId] = useState('')
   const [departmentId, setDepartmentId] = useState('')
   const [fieldEntity, setFieldEntity] = useState<MasterFieldEntity>('employee')
@@ -189,7 +193,7 @@ export function MasterDataPage() {
           )
         : nextTab === 'items'
           ? await sqlite.query<NamedRow>(
-              'select id, name, stock_managed, asset_managed, min_stock from items order by name',
+              'select id, name, stock_managed, asset_managed, min_stock, code, unit from items order by name',
             )
           : await sqlite.query<NamedRow>(`select id, name from ${nextTab} order by name`)
     setRows(named)
@@ -226,6 +230,8 @@ export function MasterDataPage() {
           createdAt: new Date().toISOString(),
           departmentId: tab === 'employees' ? departmentId || undefined : undefined,
           minStock: tab === 'items' ? Number(minStock) || 0 : undefined,
+          code: tab === 'items' ? itemCode : undefined,
+          unit: tab === 'items' ? itemUnit : undefined,
         }
         const stmt = masterInsertStatement(tab, row)
         const result = await sqlite.runOnce(operationId, async () => {
@@ -236,6 +242,8 @@ export function MasterDataPage() {
       }
       setName('')
       setMinStock('0')
+      setItemCode('')
+      setItemUnit('개')
       setSelectedItemId('')
       await reload()
     } catch (error) {
@@ -243,17 +251,22 @@ export function MasterDataPage() {
     }
   }
 
-  async function saveMinStock() {
+  async function saveItemCatalog() {
     if (!ready || !selectedItemId) return
     setMessage('')
     const operationId = crypto.randomUUID()
     try {
-      const stmt = minStockUpdateStatement(selectedItemId, Number(minStock) || 0)
+      const stmt = itemCatalogUpdateStatement({
+        id: selectedItemId,
+        code: itemCode,
+        unit: itemUnit,
+        minStock: Number(minStock) || 0,
+      })
       const result = await sqlite.runOnce(operationId, async () => {
         await sqlite.exec(stmt.sql, stmt.params)
-        return { itemId: selectedItemId, minStock: stmt.params[0] }
+        return { itemId: selectedItemId, code: stmt.params[0], unit: stmt.params[1], minStock: stmt.params[2] }
       })
-      setNotice(`최소재고 저장 (${result.status})`)
+      setNotice(`품목 저장 (${result.status})`)
       await reload()
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
@@ -300,8 +313,10 @@ export function MasterDataPage() {
       : tab === 'items'
         ? {
             columns: [
+              { key: 'code', label: '코드', muted: true },
               { key: 'name', label: '이름' },
               { key: 'kind', label: '구분', muted: true },
+              { key: 'unit', label: '단위', muted: true },
               { key: 'minStock', label: '최소재고', muted: true },
             ],
             rows: [...rows]
@@ -312,8 +327,10 @@ export function MasterDataPage() {
               )
               .map((row) => ({
                 id: row.id,
+                code: row.code?.trim() ?? '',
                 name: row.name,
                 kind: itemKindLabel(row),
+                unit: row.unit?.trim() || '개',
                 minStock: itemKindLabel(row) === '비품' ? String(row.min_stock ?? 0) : '',
               })),
           }
@@ -387,6 +404,8 @@ export function MasterDataPage() {
             onClick={() => {
               setSelectedItemId('')
               setMinStock('0')
+              setItemCode('')
+              setItemUnit('개')
               setTab(item.id)
             }}
           >
@@ -436,15 +455,29 @@ export function MasterDataPage() {
           onChange={(e) => setName(e.target.value)}
         />
         {tab === 'items' ? (
-          <input
-            type="number"
-            min="0"
-            step="1"
-            className="w-28 rounded border border-line px-3 py-2 text-sm"
-            placeholder="최소재고"
-            value={minStock}
-            onChange={(e) => setMinStock(e.target.value)}
-          />
+          <>
+            <input
+              className="w-28 rounded border border-line px-3 py-2 text-sm"
+              placeholder="코드"
+              value={itemCode}
+              onChange={(e) => setItemCode(e.target.value)}
+            />
+            <input
+              className="w-20 rounded border border-line px-3 py-2 text-sm"
+              placeholder="단위"
+              value={itemUnit}
+              onChange={(e) => setItemUnit(e.target.value)}
+            />
+            <input
+              type="number"
+              min="0"
+              step="1"
+              className="w-28 rounded border border-line px-3 py-2 text-sm"
+              placeholder="최소재고"
+              value={minStock}
+              onChange={(e) => setMinStock(e.target.value)}
+            />
+          </>
         ) : null}
         <button
           type="submit"
@@ -458,9 +491,9 @@ export function MasterDataPage() {
             type="button"
             disabled={!ready || !selectedItemId}
             className="rounded border border-line px-4 py-2 text-sm font-semibold disabled:opacity-50"
-            onClick={() => void saveMinStock()}
+            onClick={() => void saveItemCatalog()}
           >
-            최소재고 저장
+            품목 저장
           </button>
         ) : null}
       </form>
@@ -488,6 +521,8 @@ export function MasterDataPage() {
                     const row = rows.find((item) => item.id === id)
                     setSelectedItemId(id)
                     setName(row?.name ?? '')
+                    setItemCode(row?.code ?? '')
+                    setItemUnit(row?.unit?.trim() || '개')
                     setMinStock(String(row?.min_stock ?? 0))
                     setMessage('')
                     setNotice('')

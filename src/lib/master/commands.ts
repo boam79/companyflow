@@ -1,3 +1,5 @@
+import { normalizeHangulField } from '../asset/life'
+
 export const MASTER_TABLES = [
   'departments',
   'employees',
@@ -30,7 +32,15 @@ export function fieldEntityFromTable(table: MasterTable): MasterFieldEntity {
 
 export function masterInsertStatement(
   table: string,
-  row: { id: string; name: string; createdAt: string; departmentId?: string; minStock?: number },
+  row: {
+    id: string
+    name: string
+    createdAt: string
+    departmentId?: string
+    minStock?: number
+    code?: string
+    unit?: string
+  },
 ): { sql: string; params: unknown[] } {
   assertMasterTable(table)
   if (table === 'employees') {
@@ -40,9 +50,15 @@ export function masterInsertStatement(
     }
   }
   if (table === 'items') {
+    const catalog = itemCatalogValues({
+      id: row.id,
+      code: row.code ?? '',
+      unit: row.unit ?? '개',
+      minStock: row.minStock ?? 0,
+    })
     return {
-      sql: 'insert into items(id, name, min_stock, created_at) values(?, ?, ?, ?)',
-      params: [row.id, row.name, row.minStock ?? 0, row.createdAt],
+      sql: 'insert into items(id, name, code, unit, min_stock, created_at) values(?, ?, ?, ?, ?, ?)',
+      params: [row.id, row.name, catalog.code, catalog.unit, catalog.minStock, row.createdAt],
     }
   }
   return {
@@ -59,4 +75,27 @@ export function minStockUpdateStatement(itemId: string, minStock: number) {
     sql: 'update items set min_stock = ? where id = ?',
     params: [minStock, itemId],
   }
+}
+
+export function itemCatalogUpdateStatement(row: {
+  id: string
+  code: string
+  unit: string
+  minStock: number
+}) {
+  const catalog = itemCatalogValues(row)
+  return {
+    sql: 'update items set code = ?, unit = ?, min_stock = ? where id = ?',
+    params: [catalog.code, catalog.unit, catalog.minStock, row.id],
+  }
+}
+
+function itemCatalogValues(row: { id: string; code: string; unit: string; minStock: number }) {
+  if (!Number.isInteger(row.minStock) || row.minStock < 0) {
+    throw new Error('최소재고는 0 이상 정수입니다.')
+  }
+  const unit = normalizeHangulField(row.unit)
+  if (!unit) throw new Error('단위를 입력하세요.')
+  const code = normalizeHangulField(row.code)
+  return { code: code || null, unit, minStock: row.minStock }
 }

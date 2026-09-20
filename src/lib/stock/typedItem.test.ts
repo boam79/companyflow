@@ -21,6 +21,7 @@ describe('입고 품목 직접 입력', () => {
       name: '볼펜',
       stockManaged: true,
       assetManaged: false,
+      unit: '개',
     })
   })
 

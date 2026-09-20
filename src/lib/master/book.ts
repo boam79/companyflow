@@ -20,6 +20,8 @@ export type ItemRecord = {
   stockManaged: boolean
   assetManaged: boolean
   minStock?: number
+  code?: string
+  unit?: string
 }
 
 export const PAPER_ITEM: ItemRecord = {
@@ -101,6 +103,17 @@ export const COMPANY_ASSET_ITEMS: ItemRecord[] = [
   { id: 'item-monitor', name: '모니터', stockManaged: false, assetManaged: true },
   { id: 'item-printer', name: '복합기', stockManaged: false, assetManaged: true },
 ]
+
+export const DEFAULT_ITEM_CODES: Record<string, string> = {
+  'item-paper': 'PAPER',
+  'item-desk': 'DESK',
+  'item-chair': 'CHAIR',
+  'item-table': 'TABLE',
+  'item-cabinet': 'CAB',
+  'item-computer': 'PC',
+  'item-monitor': 'MON',
+  'item-printer': 'MFP',
+}
 
 export class CompanyMasterBook {
   readonly departments = new Map<string, NamedRecord>()
@@ -233,6 +246,9 @@ export async function writeDefaultMaster(db: {
       item.id,
     ])
   }
+  for (const [id, code] of Object.entries(DEFAULT_ITEM_CODES)) {
+    await db.exec("update items set code = ? where id = ? and (code is null or code = '')", [code, id])
+  }
   await db.exec(`delete from items where id in ('item-badge', 'item-uniform', 'item-laptop')`)
   const { writeSampleCompanyData } = await import('./sample')
   await writeSampleCompanyData(db)
@@ -260,7 +276,9 @@ export async function loadItems(
     stock_managed?: number | null
     asset_managed?: number | null
     min_stock?: number | null
-  }>('select id, name, stock_managed, asset_managed, min_stock from items order by name')
+    code?: string | null
+    unit?: string | null
+  }>('select id, name, stock_managed, asset_managed, min_stock, code, unit from items order by name')
   return rows
     .filter((row) => !ISSUE_ITEMS.some((item) => item.id === row.id))
     .map((row) => ({
@@ -269,6 +287,8 @@ export async function loadItems(
       stockManaged: row.stock_managed !== 0,
       assetManaged: row.asset_managed === 1,
       minStock: row.min_stock ?? 0,
+      code: row.code ?? undefined,
+      unit: row.unit ?? '개',
     }))
 }
 
@@ -312,6 +332,8 @@ export const MASTER_TABLE_SQL = [
     stock_managed integer not null default 1,
     asset_managed integer not null default 0,
     min_stock integer not null default 0,
+    code text,
+    unit text not null default '개',
     created_at text not null
   );`,
   `create table if not exists partners (

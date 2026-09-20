@@ -5,6 +5,7 @@ import {
   fieldEntityFromTable,
   masterInsertStatement,
   minStockUpdateStatement,
+  itemCatalogUpdateStatement,
 } from './commands'
 
 describe('기준정보 SQL 명령', () => {
@@ -19,7 +20,7 @@ describe('기준정보 SQL 명령', () => {
       if (table === 'employees') {
         expect(stmt.params).toEqual(['id-1', '총무', null, '2026-09-16T00:00:00.000Z'])
       } else if (table === 'items') {
-        expect(stmt.params).toEqual(['id-1', '총무', 0, '2026-09-16T00:00:00.000Z'])
+        expect(stmt.params).toEqual(['id-1', '총무', null, '개', 0, '2026-09-16T00:00:00.000Z'])
       } else {
         expect(stmt.params).toEqual(['id-1', '총무', '2026-09-16T00:00:00.000Z'])
       }
@@ -34,6 +35,31 @@ describe('기준정보 SQL 명령', () => {
     })
     expect(() => minStockUpdateStatement('item-paper', -1)).toThrow(/최소재고/)
     expect(() => minStockUpdateStatement('item-paper', 1.5)).toThrow(/최소재고/)
+  })
+
+  it('품목 코드·단위·최소재고를 함께 고친다', () => {
+    expect(
+      itemCatalogUpdateStatement({
+        id: 'item-paper',
+        code: ' PAPER ',
+        unit: ' 박스 ',
+        minStock: 10,
+      }),
+    ).toEqual({
+      sql: 'update items set code = ?, unit = ?, min_stock = ? where id = ?',
+      params: ['PAPER', '박스', 10, 'item-paper'],
+    })
+    expect(
+      itemCatalogUpdateStatement({
+        id: 'item-clip',
+        code: '  ',
+        unit: '개',
+        minStock: 0,
+      }).params,
+    ).toEqual([null, '개', 0, 'item-clip'])
+    expect(() =>
+      itemCatalogUpdateStatement({ id: 'item-paper', code: 'PAPER', unit: '', minStock: 0 }),
+    ).toThrow(/단위/)
   })
 
   it('직원 화면의 기본 추가 필드는 employee 엔티티다', () => {

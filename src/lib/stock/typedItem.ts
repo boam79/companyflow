@@ -34,6 +34,7 @@ export function resolveTypedItem(
       name,
       stockManaged: true,
       assetManaged: false,
+      unit: '개',
     },
     created: true,
   }
@@ -41,7 +42,7 @@ export function resolveTypedItem(
 
 export function supplyItemInsert(item: ItemRecord, createdAt: string): { sql: string; params: unknown[] } {
   return {
-    sql: 'insert or ignore into items(id, name, stock_managed, asset_managed, created_at) values(?, ?, 1, 0, ?)',
-    params: [item.id, item.name, createdAt],
+    sql: 'insert or ignore into items(id, name, stock_managed, asset_managed, unit, created_at) values(?, ?, 1, 0, ?, ?)',
+    params: [item.id, item.name, item.unit ?? '개', createdAt],
   }
 }
