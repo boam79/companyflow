@@ -48,6 +48,7 @@ export type PurchaseOrderRow = {
   status: StockOrder['status']
   partnerId?: string
   supplierName: string
+  dueDate: string
 }
 
 export function resolveOrderPartnerId(
@@ -80,6 +81,7 @@ function orderRows(
         status: order.status,
         ...(partnerId ? { partnerId } : {}),
         supplierName: partners.find((row) => row.id === partnerId)?.name ?? '',
+        dueDate: order.dueDate ?? '',
       }
     })
     .sort((a, b) => a.orderId.localeCompare(b.orderId))
@@ -109,12 +111,13 @@ function csvCell(value: string | number) {
 
 export function supplyOrderCsv(rows: PurchaseOrderRow[]): string {
   const lines = [
-    ['발주번호', '품목', '공급사', '발주', '수령', '잔량', '상태'].join(','),
+    ['발주번호', '품목', '공급사', '납기', '발주', '수령', '잔량', '상태'].join(','),
     ...rows.map((row) =>
       [
         csvCell(row.orderId),
         csvCell(row.itemName),
         csvCell(row.supplierName),
+        csvCell(row.dueDate),
         row.orderedQty,
         row.receivedQty,
         row.remainingQty,

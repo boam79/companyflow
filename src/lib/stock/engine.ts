@@ -8,6 +8,7 @@ export type StockCommand =
       itemId: string
       qty: number
       partnerId?: string
+      dueDate?: string
     }
   | {
       type: 'post_receipt'
@@ -111,6 +112,7 @@ export type StockOrder = {
   qty: number
   status: 'draft' | 'confirmed'
   partnerId?: string
+  dueDate?: string
 }
 
 export type StockState = {
@@ -180,6 +182,7 @@ export function applyStockCommand(
         qty: command.qty,
         status: command.type === 'draft_order' ? 'draft' : 'confirmed',
         partnerId: command.partnerId ?? existing?.partnerId,
+        dueDate: command.dueDate ?? existing?.dueDate,
       })
       break
     }
@@ -384,6 +387,7 @@ export const STOCK_TABLE_SQL = [
     qty integer not null,
     status text not null,
     partner_id text,
+    due_date text,
     operation_id text not null unique,
     created_at text not null
   );`,

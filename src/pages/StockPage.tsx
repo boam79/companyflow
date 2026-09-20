@@ -53,6 +53,7 @@ export function StockPage() {
   const [warehouses, setWarehouses] = useState<NamedRow[]>([])
   const [departments, setDepartments] = useState<NamedRow[]>([])
   const [orderPartnerId, setOrderPartnerId] = useState('')
+  const [orderDueDate, setOrderDueDate] = useState('')
   const [state, setState] = useState<StockState | null>(null)
   const [action, setAction] = useState<ActionType>('confirm_order')
   const [operationId, setOperationId] = useState('')
@@ -178,6 +179,7 @@ export function StockPage() {
     setOrderId(row.orderId)
     setItemId(row.itemId)
     setOrderPartnerId(row.partnerId ?? '')
+    setOrderDueDate(row.dueDate ?? '')
   }
 
   function applySuggestedForm(next: NextStockForm | null) {
@@ -236,6 +238,7 @@ export function StockPage() {
             orderPartnerId,
             nextItem ?? items.find((row) => row.id === nextItemId),
           ),
+          dueDate: orderDueDate.trim() || undefined,
         }
       case 'post_receipt':
         return {
@@ -312,6 +315,7 @@ export function StockPage() {
             fromWarehouseId,
             toWarehouseId,
             partnerId: orderPartnerId.trim() || undefined,
+            dueDate: orderDueDate.trim() || undefined,
           }),
         )
         current = result.state
@@ -549,7 +553,7 @@ export function StockPage() {
                     목록 받기
                   </button>
                 </div>
-                <p className="mt-1 text-xs text-muted">일반 비품만 발주 항목별로 모읍니다. 책상·컴퓨터는 자산 발주입니다. 공급사는 품목 기본값을 쓰거나 여기서 바꿉니다.</p>
+                <p className="mt-1 text-xs text-muted">일반 비품만 발주 항목별로 모읍니다. 책상·컴퓨터는 자산 발주입니다. 공급사·납기는 발주에서 넣습니다.</p>
                 <div className="mt-2 overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead>
@@ -557,6 +561,7 @@ export function StockPage() {
                         <th className="py-1.5 pr-3 font-medium">발주번호</th>
                         <th className="py-1.5 pr-3 font-medium">품목</th>
                         <th className="py-1.5 pr-3 font-medium">공급사</th>
+                        <th className="py-1.5 pr-3 font-medium">납기</th>
                         <th className="py-1.5 pr-3 text-right font-medium">발주</th>
                         <th className="py-1.5 pr-3 text-right font-medium">수령</th>
                         <th className="py-1.5 pr-3 text-right font-medium">잔량</th>
@@ -577,6 +582,7 @@ export function StockPage() {
                             <td className="whitespace-nowrap py-1.5 pr-3 font-medium">{row.orderId}</td>
                             <td className="py-1.5 pr-3">{row.itemName}</td>
                             <td className="py-1.5 pr-3">{row.supplierName || '—'}</td>
+                            <td className="whitespace-nowrap py-1.5 pr-3">{row.dueDate || '—'}</td>
                             <td className="py-1.5 pr-3 text-right tabular-nums">{row.orderedQty}</td>
                             <td className="py-1.5 pr-3 text-right tabular-nums">{row.receivedQty}</td>
                             <td className="py-1.5 pr-3 text-right tabular-nums">{row.remainingQty}</td>
@@ -599,7 +605,8 @@ export function StockPage() {
                       onClick={() => chooseOrder(row)}
                     >
                       자산 발주 {row.orderId} · {row.itemName} {row.orderedQty}
-                      {row.supplierName ? ` · ${row.supplierName}` : ''} ·{' '}
+                      {row.supplierName ? ` · ${row.supplierName}` : ''}
+                      {row.dueDate ? ` · 납기 ${row.dueDate}` : ''} ·{' '}
                       {row.status === 'draft' ? '초안' : `잔량 ${row.remainingQty}`}
                     </button>
                   </li>
@@ -734,6 +741,17 @@ export function StockPage() {
                   </option>
                 ))}
               </select>
+            </label>
+          ) : null}
+          {action === 'draft_order' || action === 'confirm_order' ? (
+            <label className="text-sm">
+              납기
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                type="date"
+                value={orderDueDate}
+                onChange={(e) => setOrderDueDate(e.target.value)}
+              />
             </label>
           ) : null}
           {action !== 'reverse_transaction' ? (

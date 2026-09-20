@@ -167,7 +167,7 @@ describe('재고 영속 묶음', () => {
     expect(companyOnHand(received.state, 'item-desk')).toBe(0)
   })
 
-  it('발주 SQL에 공급사를 넣고 다시 읽는다', () => {
+  it('발주 SQL에 공급사와 납기를 넣고 다시 읽는다', () => {
     const prev = createStockState()
     const command = {
       type: 'confirm_order' as const,
@@ -176,16 +176,18 @@ describe('재고 영속 묶음', () => {
       itemId: ITEM,
       qty: 10,
       partnerId: 'partner-mfp',
+      dueDate: '2026-09-27',
     }
     const next = applyStockCommand(prev, command).state
     const statements = statementsForCommand(command, prev, next, '2026-09-20T00:00:00.000Z')
-    expect(statements[0]?.sql).toContain('partner_id')
+    expect(statements[0]?.sql).toContain('due_date')
     expect(statements[0]?.params).toEqual([
       'ord-paper',
       ITEM,
       10,
       'confirmed',
       'partner-mfp',
+      '2026-09-27',
       'op-paper',
       '2026-09-20T00:00:00.000Z',
     ])
@@ -198,11 +200,13 @@ describe('재고 영속 묶음', () => {
           status: 'confirmed',
           operation_id: 'op-paper',
           partner_id: 'partner-mfp',
+          due_date: '2026-09-27',
         },
       ],
       [],
       [],
     )
     expect(restored.orders.get('ord-paper')?.partnerId).toBe('partner-mfp')
+    expect(restored.orders.get('ord-paper')?.dueDate).toBe('2026-09-27')
   })
 })

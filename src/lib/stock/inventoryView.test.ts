@@ -95,6 +95,7 @@ describe('비품 발주 목록', () => {
         remainingQty: 4,
         status: 'confirmed',
         supplierName: '',
+        dueDate: '',
       },
     ])
     expect(buildAssetOrderList(items, state)).toEqual([
@@ -107,6 +108,7 @@ describe('비품 발주 목록', () => {
         remainingQty: 0,
         status: 'draft',
         supplierName: '',
+        dueDate: '',
       },
     ])
   })
@@ -134,8 +136,25 @@ describe('비품 발주 목록', () => {
         status: 'confirmed',
         partnerId: 'partner-mfp',
         supplierName: '사무기기코리아',
+        dueDate: '',
       },
     ])
+  })
+
+  it('발주 목록은 납기를 붙인다', () => {
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'confirm_order',
+      operationId: 'op-paper',
+      orderId: 'ord-paper',
+      itemId: PAPER_ITEM.id,
+      qty: 10,
+      dueDate: '2026-09-27',
+    }).state
+    expect(buildSupplyOrderList([PAPER_ITEM], state)[0]).toMatchObject({
+      orderId: 'ord-paper',
+      dueDate: '2026-09-27',
+    })
   })
 
   it('발주 공급사는 고른 값이 있으면 그걸 쓰고 없으면 품목 기본이다', () => {
@@ -155,7 +174,7 @@ describe('비품 발주 목록', () => {
     }).state
     const csv = supplyOrderCsv(buildSupplyOrderList(items, state))
     expect(csv.startsWith('\uFEFF')).toBe(true)
-    expect(csv).toContain('발주번호,품목,공급사,발주,수령,잔량,상태')
-    expect(csv).toContain('ord-paper,복사용지,,10,0,10,확정')
+    expect(csv).toContain('발주번호,품목,공급사,납기,발주,수령,잔량,상태')
+    expect(csv).toContain('ord-paper,복사용지,,,10,0,10,확정')
   })
 })
