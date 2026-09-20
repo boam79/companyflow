@@ -39,7 +39,7 @@ describe('게스트 샘플 시드', () => {
     expect(names).not.toContain('본사 3층 임대')
     expect(names).not.toContain('DSK-001')
     expect(names).not.toContain(PAPER_ITEM.name)
-    expect(execSql.some((sql) => sql.includes('insert or ignore into contracts'))).toBe(true)
+    expect(execSql.filter((sql) => sql.includes('insert or ignore into assets')).every((sql) => (sql.match(/\?/g) ?? []).length === 11)).toBe(true)
     expect(execSql.some((sql) => sql.includes('insert into stock_ledger'))).toBe(true)
     expect(batchParams.some((params) => params.includes(GUEST_PAPER_IN_OP))).toBe(true)
     expect(batchParams.some((params) => params.includes(GUEST_PAPER_QTY))).toBe(true)

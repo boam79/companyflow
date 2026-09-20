@@ -120,7 +120,7 @@ export async function seedGuestCompany(
     `insert or ignore into assets(
       id, item_id, warehouse_id, status, employee_id, source_operation_id, created_at,
       qr_token, model, serial_no, location_text, department_name, owner_name, acquired_at
-    ) values(?, ?, 'wh-main', 'in_storage', null, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) values(?, ?, 'wh-main', 'in_storage', null, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       'guest:desk-1',
       'item-desk',
@@ -139,7 +139,7 @@ export async function seedGuestCompany(
     `insert or ignore into assets(
       id, item_id, warehouse_id, status, employee_id, source_operation_id, created_at,
       qr_token, model, serial_no, location_text, department_name, owner_name, acquired_at
-    ) values(?, ?, 'wh-main', 'in_storage', null, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) values(?, ?, 'wh-main', 'in_storage', null, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       'guest:pc-1',
       'item-computer',
