@@ -37,7 +37,7 @@ export type OnboardingCheck = {
 
 export function onboardingView(
   employeeId: string,
-  rows: { employeeId: string; itemKey: OnboardingKey; issued: boolean; issuedAt?: string; returnedAt?: string }[],
+  rows: { employeeId: string; itemKey: string; issued: boolean; issuedAt?: string; returnedAt?: string }[],
 ): OnboardingCheck[] {
   return ONBOARDING_ITEMS.map((item) => {
     const row = rows.find((entry) => entry.employeeId === employeeId && entry.itemKey === item.key)
@@ -95,7 +95,7 @@ export function assertOffboardingClear(checks: OnboardingCheck[]): void {
 
 export type CheckRow = {
   employeeId: string
-  itemKey: OnboardingKey
+  itemKey: string
   issued: boolean
   issuedAt?: string
   returnedAt?: string
@@ -106,7 +106,7 @@ export async function loadOnboardingChecks(
 ): Promise<CheckRow[]> {
   const rows = await db.query<{
     employee_id: string
-    item_key: OnboardingKey
+    item_key: string
     issued: number
     issued_at?: string | null
     returned_at?: string | null

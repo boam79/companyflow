@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyHireWorkflow,
+  applyHireDocument,
+  hireDocumentSummary,
+  hireDocumentView,
   hireHistory,
   hireWorkflowCaption,
 } from './hireWorkflow'
@@ -45,6 +48,24 @@ describe('입사 워크플로', () => {
       { at: '2026-09-16', label: '입사 저장' },
       { at: '2026-09-16', label: '노트북 지급' },
       { at: '2026-09-17', label: '명찰 지급' },
+    ])
+  })
+
+  it('입사 서류는 근로계약·보안·개인정보·통장·신분증이다', () => {
+    const empty = hireDocumentView('emp-1', [])
+    expect(empty.map((row) => row.label)).toEqual([
+      '근로계약서',
+      '보안서약서',
+      '개인정보 동의서',
+      '통장사본',
+      '신분증 사본',
+    ])
+    expect(hireDocumentSummary(empty)).toBe('서류 0/5')
+    const next = applyHireDocument(empty, 'contract', true, '2026-09-20')
+    expect(next.find((row) => row.key === 'contract')?.done).toBe(true)
+    expect(hireDocumentSummary(next)).toBe('서류 1/5')
+    expect(hireHistory([{ kind: 'hire_contract', occurredAt: '2026-09-20' }])).toEqual([
+      { at: '2026-09-20', label: '근로계약서' },
     ])
   })
 })

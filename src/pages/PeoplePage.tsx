@@ -49,12 +49,16 @@ import {
 } from '../lib/people/onboarding'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import {
+  executeHireDocumentToggle,
   executeSaveHireWorkflow,
+  hireDocumentSummary,
+  hireDocumentView,
   hireHistory,
   hireWorkflowCaption,
   loadHireEvents,
   loadHireWorkflowFile,
   loadHireWorkflows,
+  type HireDocumentCheck,
   type HireWorkflowRecord,
 } from '../lib/people/hireWorkflow'
 import { getCompanySqlite } from '../lib/sqlite/instance'
@@ -452,6 +456,30 @@ export function PeoplePage() {
     }
   }
 
+  async function toggleDocument(employeeId: string, row: HireDocumentCheck, done: boolean) {
+    setMessage('')
+    setNotice('')
+    try {
+      const result = await executeHireDocumentToggle(sqlite, {
+        operationId: crypto.randomUUID(),
+        employeeId,
+        itemKey: row.key,
+        done,
+      })
+      setNotice(
+        result.status === 'duplicate'
+          ? '같은 처리는 한 번만 반영됩니다.'
+          : done
+            ? `입사 서류: ${row.label} 완료`
+            : `입사 서류: ${row.label} 해제`,
+      )
+      const next = await refreshPeople()
+      followEmployee(employeeId, next.employeeRows, next.checkRows)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
   async function toggleCheck(employeeId: string, row: OnboardingCheck, issued: boolean) {
     setMessage('')
     setNotice('')
@@ -521,6 +549,7 @@ export function PeoplePage() {
   const selectedHistory = selectedEmployee
     ? hireHistory(hireEvents.filter((row) => row.employeeId === selectedEmployee.id))
     : []
+  const selectedDocuments = selectedEmployee ? hireDocumentView(selectedEmployee.id, checks) : []
   const workflowOwners = employees.filter((row) => !row.leftAt || row.id === selectedWorkflowDraft.ownerId)
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
@@ -542,7 +571,7 @@ export function PeoplePage() {
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold">직원·입퇴사</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted">
-            왼쪽 탭에서 입사 중·재직·퇴사를 고릅니다. 입사 중 프로세스에 담당자·기한·첨부와 완료 이력을 둡니다. 가구·컴퓨터는 자산 메뉴에서 QR로 등록하며, 직원에게 배정하지 않습니다.
+            왼쪽 탭에서 입사 중·재직·퇴사를 고릅니다. 입사 서류(근로계약·보안·개인정보·통장·신분증)와 담당자·기한·첨부를 둡니다. 가구·컴퓨터는 자산 메뉴에서 QR로 등록하며, 직원에게 배정하지 않습니다.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -747,7 +776,7 @@ export function PeoplePage() {
                   </label>
                 </div>
 
-                <div className={`mt-4 grid gap-4 ${selectedEmployee.leftAt ? '' : 'md:grid-cols-2'}`}>
+                <div className={`mt-4 grid gap-4 ${selectedEmployee.leftAt ? '' : 'md:grid-cols-2 xl:grid-cols-3'}`}>
                   {selectedEmployee.leftAt ? null : (
                     <div>
                       <h3 className="text-sm font-semibold">입사 중 프로세스</h3>
@@ -807,100 +836,28 @@ export function PeoplePage() {
                         })}
                       </ul>
                       <p className="mt-2 text-xs text-muted">{hireProcessSummary(selectedEmployee, selectedProcess)}</p>
-                      <div className="mt-3 space-y-2">
-                        <label className="block text-sm">
-                          담당자
-                          <select
-                            className="mt-1 w-full rounded border border-line px-2 py-1.5"
-                            value={selectedWorkflowDraft.ownerId}
-                            onChange={(e) =>
-                              setWorkflowDrafts((prev) => ({
-                                ...prev,
-                                [selectedEmployee.id]: { ...selectedWorkflowDraft, ownerId: e.target.value },
-                              }))
-                            }
-                          >
-                            <option value="">담당자 선택</option>
-                            {workflowOwners.map((row) => (
-                              <option key={row.id} value={row.id}>
-                                {row.name}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label className="block text-sm">
-                          기한
-                          <input
-                            type="date"
-                            className="mt-1 w-full rounded border border-line px-2 py-1.5"
-                            value={selectedWorkflowDraft.dueAt}
-                            onChange={(e) =>
-                              setWorkflowDrafts((prev) => ({
-                                ...prev,
-                                [selectedEmployee.id]: { ...selectedWorkflowDraft, dueAt: e.target.value },
-                              }))
-                            }
-                          />
-                        </label>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            disabled={!ready}
-                            className="rounded border border-line px-2 py-1 text-xs font-semibold disabled:opacity-50"
-                            onClick={() => void saveHireWorkflow(selectedEmployee.id)}
-                          >
-                            담당·기한 저장
-                          </button>
-                          <input
-                            ref={hireFileInput}
-                            type="file"
-                            accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
-                            className="sr-only"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0]
-                              if (file) void saveHireWorkflow(selectedEmployee.id, file)
-                            }}
-                          />
-                          <button
-                            type="button"
-                            disabled={!ready}
-                            className="rounded border border-line px-2 py-1 text-xs font-semibold disabled:opacity-50"
-                            onClick={() => hireFileInput.current?.click()}
-                          >
-                            첨부
-                          </button>
-                          {selectedWorkflow?.hasFile ? (
-                            <button
-                              type="button"
-                              disabled={!ready}
-                              className="rounded border border-line px-2 py-1 text-xs font-semibold disabled:opacity-50"
-                              onClick={() => void downloadHireWorkflowFile(selectedEmployee.id)}
-                            >
-                              {selectedWorkflow.fileName || '첨부 받기'}
-                            </button>
-                          ) : null}
-                        </div>
-                        <p className="text-xs text-muted">
-                          {hireWorkflowCaption(
-                            {
-                              ownerName: employees.find((row) => row.id === selectedWorkflowDraft.ownerId)?.name,
-                              dueAt: selectedWorkflowDraft.dueAt || selectedWorkflow?.dueAt,
-                            },
-                            todayStamp(),
-                          )}
-                        </p>
-                        {selectedHistory.length ? (
-                          <ul className="space-y-1 text-xs text-muted">
-                            {selectedHistory.map((row, index) => (
-                              <li key={`${row.at}-${row.label}-${index}`}>
-                                {row.at} · {row.label}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="text-xs text-muted">완료 이력이 아직 없습니다.</p>
-                        )}
-                      </div>
+                    </div>
+                  )}
+                  {selectedEmployee.leftAt ? null : (
+                    <div>
+                      <h3 className="text-sm font-semibold">입사 서류</h3>
+                      <ul className="mt-2 space-y-2">
+                        {selectedDocuments.map((row) => (
+                          <li key={`doc-${row.key}`}>
+                            <label className="flex items-center gap-2 whitespace-nowrap">
+                              <input
+                                type="checkbox"
+                                className="size-4 shrink-0 accent-accent"
+                                checked={row.done}
+                                disabled={!ready}
+                                onChange={(e) => void toggleDocument(selectedEmployee.id, row, e.target.checked)}
+                              />
+                              <span className={row.done ? 'font-medium' : 'text-muted'}>{row.label}</span>
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="mt-2 text-xs text-muted">{hireDocumentSummary(selectedDocuments)}</p>
                     </div>
                   )}
                   <div>
@@ -933,6 +890,108 @@ export function PeoplePage() {
                     </p>
                   </div>
                 </div>
+                {selectedEmployee.leftAt ? null : (
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-semibold">입사 담당</h3>
+                      <label className="block text-sm">
+                        담당자
+                        <select
+                          className="mt-1 w-full rounded border border-line px-2 py-1.5"
+                          value={selectedWorkflowDraft.ownerId}
+                          onChange={(e) =>
+                            setWorkflowDrafts((prev) => ({
+                              ...prev,
+                              [selectedEmployee.id]: { ...selectedWorkflowDraft, ownerId: e.target.value },
+                            }))
+                          }
+                        >
+                          <option value="">담당자 선택</option>
+                          {workflowOwners.map((row) => (
+                            <option key={row.id} value={row.id}>
+                              {row.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block text-sm">
+                        기한
+                        <input
+                          type="date"
+                          className="mt-1 w-full rounded border border-line px-2 py-1.5"
+                          value={selectedWorkflowDraft.dueAt}
+                          onChange={(e) =>
+                            setWorkflowDrafts((prev) => ({
+                              ...prev,
+                              [selectedEmployee.id]: { ...selectedWorkflowDraft, dueAt: e.target.value },
+                            }))
+                          }
+                        />
+                      </label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={!ready}
+                          className="rounded border border-line px-2 py-1 text-xs font-semibold disabled:opacity-50"
+                          onClick={() => void saveHireWorkflow(selectedEmployee.id)}
+                        >
+                          담당·기한 저장
+                        </button>
+                        <input
+                          ref={hireFileInput}
+                          type="file"
+                          accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                          className="sr-only"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) void saveHireWorkflow(selectedEmployee.id, file)
+                          }}
+                        />
+                        <button
+                          type="button"
+                          disabled={!ready}
+                          className="rounded border border-line px-2 py-1 text-xs font-semibold disabled:opacity-50"
+                          onClick={() => hireFileInput.current?.click()}
+                        >
+                          첨부
+                        </button>
+                        {selectedWorkflow?.hasFile ? (
+                          <button
+                            type="button"
+                            disabled={!ready}
+                            className="rounded border border-line px-2 py-1 text-xs font-semibold disabled:opacity-50"
+                            onClick={() => void downloadHireWorkflowFile(selectedEmployee.id)}
+                          >
+                            {selectedWorkflow.fileName || '첨부 받기'}
+                          </button>
+                        ) : null}
+                      </div>
+                      <p className="text-xs text-muted">
+                        {hireWorkflowCaption(
+                          {
+                            ownerName: employees.find((row) => row.id === selectedWorkflowDraft.ownerId)?.name,
+                            dueAt: selectedWorkflowDraft.dueAt || selectedWorkflow?.dueAt,
+                          },
+                          todayStamp(),
+                        )}
+                      </p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold">완료 이력</h3>
+                      {selectedHistory.length ? (
+                        <ul className="mt-2 space-y-1 text-xs text-muted">
+                          {selectedHistory.map((row, index) => (
+                            <li key={`${row.at}-${row.label}-${index}`}>
+                              {row.at} · {row.label}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-2 text-xs text-muted">완료 이력이 아직 없습니다.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </article>
             ) : (
               <p className="rounded-lg border border-line bg-card p-5 text-sm text-muted">이 목록에 직원이 없습니다.</p>

@@ -20,6 +20,62 @@ const HIRE_EVENT_LABELS: Record<string, string> = {
   hire_badge: '명찰 지급',
   hire_uniform: '유니폼 지급',
   hire_laptop: '노트북 지급',
+  hire_contract: '근로계약서',
+  hire_pledge: '보안서약서',
+  hire_privacy: '개인정보 동의서',
+  hire_bank: '통장사본',
+  hire_idcopy: '신분증 사본',
+}
+
+export type HireDocumentKey = 'contract' | 'pledge' | 'privacy' | 'bank' | 'idcopy'
+
+export const HIRE_DOCUMENTS: { key: HireDocumentKey; label: string }[] = [
+  { key: 'contract', label: '근로계약서' },
+  { key: 'pledge', label: '보안서약서' },
+  { key: 'privacy', label: '개인정보 동의서' },
+  { key: 'bank', label: '통장사본' },
+  { key: 'idcopy', label: '신분증 사본' },
+]
+
+export type HireDocumentCheck = {
+  key: HireDocumentKey
+  label: string
+  done: boolean
+  doneAt?: string
+}
+
+export function hireDocumentView(
+  employeeId: string,
+  rows: { employeeId: string; itemKey: string; issued: boolean; issuedAt?: string }[],
+): HireDocumentCheck[] {
+  return HIRE_DOCUMENTS.map((item) => {
+    const row = rows.find((entry) => entry.employeeId === employeeId && entry.itemKey === item.key)
+    return {
+      key: item.key,
+      label: item.label,
+      done: Boolean(row?.issued),
+      doneAt: row?.issuedAt,
+    }
+  })
+}
+
+export function applyHireDocument(
+  docs: HireDocumentCheck[],
+  key: HireDocumentKey,
+  done: boolean,
+  at: string,
+): HireDocumentCheck[] {
+  return docs.map((row) =>
+    row.key === key ? { ...row, done, doneAt: done ? at.slice(0, 10) : undefined } : row,
+  )
+}
+
+export function hireDocumentSummary(docs: HireDocumentCheck[]): string {
+  return `서류 ${docs.filter((row) => row.done).length}/${docs.length}`
+}
+
+export function isHireDocumentKey(key: string): key is HireDocumentKey {
+  return HIRE_DOCUMENTS.some((item) => item.key === key)
 }
 
 export const HIRE_WORKFLOW_TABLE_SQL = [
@@ -209,6 +265,67 @@ export async function executeSaveHireWorkflow(
           : [command.employeeId, next.ownerId ?? null, next.dueAt ?? null, fileName, fileMime, fileBase64, createdAt],
       },
     ])
+    return { status: 'applied' }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (/UNIQUE constraint failed/i.test(message)) return { status: 'duplicate' }
+    throw error
+  }
+}
+
+export async function executeHireDocumentToggle(
+  db: {
+    query: <T>(sql: string, params?: unknown[]) => Promise<T[]>
+    batch: (statements: { sql: string; params?: unknown[] }[]) => Promise<void>
+  },
+  command: { operationId: string; employeeId: string; itemKey: HireDocumentKey; done: boolean },
+  createdAt = new Date().toISOString(),
+): Promise<{ status: 'applied' | 'duplicate' }> {
+  const existing = await db.query<{ operation_id: string }>(
+    'select operation_id from processed_operations where operation_id = ?',
+    [command.operationId],
+  )
+  if (existing.length) return { status: 'duplicate' }
+  const employees = await db.query<{ id: string; left_at?: string | null }>(
+    'select id, left_at from employees where id = ?',
+    [command.employeeId],
+  )
+  if (!employees.length) throw new Error('직원을 찾을 수 없습니다.')
+  if (employees[0].left_at && command.done) {
+    throw new Error('퇴사한 직원에게는 입사 서류를 받을 수 없습니다. 재입사 뒤에 진행하세요.')
+  }
+  const day = createdAt.slice(0, 10)
+  const statements: { sql: string; params?: unknown[] }[] = [
+    {
+      sql: 'insert into processed_operations(operation_id, result_json, created_at) values(?, ?, ?)',
+      params: [command.operationId, JSON.stringify({ type: 'hire_document' }), createdAt],
+    },
+    {
+      sql: `insert into employment_checks(employee_id, item_key, issued, issued_at, returned_at, updated_at)
+        values(?, ?, ?, ?, null, ?)
+        on conflict(employee_id, item_key) do update set
+          issued = excluded.issued,
+          issued_at = excluded.issued_at,
+          returned_at = null,
+          updated_at = excluded.updated_at`,
+      params: [command.employeeId, command.itemKey, command.done ? 1 : 0, command.done ? day : null, createdAt],
+    },
+  ]
+  if (command.done) {
+    statements.push({
+      sql: 'insert into employment_events(id, employee_id, kind, occurred_at, detail_json, created_at) values(?, ?, ?, ?, ?, ?)',
+      params: [
+        command.operationId,
+        command.employeeId,
+        `hire_${command.itemKey}`,
+        day,
+        JSON.stringify({ itemKey: command.itemKey }),
+        createdAt,
+      ],
+    })
+  }
+  try {
+    await db.batch(statements)
     return { status: 'applied' }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
