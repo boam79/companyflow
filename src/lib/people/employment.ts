@@ -40,6 +40,14 @@ export function rosterPhase(employee: EmployeeRecord, checks: OnboardingCheck[])
   return 'employed'
 }
 
+export function visiblePeoplePanels(phase: RosterPhase) {
+  return {
+    hire: phase === 'joining',
+    documents: phase === 'joining',
+    leave: phase === 'employed' || phase === 'left',
+  }
+}
+
 export function rosterCaption(employee: EmployeeRecord, checks: OnboardingCheck[]): string {
   const phase = rosterPhase(employee, checks)
   const issued = hireIssuedCount(checks)

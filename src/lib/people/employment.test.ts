@@ -11,6 +11,7 @@ import {
   hireProcessSummary,
   rosterCaption,
   rosterPhase,
+  visiblePeoplePanels,
 } from './employment'
 import { applyIssueCheck, assertOffboardingClear, onboardingView } from './onboarding'
 
@@ -98,6 +99,9 @@ describe('입퇴사', () => {
     expect(rosterCaption(before, onboardingView('emp-new', []))).toBe('입사 전 · 0/3 지급')
     expect(rosterCaption(employed, onboardingView('emp-lee', checks))).toBe('재직 · 2025-07-14')
     expect(rosterCaption(left, onboardingView('emp-oh', []))).toBe('퇴사 2026-08-31')
+    expect(visiblePeoplePanels('joining')).toEqual({ hire: true, documents: true, leave: false })
+    expect(visiblePeoplePanels('employed')).toEqual({ hire: false, documents: false, leave: true })
+    expect(visiblePeoplePanels('left')).toEqual({ hire: false, documents: false, leave: true })
   })
 
   it('입사 중 프로세스는 입사 저장과 지급 3칸이다', () => {

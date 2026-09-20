@@ -32,6 +32,7 @@ import {
   loadEmployees,
   rosterCaption,
   rosterPhase,
+  visiblePeoplePanels,
   type EmployeeRecord,
   type RosterPhase,
 } from '../lib/people/employment'
@@ -551,6 +552,7 @@ export function PeoplePage() {
     : []
   const selectedDocuments = selectedEmployee ? hireDocumentView(selectedEmployee.id, checks) : []
   const workflowOwners = employees.filter((row) => !row.leftAt || row.id === selectedWorkflowDraft.ownerId)
+  const panels = selectedPhase ? visiblePeoplePanels(selectedPhase) : { hire: false, documents: false, leave: false }
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
   if (!configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
@@ -701,7 +703,7 @@ export function PeoplePage() {
                     >
                       명찰
                     </button>
-                    {selectedEmployee.leftAt ? null : (
+                    {panels.leave && !selectedEmployee.leftAt ? (
                       <button
                         type="button"
                         disabled={!ready}
@@ -710,7 +712,7 @@ export function PeoplePage() {
                       >
                         퇴사
                       </button>
-                    )}
+                    ) : null}
                   </div>
                 </div>
 
@@ -776,8 +778,12 @@ export function PeoplePage() {
                   </label>
                 </div>
 
-                <div className={`mt-4 grid gap-4 ${selectedEmployee.leftAt ? '' : 'md:grid-cols-2 xl:grid-cols-3'}`}>
-                  {selectedEmployee.leftAt ? null : (
+                <div
+                  className={`mt-4 grid gap-4 ${
+                    panels.hire && panels.documents ? 'md:grid-cols-2' : ''
+                  }`}
+                >
+                  {panels.hire ? (
                     <div>
                       <h3 className="text-sm font-semibold">입사 중 프로세스</h3>
                       <ul className="mt-2 space-y-2">
@@ -837,8 +843,8 @@ export function PeoplePage() {
                       </ul>
                       <p className="mt-2 text-xs text-muted">{hireProcessSummary(selectedEmployee, selectedProcess)}</p>
                     </div>
-                  )}
-                  {selectedEmployee.leftAt ? null : (
+                  ) : null}
+                  {panels.documents ? (
                     <div>
                       <h3 className="text-sm font-semibold">입사 서류</h3>
                       <ul className="mt-2 space-y-2">
@@ -859,7 +865,8 @@ export function PeoplePage() {
                       </ul>
                       <p className="mt-2 text-xs text-muted">{hireDocumentSummary(selectedDocuments)}</p>
                     </div>
-                  )}
+                  ) : null}
+                  {panels.leave ? (
                   <div>
                     <h3 className="text-sm font-semibold">퇴사 프로세스</h3>
                     <ul className="mt-2 space-y-2">
@@ -889,8 +896,9 @@ export function PeoplePage() {
                       {leaveSummary(selectedProcess, Boolean(selectedEmployee.leftAt))}
                     </p>
                   </div>
+                  ) : null}
                 </div>
-                {selectedEmployee.leftAt ? null : (
+                {panels.hire ? (
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <h3 className="text-sm font-semibold">입사 담당</h3>
@@ -991,7 +999,7 @@ export function PeoplePage() {
                       )}
                     </div>
                   </div>
-                )}
+                ) : null}
               </article>
             ) : (
               <p className="rounded-lg border border-line bg-card p-5 text-sm text-muted">이 목록에 직원이 없습니다.</p>
