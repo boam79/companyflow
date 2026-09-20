@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { StockLedgerTable } from '../components/StockLedgerTable'
 import { isCompanyAssetItem, isSupplyItem, loadItems, type ItemRecord } from '../lib/master/book'
+import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
+import { isInboundStockAction, resolveTypedItem } from '../lib/stock/typedItem'
 import { allocateReceiptQty } from '../lib/asset/receipt'
 import { migrateProcessAssetsToChecks } from '../lib/people/onboarding'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
@@ -196,30 +198,30 @@ export function StockPage() {
     if (nextAction === 'transfer_stock') setQty('2')
   }
 
-  function buildCommand(nextOperationId: string): StockCommand {
+  function buildCommand(nextOperationId: string, nextItemId = itemId): StockCommand {
     const quantity = Number(qty)
     switch (action) {
       case 'draft_order':
       case 'confirm_order':
-        return { type: action, operationId: nextOperationId, orderId, itemId, qty: quantity }
+        return { type: action, operationId: nextOperationId, orderId, itemId: nextItemId, qty: quantity }
       case 'post_receipt':
         return {
           type: action,
           operationId: nextOperationId,
           orderId,
-          itemId,
+          itemId: nextItemId,
           warehouseId,
           qty: quantity,
         }
       case 'post_direct_in':
       case 'post_outbound':
       case 'convert_to_asset':
-        return { type: action, operationId: nextOperationId, itemId, warehouseId, qty: quantity }
+        return { type: action, operationId: nextOperationId, itemId: nextItemId, warehouseId, qty: quantity }
       case 'post_issue':
         return {
           type: action,
           operationId: nextOperationId,
-          itemId,
+          itemId: nextItemId,
           warehouseId,
           qty: quantity,
           personName: personName.trim() || undefined,
@@ -229,7 +231,7 @@ export function StockPage() {
         return {
           type: action,
           operationId: nextOperationId,
-          itemId,
+          itemId: nextItemId,
           warehouseId,
           qty: quantity,
           sourceOperationId,
@@ -238,7 +240,7 @@ export function StockPage() {
         return {
           type: action,
           operationId: nextOperationId,
-          itemId,
+          itemId: nextItemId,
           fromWarehouseId,
           toWarehouseId,
           qty: quantity,
@@ -247,7 +249,7 @@ export function StockPage() {
         return {
           type: action,
           operationId: nextOperationId,
-          itemId,
+          itemId: nextItemId,
           warehouseId,
           countedQty: quantity,
           reason,
@@ -299,10 +301,24 @@ export function StockPage() {
     setSaving(true)
     const nextOperationId = operationId.trim() || crypto.randomUUID()
     try {
-      const result = await executeStockCommand(sqlite, buildCommand(nextOperationId))
+      const typedName = String(new FormData(event.currentTarget).get('itemName') ?? '')
+      const resolved =
+        action === 'reverse_transaction'
+          ? { item: items.find((row) => row.id === itemId) ?? { id: itemId, name: typedName, stockManaged: true, assetManaged: false }, created: false }
+          : resolveTypedItem(items, typedName, {
+              createIfMissing: isInboundStockAction(action),
+              newId: `item-${crypto.randomUUID()}`,
+            })
+      setItemId(resolved.item.id)
+      const result = await executeStockCommand(
+        sqlite,
+        buildCommand(nextOperationId, resolved.item.id),
+        undefined,
+        resolved.created ? { newItem: resolved.item } : undefined,
+      )
       setLastOperationId(nextOperationId)
       setOperationId('')
-      const receiptItem = items.find((row) => row.id === itemId)
+      const receiptItem = resolved.item
       const assetCount =
         action === 'post_receipt' && result.status === 'applied'
           ? allocateReceiptQty(receiptItem, Number(qty)).assetQty
@@ -311,8 +327,10 @@ export function StockPage() {
         result.status === 'duplicate'
           ? `같은 operation_id 는 한 번만 반영됩니다. (${nextOperationId})`
           : assetCount
-            ? `${receiptItem?.name} ${assetCount}건을 자산으로 등록했습니다. 자산 화면에서 위치를 이관하세요.`
-            : `저장했습니다. (${ACTIONS.find((item) => item.id === action)?.label} · ${nextOperationId})`,
+            ? `${receiptItem.name} ${assetCount}건을 자산으로 등록했습니다. 자산 화면에서 위치를 이관하세요.`
+            : resolved.created
+              ? `비품 ${receiptItem.name}을 등록하고 저장했습니다. (${ACTIONS.find((item) => item.id === action)?.label} · ${nextOperationId})`
+              : `저장했습니다. (${ACTIONS.find((item) => item.id === action)?.label} · ${nextOperationId})`,
       )
       if (result.status === 'applied') {
         applySuggestedForm(suggestNextStockForm(result.state, orderId))
@@ -618,6 +636,8 @@ export function StockPage() {
       <form
         id="stock-command"
         className="grid gap-3 rounded-lg border border-line bg-card p-4"
+        lang="ko"
+        onKeyDown={preventImeEnterSubmit}
         onSubmit={onSubmit}
       >
         <div className="flex flex-wrap items-end gap-3">
@@ -671,17 +691,25 @@ export function StockPage() {
           {action !== 'reverse_transaction' ? (
             <label className="text-sm">
               품목
-              <select
+              <input
+                key={itemId}
+                name="itemName"
+                list="stock-item-names"
+                autoComplete="off"
                 className="mt-1 w-full rounded border border-line px-3 py-2"
-                value={itemId}
-                onChange={(e) => setItemId(e.target.value)}
-              >
+                defaultValue={items.find((row) => row.id === itemId)?.name ?? ''}
+                placeholder="이름을 치세요"
+              />
+              <datalist id="stock-item-names">
                 {formItems.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
+                  <option key={item.id} value={item.name} />
                 ))}
-              </select>
+              </datalist>
+              <span className="mt-1 block text-xs text-muted">
+                {isInboundStockAction(action)
+                  ? '없는 이름은 입고할 때 비품으로 등록됩니다. 책상·컴퓨터는 그대로 자산입니다.'
+                  : '있는 비품 이름만 반출·출고할 수 있습니다.'}
+              </span>
             </label>
           ) : null}
         </div>

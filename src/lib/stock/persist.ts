@@ -1,7 +1,8 @@
 import { assetsFromConvert } from '../asset/book'
 import { assetsFromReceipt, allocateReceiptQty } from '../asset/receipt'
-import { assertConvertibleItem, loadItems, writeDefaultMaster } from '../master/book'
+import { assertConvertibleItem, loadItems, writeDefaultMaster, type ItemRecord } from '../master/book'
 import type { CompanySqlite } from '../sqlite/client'
+import { supplyItemInsert } from './typedItem'
 import {
   applyStockCommand,
   createStockState,
@@ -202,6 +203,7 @@ export async function executeStockCommand(
   db: StockDb,
   command: StockCommand,
   createdAt = new Date().toISOString(),
+  options?: { newItem?: ItemRecord },
 ): Promise<{ status: 'applied' | 'duplicate'; state: StockState }> {
   if (command.type === 'convert_to_asset') {
     const items = await loadItems(db)
@@ -211,7 +213,7 @@ export async function executeStockCommand(
   if (command.type === 'post_receipt') {
     const items = await loadItems(db)
     const allocation = allocateReceiptQty(
-      items.find((item) => item.id === command.itemId),
+      items.find((item) => item.id === command.itemId) ?? options?.newItem,
       command.qty,
     )
     nextCommand = { ...command, directAsset: allocation.assetQty > 0 }
@@ -221,6 +223,7 @@ export async function executeStockCommand(
   if (result.status === 'duplicate') return result
 
   const statements: SqlStatement[] = [
+    ...(options?.newItem ? [supplyItemInsert(options.newItem, createdAt)] : []),
     {
       sql: 'insert into processed_operations(operation_id, result_json, created_at) values(?, ?, ?)',
       params: [nextCommand.operationId, JSON.stringify({ type: nextCommand.type }), createdAt],
