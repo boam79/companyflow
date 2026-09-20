@@ -1,6 +1,7 @@
 import { MASTER_TABLE_SQL } from '../master/book'
 import { STOCK_TABLE_SQL } from '../stock/engine'
 import { ASSET_TABLE_SQL } from '../asset/book'
+import { ASSET_EVENT_TABLE_SQL } from '../asset/life'
 import { QR_LABEL_TABLE_SQL } from '../asset/register'
 import { CONTRACT_TABLE_SQL } from '../contracts/book'
 import { BADGE_TEMPLATE_TABLE_SQL } from '../people/badgeTemplate'
@@ -38,6 +39,7 @@ export const LOCAL_MIGRATIONS = [
   ...MASTER_TABLE_SQL,
   ...STOCK_TABLE_SQL,
   ...ASSET_TABLE_SQL,
+  ...ASSET_EVENT_TABLE_SQL,
   ...QR_LABEL_TABLE_SQL,
   ...CONTRACT_TABLE_SQL,
   ...BADGE_TEMPLATE_TABLE_SQL,
@@ -92,4 +94,5 @@ export const SCHEMA_PATCHES = [
   'alter table assets add column owner_name text',
   'alter table assets add column acquired_at text',
   `create unique index if not exists assets_qr_token on assets(qr_token) where qr_token is not null`,
+  ...ASSET_EVENT_TABLE_SQL,
 ]

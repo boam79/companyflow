@@ -2,6 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { assetNumber, loadAssets, type AssetRecord } from '../lib/asset/book'
+import {
+  assetLifeLabel,
+  executeAssetLife,
+  loadAssetEvents,
+  type AssetLifeEvent,
+  type AssetLifeKind,
+} from '../lib/asset/life'
 import { assertQrAssetPayload, executeQrRegistration, type QrAssetPayload } from '../lib/asset/register'
 import { fetchPendingQrInbox, importAssetQr, insertBlankQrLabels, type AssetQrInboxRow } from '../lib/asset/relay'
 import { assertBlankQrCount, blankQrDataUrl, blankQrFileName, blankQrScanUrl } from '../lib/asset/qr'
@@ -15,6 +22,21 @@ type NamedRow = { id: string; name: string }
 type PrintedQr = { id: string; url: string; dataUrl: string }
 
 const sqlite = getCompanySqlite()
+
+function todayStamp() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date())
+}
+
+function emptyLifeForm(asset?: AssetRecord) {
+  return {
+    kind: 'transfer' as AssetLifeKind,
+    happenedAt: todayStamp(),
+    reason: '',
+    locationText: asset?.locationText ?? '',
+    departmentName: asset?.departmentName ?? '',
+    ownerName: asset?.ownerName ?? '',
+  }
+}
 
 function payloadFromUnknown(value: unknown): QrAssetPayload {
   const row = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
@@ -39,6 +61,9 @@ export function AssetsPage() {
   const [inbox, setInbox] = useState<AssetQrInboxRow[]>([])
   const [printed, setPrinted] = useState<PrintedQr[]>([])
   const [blankCount, setBlankCount] = useState(4)
+  const [selectedId, setSelectedId] = useState('')
+  const [events, setEvents] = useState<AssetLifeEvent[]>([])
+  const [lifeForm, setLifeForm] = useState(emptyLifeForm)
   const [notice, setNotice] = useState('')
   const [message, setMessage] = useState('')
   const [ready, setReady] = useState(false)
@@ -93,6 +118,19 @@ export function AssetsPage() {
       setItems(itemRows)
       setWarehouses(warehouseRows)
       setAssets(assetRows)
+      const nextSelected = assetRows.some((row) => row.id === selectedId && row.status !== 'disposed')
+        ? selectedId
+        : (assetRows.find(
+            (row) =>
+              row.status !== 'disposed' && isCompanyAssetItem(itemRows.find((item) => item.id === row.itemId)),
+          )?.id ?? '')
+      setSelectedId(nextSelected)
+      if (nextSelected) {
+        setLifeForm(emptyLifeForm(assetRows.find((row) => row.id === nextSelected)))
+        setEvents(await loadAssetEvents(sqlite, nextSelected))
+      } else {
+        setEvents([])
+      }
       await refreshInbox(nextId)
     } catch (error) {
       setReady(false)
@@ -162,6 +200,39 @@ export function AssetsPage() {
     }
   }
 
+  async function recordLife() {
+    if (!ready || !selectedId) return
+    setBusy(true)
+    setMessage('')
+    setNotice('')
+    try {
+      const result = await executeAssetLife(sqlite, {
+        operationId: crypto.randomUUID(),
+        assetId: selectedId,
+        kind: lifeForm.kind,
+        happenedAt: lifeForm.happenedAt,
+        reason: lifeForm.reason,
+        locationText: lifeForm.locationText,
+        departmentName: lifeForm.departmentName,
+        ownerName: lifeForm.ownerName,
+      })
+      const assetRows = await loadAssets(sqlite)
+      setAssets(assetRows)
+      setEvents(await loadAssetEvents(sqlite, selectedId))
+      const selected = assetRows.find((row) => row.id === selectedId)
+      setLifeForm(emptyLifeForm(selected))
+      setNotice(
+        result.status === 'duplicate'
+          ? '같은 이력은 한 번만 반영됩니다.'
+          : `${assetLifeLabel(lifeForm.kind)} 이력을 남겼습니다. 직원에게 배정하지 않았습니다.`,
+      )
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   function printSheet() {
     if (!printed.length) return
     const page = window.open('', '_blank')
@@ -184,9 +255,14 @@ export function AssetsPage() {
     page.print()
   }
 
-  const companyAssets = assets.filter((asset) =>
-    isCompanyAssetItem(items.find((item) => item.id === asset.itemId)),
+  const companyAssets = assets.filter(
+    (asset) =>
+      asset.status !== 'disposed' && isCompanyAssetItem(items.find((item) => item.id === asset.itemId)),
   )
+  const disposedAssets = assets.filter(
+    (asset) => asset.status === 'disposed' && isCompanyAssetItem(items.find((item) => item.id === asset.itemId)),
+  )
+  const selected = assets.find((row) => row.id === selectedId)
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
   if (!configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
@@ -207,7 +283,7 @@ export function AssetsPage() {
         <h1 className="text-3xl font-semibold">자산</h1>
         <p className="mt-2 text-sm text-muted">
           빈 QR을 만들어 책상·의자·컴퓨터 같은 회사 자산에 붙입니다. 직원이 스마트폰으로 읽고 위치·품목 정보를 넣으면, 이 PC가 원본에 반영합니다.
-          회사 자산은 자리에 두는 물건이며 직원에게 배정하지 않습니다. 복사용지 같은 비품은 재고이며 QR을 붙이지 않습니다.
+          회사 자산은 자리에 두는 물건이며 직원에게 배정하지 않습니다. 자리 이동은 이관, 고치면 수리, 못 쓰면 폐기로 이력을 남깁니다. 복사용지 같은 비품은 재고이며 QR을 붙이지 않습니다.
         </p>
       </div>
       <div className="flex flex-wrap gap-3">
@@ -349,7 +425,18 @@ export function AssetsPage() {
                     warehouses.find((warehouse) => warehouse.id === asset.warehouseId)?.name ||
                     asset.warehouseId
                   return (
-                    <tr key={asset.id} className="border-b border-line/70">
+                    <tr
+                      key={asset.id}
+                      className={`cursor-pointer border-b border-line/70 ${
+                        selectedId === asset.id ? 'bg-accent-soft' : 'hover:bg-paper'
+                      }`}
+                      onClick={() => {
+                        setSelectedId(asset.id)
+                        setLifeForm(emptyLifeForm(asset))
+                        setMessage('')
+                        void loadAssetEvents(sqlite, asset.id).then(setEvents)
+                      }}
+                    >
                       <td className="whitespace-nowrap py-2 pr-4 font-medium">
                         {assetNumber(asset.id, asset.serialNo)}
                       </td>
@@ -375,6 +462,122 @@ export function AssetsPage() {
           </p>
         )}
       </section>
+
+      {selected && selected.status !== 'disposed' ? (
+        <section className="rounded-lg border border-line bg-card p-5">
+          <h2 className="text-lg font-semibold">
+            {items.find((row) => row.id === selected.itemId)?.name ?? '자산'} · {assetNumber(selected.id, selected.serialNo)}
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            직원에게 배정하지 않습니다. 자리를 옮기면 이관, 고치면 수리, 더 이상 안 쓰면 폐기를 남깁니다.
+          </p>
+          <form
+            className="mt-4 grid gap-3 sm:grid-cols-2"
+            onSubmit={(event) => {
+              event.preventDefault()
+              void recordLife()
+            }}
+          >
+            <label className="text-sm">
+              구분
+              <select
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={lifeForm.kind}
+                onChange={(e) => setLifeForm((prev) => ({ ...prev, kind: e.target.value as AssetLifeKind }))}
+              >
+                <option value="transfer">이관</option>
+                <option value="repair">수리</option>
+                <option value="dispose">폐기</option>
+              </select>
+            </label>
+            <label className="text-sm">
+              발생일
+              <input
+                type="date"
+                required
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={lifeForm.happenedAt}
+                onChange={(e) => setLifeForm((prev) => ({ ...prev, happenedAt: e.target.value }))}
+              />
+            </label>
+            {lifeForm.kind === 'transfer' ? (
+              <>
+                <label className="text-sm">
+                  위치
+                  <input
+                    required
+                    className="mt-1 w-full rounded border border-line px-3 py-2"
+                    value={lifeForm.locationText}
+                    onChange={(e) => setLifeForm((prev) => ({ ...prev, locationText: e.target.value }))}
+                  />
+                </label>
+                <label className="text-sm">
+                  부서
+                  <input
+                    className="mt-1 w-full rounded border border-line px-3 py-2"
+                    value={lifeForm.departmentName}
+                    onChange={(e) => setLifeForm((prev) => ({ ...prev, departmentName: e.target.value }))}
+                  />
+                </label>
+                <label className="text-sm sm:col-span-2">
+                  담당
+                  <input
+                    className="mt-1 w-full rounded border border-line px-3 py-2"
+                    value={lifeForm.ownerName}
+                    onChange={(e) => setLifeForm((prev) => ({ ...prev, ownerName: e.target.value }))}
+                  />
+                </label>
+              </>
+            ) : null}
+            <label className="text-sm sm:col-span-2">
+              사유
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={lifeForm.reason}
+                onChange={(e) => setLifeForm((prev) => ({ ...prev, reason: e.target.value }))}
+              />
+            </label>
+            <div className="sm:col-span-2">
+              <button
+                type="submit"
+                disabled={busy || !ready}
+                className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {assetLifeLabel(lifeForm.kind)} 저장
+              </button>
+            </div>
+          </form>
+          <h3 className="mt-6 text-sm font-semibold">이력 {events.length}</h3>
+          {events.length ? (
+            <ul className="mt-2 space-y-2 text-sm">
+              {events.map((event) => (
+                <li key={event.id} className="border-b border-line/70 py-2">
+                  <span className="font-medium">{assetLifeLabel(event.kind)}</span>
+                  <span className="text-muted"> · {event.happenedAt}</span>
+                  {event.locationText ? <span> · {event.locationText}</span> : null}
+                  {event.reason ? <span className="text-muted"> · {event.reason}</span> : null}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-2 text-sm text-muted">이력이 없습니다.</p>
+          )}
+        </section>
+      ) : null}
+
+      {disposedAssets.length ? (
+        <section className="rounded-lg border border-line bg-card p-5">
+          <h2 className="text-lg font-semibold">폐기 {disposedAssets.length}</h2>
+          <ul className="mt-2 space-y-1 text-sm text-muted">
+            {disposedAssets.map((asset) => (
+              <li key={asset.id}>
+                {assetNumber(asset.id, asset.serialNo)} · {items.find((row) => row.id === asset.itemId)?.name ?? asset.itemId}{' '}
+                · {asset.locationText || '위치 없음'}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   )
 }

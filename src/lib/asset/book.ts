@@ -16,7 +16,7 @@ export type AssetRecord = {
   id: string
   itemId: string
   warehouseId: string
-  status: 'in_storage' | 'assigned'
+  status: 'in_storage' | 'assigned' | 'disposed'
   employeeId?: string
   sourceOperationId: string
   createdAt?: string
@@ -68,7 +68,7 @@ export async function loadAssets(
     id: string
     item_id: string
     warehouse_id: string
-    status: 'in_storage' | 'assigned'
+    status: 'in_storage' | 'assigned' | 'disposed'
     employee_id?: string | null
     source_operation_id: string
     created_at?: string | null
