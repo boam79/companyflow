@@ -36,7 +36,21 @@ describe('입사 워크플로', () => {
     ).toBe('담당 김담당 · 기한 2026-09-18 · 기한 지남')
   })
 
-  it('완료 이력은 입사 저장과 지급만 보여 준다', () => {
+  it('완료 이력은 마지막 퇴사 이후 현재 입사 주기만 보여 준다', () => {
+    expect(
+      hireHistory([
+        { kind: 'hire', occurredAt: '2026-03-01' },
+        { kind: 'leave', occurredAt: '2026-08-31' },
+        { kind: 'rehire', occurredAt: '2026-09-16' },
+        { kind: 'hire', occurredAt: '2026-09-16' },
+        { kind: 'hire', occurredAt: '2026-09-16' },
+        { kind: 'hire_laptop', occurredAt: '2026-09-17' },
+      ]),
+    ).toEqual([
+      { at: '2026-09-16', label: '재입사' },
+      { at: '2026-09-16', label: '입사 저장' },
+      { at: '2026-09-17', label: '노트북 지급' },
+    ])
     expect(
       hireHistory([
         { kind: 'hire', occurredAt: '2026-09-16' },

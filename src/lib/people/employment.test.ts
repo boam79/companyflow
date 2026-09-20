@@ -6,6 +6,7 @@ import {
   defaultRosterTab,
   employeeHireDraft,
   employeeRosterPhase,
+  executeHire,
   groupRoster,
   hireProcessSteps,
   hireProcessSummary,
@@ -137,5 +138,45 @@ describe('입퇴사', () => {
     )
     expect(employeeRosterPhase('emp-oh', [joining, employed, left], checks)).toBe('left')
     expect(employeeRosterPhase('emp-lee', [joining, employed, left], checks)).toBe('employed')
+  })
+
+  it('이미 재직 중이면 입사 저장은 정보를 고치고 이력을 다시 넣지 않는다', async () => {
+    const employee = {
+      id: 'emp-kim',
+      name: '김담당',
+      hired_at: '2026-09-16',
+      left_at: null as string | null,
+      title: '주임',
+      badge_name: '김담당',
+      badge_department: '총무',
+    }
+    const statements: { sql: string }[] = []
+    const processed = new Set<string>()
+    const db = {
+      query: async <T>(sql: string) => {
+        if (sql.includes('from processed_operations')) {
+          return (processed.size ? [{ operation_id: 'op-save' }] : []) as T[]
+        }
+        if (sql.includes('from employees')) {
+          return [employee] as T[]
+        }
+        return [] as T[]
+      },
+      batch: async (next: { sql: string }[]) => {
+        statements.push(...next)
+        processed.add('op-save')
+      },
+    }
+    const first = await executeHire(db, {
+      operationId: 'op-save',
+      employeeId: 'emp-kim',
+      hiredAt: '2026-09-16',
+      title: '대리',
+      badgeName: '김담당',
+      department: '총무',
+    })
+    expect(first.status).toBe('applied')
+    expect(statements.some((row) => row.sql.includes('insert into employment_events'))).toBe(false)
+    expect(statements.some((row) => row.sql.includes('update employees'))).toBe(true)
   })
 })

@@ -126,6 +126,7 @@ export function PeoplePage() {
   const [badgeEmployeeId, setBadgeEmployeeId] = useState('')
   const [rosterTab, setRosterTab] = useState<RosterPhase>('joining')
   const [notify, setNotify] = useState<NotifySettings>({ adminEmail: '', slackWebhook: '' })
+  const [saving, setSaving] = useState(false)
   const opening = useRef(false)
   const badgeInput = useRef<HTMLInputElement>(null)
   const hireFileInput = useRef<HTMLInputElement>(null)
@@ -323,9 +324,11 @@ export function PeoplePage() {
   }
 
   async function saveHireWorkflow(employeeId: string, file?: File | null) {
+    if (saving) return
     const draft = workflowDrafts[employeeId] ?? { ownerId: '', dueAt: '' }
     setMessage('')
     setNotice('')
+    setSaving(true)
     try {
       const fileBytes = file ? new Uint8Array(await file.arrayBuffer()) : undefined
       const result = await executeSaveHireWorkflow(sqlite, {
@@ -342,6 +345,8 @@ export function PeoplePage() {
       await refreshPeople()
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -419,11 +424,14 @@ export function PeoplePage() {
 
   async function hire(employeeId: string) {
     const draft = drafts[employeeId]
-    if (!draft) return
+    if (!draft || saving) return
     setMessage('')
     setNotice('')
+    setSaving(true)
     try {
-      const wasLeft = Boolean(employees.find((row) => row.id === employeeId)?.leftAt)
+      const current = employees.find((row) => row.id === employeeId)
+      const wasLeft = Boolean(current?.leftAt)
+      const wasHired = Boolean(current?.hiredAt)
       const result = await executeHire(sqlite, {
         operationId: crypto.randomUUID(),
         employeeId,
@@ -437,7 +445,9 @@ export function PeoplePage() {
           ? '같은 입사는 한 번만 반영됩니다.'
           : wasLeft
             ? '재입사했습니다. 입사 프로세스를 이어갈 수 있습니다.'
-            : '입사를 기록했습니다.',
+            : wasHired
+              ? '직원 정보를 저장했습니다.'
+              : '입사를 기록했습니다.',
       )
       const next = await refreshPeople()
       followEmployee(employeeId, next.employeeRows, next.checkRows)
@@ -454,12 +464,16 @@ export function PeoplePage() {
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
+    } finally {
+      setSaving(false)
     }
   }
 
   async function toggleDocument(employeeId: string, row: HireDocumentCheck, done: boolean) {
+    if (saving) return
     setMessage('')
     setNotice('')
+    setSaving(true)
     try {
       const result = await executeHireDocumentToggle(sqlite, {
         operationId: crypto.randomUUID(),
@@ -478,12 +492,16 @@ export function PeoplePage() {
       followEmployee(employeeId, next.employeeRows, next.checkRows)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
+    } finally {
+      setSaving(false)
     }
   }
 
   async function toggleCheck(employeeId: string, row: OnboardingCheck, issued: boolean) {
+    if (saving) return
     setMessage('')
     setNotice('')
+    setSaving(true)
     try {
       const result = await executeOnboardingToggle(sqlite, {
         operationId: crypto.randomUUID(),
@@ -502,12 +520,16 @@ export function PeoplePage() {
       followEmployee(employeeId, next.employeeRows, next.checkRows)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
+    } finally {
+      setSaving(false)
     }
   }
 
   async function leave(employeeId: string) {
+    if (saving) return
     setMessage('')
     setNotice('')
+    setSaving(true)
     try {
       const result = await executeLeave(sqlite, {
         operationId: crypto.randomUUID(),
@@ -524,6 +546,8 @@ export function PeoplePage() {
       followEmployee(employeeId, next.employeeRows, next.checkRows)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -674,7 +698,7 @@ export function PeoplePage() {
                     {selectedEmployee.leftAt ? (
                       <button
                         type="button"
-                        disabled={!ready}
+                        disabled={!ready || saving}
                         className="rounded bg-accent px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                         onClick={() => void hire(selectedEmployee.id)}
                       >
@@ -683,11 +707,11 @@ export function PeoplePage() {
                     ) : (
                       <button
                         type="button"
-                        disabled={!ready}
+                        disabled={!ready || saving}
                         className="rounded bg-accent px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                         onClick={() => void hire(selectedEmployee.id)}
                       >
-                        입사 저장
+                        {selectedPhase === 'employed' ? '저장' : '입사 저장'}
                       </button>
                     )}
                     <button
@@ -706,7 +730,7 @@ export function PeoplePage() {
                     {panels.leave && !selectedEmployee.leftAt ? (
                       <button
                         type="button"
-                        disabled={!ready}
+                        disabled={!ready || saving}
                         className="rounded border border-line px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
                         onClick={() => void leave(selectedEmployee.id)}
                       >
@@ -796,7 +820,7 @@ export function PeoplePage() {
                                     type="checkbox"
                                     className="size-4 shrink-0 accent-accent"
                                     checked={step.done}
-                                    disabled={!ready || step.done}
+                                    disabled={!ready || saving || step.done}
                                     onChange={(e) => {
                                       if (e.target.checked) void hire(selectedEmployee.id)
                                     }}
@@ -815,7 +839,7 @@ export function PeoplePage() {
                                   type="checkbox"
                                   className="size-4 shrink-0 accent-accent"
                                   checked={row.issued}
-                                  disabled={!ready || row.issued}
+                                  disabled={!ready || saving || row.issued}
                                   onChange={(e) => {
                                     if (e.target.checked) void toggleCheck(selectedEmployee.id, row, true)
                                   }}
@@ -825,7 +849,7 @@ export function PeoplePage() {
                               {row.key === 'badge' ? (
                                 <button
                                   type="button"
-                                  disabled={!ready}
+                                  disabled={!ready || saving}
                                   className="rounded border border-line px-2 py-0.5 text-xs disabled:opacity-50"
                                   onClick={() =>
                                     printEmployeeBadge(
@@ -855,7 +879,7 @@ export function PeoplePage() {
                                 type="checkbox"
                                 className="size-4 shrink-0 accent-accent"
                                 checked={row.done}
-                                disabled={!ready}
+                                disabled={!ready || saving}
                                 onChange={(e) => void toggleDocument(selectedEmployee.id, row, e.target.checked)}
                               />
                               <span className={row.done ? 'font-medium' : 'text-muted'}>{row.label}</span>
@@ -879,7 +903,7 @@ export function PeoplePage() {
                                 type="checkbox"
                                 className="size-4 shrink-0 accent-accent"
                                 checked={phase === 'returned'}
-                                disabled={!ready || Boolean(selectedEmployee.leftAt) || phase !== 'held'}
+                                disabled={!ready || saving || Boolean(selectedEmployee.leftAt) || phase !== 'held'}
                                 onChange={(e) => {
                                   if (e.target.checked) void toggleCheck(selectedEmployee.id, row, false)
                                 }}
@@ -939,7 +963,7 @@ export function PeoplePage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <button
                           type="button"
-                          disabled={!ready}
+                          disabled={!ready || saving}
                           className="rounded border border-line px-2 py-1 text-xs font-semibold disabled:opacity-50"
                           onClick={() => void saveHireWorkflow(selectedEmployee.id)}
                         >
@@ -957,7 +981,7 @@ export function PeoplePage() {
                         />
                         <button
                           type="button"
-                          disabled={!ready}
+                          disabled={!ready || saving}
                           className="rounded border border-line px-2 py-1 text-xs font-semibold disabled:opacity-50"
                           onClick={() => hireFileInput.current?.click()}
                         >
@@ -966,7 +990,7 @@ export function PeoplePage() {
                         {selectedWorkflow?.hasFile ? (
                           <button
                             type="button"
-                            disabled={!ready}
+                            disabled={!ready || saving}
                             className="rounded border border-line px-2 py-1 text-xs font-semibold disabled:opacity-50"
                             onClick={() => void downloadHireWorkflowFile(selectedEmployee.id)}
                           >

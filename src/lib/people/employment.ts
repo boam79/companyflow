@@ -197,6 +197,8 @@ export async function executeHire(
     const employee = employees.find((row) => row.id === command.employeeId)
     if (!employee) throw new Error('직원을 찾을 수 없습니다.')
     const next = applyHire(employee, command)
+    const rehire = Boolean(employee.leftAt)
+    const alreadyHired = Boolean(employee.hiredAt) && !rehire
     const statements = [
       {
         sql: 'update employees set hired_at = ?, left_at = null, title = ?, badge_name = ?, badge_department = ? where id = ?',
@@ -208,19 +210,21 @@ export async function executeHire(
           command.employeeId,
         ],
       },
-      {
+    ]
+    if (!alreadyHired) {
+      statements.push({
         sql: 'insert into employment_events(id, employee_id, kind, occurred_at, detail_json, created_at) values(?, ?, ?, ?, ?, ?)',
         params: [
           command.operationId,
           command.employeeId,
-          employee.leftAt ? 'rehire' : 'hire',
+          rehire ? 'rehire' : 'hire',
           command.hiredAt,
           JSON.stringify({ title: next.title, badgeName: next.badgeName, department: next.badgeDepartment }),
           createdAt,
         ],
-      },
-    ]
-    if (employee.leftAt) {
+      })
+    }
+    if (rehire) {
       statements.push({
         sql: 'delete from employment_checks where employee_id = ?',
         params: [command.employeeId],

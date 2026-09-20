@@ -233,7 +233,10 @@ export function MasterDataPage() {
             key={item.id}
             type="button"
             className={tab === item.id ? 'font-semibold text-accent' : 'text-muted'}
-            onClick={() => setTab(item.id)}
+            onClick={() => {
+              setRows([])
+              setTab(item.id)
+            }}
           >
             {item.label}
           </button>

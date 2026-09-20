@@ -127,9 +127,21 @@ export function hireWorkflowCaption(
 }
 
 export function hireHistory(events: { kind: string; occurredAt: string }[]): HireHistoryItem[] {
-  return events
+  const sorted = [...events].sort((a, b) => a.occurredAt.localeCompare(b.occurredAt))
+  let lastLeave = -1
+  for (let index = sorted.length - 1; index >= 0; index -= 1) {
+    if (sorted[index]?.kind === 'leave') {
+      lastLeave = index
+      break
+    }
+  }
+  const cycle = lastLeave >= 0 ? sorted.slice(lastLeave + 1) : sorted
+  const labeled = cycle
     .filter((row) => HIRE_EVENT_LABELS[row.kind])
     .map((row) => ({ at: row.occurredAt, label: HIRE_EVENT_LABELS[row.kind] }))
+  return labeled.filter(
+    (row, index) => index === 0 || row.at !== labeled[index - 1]?.at || row.label !== labeled[index - 1]?.label,
+  )
 }
 
 export async function loadHireWorkflows(
