@@ -244,7 +244,7 @@ export async function executeSaveHireWorkflow(
   let fileBase64: string | null = null
   let keepFile = !command.fileBytes
   if (command.fileBytes) {
-    fileMime = assertContractFile(command.fileBytes.byteLength, command.fileMime, command.fileName)
+    fileMime = assertContractFile(command.fileBytes.byteLength, command.fileMime, command.fileName, command.fileBytes)
     fileName = command.fileName?.trim() || '입사첨부'
     fileBase64 = bytesToBase64(command.fileBytes)
     keepFile = false

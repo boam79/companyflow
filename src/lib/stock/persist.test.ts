@@ -224,7 +224,7 @@ describe('재고 영속 묶음', () => {
     const attached = orderAttachment({
       name: 'quote.png',
       mime: 'image/png',
-      bytes: new Uint8Array([1, 2, 3, 4]),
+      bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
     })
     expect(attached.fileName).toBe('quote.png')
     expect(attached.fileMime).toBe('image/png')

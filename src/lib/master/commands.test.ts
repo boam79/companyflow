@@ -212,7 +212,7 @@ describe('기준정보 SQL 명령', () => {
     const png = partnerAttachment({
       name: '명함.png',
       mime: 'image/png',
-      bytes: new Uint8Array([1, 2, 3]),
+      bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
     })
     expect(png.fileName).toBe('명함.png')
     expect(png.fileMime).toBe('image/png')

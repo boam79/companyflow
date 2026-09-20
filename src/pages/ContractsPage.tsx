@@ -118,6 +118,7 @@ export function ContractsPage() {
     try {
       assertContractFile(next.size, next.type, next.name)
       const bytes = new Uint8Array(await next.arrayBuffer())
+      assertContractFile(bytes.byteLength, next.type, next.name, bytes)
       const hash = await hashFileBytes(bytes)
       if (rows.some((row) => row.fileHash === hash)) {
         throw new Error('같은 원본 파일은 계약을 한 번만 만듭니다.')

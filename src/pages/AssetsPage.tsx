@@ -12,7 +12,8 @@ import {
 } from '../lib/asset/life'
 import { assertQrAssetPayload, executeQrRegistration, loadQrLabels, type QrAssetPayload } from '../lib/asset/register'
 import { fetchPendingQrInbox, importAssetQr, insertBlankQrLabels, type AssetQrInboxRow } from '../lib/asset/relay'
-import { assertBlankQrCount, blankQrDataUrl, blankQrFileName, blankQrScanUrl } from '../lib/asset/qr'
+import { assertBlankQrCount, assertPngDataUrl, blankQrDataUrl, blankQrFileName, blankQrScanUrl } from '../lib/asset/qr'
+import { escapeHtml } from '../lib/htmlEscape'
 import { isCompanyAssetItem, loadItems, writeDefaultMaster, type ItemRecord } from '../lib/master/book'
 import { ACTIVE_MASTER_WHERE } from '../lib/master/commands'
 import { migrateProcessAssetsToChecks } from '../lib/people/onboarding'
@@ -285,10 +286,10 @@ export function AssetsPage() {
     page.document.write(`<!doctype html><title>빈 QR</title><body style="font-family:sans-serif">`)
     page.document.write(
       printed
-        .map(
-          (row, index) =>
-            `<div style="display:inline-block;text-align:center;margin:12px"><img src="${row.dataUrl}" width="180" height="180"><div>빈QR-${String(index + 1).padStart(2, '0')}</div></div>`,
-        )
+        .map((row, index) => {
+          const src = escapeHtml(assertPngDataUrl(row.dataUrl))
+          return `<div style="display:inline-block;text-align:center;margin:12px"><img src="${src}" width="180" height="180"><div>빈QR-${String(index + 1).padStart(2, '0')}</div></div>`
+        })
         .join(''),
     )
     page.document.write(`</body>`)

@@ -58,6 +58,17 @@ describe('회사 세션', () => {
     expect(initialCompanySession('').companyId).toBe(HQ.id)
   })
 
+  it('목록에 없는 마지막 회사는 첫 회사로 되돌린다', () => {
+    rememberCompanies([HQ])
+    rememberOpenedCompany('co-999')
+    expect(initialCompanySession('').companyId).toBe(HQ.id)
+  })
+
+  it('경로 문자가 있는 회사 id는 세션에 남기지 않는다', () => {
+    rememberOpenedCompany('../etc/passwd')
+    expect(lastOpenedCompanyId()).toBe('')
+  })
+
   it('깨진 세션 값은 빈 목록이다', () => {
     seedInvalidCompanyList()
     expect(rememberedCompanies()).toEqual([])

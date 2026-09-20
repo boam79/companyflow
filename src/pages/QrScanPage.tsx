@@ -89,7 +89,8 @@ export function QrScanPage() {
           .order('created_at', { ascending: false })
         const rows = (data as CompanyRow[] | null) ?? []
         if (rows.length) rememberCompanies(rows)
-        const companyId = lastOpenedCompanyId() || rows[0]?.id
+        const companyId =
+          rows.find((row) => row.id === lastOpenedCompanyId())?.id || rows[0]?.id
         if (!companyId) return
         rememberOpenedCompany(companyId)
         if (!sqlite.isOpen(companyId)) {

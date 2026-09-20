@@ -1,6 +1,7 @@
 import SqliteWorker from '@/workers/sqlite.worker.ts?worker'
 import { ProcessedOperations } from '../idempotency'
 import { acquireCompanyWriteLock } from '../tabLock'
+import { assertCompanyStorageId } from '../companyPaths'
 import { explainSqliteOpenError, isSahHandleBusy } from './openError'
 import { sqliteOpenMode } from './openPlan'
 
@@ -45,24 +46,25 @@ export class CompanySqlite {
   }
 
   async open(companyId: string, options?: { force?: boolean; memory?: boolean }): Promise<void> {
-    const memory = sqliteOpenMode({ companyId, memory: options?.memory }).memory
-    if (!options?.force && this.isOpen(companyId) && (!memory || this.vfsName === 'memory')) return
+    const id = assertCompanyStorageId(companyId)
+    const memory = sqliteOpenMode({ companyId: id, memory: options?.memory }).memory
+    if (!options?.force && this.isOpen(id) && (!memory || this.vfsName === 'memory')) return
     this.close()
     if (!memory) {
-      const lock = await acquireCompanyWriteLock(companyId)
+      const lock = await acquireCompanyWriteLock(id)
       if (!lock.ok) {
         throw new Error('다른 탭이 이 회사 원본을 사용 중입니다. 그 탭을 닫고 다시 여세요.')
       }
       this.lockRelease = lock.release
     }
     try {
-      await this.startWorker(companyId, memory)
+      await this.startWorker(id, memory)
     } catch (error) {
       if (!memory && isSahHandleBusy(error instanceof Error ? error.message : String(error))) {
         this.detachWorker()
         await sleep(300)
         try {
-          await this.startWorker(companyId, memory)
+          await this.startWorker(id, memory)
           return
         } catch (retryError) {
           this.close()

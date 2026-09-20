@@ -55,7 +55,7 @@ export function AppShell() {
               </>
             ) : guest ? null : (
               <NavLink
-                to={scanMode ? `/login?next=${location.pathname}` : '/login'}
+                to={scanMode ? `/login?next=${encodeURIComponent(location.pathname)}` : '/login'}
                 className={({ isActive }) =>
                   isActive ? 'font-semibold text-accent' : 'text-muted'
                 }

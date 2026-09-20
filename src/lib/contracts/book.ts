@@ -139,14 +139,24 @@ export function sniffContractFileMime(bytes: Uint8Array): string | undefined {
   return undefined
 }
 
-export function assertContractFile(size: number, mime?: string, fileName?: string): string {
+export function assertContractFile(size: number, mime?: string, fileName?: string, bytes?: Uint8Array): string {
   if (size > MAX_CONTRACT_FILE_BYTES) throw new Error('원본 파일은 8MB까지입니다.')
-  const resolved =
+  const declared =
     (mime && mime !== 'application/octet-stream' ? mime : undefined) || mimeFromName(fileName) || mime || ''
-  if (!['application/pdf', 'image/png', 'image/jpeg'].includes(resolved)) {
+  if (!['application/pdf', 'image/png', 'image/jpeg'].includes(declared)) {
     throw new Error('원본은 PDF·PNG·JPEG만 받습니다.')
   }
-  return resolved
+  if (bytes && bytes.byteLength) {
+    const sniffed = sniffContractFileMime(bytes)
+    if (!sniffed || !['application/pdf', 'image/png', 'image/jpeg'].includes(sniffed)) {
+      throw new Error('원본 파일 내용이 PDF·PNG·JPEG가 아닙니다.')
+    }
+    if (sniffed !== declared) {
+      throw new Error('원본 파일 내용과 형식이 다릅니다.')
+    }
+    return sniffed
+  }
+  return declared
 }
 
 export function bytesToBase64(bytes: Uint8Array): string {
@@ -179,7 +189,7 @@ export function applyDraftContract(
   }
   if (input.amount != null && input.amount < 0) throw new Error('금액은 0 이상이어야 합니다.')
   if (input.fileBytes) {
-    assertContractFile(input.fileBytes.byteLength, input.fileMime, input.fileName)
+    assertContractFile(input.fileBytes.byteLength, input.fileMime, input.fileName, input.fileBytes)
   }
   if (input.fileHash) {
     const dup = existing.find((row) => row.fileHash === input.fileHash)
@@ -202,7 +212,7 @@ export function applyDraftContract(
     fileName: input.fileName?.trim() || undefined,
     fileHash: input.fileHash || undefined,
     fileMime: input.fileBytes
-      ? assertContractFile(input.fileBytes.byteLength, input.fileMime, input.fileName)
+      ? assertContractFile(input.fileBytes.byteLength, input.fileMime, input.fileName, input.fileBytes)
       : input.fileMime,
     hasOriginal: Boolean(input.fileBytes?.byteLength),
     status: 'draft',

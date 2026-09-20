@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { assertCompanyStorageId } from './companyPaths'
 import { getCompanySqlite } from './sqlite/instance'
 import { getSupabase, type CompanyRow } from './supabase'
 
@@ -30,12 +31,21 @@ function writeStore(key: string, value: string) {
   memory.set(key, value)
 }
 
+function safeCompanyId(id: string): string {
+  try {
+    return assertCompanyStorageId(id)
+  } catch {
+    return ''
+  }
+}
+
 export function lastOpenedCompanyId(): string {
-  return readStore(COMPANY_KEY)
+  return safeCompanyId(readStore(COMPANY_KEY))
 }
 
 export function rememberOpenedCompany(id: string) {
-  if (id) writeStore(COMPANY_KEY, id)
+  const next = safeCompanyId(id)
+  if (next) writeStore(COMPANY_KEY, next)
 }
 
 export function rememberedCompanies(): CompanyRow[] {
@@ -48,6 +58,7 @@ export function rememberedCompanies(): CompanyRow[] {
       (row) =>
         Boolean(row) &&
         typeof row.id === 'string' &&
+        Boolean(safeCompanyId(row.id)) &&
         typeof row.display_name === 'string' &&
         typeof row.company_code === 'string',
     )
@@ -86,10 +97,17 @@ export function seedInvalidCompanyList() {
   writeStore(LIST_KEY, '{')
 }
 
+export function companyIdInList(id: string, companies: CompanyRow[]) {
+  const safe = safeCompanyId(id)
+  if (safe && companies.some((row) => row.id === safe)) return safe
+  return companies[0]?.id ?? ''
+}
+
 export function initialCompanySession(openId = '') {
   const companies = rememberedCompanies()
-  const companyId = openId || lastOpenedCompanyId() || companies[0]?.id || ''
-  return { companies, companyId }
+  const open = safeCompanyId(openId)
+  if (open) return { companies, companyId: open }
+  return { companies, companyId: companyIdInList(lastOpenedCompanyId(), companies) }
 }
 
 export function useCompanySession(enabled: boolean) {
@@ -115,7 +133,7 @@ export function useCompanySession(enabled: boolean) {
         rememberCompanies(rows)
         setCompanies(rows)
         setCompanyIdState((prev) => {
-          const next = prev || rows[0].id
+          const next = companyIdInList(prev, rows)
           if (next) rememberOpenedCompany(next)
           return next
         })
@@ -126,8 +144,9 @@ export function useCompanySession(enabled: boolean) {
   }, [enabled])
 
   function setCompanyId(next: string) {
-    if (next) rememberOpenedCompany(next)
-    setCompanyIdState(next)
+    const allowed = companyIdInList(next, companies) || safeCompanyId(next)
+    if (allowed) rememberOpenedCompany(allowed)
+    setCompanyIdState(allowed)
   }
 
   return { companies, companyId, setCompanyId, setCompanies }

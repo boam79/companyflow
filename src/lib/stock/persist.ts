@@ -62,7 +62,7 @@ export function isUniqueConstraintError(error: unknown): boolean {
 }
 
 export function orderAttachment(file: { name: string; mime?: string; bytes: Uint8Array }) {
-  const fileMime = assertContractFile(file.bytes.byteLength, file.mime, file.name)
+  const fileMime = assertContractFile(file.bytes.byteLength, file.mime, file.name, file.bytes)
   return {
     fileName: file.name.trim() || '발주첨부',
     fileMime,

@@ -1,5 +1,5 @@
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm'
-import { companyDbFileName } from '../lib/companyPaths'
+import { assertCompanyStorageId, companyDbFileName } from '../lib/companyPaths'
 import { sqliteOpenMode } from '../lib/sqlite/openPlan'
 import { LOCAL_MIGRATIONS, SCHEMA_PATCHES } from '../lib/sqlite/schema'
 
@@ -78,8 +78,9 @@ async function closeDb() {
 }
 
 async function openDb(companyId: string, memory = false) {
-  const mode = sqliteOpenMode({ companyId, memory })
-  if (db && persistOk && openCompanyId === companyId && vfsName === mode.vfsName) return
+  const id = assertCompanyStorageId(companyId)
+  const mode = sqliteOpenMode({ companyId: id, memory })
+  if (db && persistOk && openCompanyId === id && vfsName === mode.vfsName) return
 
   await closeDb()
 
@@ -89,13 +90,13 @@ async function openDb(companyId: string, memory = false) {
     db = new sqlite3.oo1.DB(':memory:')
     persistOk = true
     vfsName = mode.vfsName
-    openCompanyId = companyId
+    openCompanyId = id
   } else {
     if (!navigator.storage?.getDirectory) {
       throw new Error('이 브라우저는 OPFS를 지원하지 않습니다. 지정 Chrome을 사용하세요.')
     }
 
-    const fileName = companyDbFileName(companyId)
+    const fileName = companyDbFileName(id)
     const sahErrors: string[] = []
 
     try {
@@ -108,7 +109,7 @@ async function openDb(companyId: string, memory = false) {
       db = new pool.OpfsSAHPoolDb(fileName)
       persistOk = true
       vfsName = 'opfs-sahpool'
-      openCompanyId = companyId
+      openCompanyId = id
     } catch (error) {
       sahErrors.push(errorMessage(error))
       pool = null
@@ -116,7 +117,7 @@ async function openDb(companyId: string, memory = false) {
         db = new sqlite3.oo1.OpfsDb(`/${fileName}`)
         persistOk = true
         vfsName = 'opfs'
-        openCompanyId = companyId
+        openCompanyId = id
       }
     }
 

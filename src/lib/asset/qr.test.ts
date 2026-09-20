@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   assertBlankQrCount,
   assertBlankQrUrl,
+  assertPngDataUrl,
   blankQrDataUrl,
   blankQrFileName,
   blankQrScanUrl,
@@ -44,5 +45,6 @@ describe('빈 자산 QR', () => {
   it('QR 그림 파일을 만든다', async () => {
     const url = await blankQrDataUrl(ORIGIN, LABEL)
     expect(url.startsWith('data:image/png')).toBe(true)
+    expect(() => assertPngDataUrl('javascript:alert(1)')).toThrow(/그림/)
   })
 })

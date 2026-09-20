@@ -65,24 +65,12 @@ import {
 } from '../lib/people/hireWorkflow'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
+import { escapeHtml } from '../lib/htmlEscape'
 
 type NamedRow = { id: string; name: string }
 
 function todayStamp() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date())
-}
-
-function escapeHtml(text: string) {
-  return text.replace(/[&<>"']/g, (ch) => {
-    const map: Record<string, string> = {
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;',
-    }
-    return map[ch] ?? ch
-  })
 }
 
 function printBadge(lines: string[]) {

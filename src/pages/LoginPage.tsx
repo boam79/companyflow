@@ -1,14 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
+import { safeLoginNext } from '../lib/loginNext'
 import { getSupabase } from '../lib/supabase'
 
 type Mode = 'signin' | 'signup'
-
-function nextPath(value: string | null) {
-  if (value && /^\/q\/[0-9a-f-]{36}$/i.test(value)) return value
-  return '/'
-}
 
 export function LoginPage() {
   const { configured, user } = useAuth()
@@ -41,7 +37,7 @@ export function LoginPage() {
         password,
       })
       if (error) throw error
-      navigate(nextPath(searchParams.get('next')))
+      navigate(safeLoginNext(searchParams.get('next')))
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     } finally {
@@ -68,8 +64,8 @@ export function LoginPage() {
       {user ? (
         <p className="text-sm">
           이미 {user.email} 으로 로그인되어 있습니다.{' '}
-          <Link className="text-accent underline" to={nextPath(searchParams.get('next'))}>
-            {nextPath(searchParams.get('next')) === '/' ? '홈으로' : '자산 입력으로'}
+          <Link className="text-accent underline" to={safeLoginNext(searchParams.get('next'))}>
+            {safeLoginNext(searchParams.get('next')) === '/' ? '홈으로' : '자산 입력으로'}
           </Link>
         </p>
       ) : null}

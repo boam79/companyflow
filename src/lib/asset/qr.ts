@@ -58,9 +58,17 @@ export function assertBlankQrCount(count: number) {
 }
 
 export async function blankQrDataUrl(origin: string, labelId: string, guest = false) {
-  return QRCode.toDataURL(blankQrScanUrl(origin, labelId, guest), {
+  const dataUrl = await QRCode.toDataURL(blankQrScanUrl(origin, labelId, guest), {
     width: 384,
     margin: 1,
     errorCorrectionLevel: 'M',
   })
+  return assertPngDataUrl(dataUrl)
+}
+
+export function assertPngDataUrl(url: string) {
+  if (!url.startsWith('data:image/png')) {
+    throw new Error('QR 그림이 올바르지 않습니다.')
+  }
+  return url
 }

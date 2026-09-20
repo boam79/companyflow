@@ -334,7 +334,7 @@ function itemCatalogValues(row: {
 }
 
 export function partnerAttachment(file: { name: string; mime?: string; bytes: Uint8Array }) {
-  const fileMime = assertContractFile(file.bytes.byteLength, file.mime, file.name)
+  const fileMime = assertContractFile(file.bytes.byteLength, file.mime, file.name, file.bytes)
   return {
     fileName: file.name.trim() || '거래처첨부',
     fileMime,

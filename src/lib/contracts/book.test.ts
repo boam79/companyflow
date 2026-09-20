@@ -45,6 +45,20 @@ describe('계약 초안', () => {
     expect(() => assertContractFile(12, 'text/plain')).toThrow(/PDF/)
     expect(assertContractFile(12, 'application/pdf')).toBe('application/pdf')
     expect(assertContractFile(12, 'image/png', 'scan.PNG')).toBe('image/png')
+    expect(
+      assertContractFile(
+        4,
+        'image/png',
+        'scan.png',
+        new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
+      ),
+    ).toBe('image/png')
+    expect(() =>
+      assertContractFile(5, 'application/pdf', 'a.pdf', new Uint8Array([0x3c, 0x68, 0x74, 0x6d, 0x6c])),
+    ).toThrow(/내용/)
+    expect(() =>
+      assertContractFile(3, 'image/png', 'a.png', new Uint8Array([0xff, 0xd8, 0xff])),
+    ).toThrow(/형식/)
   })
 
   it('파일 이름과 달라도 앞 바이트로 PDF·PNG·JPEG를 알아본다', () => {
@@ -61,7 +75,7 @@ describe('계약 초안', () => {
   })
 
   it('원본 바이트가 있으면 초안에 원본 있음으로 남긴다', () => {
-    const bytes = new Uint8Array([1, 2, 3])
+    const bytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])
     const draft = applyDraftContract([], {
       ...BASE,
       fileName: 'lease.pdf',
@@ -117,14 +131,15 @@ describe('계약 초안', () => {
 
   it('OCR 후보를 확인한 뒤에만 원본 첨부 초안을 만든다', () => {
     const enabled = { ...DISABLED_OCR, enabled: true }
+    const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])
     expect(() =>
-      applyDraftContract([], { ...BASE, fileBytes: new Uint8Array([1]), fileMime: 'application/pdf', fileName: 'a.pdf' }, enabled),
+      applyDraftContract([], { ...BASE, fileBytes: pdfBytes, fileMime: 'application/pdf', fileName: 'a.pdf' }, enabled),
     ).toThrow(/OCR 후보/)
     const draft = applyDraftContract(
       [],
       {
         ...BASE,
-        fileBytes: new Uint8Array([1]),
+        fileBytes: pdfBytes,
         fileMime: 'application/pdf',
         fileName: 'a.pdf',
         ocrReviewed: true,
