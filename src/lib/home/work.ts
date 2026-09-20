@@ -1,5 +1,6 @@
 export const CONTRACT_WATCH_DAYS = 60
 export const RECENT_WORK_LIMIT = 8
+export const HOME_FRONT_PANEL_TITLES = ['재고 부족', '입사 중', '계약 기한'] as const
 
 export type ReceiptWait = {
   orderId: string

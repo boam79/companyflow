@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { contractRecent, contractWatchLabel, lowStock, peopleRecent, recentWork, stockRecent, waitingReceipts, watchContracts } from './work'
+import { HOME_FRONT_PANEL_TITLES, contractRecent, contractWatchLabel, lowStock, peopleRecent, recentWork, stockRecent, waitingReceipts, watchContracts } from './work'
 
 describe('홈 업무', () => {
+  it('홈 앞칸은 재고 부족·입사 중·계약 기한이다', () => {
+    expect([...HOME_FRONT_PANEL_TITLES]).toEqual(['재고 부족', '입사 중', '계약 기한'])
+  })
+
   it('확정 발주 잔량만 수령 대기다', () => {
     expect(
       waitingReceipts([

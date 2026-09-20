@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { loadContracts } from '../lib/contracts/book'
-import { contractRecent, lowStock, peopleRecent, recentWork, stockRecent, waitingReceipts, watchContracts, type ContractWatch, type LowStock, type ReceiptWait, type RecentWork } from '../lib/home/work'
+import { contractRecent, HOME_FRONT_PANEL_TITLES, lowStock, peopleRecent, recentWork, stockRecent, waitingReceipts, watchContracts, type ContractWatch, type LowStock, type ReceiptWait, type RecentWork } from '../lib/home/work'
 import { isSupplyItem, loadItems, writeDefaultMaster } from '../lib/master/book'
 import { groupRoster, loadEmployees, rosterCaption } from '../lib/people/employment'
 import { loadHireEvents } from '../lib/people/hireWorkflow'
@@ -165,7 +165,7 @@ export function HomePage() {
           <p className="text-sm text-muted">지정 PC 로컬 원본 · 한글 업무 화면</p>
           <h1 className="mt-1 text-2xl font-semibold">홈</h1>
           <p className="mt-2 max-w-2xl text-sm text-muted">
-            수령 잔량, 60일 안 계약, 입사 중, 재고 부족, 최근 작업을 먼저 봅니다. 결재와 통계는 두지 않습니다.
+            재고 부족, 입사 중, 계약 기한, 최근 입고·반출을 먼저 봅니다. 발주 수령은 접어둡니다. 결재와 통계는 두지 않습니다.
           </p>
         </div>
         {user ? (
@@ -192,32 +192,21 @@ export function HomePage() {
       {message ? <p className="text-sm text-danger">{message}</p> : null}
 
       {user ? (
-        <section className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-4 lg:grid-cols-3">
           <WorkPanel
-            title="수령 대기"
-            count={receipts.length}
+            title={HOME_FRONT_PANEL_TITLES[0]}
+            count={shortage.length}
             to="/stock"
-            empty="확정 발주 잔량이 없습니다."
-            columns={['품목', '잔량']}
-            rows={receipts.map((row) => ({
-              id: row.orderId,
-              cells: [row.itemName, String(row.remainingQty)],
+            empty="최소재고보다 적은 비품이 없습니다."
+            columns={['품목', '현재', '최소']}
+            rows={shortage.map((row) => ({
+              id: row.itemId,
+              cells: [row.itemName, String(row.onHand), String(row.minStock)],
+              tone: 'danger',
             }))}
           />
           <WorkPanel
-            title="계약 기한"
-            count={contracts.length}
-            to="/contracts"
-            empty="60일 안에 끝나는 계약이 없습니다."
-            columns={['계약', '종료', '상태']}
-            rows={contracts.map((row) => ({
-              id: `${row.title}-${row.endAt ?? ''}`,
-              cells: [row.title, row.endAt ?? '—', row.watch],
-              tone: row.watch === '만료' ? 'danger' : undefined,
-            }))}
-          />
-          <WorkPanel
-            title="입사 중"
+            title={HOME_FRONT_PANEL_TITLES[1]}
             count={joining.length}
             to="/people"
             empty="입사 중인 직원이 없습니다."
@@ -228,15 +217,15 @@ export function HomePage() {
             }))}
           />
           <WorkPanel
-            title="재고 부족"
-            count={shortage.length}
-            to="/stock"
-            empty="최소재고보다 적은 비품이 없습니다."
-            columns={['품목', '현재', '최소']}
-            rows={shortage.map((row) => ({
-              id: row.itemId,
-              cells: [row.itemName, String(row.onHand), String(row.minStock)],
-              tone: 'danger',
+            title={HOME_FRONT_PANEL_TITLES[2]}
+            count={contracts.length}
+            to="/contracts"
+            empty="60일 안에 끝나는 계약이 없습니다."
+            columns={['계약', '종료', '상태']}
+            rows={contracts.map((row) => ({
+              id: `${row.title}-${row.endAt ?? ''}`,
+              cells: [row.title, row.endAt ?? '—', row.watch],
+              tone: row.watch === '만료' ? 'danger' : undefined,
             }))}
           />
         </section>
@@ -281,9 +270,42 @@ export function HomePage() {
               </tbody>
             </table>
           ) : (
-            <p className="mt-3 text-sm text-muted">최근 수령·입퇴사·계약 초안이 없습니다.</p>
+            <p className="mt-3 text-sm text-muted">최근 입고·반출·입퇴사·계약이 없습니다.</p>
           )}
         </section>
+      ) : null}
+
+      {user ? (
+        <details className="rounded-lg border border-line bg-card p-4 text-sm">
+          <summary className="cursor-pointer font-semibold text-ink">
+            발주 수령 대기 <span className="font-medium text-muted">{receipts.length}</span>
+          </summary>
+          <p className="mt-2">
+            <Link className="text-accent underline" to="/stock">
+              구매·재고에서 보기
+            </Link>
+          </p>
+          {receipts.length ? (
+            <table className="mt-3 w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-line text-muted">
+                  <th className="py-1.5 pr-3 font-medium">품목</th>
+                  <th className="py-1.5 font-medium">잔량</th>
+                </tr>
+              </thead>
+              <tbody>
+                {receipts.slice(0, 8).map((row) => (
+                  <tr key={row.orderId} className="border-b border-line/70 last:border-b-0">
+                    <td className="whitespace-nowrap py-1.5 pr-3 font-medium">{row.itemName}</td>
+                    <td className="whitespace-nowrap py-1.5 text-muted">{row.remainingQty}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="mt-3 text-muted">확정 발주 잔량이 없습니다.</p>
+          )}
+        </details>
       ) : null}
 
       <section className="grid gap-4 md:grid-cols-3">
