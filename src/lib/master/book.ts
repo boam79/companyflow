@@ -268,7 +268,12 @@ export async function writeDefaultMaster(db: {
       now,
     ],
   )
-  if (db.query) await retireDuplicateItems({ exec: db.exec, query: db.query })
+  if (db.query) {
+    await retireDuplicateItems({
+      exec: (sql, params) => db.exec(sql, params),
+      query: (sql, params) => db.query!(sql, params),
+    })
+  }
 }
 
 export async function retireDuplicateItems(db: {

@@ -52,4 +52,23 @@ describe('회사 샘플 데이터', () => {
       expect.arrayContaining(['박재민', '이수진', '오세훈', '모니터', '복합기', '본사 2층 개발석', 'CON-2024-001']),
     )
   })
+
+  it('같은 이름 정리 때 sqlite query의 this를 잃지 않는다', async () => {
+    class FakeSqlite {
+      sendCount = 0
+      async send(_kind: string) {
+        this.sendCount += 1
+        return []
+      }
+      async exec() {
+        await this.send('exec')
+      }
+      async query<T>(): Promise<T[]> {
+        return (await this.send('query')) as T[]
+      }
+    }
+    const db = new FakeSqlite()
+    await writeDefaultMaster(db)
+    expect(db.sendCount).toBeGreaterThan(0)
+  })
 })
