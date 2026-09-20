@@ -48,6 +48,15 @@ import {
   type OnboardingKey,
 } from '../lib/people/onboarding'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
+import {
+  executeSaveHireWorkflow,
+  hireHistory,
+  hireWorkflowCaption,
+  loadHireEvents,
+  loadHireWorkflowFile,
+  loadHireWorkflows,
+  type HireWorkflowRecord,
+} from '../lib/people/hireWorkflow'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
@@ -95,6 +104,9 @@ export function PeoplePage() {
   const [departments, setDepartments] = useState<NamedRow[]>([])
   const [employees, setEmployees] = useState<EmployeeRecord[]>([])
   const [checks, setChecks] = useState<CheckRow[]>([])
+  const [hireWorkflows, setHireWorkflows] = useState<HireWorkflowRecord[]>([])
+  const [hireEvents, setHireEvents] = useState<{ employeeId: string; kind: string; occurredAt: string }[]>([])
+  const [workflowDrafts, setWorkflowDrafts] = useState<Record<string, { ownerId: string; dueAt: string }>>({})
   const [drafts, setDrafts] = useState<
     Record<string, { hiredAt: string; title: string; badgeName: string; department: string }>
   >({})
@@ -111,6 +123,7 @@ export function PeoplePage() {
   const [notify, setNotify] = useState<NotifySettings>({ adminEmail: '', slackWebhook: '' })
   const opening = useRef(false)
   const badgeInput = useRef<HTMLInputElement>(null)
+  const hireFileInput = useRef<HTMLInputElement>(null)
   const previewSeq = useRef(0)
 
   useEffect(() => {
@@ -147,18 +160,30 @@ export function PeoplePage() {
       await writeDefaultMaster(sqlite)
       await migrateProcessAssetsToChecks(sqlite)
       await retireSupplyAssets(sqlite)
-      const [deptRows, employeeRows, checkRows, template, notifyRow] = await Promise.all([
+      const [deptRows, employeeRows, checkRows, template, notifyRow, workflowRows, eventRows] = await Promise.all([
         sqlite.query<NamedRow>('select id, name from departments order by name'),
         loadEmployees(sqlite),
         loadOnboardingChecks(sqlite),
         loadBadgeTemplate(sqlite),
         loadNotifySettings(sqlite),
+        loadHireWorkflows(sqlite),
+        loadHireEvents(sqlite),
       ])
       setDepartments(deptRows)
       setEmployees(employeeRows)
       setChecks(checkRows)
+      setHireWorkflows(workflowRows)
+      setHireEvents(eventRows)
       setBadgeTemplate(template)
       setNotify(notifyRow)
+      setWorkflowDrafts(
+        Object.fromEntries(
+          employeeRows.map((row) => {
+            const workflow = workflowRows.find((entry) => entry.employeeId === row.id)
+            return [row.id, { ownerId: workflow?.ownerId || '', dueAt: workflow?.dueAt || '' }]
+          }),
+        ),
+      )
       const groups = groupRoster(employeeRows, checkRows)
       let nextEmployeeId = ''
       setBadgeEmployeeId((prev) => {
@@ -263,14 +288,26 @@ export function PeoplePage() {
   }
 
   async function refreshPeople() {
-    const [employeeRows, checkRows, template] = await Promise.all([
+    const [employeeRows, checkRows, template, workflowRows, eventRows] = await Promise.all([
       loadEmployees(sqlite),
       loadOnboardingChecks(sqlite),
       loadBadgeTemplate(sqlite),
+      loadHireWorkflows(sqlite),
+      loadHireEvents(sqlite),
     ])
     setEmployees(employeeRows)
     setChecks(checkRows)
     setBadgeTemplate(template)
+    setHireWorkflows(workflowRows)
+    setHireEvents(eventRows)
+    setWorkflowDrafts((prev) => ({
+      ...Object.fromEntries(
+        employeeRows.map((row) => {
+          const workflow = workflowRows.find((entry) => entry.employeeId === row.id)
+          return [row.id, prev[row.id] ?? { ownerId: workflow?.ownerId || '', dueAt: workflow?.dueAt || '' }]
+        }),
+      ),
+    }))
     return { employeeRows, checkRows }
   }
 
@@ -278,6 +315,45 @@ export function PeoplePage() {
     const phase = employeeRosterPhase(employeeId, employeeRows, checkRows)
     if (phase) setRosterTab(phase)
     setBadgeEmployeeId(employeeId)
+  }
+
+  async function saveHireWorkflow(employeeId: string, file?: File | null) {
+    const draft = workflowDrafts[employeeId] ?? { ownerId: '', dueAt: '' }
+    setMessage('')
+    setNotice('')
+    try {
+      const fileBytes = file ? new Uint8Array(await file.arrayBuffer()) : undefined
+      const result = await executeSaveHireWorkflow(sqlite, {
+        operationId: crypto.randomUUID(),
+        employeeId,
+        ownerId: draft.ownerId,
+        dueAt: draft.dueAt,
+        fileName: file?.name,
+        fileMime: file?.type,
+        fileBytes,
+      })
+      setNotice(result.status === 'duplicate' ? '같은 입사 담당은 한 번만 반영됩니다.' : file ? '입사 첨부를 올렸습니다.' : '입사 담당·기한을 저장했습니다.')
+      if (hireFileInput.current) hireFileInput.current.value = ''
+      await refreshPeople()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  async function downloadHireWorkflowFile(employeeId: string) {
+    setMessage('')
+    try {
+      const original = await loadHireWorkflowFile(sqlite, employeeId)
+      const url = URL.createObjectURL(new Blob([toArrayBuffer(original.bytes)], { type: original.fileMime }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = original.fileName
+      link.click()
+      URL.revokeObjectURL(url)
+      setNotice(`${original.fileName}을 이 PC에서 받았습니다.`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
   }
 
   function printEmployeeBadge(employee: EmployeeRecord, departmentName?: string) {
@@ -433,6 +509,19 @@ export function PeoplePage() {
   const selectedHeld = selectedEmployee ? outstandingOnboarding(selectedProcess).length : 0
   const selectedPhase = selectedEmployee ? rosterPhase(selectedEmployee, selectedProcess) : null
   const selectedHireSteps = selectedEmployee ? hireProcessSteps(selectedEmployee, selectedProcess) : []
+  const selectedWorkflow = selectedEmployee
+    ? hireWorkflows.find((row) => row.employeeId === selectedEmployee.id)
+    : undefined
+  const selectedWorkflowDraft = selectedEmployee
+    ? workflowDrafts[selectedEmployee.id] ?? {
+        ownerId: selectedWorkflow?.ownerId || '',
+        dueAt: selectedWorkflow?.dueAt || '',
+      }
+    : { ownerId: '', dueAt: '' }
+  const selectedHistory = selectedEmployee
+    ? hireHistory(hireEvents.filter((row) => row.employeeId === selectedEmployee.id))
+    : []
+  const workflowOwners = employees.filter((row) => !row.leftAt || row.id === selectedWorkflowDraft.ownerId)
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
   if (!configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
@@ -453,7 +542,7 @@ export function PeoplePage() {
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold">직원·입퇴사</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted">
-            왼쪽 탭에서 입사 중·재직·퇴사를 고릅니다. 명찰·유니폼·노트북은 입사 중·퇴사 프로세스입니다. 가구·컴퓨터는 자산 메뉴에서 QR로 등록하며, 직원에게 배정하지 않습니다.
+            왼쪽 탭에서 입사 중·재직·퇴사를 고릅니다. 입사 중 프로세스에 담당자·기한·첨부와 완료 이력을 둡니다. 가구·컴퓨터는 자산 메뉴에서 QR로 등록하며, 직원에게 배정하지 않습니다.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -718,6 +807,100 @@ export function PeoplePage() {
                         })}
                       </ul>
                       <p className="mt-2 text-xs text-muted">{hireProcessSummary(selectedEmployee, selectedProcess)}</p>
+                      <div className="mt-3 space-y-2">
+                        <label className="block text-sm">
+                          담당자
+                          <select
+                            className="mt-1 w-full rounded border border-line px-2 py-1.5"
+                            value={selectedWorkflowDraft.ownerId}
+                            onChange={(e) =>
+                              setWorkflowDrafts((prev) => ({
+                                ...prev,
+                                [selectedEmployee.id]: { ...selectedWorkflowDraft, ownerId: e.target.value },
+                              }))
+                            }
+                          >
+                            <option value="">담당자 선택</option>
+                            {workflowOwners.map((row) => (
+                              <option key={row.id} value={row.id}>
+                                {row.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="block text-sm">
+                          기한
+                          <input
+                            type="date"
+                            className="mt-1 w-full rounded border border-line px-2 py-1.5"
+                            value={selectedWorkflowDraft.dueAt}
+                            onChange={(e) =>
+                              setWorkflowDrafts((prev) => ({
+                                ...prev,
+                                [selectedEmployee.id]: { ...selectedWorkflowDraft, dueAt: e.target.value },
+                              }))
+                            }
+                          />
+                        </label>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={!ready}
+                            className="rounded border border-line px-2 py-1 text-xs font-semibold disabled:opacity-50"
+                            onClick={() => void saveHireWorkflow(selectedEmployee.id)}
+                          >
+                            담당·기한 저장
+                          </button>
+                          <input
+                            ref={hireFileInput}
+                            type="file"
+                            accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                            className="sr-only"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) void saveHireWorkflow(selectedEmployee.id, file)
+                            }}
+                          />
+                          <button
+                            type="button"
+                            disabled={!ready}
+                            className="rounded border border-line px-2 py-1 text-xs font-semibold disabled:opacity-50"
+                            onClick={() => hireFileInput.current?.click()}
+                          >
+                            첨부
+                          </button>
+                          {selectedWorkflow?.hasFile ? (
+                            <button
+                              type="button"
+                              disabled={!ready}
+                              className="rounded border border-line px-2 py-1 text-xs font-semibold disabled:opacity-50"
+                              onClick={() => void downloadHireWorkflowFile(selectedEmployee.id)}
+                            >
+                              {selectedWorkflow.fileName || '첨부 받기'}
+                            </button>
+                          ) : null}
+                        </div>
+                        <p className="text-xs text-muted">
+                          {hireWorkflowCaption(
+                            {
+                              ownerName: employees.find((row) => row.id === selectedWorkflowDraft.ownerId)?.name,
+                              dueAt: selectedWorkflowDraft.dueAt || selectedWorkflow?.dueAt,
+                            },
+                            todayStamp(),
+                          )}
+                        </p>
+                        {selectedHistory.length ? (
+                          <ul className="space-y-1 text-xs text-muted">
+                            {selectedHistory.map((row, index) => (
+                              <li key={`${row.at}-${row.label}-${index}`}>
+                                {row.at} · {row.label}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-xs text-muted">완료 이력이 아직 없습니다.</p>
+                        )}
+                      </div>
                     </div>
                   )}
                   <div>

@@ -6,6 +6,7 @@ import { QR_LABEL_TABLE_SQL } from '../asset/register'
 import { CONTRACT_TABLE_SQL } from '../contracts/book'
 import { BADGE_TEMPLATE_TABLE_SQL } from '../people/badgeTemplate'
 import { NOTIFY_TABLE_SQL } from '../people/badgeNotify'
+import { HIRE_WORKFLOW_TABLE_SQL } from '../people/hireWorkflow'
 
 export const LOCAL_MIGRATIONS = [
   `create table if not exists meta (
@@ -96,4 +97,5 @@ export const SCHEMA_PATCHES = [
   'alter table assets add column source_order_id text',
   `create unique index if not exists assets_qr_token on assets(qr_token) where qr_token is not null`,
   ...ASSET_EVENT_TABLE_SQL,
+  ...HIRE_WORKFLOW_TABLE_SQL,
 ]
