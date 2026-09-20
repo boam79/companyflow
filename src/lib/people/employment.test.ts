@@ -3,7 +3,9 @@ import {
   applyHire,
   applyLeave,
   badgeLines,
+  defaultRosterTab,
   employeeHireDraft,
+  employeeRosterPhase,
   groupRoster,
   hireProcessSteps,
   hireProcessSummary,
@@ -113,5 +115,23 @@ describe('입퇴사', () => {
     expect(rosterPhase(employee, complete)).toBe('employed')
     expect(hireProcessSummary(employee, complete)).toBe('입사 완료 · 3/3 지급')
     expect(hireProcessSummary({ id: 'emp-new', name: '신입' }, onboardingView('emp-new', []))).toBe('입사 중 · 0/4')
+  })
+
+  it('기본 탭은 사람이 있는 첫 그룹이고 직원 탭은 상태를 따른다', () => {
+    const joining = { id: 'emp-kim', name: '김담당', hiredAt: '2026-09-16' }
+    const employed = { id: 'emp-lee', name: '이수진', hiredAt: '2025-07-14' }
+    const left = { id: 'emp-oh', name: '오세훈', hiredAt: '2022-06-01', leftAt: '2026-08-31' }
+    const checks = [
+      { employeeId: 'emp-lee', itemKey: 'badge' as const, issued: true },
+      { employeeId: 'emp-lee', itemKey: 'uniform' as const, issued: true },
+      { employeeId: 'emp-lee', itemKey: 'laptop' as const, issued: true },
+    ]
+    const groups = groupRoster([joining, employed, left], checks)
+    expect(defaultRosterTab(groups)).toBe('joining')
+    expect(defaultRosterTab(groups.map((group) => (group.phase === 'joining' ? { ...group, employees: [] } : group)))).toBe(
+      'employed',
+    )
+    expect(employeeRosterPhase('emp-oh', [joining, employed, left], checks)).toBe('left')
+    expect(employeeRosterPhase('emp-lee', [joining, employed, left], checks)).toBe('employed')
   })
 })

@@ -21,9 +21,11 @@ import {
   type NotifySettings,
 } from '../lib/people/badgeNotify'
 import {
+  defaultRosterTab,
+  employeeHireDraft,
+  employeeRosterPhase,
   executeHire,
   executeLeave,
-  employeeHireDraft,
   groupRoster,
   hireProcessSteps,
   hireProcessSummary,
@@ -31,6 +33,7 @@ import {
   rosterCaption,
   rosterPhase,
   type EmployeeRecord,
+  type RosterPhase,
 } from '../lib/people/employment'
 import {
   executeOnboardingToggle,
@@ -104,6 +107,7 @@ export function PeoplePage() {
   const [badgePreviewImages, setBadgePreviewImages] = useState<BadgePreviewPage[]>([])
   const [previewStatus, setPreviewStatus] = useState<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
   const [badgeEmployeeId, setBadgeEmployeeId] = useState('')
+  const [rosterTab, setRosterTab] = useState<RosterPhase>('joining')
   const [notify, setNotify] = useState<NotifySettings>({ adminEmail: '', slackWebhook: '' })
   const opening = useRef(false)
   const badgeInput = useRef<HTMLInputElement>(null)
@@ -155,10 +159,16 @@ export function PeoplePage() {
       setChecks(checkRows)
       setBadgeTemplate(template)
       setNotify(notifyRow)
+      const groups = groupRoster(employeeRows, checkRows)
+      let nextEmployeeId = ''
       setBadgeEmployeeId((prev) => {
-        if (prev && employeeRows.some((row) => row.id === prev)) return prev
-        return groupRoster(employeeRows, checkRows).flatMap((group) => group.employees)[0]?.id || ''
+        nextEmployeeId =
+          prev && employeeRows.some((row) => row.id === prev)
+            ? prev
+            : groups.flatMap((group) => group.employees)[0]?.id || ''
+        return nextEmployeeId
       })
+      setRosterTab(employeeRosterPhase(nextEmployeeId, employeeRows, checkRows) ?? defaultRosterTab(groups))
       if (template) {
         const original = await loadBadgeTemplateOriginal(sqlite)
         await showBadgePreview(original.bytes)
@@ -261,6 +271,13 @@ export function PeoplePage() {
     setEmployees(employeeRows)
     setChecks(checkRows)
     setBadgeTemplate(template)
+    return { employeeRows, checkRows }
+  }
+
+  function followEmployee(employeeId: string, employeeRows: EmployeeRecord[], checkRows: CheckRow[]) {
+    const phase = employeeRosterPhase(employeeId, employeeRows, checkRows)
+    if (phase) setRosterTab(phase)
+    setBadgeEmployeeId(employeeId)
   }
 
   function printEmployeeBadge(employee: EmployeeRecord, departmentName?: string) {
@@ -341,8 +358,8 @@ export function PeoplePage() {
             ? '재입사했습니다. 입사 프로세스를 이어갈 수 있습니다.'
             : '입사를 기록했습니다.',
       )
-      setBadgeEmployeeId(employeeId)
-      await refreshPeople()
+      const next = await refreshPeople()
+      followEmployee(employeeId, next.employeeRows, next.checkRows)
       const values = badgeFillValues(
         { name: employees.find((row) => row.id === employeeId)?.name || draft.badgeName, badgeName: draft.badgeName, title: draft.title },
         draft.department,
@@ -376,7 +393,8 @@ export function PeoplePage() {
             ? `입사 프로세스: ${row.hireLabel} 완료`
             : `퇴사 프로세스: ${row.leaveLabel} 완료`,
       )
-      await refreshPeople()
+      const next = await refreshPeople()
+      followEmployee(employeeId, next.employeeRows, next.checkRows)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     }
@@ -397,15 +415,17 @@ export function PeoplePage() {
         if (!current) return prev
         return { ...prev, [employeeId]: { ...current, hiredAt: todayStamp() } }
       })
-      await refreshPeople()
+      const next = await refreshPeople()
+      followEmployee(employeeId, next.employeeRows, next.checkRows)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     }
   }
 
   const roster = groupRoster(employees, checks)
+  const visibleEmployees = roster.find((section) => section.phase === rosterTab)?.employees ?? []
   const selectedEmployee =
-    employees.find((row) => row.id === badgeEmployeeId) ?? roster.flatMap((group) => group.employees)[0]
+    visibleEmployees.find((row) => row.id === badgeEmployeeId) ?? visibleEmployees[0]
   const selectedDraft = selectedEmployee
     ? drafts[selectedEmployee.id] ?? employeeHireDraft(selectedEmployee, departments, todayStamp())
     : null
@@ -433,7 +453,7 @@ export function PeoplePage() {
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold">직원·입퇴사</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted">
-            왼쪽 목록은 입사 중·재직·퇴사로 나눕니다. 명찰·유니폼·노트북은 입사 중·퇴사 프로세스입니다. 가구·컴퓨터는 자산 메뉴에서 QR로 등록하며, 직원에게 배정하지 않습니다.
+            왼쪽 탭에서 입사 중·재직·퇴사를 고릅니다. 명찰·유니폼·노트북은 입사 중·퇴사 프로세스입니다. 가구·컴퓨터는 자산 메뉴에서 QR로 등록하며, 직원에게 배정하지 않습니다.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -465,13 +485,36 @@ export function PeoplePage() {
       <section className="grid min-h-0 gap-4 xl:grid-cols-[15rem_minmax(0,1fr)_18rem] xl:items-start">
         {employees.length ? (
           <>
-            <nav className="max-h-[calc(100svh-9rem)] overflow-y-auto rounded-lg border border-line bg-card">
-              {roster.map((section) => (
-                <div key={section.phase}>
-                  <p className="border-b border-line bg-paper px-3 py-2 text-xs font-semibold text-muted">
-                    {section.label} {section.employees.length}
-                  </p>
-                  {section.employees.map((employee) => {
+            <nav className="flex max-h-[calc(100svh-9rem)] min-h-0 flex-col overflow-hidden rounded-lg border border-line bg-card">
+              <div className="grid shrink-0 grid-cols-3 border-b border-line">
+                {roster.map((section) => {
+                  const active = section.phase === rosterTab
+                  return (
+                    <button
+                      key={section.phase}
+                      type="button"
+                      className={`px-1 py-2 text-center text-xs font-semibold ${
+                        active ? 'bg-accent-soft' : 'text-muted hover:bg-paper'
+                      }`}
+                      onClick={() => {
+                        setMessage('')
+                        setNotice('')
+                        setRosterTab(section.phase)
+                        const first = section.employees[0]
+                        if (first && !section.employees.some((row) => row.id === badgeEmployeeId)) {
+                          setBadgeEmployeeId(first.id)
+                        }
+                      }}
+                    >
+                      <span className="block whitespace-nowrap">{section.label}</span>
+                      <span className="mt-0.5 block font-medium">{section.employees.length}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto">
+                {visibleEmployees.length ? (
+                  visibleEmployees.map((employee) => {
                     const process = onboardingView(employee.id, checks)
                     const active = employee.id === selectedEmployee?.id
                     return (
@@ -480,7 +523,7 @@ export function PeoplePage() {
                         type="button"
                         className={`flex w-full flex-col items-start border-b border-line/70 px-3 py-2 text-left last:border-b-0 ${
                           active ? 'bg-accent-soft' : 'hover:bg-paper'
-                        }`}
+                        } ${rosterTab === 'left' ? 'text-muted' : ''}`}
                         onClick={() => {
                           setMessage('')
                           setNotice('')
@@ -491,9 +534,11 @@ export function PeoplePage() {
                         <span className="mt-0.5 text-xs text-muted">{rosterCaption(employee, process)}</span>
                       </button>
                     )
-                  })}
-                </div>
-              ))}
+                  })
+                ) : (
+                  <p className="px-3 py-4 text-xs text-muted">이 목록에 직원이 없습니다.</p>
+                )}
+              </div>
             </nav>
             {selectedEmployee && selectedDraft ? (
               <article className="rounded-lg border border-line bg-card p-5">
@@ -706,7 +751,9 @@ export function PeoplePage() {
                   </div>
                 </div>
               </article>
-            ) : null}
+            ) : (
+              <p className="rounded-lg border border-line bg-card p-5 text-sm text-muted">이 목록에 직원이 없습니다.</p>
+            )}
           </>
         ) : (
           <p className="text-sm text-muted xl:col-span-2">

@@ -79,6 +79,23 @@ export function groupRoster(employees: EmployeeRecord[], checkRows: CheckRow[]) 
   }))
 }
 
+export function defaultRosterTab(groups: { phase: RosterPhase; employees: unknown[] }[]): RosterPhase {
+  return (
+    ROSTER_SECTIONS.find((section) => groups.find((group) => group.phase === section.phase)?.employees.length)?.phase ??
+    'joining'
+  )
+}
+
+export function employeeRosterPhase(
+  employeeId: string,
+  employees: EmployeeRecord[],
+  checkRows: CheckRow[],
+): RosterPhase | undefined {
+  const employee = employees.find((row) => row.id === employeeId)
+  if (!employee) return undefined
+  return rosterPhase(employee, onboardingView(employee.id, checkRows))
+}
+
 export function employeeHireDraft(
   row: EmployeeRecord,
   departments: { id: string; name: string }[],
