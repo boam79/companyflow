@@ -82,6 +82,31 @@ export function filterContracts(rows: ContractDraft[], query: string) {
   )
 }
 
+export type ContractPhase = 'active' | 'expired'
+
+export const CONTRACT_SECTIONS: { phase: ContractPhase; label: string }[] = [
+  { phase: 'active', label: '계약중' },
+  { phase: 'expired', label: '만료' },
+]
+
+export function contractPhase(endAt?: string, today?: string): ContractPhase {
+  return contractLife(endAt, today) === '종료' ? 'expired' : 'active'
+}
+
+export function groupContracts(rows: ContractDraft[], today?: string) {
+  return CONTRACT_SECTIONS.map((section) => ({
+    ...section,
+    contracts: rows.filter((row) => contractPhase(row.endAt, today) === section.phase),
+  }))
+}
+
+export function defaultContractTab(groups: { phase: ContractPhase; contracts: unknown[] }[]): ContractPhase {
+  return (
+    CONTRACT_SECTIONS.find((section) => groups.find((group) => group.phase === section.phase)?.contracts.length)
+      ?.phase ?? 'active'
+  )
+}
+
 export function mimeFromName(name?: string): string | undefined {
   const ext = name?.split('.').pop()?.toLowerCase()
   return ext ? MIME_BY_EXT[ext] : undefined

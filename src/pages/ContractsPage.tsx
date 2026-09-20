@@ -4,15 +4,18 @@ import { useAuth } from '../lib/AuthContext'
 import {
   assertContractFile,
   contractAmountText,
-  contractLife,
   contractPeriod,
+  contractPhase,
+  defaultContractTab,
   executeDraftContract,
   filterContracts,
+  groupContracts,
   hashFileBytes,
   loadContractOriginal,
   loadContracts,
   toArrayBuffer,
   type ContractDraft,
+  type ContractPhase,
 } from '../lib/contracts/book'
 import { applyOcrCandidates } from '../lib/contracts/parseFields'
 import { writeDefaultMaster } from '../lib/master/book'
@@ -44,6 +47,7 @@ export function ContractsPage() {
   const [companyId, setCompanyId] = useState('')
   const [rows, setRows] = useState<ContractDraft[]>([])
   const [query, setQuery] = useState('')
+  const [lifeTab, setLifeTab] = useState<ContractPhase>('active')
   const [form, setForm] = useState(emptyForm)
   const [file, setFile] = useState<File | null>(null)
   const [fileKey, setFileKey] = useState(0)
@@ -92,8 +96,18 @@ export function ContractsPage() {
       }
       await writeDefaultMaster(sqlite)
       const nextRows = await loadContracts(sqlite)
+      const groups = groupContracts(nextRows, todayStamp())
       setRows(nextRows)
-      setSelectedId((prev) => (nextRows.some((row) => row.id === prev) ? prev : nextRows[0]?.id ?? ''))
+      setSelectedId((prev) => {
+        const existing = nextRows.find((row) => row.id === prev)
+        if (existing) {
+          setLifeTab(contractPhase(existing.endAt))
+          return existing.id
+        }
+        const tab = defaultContractTab(groups)
+        setLifeTab(tab)
+        return groups.find((section) => section.phase === tab)?.contracts[0]?.id ?? ''
+      })
     } catch (error) {
       setReady(false)
       setMessage(error instanceof Error ? error.message : String(error))
@@ -197,6 +211,7 @@ export function ContractsPage() {
       )
       const nextRows = await loadContracts(sqlite)
       setRows(nextRows)
+      setLifeTab(contractPhase(form.endAt || undefined))
       setSelectedId(id)
       resetForm()
     } catch (error) {
@@ -220,7 +235,11 @@ export function ContractsPage() {
     }
   }
 
-  const visible = useMemo(() => filterContracts(rows, query), [rows, query])
+  const groups = useMemo(() => groupContracts(rows, todayStamp()), [rows])
+  const visible = useMemo(
+    () => filterContracts(groups.find((section) => section.phase === lifeTab)?.contracts ?? [], query),
+    [groups, lifeTab, query],
+  )
   const selected = rows.find((row) => row.id === selectedId)
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
@@ -284,9 +303,32 @@ export function ContractsPage() {
       {message ? <p className="text-sm text-danger">{message}</p> : null}
 
       <div className="grid min-h-0 gap-4 xl:grid-cols-[16rem_minmax(0,1fr)_minmax(22rem,1fr)] xl:items-start">
-        <nav className="max-h-[calc(100svh-10rem)] overflow-auto rounded-lg border border-line bg-card">
-          <div className="sticky top-0 space-y-2 border-b border-line bg-card p-3">
-            <h2 className="text-sm font-semibold">초안 {rows.length}</h2>
+        <nav className="flex max-h-[calc(100svh-10rem)] min-h-0 flex-col overflow-hidden rounded-lg border border-line bg-card">
+          <div className="grid shrink-0 grid-cols-2 border-b border-line">
+            {groups.map((section) => {
+              const active = section.phase === lifeTab
+              return (
+                <button
+                  key={section.phase}
+                  type="button"
+                  className={`px-1 py-2 text-center text-xs font-semibold ${
+                    active ? 'bg-accent-soft' : 'text-muted hover:bg-paper'
+                  }`}
+                  onClick={() => {
+                    setLifeTab(section.phase)
+                    setMessage('')
+                    if (!section.contracts.some((row) => row.id === selectedId)) {
+                      setSelectedId(section.contracts[0]?.id ?? '')
+                    }
+                  }}
+                >
+                  <span className="block whitespace-nowrap">{section.label}</span>
+                  <span className="mt-0.5 block font-medium">{section.contracts.length}</span>
+                </button>
+              )
+            })}
+          </div>
+          <div className="shrink-0 border-b border-line p-3">
             <input
               className="w-full rounded border border-line px-3 py-2 text-sm"
               placeholder="번호·계약·상대방·담당자"
@@ -294,6 +336,7 @@ export function ContractsPage() {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
           {visible.length ? (
             visible.map((row) => (
               <button
@@ -301,7 +344,7 @@ export function ContractsPage() {
                 type="button"
                 className={`flex w-full flex-col items-start border-b border-line/70 px-3 py-2 text-left last:border-b-0 ${
                   selectedId === row.id ? 'bg-accent-soft' : 'hover:bg-paper'
-                }`}
+                } ${lifeTab === 'expired' ? 'text-muted' : ''}`}
                 onClick={() => {
                   setSelectedId(row.id)
                   setMessage('')
@@ -311,7 +354,6 @@ export function ContractsPage() {
                 <span className="mt-0.5 text-xs text-muted">
                   {row.contractNo ? `${row.contractNo} · ` : ''}
                   {row.counterparty}
-                  {` · ${contractLife(row.endAt)}`}
                 </span>
                 <span className="mt-0.5 text-xs text-muted">
                   {contractPeriod(row)} · {contractAmountText(row.amount)}
@@ -322,9 +364,16 @@ export function ContractsPage() {
             ))
           ) : (
             <p className="p-3 text-sm text-muted">
-              {ready ? (query.trim() ? '검색 결과가 없습니다.' : '저장된 초안이 없습니다.') : '회사 DB를 여는 중입니다.'}
+              {ready
+                ? query.trim()
+                  ? '검색 결과가 없습니다.'
+                  : lifeTab === 'expired'
+                    ? '만료된 계약이 없습니다.'
+                    : '진행 중인 계약이 없습니다.'
+                : '회사 DB를 여는 중입니다.'}
             </p>
           )}
+          </div>
         </nav>
 
         {selected ? (
@@ -350,7 +399,7 @@ export function ContractsPage() {
                 <div>
                   <dt className="text-muted">기간</dt>
                   <dd>
-                    {contractPeriod(selected)} · {contractLife(selected.endAt)}
+                    {contractPeriod(selected)} · {contractPhase(selected.endAt) === 'expired' ? '만료' : '계약중'}
                   </dd>
                 </div>
                 <div>

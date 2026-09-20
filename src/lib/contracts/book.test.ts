@@ -7,7 +7,9 @@ import {
   contractAmountText,
   contractLife,
   contractPeriod,
+  defaultContractTab,
   filterContracts,
+  groupContracts,
   sniffContractFileMime,
 } from './book'
 import { DISABLED_OCR, assertOcrCannotConfirm } from './ocr'
@@ -96,6 +98,21 @@ describe('계약 초안', () => {
     expect(contractAmountText(rows[0].amount)).toBe('12,000,000원')
     expect(contractLife('2026-02-28', '2026-09-19')).toBe('종료')
     expect(contractLife('2026-12-31', '2026-09-19')).toBe('진행')
+  })
+
+  it('목록은 계약중과 만료로 나눈다', () => {
+    const rows = [
+      applyDraftContract([], { ...BASE, endAt: '2026-12-31' }),
+      applyDraftContract([], { ...BASE, id: 'con-2', title: '복합기 유지보수', endAt: '2026-02-28' }),
+      applyDraftContract([], { ...BASE, id: 'con-3', title: '인터넷 전용회선' }),
+    ]
+    const groups = groupContracts(rows, '2026-09-20')
+    expect(groups.map((section) => [section.label, section.contracts.map((row) => row.title)])).toEqual([
+      ['계약중', ['본사 임대', '인터넷 전용회선']],
+      ['만료', ['복합기 유지보수']],
+    ])
+    expect(defaultContractTab(groups)).toBe('active')
+    expect(defaultContractTab(groupContracts([rows[1]], '2026-09-20'))).toBe('expired')
   })
 
   it('OCR 후보를 확인한 뒤에만 원본 첨부 초안을 만든다', () => {
