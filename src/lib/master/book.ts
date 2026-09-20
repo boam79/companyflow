@@ -25,6 +25,7 @@ export type ItemRecord = {
   code?: string
   unit?: string
   purchaseKind?: string
+  partnerId?: string
 }
 
 export const PAPER_ITEM: ItemRecord = {
@@ -317,8 +318,9 @@ export async function loadItems(
     code?: string | null
     unit?: string | null
     purchase_kind?: string | null
+    partner_id?: string | null
     active?: number | null
-  }>('select id, name, stock_managed, asset_managed, min_stock, code, unit, purchase_kind, active from items order by name')
+  }>('select id, name, stock_managed, asset_managed, min_stock, code, unit, purchase_kind, partner_id, active from items order by name')
   return rows
     .filter((row) => !ISSUE_ITEMS.some((item) => item.id === row.id) && row.active !== 0)
     .map((row) => ({
@@ -330,6 +332,7 @@ export async function loadItems(
       code: row.code ?? undefined,
       unit: row.unit ?? '개',
       purchaseKind: row.purchase_kind ?? 'supply',
+      partnerId: row.partner_id ?? undefined,
     }))
 }
 
@@ -394,6 +397,7 @@ export const MASTER_TABLE_SQL = [
     code text,
     unit text not null default '개',
     purchase_kind text not null default 'supply',
+    partner_id text,
     active integer not null default 1,
     created_at text not null
   );`,

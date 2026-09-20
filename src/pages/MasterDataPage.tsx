@@ -9,6 +9,7 @@ import {
   assertUniqueItemCode,
   assertUniqueItemName,
   assertUniquePartnerName,
+  assertItemSupplier,
   fieldEntityFromTable,
   itemCatalogUpdateStatement,
   masterInsertStatement,
@@ -35,6 +36,7 @@ type NamedRow = {
   code?: string | null
   unit?: string | null
   purchase_kind?: string | null
+  partner_id?: string | null
   phone?: string | null
   memo?: string | null
   file_name?: string | null
@@ -124,12 +126,14 @@ export function MasterDataPage() {
   const [listTab, setListTab] = useState<TabId>('departments')
   const [rows, setRows] = useState<NamedRow[]>([])
   const [departments, setDepartments] = useState<NamedRow[]>([])
+  const [partners, setPartners] = useState<NamedRow[]>([])
   const [fields, setFields] = useState<FieldRow[]>([])
   const [name, setName] = useState('')
   const [minStock, setMinStock] = useState('0')
   const [itemCode, setItemCode] = useState('')
   const [itemUnit, setItemUnit] = useState('개')
   const [purchaseKind, setPurchaseKind] = useState('supply')
+  const [itemPartnerId, setItemPartnerId] = useState('')
   const [selectedItemId, setSelectedItemId] = useState('')
   const [partnerPhone, setPartnerPhone] = useState('')
   const [partnerMemo, setPartnerMemo] = useState('')
@@ -206,6 +210,8 @@ export function MasterDataPage() {
     const deptRows = await sqlite.query<NamedRow>('select id, name from departments order by name')
     setDepartments(deptRows)
     if (!departmentId && deptRows[0]) setDepartmentId(deptRows[0].id)
+    const partnerRows = await sqlite.query<NamedRow>('select id, name from partners order by name')
+    setPartners(partnerRows)
     if (nextTab === 'fields') {
       setRows([])
       setListTab(nextTab)
@@ -219,7 +225,7 @@ export function MasterDataPage() {
           )
         : nextTab === 'items'
           ? await sqlite.query<NamedRow>(
-              'select id, name, stock_managed, asset_managed, min_stock, code, unit, purchase_kind from items where coalesce(active, 1) = 1 order by name',
+              'select id, name, stock_managed, asset_managed, min_stock, code, unit, purchase_kind, partner_id from items where coalesce(active, 1) = 1 order by name',
             )
           : nextTab === 'partners'
             ? await sqlite.query<NamedRow>(
@@ -259,6 +265,7 @@ export function MasterDataPage() {
         if (tab === 'items') {
           assertUniqueItemName(name, rows)
           assertUniqueItemCode(itemCode, rows)
+          assertItemSupplier(itemPartnerId, partners)
         }
         if (tab === 'partners') {
           assertUniquePartnerName(name, rows)
@@ -272,6 +279,7 @@ export function MasterDataPage() {
           code: tab === 'items' ? itemCode : undefined,
           unit: tab === 'items' ? itemUnit : undefined,
           purchaseKind: tab === 'items' ? purchaseKind : undefined,
+          partnerId: tab === 'items' ? itemPartnerId : undefined,
           phone: tab === 'partners' ? partnerPhone : undefined,
           memo: tab === 'partners' ? partnerMemo : undefined,
           fileName: tab === 'partners' ? pendingPartnerFile?.fileName : undefined,
@@ -290,6 +298,7 @@ export function MasterDataPage() {
       setItemCode('')
       setItemUnit('개')
       setPurchaseKind('supply')
+      setItemPartnerId('')
       setSelectedItemId('')
       resetPartnerForm()
       await reload()
@@ -310,9 +319,11 @@ export function MasterDataPage() {
         unit: itemUnit,
         minStock: Number(minStock) || 0,
         purchaseKind,
+        partnerId: itemPartnerId,
       })
       assertUniqueItemName(name, rows, selectedItemId)
       assertUniqueItemCode(itemCode, rows, selectedItemId)
+      assertItemSupplier(itemPartnerId, partners)
       const result = await sqlite.runOnce(operationId, async () => {
         await sqlite.exec(stmt.sql, stmt.params)
         return { itemId: selectedItemId, name: stmt.params[0], code: stmt.params[1] }
@@ -436,6 +447,7 @@ export function MasterDataPage() {
               { key: 'name', label: '이름' },
               { key: 'kind', label: '구분', muted: true },
               { key: 'purchase', label: '구매', muted: true },
+              { key: 'supplier', label: '공급사', muted: true },
               { key: 'unit', label: '단위', muted: true },
               { key: 'minStock', label: '최소재고', muted: true },
             ],
@@ -451,6 +463,7 @@ export function MasterDataPage() {
                 name: row.name,
                 kind: itemKindLabel(row),
                 purchase: itemKindLabel(row) === '회사 자산' ? '' : purchaseKindLabel(row.purchase_kind),
+                supplier: partners.find((partner) => partner.id === row.partner_id)?.name ?? '',
                 unit: row.unit?.trim() || '개',
                 minStock: itemKindLabel(row) === '비품' ? String(row.min_stock ?? 0) : '',
               })),
@@ -544,6 +557,7 @@ export function MasterDataPage() {
               setItemCode('')
               setItemUnit('개')
               setPurchaseKind('supply')
+              setItemPartnerId('')
               resetPartnerForm()
               setTab(item.id)
             }}
@@ -611,6 +625,21 @@ export function MasterDataPage() {
                 </select>
               </label>
             </div>
+            <label className="text-sm">
+              공급사
+              <select
+                className="mt-1 w-full rounded border border-line px-3 py-2 text-sm"
+                value={itemPartnerId}
+                onChange={(e) => setItemPartnerId(e.target.value)}
+              >
+                <option value="">없음</option>
+                {partners.map((partner) => (
+                  <option key={partner.id} value={partner.id}>
+                    {partner.name}
+                  </option>
+                ))}
+              </select>
+            </label>
             <div className="flex flex-wrap gap-2">
               <button
                 type="submit"
@@ -789,6 +818,7 @@ export function MasterDataPage() {
                     setItemCode(row?.code ?? '')
                     setItemUnit(row?.unit?.trim() || '개')
                     setPurchaseKind(row?.purchase_kind === 'material' || row?.purchase_kind === 'service' ? row.purchase_kind : 'supply')
+                    setItemPartnerId(row?.partner_id ?? '')
                     setMinStock(String(row?.min_stock ?? 0))
                     setMessage('')
                     setNotice('')

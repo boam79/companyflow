@@ -14,6 +14,7 @@ import {
   purchaseKindLabel,
   assertPurchaseKind,
   duplicateItemRepairs,
+  assertItemSupplier,
 } from './commands'
 
 describe('기준정보 SQL 명령', () => {
@@ -28,7 +29,7 @@ describe('기준정보 SQL 명령', () => {
       if (table === 'employees') {
         expect(stmt.params).toEqual(['id-1', '총무', null, '2026-09-16T00:00:00.000Z'])
       } else if (table === 'items') {
-        expect(stmt.params).toEqual(['id-1', '총무', null, '개', 0, 'supply', '2026-09-16T00:00:00.000Z'])
+        expect(stmt.params).toEqual(['id-1', '총무', null, '개', 0, 'supply', null, '2026-09-16T00:00:00.000Z'])
       } else if (table === 'partners') {
         expect(stmt.params).toEqual([
           'id-1',
@@ -67,9 +68,19 @@ describe('기준정보 SQL 명령', () => {
         purchaseKind: 'material',
       }),
     ).toEqual({
-      sql: 'update items set name = ?, code = ?, unit = ?, min_stock = ?, purchase_kind = ? where id = ?',
-      params: ['복사용지', 'PAPER', '박스', 10, 'material', 'item-paper'],
+      sql: 'update items set name = ?, code = ?, unit = ?, min_stock = ?, purchase_kind = ?, partner_id = ? where id = ?',
+      params: ['복사용지', 'PAPER', '박스', 10, 'material', null, 'item-paper'],
     })
+    expect(
+      itemCatalogUpdateStatement({
+        id: 'item-paper',
+        name: '복사용지',
+        code: 'PAPER',
+        unit: '개',
+        minStock: 4,
+        partnerId: 'partner-mfp',
+      }).params,
+    ).toEqual(['복사용지', 'PAPER', '개', 4, 'supply', 'partner-mfp', 'item-paper'])
     expect(
       itemCatalogUpdateStatement({
         id: 'item-clip',
@@ -78,7 +89,7 @@ describe('기준정보 SQL 명령', () => {
         unit: '개',
         minStock: 0,
       }).params,
-    ).toEqual(['클립', null, '개', 0, 'supply', 'item-clip'])
+    ).toEqual(['클립', null, '개', 0, 'supply', null, 'item-clip'])
     expect(() =>
       itemCatalogUpdateStatement({ id: 'item-paper', name: '복사용지', code: 'PAPER', unit: '', minStock: 0 }),
     ).toThrow(/단위/)
@@ -93,6 +104,9 @@ describe('기준정보 SQL 명령', () => {
     expect(() => assertUniqueItemName('복사용지', rows, 'item-paper')).not.toThrow()
     expect(() => assertUniqueItemCode('paper', rows)).toThrow(/같은 코드/)
     expect(() => assertUniqueItemCode('', rows)).not.toThrow()
+    expect(() => assertItemSupplier('partner-mfp', [{ id: 'partner-mfp' }])).not.toThrow()
+    expect(() => assertItemSupplier('', [{ id: 'partner-mfp' }])).not.toThrow()
+    expect(() => assertItemSupplier('missing', [{ id: 'partner-mfp' }])).toThrow(/공급사/)
   })
 
   it('구매 구분은 일반 비품·자재·서비스다', () => {

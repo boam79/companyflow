@@ -78,6 +78,14 @@ export function assertUniqueItemCode(
   }
 }
 
+export function assertItemSupplier(partnerId: string, partners: { id: string }[]) {
+  const id = partnerId.trim()
+  if (!id) return
+  if (!partners.some((row) => row.id === id)) {
+    throw new Error('거래처 목록에 있는 공급사만 고르세요.')
+  }
+}
+
 export function assertUniquePartnerName(
   name: string,
   partners: { id: string; name: string }[],
@@ -140,6 +148,7 @@ export function masterInsertStatement(
     code?: string
     unit?: string
     purchaseKind?: string
+    partnerId?: string
     phone?: string
     memo?: string
     fileName?: string
@@ -162,10 +171,20 @@ export function masterInsertStatement(
       unit: row.unit ?? '개',
       minStock: row.minStock ?? 0,
       purchaseKind: row.purchaseKind ?? 'supply',
+      partnerId: row.partnerId,
     })
     return {
-      sql: 'insert into items(id, name, code, unit, min_stock, purchase_kind, created_at) values(?, ?, ?, ?, ?, ?, ?)',
-      params: [row.id, catalog.name, catalog.code, catalog.unit, catalog.minStock, catalog.purchaseKind, row.createdAt],
+      sql: 'insert into items(id, name, code, unit, min_stock, purchase_kind, partner_id, created_at) values(?, ?, ?, ?, ?, ?, ?, ?)',
+      params: [
+        row.id,
+        catalog.name,
+        catalog.code,
+        catalog.unit,
+        catalog.minStock,
+        catalog.purchaseKind,
+        catalog.partnerId,
+        row.createdAt,
+      ],
     }
   }
   if (table === 'partners') {
@@ -207,11 +226,20 @@ export function itemCatalogUpdateStatement(row: {
   unit: string
   minStock: number
   purchaseKind?: string
+  partnerId?: string
 }) {
   const catalog = itemCatalogValues(row)
   return {
-    sql: 'update items set name = ?, code = ?, unit = ?, min_stock = ?, purchase_kind = ? where id = ?',
-    params: [catalog.name, catalog.code, catalog.unit, catalog.minStock, catalog.purchaseKind, row.id],
+    sql: 'update items set name = ?, code = ?, unit = ?, min_stock = ?, purchase_kind = ?, partner_id = ? where id = ?',
+    params: [
+      catalog.name,
+      catalog.code,
+      catalog.unit,
+      catalog.minStock,
+      catalog.purchaseKind,
+      catalog.partnerId,
+      row.id,
+    ],
   }
 }
 
@@ -222,6 +250,7 @@ function itemCatalogValues(row: {
   unit: string
   minStock: number
   purchaseKind?: string
+  partnerId?: string
 }) {
   if (!Number.isInteger(row.minStock) || row.minStock < 0) {
     throw new Error('최소재고는 0 이상 정수입니다.')
@@ -233,7 +262,8 @@ function itemCatalogValues(row: {
   const purchaseKind = row.purchaseKind ?? 'supply'
   assertPurchaseKind(purchaseKind)
   const code = normalizeHangulField(row.code)
-  return { name, code: code || null, unit, minStock: row.minStock, purchaseKind }
+  const partnerId = row.partnerId?.trim() || null
+  return { name, code: code || null, unit, minStock: row.minStock, purchaseKind, partnerId }
 }
 
 export function partnerAttachment(file: { name: string; mime?: string; bytes: Uint8Array }) {

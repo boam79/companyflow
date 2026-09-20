@@ -60,6 +60,7 @@ export const SCHEMA_PATCHES = [
   "alter table items add column unit text not null default '개'",
   "alter table items add column purchase_kind text not null default 'supply'",
   'alter table items add column active integer not null default 1',
+  'alter table items add column partner_id text',
   'alter table partners add column phone text',
   'alter table partners add column memo text',
   'alter table partners add column file_name text',
