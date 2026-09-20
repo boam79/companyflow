@@ -1,5 +1,6 @@
 import { ProcessedOperations, type ProcessResult } from '../idempotency'
 import type { AssetRecord } from '../asset/book'
+import { duplicateItemRepairs } from './commands'
 
 export type MasterEntity = 'department' | 'employee' | 'item' | 'partner' | 'warehouse'
 
@@ -214,6 +215,7 @@ export function seedDefaultMaster(book: CompanyMasterBook): void {
 
 export async function writeDefaultMaster(db: {
   exec: (sql: string, params?: unknown[]) => Promise<void>
+  query?: <T>(sql: string, params?: unknown[]) => Promise<T[]>
 }): Promise<void> {
   const now = new Date().toISOString()
   await db.exec('insert or ignore into departments(id, name, created_at) values(?, ?, ?)', [
@@ -266,6 +268,35 @@ export async function writeDefaultMaster(db: {
       now,
     ],
   )
+  if (db.query) await retireDuplicateItems({ exec: db.exec, query: db.query })
+}
+
+export async function retireDuplicateItems(db: {
+  exec: (sql: string, params?: unknown[]) => Promise<void>
+  query: <T>(sql: string, params?: unknown[]) => Promise<T[]>
+}): Promise<void> {
+  const rows = await db.query<{
+    id: string
+    name: string
+    code?: string | null
+    min_stock?: number | null
+    active?: number | null
+  }>('select id, name, code, min_stock, active from items')
+  const repairs = duplicateItemRepairs(
+    rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      code: row.code,
+      minStock: row.min_stock ?? 0,
+      active: row.active ?? 1,
+    })),
+  )
+  for (const id of repairs.deactivateIds) {
+    await db.exec('update items set active = 0 where id = ?', [id])
+  }
+  for (const row of repairs.minStockUpdates) {
+    await db.exec('update items set min_stock = ? where id = ?', [row.minStock, row.id])
+  }
 }
 
 export async function loadItems(
@@ -280,9 +311,10 @@ export async function loadItems(
     code?: string | null
     unit?: string | null
     purchase_kind?: string | null
-  }>('select id, name, stock_managed, asset_managed, min_stock, code, unit, purchase_kind from items order by name')
+    active?: number | null
+  }>('select id, name, stock_managed, asset_managed, min_stock, code, unit, purchase_kind, active from items order by name')
   return rows
-    .filter((row) => !ISSUE_ITEMS.some((item) => item.id === row.id))
+    .filter((row) => !ISSUE_ITEMS.some((item) => item.id === row.id) && row.active !== 0)
     .map((row) => ({
       id: row.id,
       name: row.name,
@@ -338,6 +370,7 @@ export const MASTER_TABLE_SQL = [
     code text,
     unit text not null default '개',
     purchase_kind text not null default 'supply',
+    active integer not null default 1,
     created_at text not null
   );`,
   `create table if not exists partners (

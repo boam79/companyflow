@@ -199,7 +199,7 @@ export function MasterDataPage() {
           )
         : nextTab === 'items'
           ? await sqlite.query<NamedRow>(
-              'select id, name, stock_managed, asset_managed, min_stock, code, unit, purchase_kind from items order by name',
+              'select id, name, stock_managed, asset_managed, min_stock, code, unit, purchase_kind from items where coalesce(active, 1) = 1 order by name',
             )
           : await sqlite.query<NamedRow>(`select id, name from ${nextTab} order by name`)
     setRows(named)

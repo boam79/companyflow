@@ -10,6 +10,7 @@ import {
   assertUniqueItemCode,
   purchaseKindLabel,
   assertPurchaseKind,
+  duplicateItemRepairs,
 } from './commands'
 
 describe('기준정보 SQL 명령', () => {
@@ -85,6 +86,19 @@ describe('기준정보 SQL 명령', () => {
     expect(purchaseKindLabel('material')).toBe('자재')
     expect(purchaseKindLabel('service')).toBe('서비스')
     expect(() => assertPurchaseKind('asset')).toThrow(/구매 구분/)
+  })
+
+  it('같은 이름 품목은 코드 있는 줄만 남긴다', () => {
+    expect(
+      duplicateItemRepairs([
+        { id: 'item-paper', name: '복사용지', code: 'PAPER', minStock: 0 },
+        { id: 'item-dup', name: '복사용지', code: null, minStock: 4 },
+        { id: 'item-note', name: '포스트잇', minStock: 0 },
+      ]),
+    ).toEqual({
+      deactivateIds: ['item-dup'],
+      minStockUpdates: [{ id: 'item-paper', minStock: 4 }],
+    })
   })
 
   it('직원 화면의 기본 추가 필드는 employee 엔티티다', () => {

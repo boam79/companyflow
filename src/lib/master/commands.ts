@@ -77,6 +77,45 @@ export function assertUniqueItemCode(
   }
 }
 
+export type ItemCollapseRow = {
+  id: string
+  name: string
+  code?: string | null
+  minStock?: number | null
+  active?: number | null
+}
+
+export function duplicateItemRepairs(rows: ItemCollapseRow[]): {
+  deactivateIds: string[]
+  minStockUpdates: { id: string; minStock: number }[]
+} {
+  const groups = new Map<string, ItemCollapseRow[]>()
+  for (const row of rows) {
+    if (row.active === 0) continue
+    const key = normalizeHangulField(row.name)
+    if (!key) continue
+    const list = groups.get(key) ?? []
+    list.push(row)
+    groups.set(key, list)
+  }
+  const deactivateIds: string[] = []
+  const minStockUpdates: { id: string; minStock: number }[] = []
+  for (const list of groups.values()) {
+    if (list.length < 2) continue
+    const keeper =
+      list.find((row) => row.id === 'item-paper') ??
+      list.find((row) => Boolean(normalizeHangulField(row.code ?? ''))) ??
+      [...list].sort((a, b) => a.id.localeCompare(b.id))[0]
+    const extras = list.filter((row) => row.id !== keeper.id)
+    deactivateIds.push(...extras.map((row) => row.id))
+    const minStock = Math.max(keeper.minStock ?? 0, ...extras.map((row) => row.minStock ?? 0))
+    if (minStock !== (keeper.minStock ?? 0)) {
+      minStockUpdates.push({ id: keeper.id, minStock })
+    }
+  }
+  return { deactivateIds, minStockUpdates }
+}
+
 export function masterInsertStatement(
   table: string,
   row: {
