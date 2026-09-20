@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { loadContracts } from '../lib/contracts/book'
-import { waitingReceipts, watchContracts, type ContractWatch, type ReceiptWait } from '../lib/home/work'
+import { contractRecent, peopleRecent, recentWork, stockRecent, waitingReceipts, watchContracts, type ContractWatch, type ReceiptWait, type RecentWork } from '../lib/home/work'
 import { writeDefaultMaster, loadItems } from '../lib/master/book'
 import { groupRoster, loadEmployees, rosterCaption } from '../lib/people/employment'
+import { loadHireEvents } from '../lib/people/hireWorkflow'
 import { loadOnboardingChecks, migrateProcessAssetsToChecks, onboardingView } from '../lib/people/onboarding'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { buildAssetOrderList, buildSupplyOrderList } from '../lib/stock/inventoryView'
@@ -36,6 +37,7 @@ export function HomePage() {
   const [receipts, setReceipts] = useState<ReceiptWait[]>([])
   const [contracts, setContracts] = useState<ContractWatch[]>([])
   const [joining, setJoining] = useState<JoiningRow[]>([])
+  const [recent, setRecent] = useState<RecentWork[]>([])
   const [ready, setReady] = useState(false)
   const [openFailed, setOpenFailed] = useState(false)
   const [message, setMessage] = useState('')
@@ -116,12 +118,13 @@ export function HomePage() {
   }
 
   async function reload() {
-    const [items, stock, contractRows, employees, checks] = await Promise.all([
+    const [items, stock, contractRows, employees, checks, events] = await Promise.all([
       loadItems(sqlite),
       loadStockState(sqlite),
       loadContracts(sqlite),
       loadEmployees(sqlite),
       loadOnboardingChecks(sqlite),
+      loadHireEvents(sqlite),
     ])
     const orders = [...buildSupplyOrderList(items, stock), ...buildAssetOrderList(items, stock)]
     setReceipts(waitingReceipts(orders))
@@ -133,6 +136,13 @@ export function HomePage() {
         caption: rosterCaption(row, onboardingView(row.id, checks)),
       })),
     )
+    setRecent(
+      recentWork([
+        ...stockRecent(stock.ledger, items),
+        ...peopleRecent(events, employees),
+        ...contractRecent(contractRows),
+      ]),
+    )
   }
 
   return (
@@ -142,7 +152,7 @@ export function HomePage() {
           <p className="text-sm text-muted">지정 PC 로컬 원본 · 한글 업무 화면</p>
           <h1 className="mt-1 text-2xl font-semibold">홈</h1>
           <p className="mt-2 max-w-2xl text-sm text-muted">
-            수령 잔량, 60일 안 계약, 입사 중인 직원을 먼저 봅니다. 결재와 통계는 두지 않습니다.
+            수령 잔량, 60일 안 계약, 입사 중, 최근 작업을 먼저 봅니다. 결재와 통계는 두지 않습니다.
           </p>
         </div>
         {user ? (
@@ -213,6 +223,43 @@ export function HomePage() {
           </Link>
         </p>
       )}
+
+      {user ? (
+        <section className="rounded-lg border border-line bg-card p-4">
+          <h2 className="text-sm font-semibold">
+            최근 작업 <span className="font-medium text-muted">{recent.length}</span>
+          </h2>
+          {recent.length ? (
+            <table className="mt-3 w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-line text-muted">
+                  <th className="py-1.5 pr-3 font-medium">시각</th>
+                  <th className="py-1.5 pr-3 font-medium">내용</th>
+                  <th className="py-1.5 font-medium">화면</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recent.map((row) => (
+                  <tr key={row.id} className="border-b border-line/70 last:border-b-0">
+                    <td className="whitespace-nowrap py-1.5 pr-3 text-muted">{row.at.slice(0, 10)}</td>
+                    <td className="py-1.5 pr-3">
+                      <span className="font-medium">{row.label}</span>
+                      <span className="text-muted"> · {row.detail}</span>
+                    </td>
+                    <td className="whitespace-nowrap py-1.5">
+                      <Link className="text-accent underline" to={row.to}>
+                        열기
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="mt-3 text-sm text-muted">최근 수령·입퇴사·계약 초안이 없습니다.</p>
+          )}
+        </section>
+      ) : null}
 
       <section className="grid gap-4 md:grid-cols-3">
         <StatusCard

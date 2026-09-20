@@ -28,6 +28,7 @@ export type ContractDraft = {
   hasOriginal: boolean
   status: ContractStatus
   ocrStatus: 'off' | 'reviewed'
+  createdAt?: string
 }
 
 export type DraftContractInput = {
@@ -252,11 +253,12 @@ export async function loadContracts(
     has_original?: number | null
     status: ContractStatus
     ocr_status: 'off' | 'reviewed'
+    created_at?: string | null
   }>(
     `select id, title, contract_no, counterparty, signed_at, start_at, end_at, amount, currency,
       owner_name, file_name, file_hash, file_mime,
       case when file_base64 is not null and length(file_base64) > 0 then 1 else 0 end as has_original,
-      status, ocr_status
+      status, ocr_status, created_at
       from contracts order by created_at desc, title`,
   )
   return rows.map((row) => ({
@@ -276,6 +278,7 @@ export async function loadContracts(
     hasOriginal: row.has_original === 1,
     status: row.status,
     ocrStatus: row.ocr_status,
+    createdAt: row.created_at ?? undefined,
   }))
 }
 

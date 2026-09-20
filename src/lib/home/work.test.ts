@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { contractWatchLabel, waitingReceipts, watchContracts } from './work'
+import { contractRecent, contractWatchLabel, peopleRecent, recentWork, stockRecent, waitingReceipts, watchContracts } from './work'
 
 describe('홈 업무', () => {
   it('확정 발주 잔량만 수령 대기다', () => {
@@ -48,6 +48,68 @@ describe('홈 업무', () => {
     ).toEqual([
       ['복합기', '만료'],
       ['청소', '만료 예정'],
+    ])
+  })
+
+  it('최근 작업은 지급 체크를 빼고 시각 늦은 순 8건이다', () => {
+    const rows = recentWork([
+      ...stockRecent(
+        [
+          {
+            id: 'led-old',
+            createdAt: '2026-09-01T09:00:00.000Z',
+            txnType: 'receipt',
+            itemId: 'item-paper',
+            qtyDelta: 6,
+          },
+          {
+            id: 'led-new',
+            createdAt: '2026-09-20T11:00:00.000Z',
+            txnType: 'issue',
+            itemId: 'item-paper',
+            qtyDelta: -4,
+          },
+          {
+            id: 'led-asset',
+            createdAt: '2026-09-20T12:00:00.000Z',
+            txnType: 'convert_out',
+            itemId: 'item-desk',
+            qtyDelta: -2,
+          },
+        ],
+        [{ id: 'item-paper', name: '복사용지' }],
+      ),
+      ...peopleRecent(
+        [
+          { employeeId: 'emp-kim', kind: 'hire', occurredAt: '2026-09-16' },
+          { employeeId: 'emp-kim', kind: 'hire_badge', occurredAt: '2026-09-17' },
+          { employeeId: 'emp-oh', kind: 'leave', occurredAt: '2026-09-19' },
+        ],
+        [
+          { id: 'emp-kim', name: '김담당' },
+          { id: 'emp-oh', name: '오세훈' },
+        ],
+      ),
+      ...contractRecent([
+        { id: 'con-1', title: '본사 3층 임대', createdAt: '2026-09-18T08:00:00.000Z' },
+      ]),
+      ...Array.from({ length: 8 }, (_, index) => ({
+        id: `pad-${index}`,
+        at: `2026-08-0${index + 1}T00:00:00.000Z`,
+        label: '직접 입고',
+        detail: `볼펜 ${index}`,
+        to: '/stock' as const,
+      })),
+    ])
+    expect(rows.map((row) => [row.label, row.detail, row.to])).toEqual([
+      ['반출', '복사용지 4', '/stock'],
+      ['퇴사', '오세훈', '/people'],
+      ['계약 초안', '본사 3층 임대', '/contracts'],
+      ['입사', '김담당', '/people'],
+      ['수령 입고', '복사용지 6', '/stock'],
+      ['직접 입고', '볼펜 7', '/stock'],
+      ['직접 입고', '볼펜 6', '/stock'],
+      ['직접 입고', '볼펜 5', '/stock'],
     ])
   })
 })
