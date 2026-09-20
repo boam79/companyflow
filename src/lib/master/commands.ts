@@ -1,4 +1,5 @@
 import { normalizeHangulField } from '../asset/life'
+import { assertContractFile, bytesToBase64 } from '../contracts/book'
 
 export const MASTER_TABLES = [
   'departments',
@@ -77,6 +78,18 @@ export function assertUniqueItemCode(
   }
 }
 
+export function assertUniquePartnerName(
+  name: string,
+  partners: { id: string; name: string }[],
+  partnerId?: string,
+) {
+  const normalized = normalizeHangulField(name)
+  if (!normalized) throw new Error('거래처 이름을 입력하세요.')
+  if (partners.some((row) => row.id !== partnerId && normalizeHangulField(row.name) === normalized)) {
+    throw new Error('같은 이름의 거래처가 있습니다. 목록에서 고르고 거래처 저장하세요.')
+  }
+}
+
 export type ItemCollapseRow = {
   id: string
   name: string
@@ -127,6 +140,11 @@ export function masterInsertStatement(
     code?: string
     unit?: string
     purchaseKind?: string
+    phone?: string
+    memo?: string
+    fileName?: string
+    fileMime?: string
+    fileBase64?: string
   },
 ): { sql: string; params: unknown[] } {
   assertMasterTable(table)
@@ -148,6 +166,22 @@ export function masterInsertStatement(
     return {
       sql: 'insert into items(id, name, code, unit, min_stock, purchase_kind, created_at) values(?, ?, ?, ?, ?, ?, ?)',
       params: [row.id, catalog.name, catalog.code, catalog.unit, catalog.minStock, catalog.purchaseKind, row.createdAt],
+    }
+  }
+  if (table === 'partners') {
+    const profile = partnerProfileValues(row)
+    return {
+      sql: 'insert into partners(id, name, phone, memo, file_name, file_mime, file_base64, created_at) values(?, ?, ?, ?, ?, ?, ?, ?)',
+      params: [
+        row.id,
+        profile.name,
+        profile.phone,
+        profile.memo,
+        row.fileName?.trim() || null,
+        row.fileMime || null,
+        row.fileBase64 || null,
+        row.createdAt,
+      ],
     }
   }
   return {
@@ -200,4 +234,43 @@ function itemCatalogValues(row: {
   assertPurchaseKind(purchaseKind)
   const code = normalizeHangulField(row.code)
   return { name, code: code || null, unit, minStock: row.minStock, purchaseKind }
+}
+
+export function partnerAttachment(file: { name: string; mime?: string; bytes: Uint8Array }) {
+  const fileMime = assertContractFile(file.bytes.byteLength, file.mime, file.name)
+  return {
+    fileName: file.name.trim() || '거래처첨부',
+    fileMime,
+    fileBase64: bytesToBase64(file.bytes),
+  }
+}
+
+export function partnerUpdateStatement(row: {
+  id: string
+  name: string
+  phone?: string
+  memo?: string
+  fileName?: string | null
+  fileMime?: string | null
+  fileBase64?: string | null
+}) {
+  const profile = partnerProfileValues(row)
+  if (row.fileBase64) {
+    return {
+      sql: 'update partners set name = ?, phone = ?, memo = ?, file_name = ?, file_mime = ?, file_base64 = ? where id = ?',
+      params: [profile.name, profile.phone, profile.memo, row.fileName, row.fileMime, row.fileBase64, row.id],
+    }
+  }
+  return {
+    sql: 'update partners set name = ?, phone = ?, memo = ? where id = ?',
+    params: [profile.name, profile.phone, profile.memo, row.id],
+  }
+}
+
+function partnerProfileValues(row: { name: string; phone?: string; memo?: string }) {
+  const name = normalizeHangulField(row.name)
+  if (!name) throw new Error('거래처 이름을 입력하세요.')
+  const phone = normalizeHangulField(row.phone ?? '')
+  const memo = normalizeHangulField(row.memo ?? '')
+  return { name, phone: phone || null, memo: memo || null }
 }

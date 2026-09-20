@@ -51,6 +51,7 @@ describe('회사 샘플 데이터', () => {
     expect(names).toEqual(
       expect.arrayContaining(['박재민', '이수진', '오세훈', '모니터', '복합기', '본사 2층 개발석', 'CON-2024-001']),
     )
+    expect(names).toEqual(expect.arrayContaining(['한국임대', '02-3456-1000', '1588-5114']))
   })
 
   it('같은 이름 정리 때 sqlite query의 this를 잃지 않는다', async () => {

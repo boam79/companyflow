@@ -1,5 +1,6 @@
 import { ProcessedOperations, type ProcessResult } from '../idempotency'
 import type { AssetRecord } from '../asset/book'
+import { base64ToBytes } from '../contracts/book'
 import { duplicateItemRepairs } from './commands'
 
 export type MasterEntity = 'department' | 'employee' | 'item' | 'partner' | 'warehouse'
@@ -332,6 +333,24 @@ export async function loadItems(
     }))
 }
 
+export async function loadPartnerOriginal(
+  db: { query: <T>(sql: string, params?: unknown[]) => Promise<T[]> },
+  partnerId: string,
+) {
+  const rows = await db.query<{
+    file_name?: string | null
+    file_mime?: string | null
+    file_base64?: string | null
+  }>('select file_name, file_mime, file_base64 from partners where id = ?', [partnerId])
+  const row = rows[0]
+  if (!row?.file_base64 || !row.file_name) throw new Error('거래처 첨부가 없습니다.')
+  return {
+    fileName: row.file_name,
+    fileMime: row.file_mime || 'application/octet-stream',
+    bytes: base64ToBytes(row.file_base64),
+  }
+}
+
 export const MASTER_TABLE_SQL = [
   `create table if not exists departments (
     id text primary key,
@@ -381,6 +400,11 @@ export const MASTER_TABLE_SQL = [
   `create table if not exists partners (
     id text primary key,
     name text not null,
+    phone text,
+    memo text,
+    file_name text,
+    file_mime text,
+    file_base64 text,
     created_at text not null
   );`,
   `create table if not exists warehouses (

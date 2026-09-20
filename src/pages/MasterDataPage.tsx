@@ -1,20 +1,25 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
-import { writeDefaultMaster } from '../lib/master/book'
+import { writeDefaultMaster, loadPartnerOriginal } from '../lib/master/book'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
+import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
 import {
   assertMasterTable,
   assertUniqueItemCode,
   assertUniqueItemName,
+  assertUniquePartnerName,
   fieldEntityFromTable,
   itemCatalogUpdateStatement,
   masterInsertStatement,
+  partnerAttachment,
+  partnerUpdateStatement,
   PURCHASE_KINDS,
   purchaseKindLabel,
   type MasterFieldEntity,
   type MasterTable,
 } from '../lib/master/commands'
+import { toArrayBuffer } from '../lib/contracts/book'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
@@ -30,6 +35,10 @@ type NamedRow = {
   code?: string | null
   unit?: string | null
   purchase_kind?: string | null
+  phone?: string | null
+  memo?: string | null
+  file_name?: string | null
+  has_file?: number | null
 }
 type FieldRow = { entity: string; key: string; label: string }
 type TabId = MasterTable | 'fields'
@@ -122,6 +131,17 @@ export function MasterDataPage() {
   const [itemUnit, setItemUnit] = useState('개')
   const [purchaseKind, setPurchaseKind] = useState('supply')
   const [selectedItemId, setSelectedItemId] = useState('')
+  const [partnerPhone, setPartnerPhone] = useState('')
+  const [partnerMemo, setPartnerMemo] = useState('')
+  const [selectedPartnerId, setSelectedPartnerId] = useState('')
+  const [partnerFileName, setPartnerFileName] = useState('')
+  const [partnerHasFile, setPartnerHasFile] = useState(false)
+  const [pendingPartnerFile, setPendingPartnerFile] = useState<{
+    fileName: string
+    fileMime: string
+    fileBase64: string
+  } | null>(null)
+  const partnerFileInput = useRef<HTMLInputElement>(null)
   const [departmentId, setDepartmentId] = useState('')
   const [fieldEntity, setFieldEntity] = useState<MasterFieldEntity>('employee')
   const [fieldKey, setFieldKey] = useState('employee_no')
@@ -201,7 +221,13 @@ export function MasterDataPage() {
           ? await sqlite.query<NamedRow>(
               'select id, name, stock_managed, asset_managed, min_stock, code, unit, purchase_kind from items where coalesce(active, 1) = 1 order by name',
             )
-          : await sqlite.query<NamedRow>(`select id, name from ${nextTab} order by name`)
+          : nextTab === 'partners'
+            ? await sqlite.query<NamedRow>(
+                `select id, name, phone, memo, file_name,
+                  case when file_base64 is not null and length(file_base64) > 0 then 1 else 0 end as has_file
+                 from partners order by name`,
+              )
+            : await sqlite.query<NamedRow>(`select id, name from ${nextTab} order by name`)
     setRows(named)
     setListTab(nextTab)
   }
@@ -234,6 +260,9 @@ export function MasterDataPage() {
           assertUniqueItemName(name, rows)
           assertUniqueItemCode(itemCode, rows)
         }
+        if (tab === 'partners') {
+          assertUniquePartnerName(name, rows)
+        }
         const row = {
           id: crypto.randomUUID(),
           name: name.trim(),
@@ -243,6 +272,11 @@ export function MasterDataPage() {
           code: tab === 'items' ? itemCode : undefined,
           unit: tab === 'items' ? itemUnit : undefined,
           purchaseKind: tab === 'items' ? purchaseKind : undefined,
+          phone: tab === 'partners' ? partnerPhone : undefined,
+          memo: tab === 'partners' ? partnerMemo : undefined,
+          fileName: tab === 'partners' ? pendingPartnerFile?.fileName : undefined,
+          fileMime: tab === 'partners' ? pendingPartnerFile?.fileMime : undefined,
+          fileBase64: tab === 'partners' ? pendingPartnerFile?.fileBase64 : undefined,
         }
         const stmt = masterInsertStatement(tab, row)
         const result = await sqlite.runOnce(operationId, async () => {
@@ -257,6 +291,7 @@ export function MasterDataPage() {
       setItemUnit('개')
       setPurchaseKind('supply')
       setSelectedItemId('')
+      resetPartnerForm()
       await reload()
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
@@ -284,6 +319,74 @@ export function MasterDataPage() {
       })
       setNotice(`품목 저장 (${result.status})`)
       await reload()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  function resetPartnerForm() {
+    setPartnerPhone('')
+    setPartnerMemo('')
+    setSelectedPartnerId('')
+    setPartnerFileName('')
+    setPartnerHasFile(false)
+    setPendingPartnerFile(null)
+    if (partnerFileInput.current) partnerFileInput.current.value = ''
+  }
+
+  async function pickPartnerFile(file: File) {
+    setMessage('')
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      const attached = partnerAttachment({ name: file.name, mime: file.type, bytes })
+      setPendingPartnerFile(attached)
+      setPartnerFileName(attached.fileName)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+      if (partnerFileInput.current) partnerFileInput.current.value = ''
+    }
+  }
+
+  async function savePartner() {
+    if (!ready || !selectedPartnerId) return
+    setMessage('')
+    const operationId = crypto.randomUUID()
+    try {
+      assertUniquePartnerName(name, rows, selectedPartnerId)
+      const stmt = partnerUpdateStatement({
+        id: selectedPartnerId,
+        name,
+        phone: partnerPhone,
+        memo: partnerMemo,
+        fileName: pendingPartnerFile?.fileName,
+        fileMime: pendingPartnerFile?.fileMime,
+        fileBase64: pendingPartnerFile?.fileBase64,
+      })
+      const result = await sqlite.runOnce(operationId, async () => {
+        await sqlite.exec(stmt.sql, stmt.params)
+        return { partnerId: selectedPartnerId, name: stmt.params[0] }
+      })
+      setNotice(`거래처 저장 (${result.status})`)
+      if (pendingPartnerFile) setPartnerHasFile(true)
+      setPendingPartnerFile(null)
+      if (partnerFileInput.current) partnerFileInput.current.value = ''
+      await reload()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    }
+  }
+
+  async function downloadPartnerFile() {
+    if (!selectedPartnerId) return
+    setMessage('')
+    try {
+      const original = await loadPartnerOriginal(sqlite, selectedPartnerId)
+      const url = URL.createObjectURL(new Blob([toArrayBuffer(original.bytes)], { type: original.fileMime }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = original.fileName
+      link.click()
+      URL.revokeObjectURL(url)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     }
@@ -352,6 +455,22 @@ export function MasterDataPage() {
                 minStock: itemKindLabel(row) === '비품' ? String(row.min_stock ?? 0) : '',
               })),
           }
+        : tab === 'partners'
+          ? {
+              columns: [
+                { key: 'name', label: '이름' },
+                { key: 'phone', label: '연락처', muted: true },
+                { key: 'memo', label: '메모', muted: true },
+                { key: 'file', label: '첨부', muted: true },
+              ],
+              rows: rows.map((row) => ({
+                id: row.id,
+                name: row.name,
+                phone: row.phone?.trim() ?? '',
+                memo: row.memo?.trim() ?? '',
+                file: row.has_file === 1 ? row.file_name?.trim() || '있음' : '',
+              })),
+            }
         : tab === 'fields'
           ? {
               columns: [
@@ -425,6 +544,7 @@ export function MasterDataPage() {
               setItemCode('')
               setItemUnit('개')
               setPurchaseKind('supply')
+              resetPartnerForm()
               setTab(item.id)
             }}
           >
@@ -432,7 +552,7 @@ export function MasterDataPage() {
           </button>
         ))}
       </div>
-      <form className="mt-3 grid gap-2" onSubmit={onSubmit}>
+      <form className="mt-3 grid gap-2" onSubmit={onSubmit} onKeyDown={preventImeEnterSubmit}>
         {tab === 'items' ? (
           <>
             <label className="text-sm">
@@ -509,6 +629,85 @@ export function MasterDataPage() {
               </button>
             </div>
           </>
+        ) : tab === 'partners' ? (
+          <>
+            <label className="text-sm">
+              이름
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2 text-sm"
+                placeholder="거래처 이름"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </label>
+            <label className="text-sm">
+              연락처
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2 text-sm"
+                placeholder="02-1234-5678"
+                value={partnerPhone}
+                onChange={(e) => setPartnerPhone(e.target.value)}
+              />
+            </label>
+            <label className="text-sm">
+              메모
+              <textarea
+                className="mt-1 min-h-16 w-full rounded border border-line px-3 py-2 text-sm"
+                placeholder="공급사·계약 상대 메모"
+                value={partnerMemo}
+                onChange={(e) => setPartnerMemo(e.target.value)}
+              />
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                ref={partnerFileInput}
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                className="sr-only"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) void pickPartnerFile(file)
+                }}
+              />
+              <button
+                type="button"
+                disabled={!ready}
+                className="rounded border border-line px-3 py-2 text-sm font-semibold disabled:opacity-50"
+                onClick={() => partnerFileInput.current?.click()}
+              >
+                첨부
+              </button>
+              {partnerHasFile && !pendingPartnerFile ? (
+                <button
+                  type="button"
+                  disabled={!ready || !selectedPartnerId}
+                  className="rounded border border-line px-3 py-2 text-sm disabled:opacity-50"
+                  onClick={() => void downloadPartnerFile()}
+                >
+                  {partnerFileName || '첨부 받기'}
+                </button>
+              ) : (
+                <span className="text-xs text-muted">{partnerFileName || 'PDF·PNG·JPEG 8MB'}</span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="submit"
+                disabled={!ready}
+                className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                추가
+              </button>
+              <button
+                type="button"
+                disabled={!ready || !selectedPartnerId}
+                className="rounded border border-line px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                onClick={() => void savePartner()}
+              >
+                거래처 저장
+              </button>
+            </div>
+          </>
         ) : (
           <>
         {tab === 'fields' ? (
@@ -580,7 +779,7 @@ export function MasterDataPage() {
           <MasterTable
             columns={table.columns}
             rows={table.rows}
-            selectedId={tab === 'items' ? selectedItemId : undefined}
+            selectedId={tab === 'items' ? selectedItemId : tab === 'partners' ? selectedPartnerId : undefined}
             onRowClick={
               tab === 'items'
                 ? (id) => {
@@ -594,7 +793,21 @@ export function MasterDataPage() {
                     setMessage('')
                     setNotice('')
                   }
-                : undefined
+                : tab === 'partners'
+                  ? (id) => {
+                      const row = rows.find((item) => item.id === id)
+                      setSelectedPartnerId(id)
+                      setName(row?.name ?? '')
+                      setPartnerPhone(row?.phone ?? '')
+                      setPartnerMemo(row?.memo ?? '')
+                      setPartnerFileName(row?.file_name ?? '')
+                      setPartnerHasFile(row?.has_file === 1)
+                      setPendingPartnerFile(null)
+                      if (partnerFileInput.current) partnerFileInput.current.value = ''
+                      setMessage('')
+                      setNotice('')
+                    }
+                  : undefined
             }
           />
         </>

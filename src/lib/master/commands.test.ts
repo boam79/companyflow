@@ -6,8 +6,11 @@ import {
   masterInsertStatement,
   minStockUpdateStatement,
   itemCatalogUpdateStatement,
+  partnerUpdateStatement,
+  partnerAttachment,
   assertUniqueItemName,
   assertUniqueItemCode,
+  assertUniquePartnerName,
   purchaseKindLabel,
   assertPurchaseKind,
   duplicateItemRepairs,
@@ -26,6 +29,17 @@ describe('기준정보 SQL 명령', () => {
         expect(stmt.params).toEqual(['id-1', '총무', null, '2026-09-16T00:00:00.000Z'])
       } else if (table === 'items') {
         expect(stmt.params).toEqual(['id-1', '총무', null, '개', 0, 'supply', '2026-09-16T00:00:00.000Z'])
+      } else if (table === 'partners') {
+        expect(stmt.params).toEqual([
+          'id-1',
+          '총무',
+          null,
+          null,
+          null,
+          null,
+          null,
+          '2026-09-16T00:00:00.000Z',
+        ])
       } else {
         expect(stmt.params).toEqual(['id-1', '총무', '2026-09-16T00:00:00.000Z'])
       }
@@ -99,6 +113,66 @@ describe('기준정보 SQL 명령', () => {
       deactivateIds: ['item-dup'],
       minStockUpdates: [{ id: 'item-paper', minStock: 4 }],
     })
+  })
+
+  it('거래처는 이름·연락처·메모·첨부를 함께 둔다', () => {
+    expect(
+      masterInsertStatement('partners', {
+        id: 'partner-lease',
+        name: ' 한국임대 ',
+        createdAt: '2026-09-20T00:00:00.000Z',
+        phone: ' 02-3456-1000 ',
+        memo: ' 본사 3층 임대 ',
+        fileName: '명함.png',
+        fileMime: 'image/png',
+        fileBase64: 'abc',
+      }).params,
+    ).toEqual([
+      'partner-lease',
+      '한국임대',
+      '02-3456-1000',
+      '본사 3층 임대',
+      '명함.png',
+      'image/png',
+      'abc',
+      '2026-09-20T00:00:00.000Z',
+    ])
+    expect(
+      partnerUpdateStatement({
+        id: 'partner-lease',
+        name: '한국임대',
+        phone: '02-3456-1000',
+        memo: '본사 3층 임대',
+      }),
+    ).toEqual({
+      sql: 'update partners set name = ?, phone = ?, memo = ? where id = ?',
+      params: ['한국임대', '02-3456-1000', '본사 3층 임대', 'partner-lease'],
+    })
+    expect(
+      partnerUpdateStatement({
+        id: 'partner-lease',
+        name: '한국임대',
+        phone: '',
+        memo: '',
+        fileName: '명함.png',
+        fileMime: 'image/png',
+        fileBase64: 'abc',
+      }).params,
+    ).toEqual(['한국임대', null, null, '명함.png', 'image/png', 'abc', 'partner-lease'])
+    const rows = [{ id: 'partner-lease', name: '한국임대' }]
+    expect(() => assertUniquePartnerName(' 한국임대 ', rows)).toThrow(/같은 이름/)
+    expect(() => assertUniquePartnerName('한국임대', rows, 'partner-lease')).not.toThrow()
+    const png = partnerAttachment({
+      name: '명함.png',
+      mime: 'image/png',
+      bytes: new Uint8Array([1, 2, 3]),
+    })
+    expect(png.fileName).toBe('명함.png')
+    expect(png.fileMime).toBe('image/png')
+    expect(png.fileBase64.length).toBeGreaterThan(0)
+    expect(() =>
+      partnerAttachment({ name: '명함.txt', mime: 'text/plain', bytes: new Uint8Array([1]) }),
+    ).toThrow(/PDF·PNG·JPEG/)
   })
 
   it('직원 화면의 기본 추가 필드는 employee 엔티티다', () => {

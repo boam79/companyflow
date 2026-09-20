@@ -69,10 +69,10 @@ export const SAMPLE_EMPLOYEES = [
 ] as const
 
 export const SAMPLE_PARTNERS = [
-  { id: 'partner-lease', name: '한국임대' },
-  { id: 'partner-mfp', name: '사무기기코리아' },
-  { id: 'partner-kt', name: 'KT' },
-  { id: 'partner-samsung', name: '삼성화재' },
+  { id: 'partner-lease', name: '한국임대', phone: '02-3456-1000', memo: '본사 3층 임대' },
+  { id: 'partner-mfp', name: '사무기기코리아', phone: '02-3456-2000', memo: '복합기 유지보수' },
+  { id: 'partner-kt', name: 'KT', phone: '100', memo: '인터넷 전용회선' },
+  { id: 'partner-samsung', name: '삼성화재', phone: '1588-5114', memo: '영업배상 책임보험' },
 ] as const
 
 export const SAMPLE_CONTRACTS = [
@@ -257,6 +257,10 @@ export async function writeSampleCompanyData(db: {
       partner.name,
       now,
     ])
+    await db.exec(
+      `update partners set phone = ?, memo = ? where id = ? and (phone is null or phone = '')`,
+      [partner.phone, partner.memo, partner.id],
+    )
   }
   for (const employee of SAMPLE_EMPLOYEES) {
     await db.exec(
