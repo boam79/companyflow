@@ -62,7 +62,13 @@ export function AppShell() {
           </nav>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-[92rem] flex-1 px-5 py-4">
+      <main
+        className={
+          scanMode || location.pathname !== '/'
+            ? 'mx-auto w-full max-w-[92rem] flex-1 px-5 py-4'
+            : 'w-full flex-1'
+        }
+      >
         <Outlet />
       </main>
     </div>
