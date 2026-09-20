@@ -1,7 +1,7 @@
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist'
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { createWorker } from 'tesseract.js'
-import { mimeFromName, toArrayBuffer } from './book'
+import { mimeFromName, sniffContractFileMime, toArrayBuffer } from './book'
 import { describeOcrResult, type OcrExtractResult } from './ocr'
 import { parseContractText } from './parseFields'
 
@@ -94,15 +94,43 @@ async function tessWorkerInstance(onProgress?: (message: string) => void) {
   return tessWorker
 }
 
-async function rasterizeForOcr(bytes: Uint8Array, mime: string): Promise<Blob> {
-  const source = new Blob([toArrayBuffer(bytes)], { type: mime || 'image/png' })
-  if (typeof createImageBitmap === 'undefined' || typeof document === 'undefined') return source
-  let bitmap: ImageBitmap
-  try {
-    bitmap = await createImageBitmap(source)
-  } catch {
-    throw new Error('이 그림을 열 수 없습니다. PNG 또는 JPEG로 다시 저장해 보세요.')
+function imageBlob(bytes: Uint8Array, mime?: string) {
+  return new Blob([toArrayBuffer(bytes)], mime ? { type: mime } : undefined)
+}
+
+async function decodeToBitmap(bytes: Uint8Array, mime: string): Promise<ImageBitmap> {
+  if (typeof createImageBitmap === 'undefined') {
+    throw new Error('이 브라우저에서는 그림을 열 수 없습니다.')
   }
+  const types = [...new Set([mime, sniffContractFileMime(bytes), 'image/png', 'image/jpeg', 'image/webp', ''])]
+  let lastError: unknown
+  for (const type of types) {
+    try {
+      return await createImageBitmap(imageBlob(bytes, type || undefined))
+    } catch (error) {
+      lastError = error
+    }
+  }
+  if (typeof document === 'undefined' || typeof URL === 'undefined') {
+    throw lastError instanceof Error ? lastError : new Error('이 그림을 열 수 없습니다. PNG 또는 JPEG로 다시 저장해 보세요.')
+  }
+  const url = URL.createObjectURL(imageBlob(bytes, mime || sniffContractFileMime(bytes)))
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image()
+      el.onload = () => resolve(el)
+      el.onerror = () => reject(new Error('이 그림을 열 수 없습니다. PNG 또는 JPEG로 다시 저장해 보세요.'))
+      el.src = url
+    })
+    return await createImageBitmap(image)
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
+async function rasterizeForOcr(bytes: Uint8Array, mime: string): Promise<Blob> {
+  if (typeof document === 'undefined') return imageBlob(bytes, mime || 'image/png')
+  const bitmap = await decodeToBitmap(bytes, mime)
   const longest = Math.max(bitmap.width, bitmap.height, 1)
   let scale = 1
   if (longest < 1200) scale = 1200 / longest
@@ -141,9 +169,12 @@ export async function extractLocalContract(input: {
   fileMime?: string
   onProgress?: (message: string) => void
 }): Promise<OcrExtractResult> {
-  const mime = (input.fileMime && input.fileMime !== 'application/octet-stream' ? input.fileMime : undefined)
-    || mimeFromName(input.fileName)
-    || ''
+  const sniffed = sniffContractFileMime(input.bytes)
+  const mime =
+    sniffed ||
+    (input.fileMime && input.fileMime !== 'application/octet-stream' ? input.fileMime : undefined) ||
+    mimeFromName(input.fileName) ||
+    ''
   try {
     let text = ''
     let source: 'pdf-text' | 'ocr' = 'ocr'
@@ -161,13 +192,19 @@ export async function extractLocalContract(input: {
       }
     } else {
       input.onProgress?.('이미지에서 글자를 읽는 중입니다.')
-      const original = new Blob([toArrayBuffer(input.bytes)], { type: mime || 'image/png' })
+      const original = imageBlob(input.bytes, mime === 'image/webp' ? 'image/webp' : mime || 'image/png')
+      let usedRaster = false
       try {
         text = await recognizeImages([original], input.onProgress)
       } catch (error) {
         const failed = error instanceof Error ? error.message : String(error)
         if (!/attempting to read image|read image/i.test(failed)) throw error
         input.onProgress?.('그림을 바꿔서 다시 읽는 중입니다.')
+        text = await recognizeImages([await rasterizeForOcr(input.bytes, mime || 'image/png')], input.onProgress)
+        usedRaster = true
+      }
+      if (!text.trim() && !usedRaster) {
+        input.onProgress?.('그림을 키워서 다시 읽는 중입니다.')
         text = await recognizeImages([await rasterizeForOcr(input.bytes, mime || 'image/png')], input.onProgress)
       }
       source = 'ocr'

@@ -40,7 +40,7 @@ export function describeOcrResult(input: {
     return `OCR을 끝내지 못했습니다. 직접 입력하세요. (${friendly})`
   }
   if (!input.text.trim()) {
-    return '글자를 찾지 못했습니다. 위 칸을 직접 입력하세요. 원본은 이 PC에 남습니다.'
+    return '이 그림에서 글자를 찾지 못했습니다. 계약 문구가 보이는 PDF나 스캔을 올리거나, 위 칸을 직접 입력하세요.'
   }
   if (!input.candidateCount) {
     return '글자는 읽었지만 칸에 넣을 값을 못 찾았습니다. 아래를 보고 직접 입력하세요.'

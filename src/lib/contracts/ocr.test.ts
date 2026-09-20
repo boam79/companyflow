@@ -3,7 +3,7 @@ import { describeOcrResult } from './ocr'
 
 describe('OCR 안내 문구', () => {
   it('글자가 없으면 폼에서 직접 넣으라고 한다', () => {
-    expect(describeOcrResult({ text: '', candidateCount: 0 })).toMatch(/글자를 찾지 못했습니다/)
+    expect(describeOcrResult({ text: '', candidateCount: 0 })).toMatch(/계약 문구가 보이는/)
   })
 
   it('그림을 못 열면 영어 오류 대신 다시 저장하라고 한다', () => {

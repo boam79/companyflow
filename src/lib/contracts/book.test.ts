@@ -8,6 +8,7 @@ import {
   contractLife,
   contractPeriod,
   filterContracts,
+  sniffContractFileMime,
 } from './book'
 import { DISABLED_OCR, assertOcrCannotConfirm } from './ocr'
 
@@ -42,6 +43,13 @@ describe('계약 초안', () => {
     expect(() => assertContractFile(12, 'text/plain')).toThrow(/PDF/)
     expect(assertContractFile(12, 'application/pdf')).toBe('application/pdf')
     expect(assertContractFile(12, 'image/png', 'scan.PNG')).toBe('image/png')
+  })
+
+  it('파일 이름과 달라도 앞 바이트로 PDF·PNG·JPEG를 알아본다', () => {
+    expect(sniffContractFileMime(new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a]))).toBe('image/png')
+    expect(sniffContractFileMime(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBe('image/jpeg')
+    expect(sniffContractFileMime(new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]))).toBe('application/pdf')
+    expect(sniffContractFileMime(new Uint8Array([0x00, 0x01, 0x02]))).toBeUndefined()
   })
 
   it('종료일이 시작일보다 빠르면 막힌다', () => {
