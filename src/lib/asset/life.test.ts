@@ -5,6 +5,8 @@ import {
   assetLifeLabel,
   executeAssetLife,
   loadAssetEvents,
+  normalizeHangulField,
+  readAssetLifeForm,
 } from './life'
 
 const DESK = assetsFromConvert('op-desk', 'item-desk', 'wh-main', 1, 't').map((row) => ({
@@ -33,6 +35,25 @@ describe('자산 이관·수리·폐기', () => {
       employeeId: undefined,
     })
     expect(assetLifeLabel('transfer')).toBe('이관')
+  })
+
+  it('풀어 쓴 한글은 한 글자로 모아 저장한다', () => {
+    expect(normalizeHangulField('총무'.normalize('NFD'))).toBe('총무')
+    expect(normalizeHangulField('  본사   3층  ')).toBe('본사 3층')
+    const data = new FormData()
+    data.set('kind', 'transfer')
+    data.set('happenedAt', '2026-09-20')
+    data.set('locationText', '본사 2층 개발석'.normalize('NFD'))
+    data.set('departmentName', '총무'.normalize('NFD'))
+    data.set('ownerName', '김담당')
+    data.set('reason', '자리 이동')
+    expect(readAssetLifeForm(data)).toMatchObject({
+      kind: 'transfer',
+      locationText: '본사 2층 개발석',
+      departmentName: '총무',
+      ownerName: '김담당',
+      reason: '자리 이동',
+    })
   })
 
   it('수리는 위치는 두고 이력만 남긴다', () => {

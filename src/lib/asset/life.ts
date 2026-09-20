@@ -49,12 +49,29 @@ export function assetLifeLabel(kind: AssetLifeKind) {
   return LIFE_LABELS[kind]
 }
 
+export function normalizeHangulField(raw: string) {
+  return raw.normalize('NFC').replace(/\s+/g, ' ').trim()
+}
+
+export function readAssetLifeForm(data: FormData): Omit<AssetLifeInput, 'operationId' | 'assetId'> {
+  const kind = String(data.get('kind') || 'transfer') as AssetLifeKind
+  if (!(kind in LIFE_LABELS)) throw new Error('구분이 올바르지 않습니다.')
+  return {
+    kind,
+    happenedAt: String(data.get('happenedAt') || '').trim(),
+    locationText: normalizeHangulField(String(data.get('locationText') ?? '')),
+    departmentName: normalizeHangulField(String(data.get('departmentName') ?? '')),
+    ownerName: normalizeHangulField(String(data.get('ownerName') ?? '')),
+    reason: normalizeHangulField(String(data.get('reason') ?? '')),
+  }
+}
+
 export function applyAssetLife(assets: AssetRecord[], command: Omit<AssetLifeInput, 'operationId'>): AssetRecord[] {
   const asset = assets.find((row) => row.id === command.assetId)
   if (!asset) throw new Error('자산을 찾을 수 없습니다.')
   if (asset.status === 'disposed') throw new Error('폐기된 자산은 이관·수리할 수 없습니다.')
   if (!command.happenedAt.trim()) throw new Error('발생일이 필요합니다.')
-  if (command.kind === 'transfer' && !command.locationText?.trim()) {
+  if (command.kind === 'transfer' && !normalizeHangulField(command.locationText ?? '')) {
     throw new Error('이관할 위치가 필요합니다.')
   }
   return assets.map((row) => {
@@ -62,9 +79,9 @@ export function applyAssetLife(assets: AssetRecord[], command: Omit<AssetLifeInp
     if (command.kind === 'transfer') {
       return {
         ...row,
-        locationText: command.locationText?.trim(),
-        departmentName: command.departmentName?.trim() || undefined,
-        ownerName: command.ownerName?.trim() || undefined,
+        locationText: normalizeHangulField(command.locationText ?? ''),
+        departmentName: normalizeHangulField(command.departmentName ?? '') || undefined,
+        ownerName: normalizeHangulField(command.ownerName ?? '') || undefined,
         employeeId: undefined,
         status: 'in_storage',
       }

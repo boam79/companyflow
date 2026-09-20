@@ -6,6 +6,7 @@ import {
   assetLifeLabel,
   executeAssetLife,
   loadAssetEvents,
+  readAssetLifeForm,
   type AssetLifeEvent,
   type AssetLifeKind,
 } from '../lib/asset/life'
@@ -27,14 +28,10 @@ function todayStamp() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date())
 }
 
-function emptyLifeForm(asset?: AssetRecord) {
+function emptyLifeForm() {
   return {
     kind: 'transfer' as AssetLifeKind,
     happenedAt: todayStamp(),
-    reason: '',
-    locationText: asset?.locationText ?? '',
-    departmentName: asset?.departmentName ?? '',
-    ownerName: asset?.ownerName ?? '',
   }
 }
 
@@ -64,6 +61,7 @@ export function AssetsPage() {
   const [selectedId, setSelectedId] = useState('')
   const [events, setEvents] = useState<AssetLifeEvent[]>([])
   const [lifeForm, setLifeForm] = useState(emptyLifeForm)
+  const [formTick, setFormTick] = useState(0)
   const [notice, setNotice] = useState('')
   const [message, setMessage] = useState('')
   const [ready, setReady] = useState(false)
@@ -126,7 +124,8 @@ export function AssetsPage() {
           )?.id ?? '')
       setSelectedId(nextSelected)
       if (nextSelected) {
-        setLifeForm(emptyLifeForm(assetRows.find((row) => row.id === nextSelected)))
+        setLifeForm(emptyLifeForm())
+        setFormTick((tick) => tick + 1)
         setEvents(await loadAssetEvents(sqlite, nextSelected))
       } else {
         setEvents([])
@@ -200,31 +199,27 @@ export function AssetsPage() {
     }
   }
 
-  async function recordLife() {
+  async function recordLife(data: FormData) {
     if (!ready || !selectedId) return
     setBusy(true)
     setMessage('')
     setNotice('')
     try {
+      const fields = readAssetLifeForm(data)
       const result = await executeAssetLife(sqlite, {
         operationId: crypto.randomUUID(),
         assetId: selectedId,
-        kind: lifeForm.kind,
-        happenedAt: lifeForm.happenedAt,
-        reason: lifeForm.reason,
-        locationText: lifeForm.locationText,
-        departmentName: lifeForm.departmentName,
-        ownerName: lifeForm.ownerName,
+        ...fields,
       })
       const assetRows = await loadAssets(sqlite)
       setAssets(assetRows)
       setEvents(await loadAssetEvents(sqlite, selectedId))
-      const selected = assetRows.find((row) => row.id === selectedId)
-      setLifeForm(emptyLifeForm(selected))
+      setLifeForm({ kind: fields.kind, happenedAt: todayStamp() })
+      setFormTick((tick) => tick + 1)
       setNotice(
         result.status === 'duplicate'
           ? '같은 이력은 한 번만 반영됩니다.'
-          : `${assetLifeLabel(lifeForm.kind)} 이력을 남겼습니다. 직원에게 배정하지 않았습니다.`,
+          : `${assetLifeLabel(fields.kind)} 이력을 남겼습니다. 직원에게 배정하지 않았습니다.`,
       )
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
@@ -432,7 +427,8 @@ export function AssetsPage() {
                       }`}
                       onClick={() => {
                         setSelectedId(asset.id)
-                        setLifeForm(emptyLifeForm(asset))
+                        setLifeForm(emptyLifeForm())
+                        setFormTick((tick) => tick + 1)
                         setMessage('')
                         void loadAssetEvents(sqlite, asset.id).then(setEvents)
                       }}
@@ -472,15 +468,17 @@ export function AssetsPage() {
             직원에게 배정하지 않습니다. 자리를 옮기면 이관, 고치면 수리, 더 이상 안 쓰면 폐기를 남깁니다.
           </p>
           <form
+            key={`${selected.id}:${formTick}`}
             className="mt-4 grid gap-3 sm:grid-cols-2"
             onSubmit={(event) => {
               event.preventDefault()
-              void recordLife()
+              void recordLife(new FormData(event.currentTarget))
             }}
           >
             <label className="text-sm">
               구분
               <select
+                name="kind"
                 className="mt-1 w-full rounded border border-line px-3 py-2"
                 value={lifeForm.kind}
                 onChange={(e) => setLifeForm((prev) => ({ ...prev, kind: e.target.value as AssetLifeKind }))}
@@ -494,6 +492,7 @@ export function AssetsPage() {
               발생일
               <input
                 type="date"
+                name="happenedAt"
                 required
                 className="mt-1 w-full rounded border border-line px-3 py-2"
                 value={lifeForm.happenedAt}
@@ -505,26 +504,29 @@ export function AssetsPage() {
                 <label className="text-sm">
                   위치
                   <input
+                    name="locationText"
                     required
+                    autoComplete="off"
                     className="mt-1 w-full rounded border border-line px-3 py-2"
-                    value={lifeForm.locationText}
-                    onChange={(e) => setLifeForm((prev) => ({ ...prev, locationText: e.target.value }))}
+                    defaultValue={selected.locationText ?? ''}
                   />
                 </label>
                 <label className="text-sm">
                   부서
                   <input
+                    name="departmentName"
+                    autoComplete="off"
                     className="mt-1 w-full rounded border border-line px-3 py-2"
-                    value={lifeForm.departmentName}
-                    onChange={(e) => setLifeForm((prev) => ({ ...prev, departmentName: e.target.value }))}
+                    defaultValue={selected.departmentName ?? ''}
                   />
                 </label>
                 <label className="text-sm sm:col-span-2">
                   담당
                   <input
+                    name="ownerName"
+                    autoComplete="off"
                     className="mt-1 w-full rounded border border-line px-3 py-2"
-                    value={lifeForm.ownerName}
-                    onChange={(e) => setLifeForm((prev) => ({ ...prev, ownerName: e.target.value }))}
+                    defaultValue={selected.ownerName ?? ''}
                   />
                 </label>
               </>
@@ -532,9 +534,10 @@ export function AssetsPage() {
             <label className="text-sm sm:col-span-2">
               사유
               <input
+                name="reason"
+                autoComplete="off"
                 className="mt-1 w-full rounded border border-line px-3 py-2"
-                value={lifeForm.reason}
-                onChange={(e) => setLifeForm((prev) => ({ ...prev, reason: e.target.value }))}
+                defaultValue=""
               />
             </label>
             <div className="sm:col-span-2">
