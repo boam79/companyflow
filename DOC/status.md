@@ -7,7 +7,7 @@
 
 ## 지금 하는 일
 
-지정 Chrome PUR-03 첨부·통화 확인됨. PUR-04 한 발주서 여러 품목 줄. 결재·통계는 넣지 않는다.
+지정 Chrome PUR-04 다품목 확인됨(ord-paper 복사용지+책상). 자산 수령 뒤 반출 품목을 비품으로 되돌린다. 결재·통계는 넣지 않는다.
 
 ## 보드
 
@@ -46,6 +46,7 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 - Supabase 활성: `companyflow`, `boardroom`. 정지: `boam79_patient_data`, `qr-asset-manager`, `policyfund-ai-v2`.
 - `confirm_company_device` RPC 추가. 초기 설정 성공 후 원본 장치를 confirmed 로 올린다.
 
+- 2026-09-20: PUR-04 지정 Chrome 확인(같은 발주번호 복사용지·책상). 자산 수령 뒤 반출은 비품으로.
 - 2026-09-20: PUR-04 한 발주서 여러 품목 줄(비품·자산 함께). PUR-03 첨부·통화는 지정 Chrome 확인.
 - 2026-09-20: PUR-03 발주 통화(원 기본). 첨부는 직전 배포 확인 전.
 - 2026-09-20: PUR-03 발주일. 지정 Chrome 2026-09-20 확인.
@@ -98,7 +99,7 @@ PRD 11.1·기능 ID·AC와 코드를 맞춰 본 결과다. T7은 Planner 완료�
 ### 이전 단계에 얇게 남은 것 (T7 완료 선언과는 별개)
 
 - PUR-01·02 구매요청·결재 없음
-- PUR-03 발주 공급사·납기·발주일·첨부·통화는 지정 Chrome 확인. 다품목은 이번 배포. 검수·취소·발주서 Template는 아직.
+- PUR-03 발주 공급사·납기·발주일·첨부·통화는 지정 Chrome 확인. PUR-04 다품목은 지정 Chrome 확인. 검수·취소·발주서 Template는 아직.
 - INV-01·02 검수 통과분 배분 없음. 수령은 전량 창고 입고
 - INV-11 직접 입고 사후 구매 연결 없음
 - MST-02 구매 구분 회사 추가·이름 변경은 지정 Chrome 사무용품 확인.

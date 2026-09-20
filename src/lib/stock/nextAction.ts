@@ -1,4 +1,4 @@
-import { isCompanyAssetItem, type ItemRecord } from '../master/book'
+import { isCompanyAssetItem, isSupplyItem, type ItemRecord } from '../master/book'
 import {
   applyStockCommand,
   orderRemaining,
@@ -74,12 +74,29 @@ export function suggestNextStockForm(
     return {
       action: 'post_return',
       qty: '1',
+      itemId: openOut.itemId,
       sourceOperationId: openOut.operationId,
       hint: '반출에 이어 반납 1을 확정하면 입고로 돌아옵니다.',
     }
   }
 
   return null
+}
+
+export function stockActionItemId(
+  action: StockCommand['type'],
+  currentItemId: string | undefined,
+  items: ItemRecord[],
+  suggestedItemId?: string,
+) {
+  const candidate = suggestedItemId ?? currentItemId
+  if (action === 'post_issue' || action === 'post_outbound') {
+    const item = items.find((row) => row.id === candidate)
+    if (!isSupplyItem(item)) {
+      return items.find(isSupplyItem)?.id ?? currentItemId
+    }
+  }
+  return candidate
 }
 
 export type SuggestionContext = {

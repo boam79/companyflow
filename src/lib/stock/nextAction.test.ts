@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { applyStockCommand, companyOnHand, createStockState, onHand, orderRemaining } from './engine'
-import { applySuggestionChain, objectMarker, suggestNextStockForm } from './nextAction'
+import { applySuggestionChain, objectMarker, stockActionItemId, suggestNextStockForm } from './nextAction'
+import { COMPANY_ASSET_ITEMS, PAPER_ITEM } from '../master/book'
 
 const ITEM = 'item-paper'
 const MAIN = 'wh-main'
@@ -100,6 +101,7 @@ describe('다음 재고 거래', () => {
     expect(suggestNextStockForm(state, 'ord-paper')).toEqual({
       action: 'post_return',
       qty: '1',
+      itemId: ITEM,
       sourceOperationId: 'op-issue-4',
       hint: '반출에 이어 반납 1을 확정하면 입고로 돌아옵니다.',
     })
@@ -193,5 +195,15 @@ describe('다음 재고 거래', () => {
     expect(companyOnHand(state, ITEM)).toBe(7)
     expect(onHand(state, ITEM, MAIN)).toBe(7)
     expect(suggestNextStockForm(state, 'ord-paper')).toBeNull()
+  })
+})
+
+describe('반출 품목', () => {
+  it('반출·출고는 책상 대신 비품을 고른다', () => {
+    const items = [PAPER_ITEM, ...COMPANY_ASSET_ITEMS]
+    expect(stockActionItemId('post_issue', 'item-desk', items)).toBe('item-paper')
+    expect(stockActionItemId('post_outbound', 'item-desk', items)).toBe('item-paper')
+    expect(stockActionItemId('post_receipt', 'item-desk', items)).toBe('item-desk')
+    expect(stockActionItemId('post_issue', 'item-paper', items)).toBe('item-paper')
   })
 })

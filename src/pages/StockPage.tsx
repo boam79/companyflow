@@ -16,7 +16,7 @@ import { toArrayBuffer } from '../lib/contracts/book'
 import { companyOnHand, onHand, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, orderRemainingCaption, resolveOrderPartnerId, supplyItems, supplyOrderCsv, todayYmd, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
-import { commandFromSuggestion, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
+import { commandFromSuggestion, stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
 type NamedRow = { id: string; name: string }
@@ -241,11 +241,17 @@ export function StockPage() {
     if (!next) {
       setAction('post_issue')
       setQty('1')
+      const supplyId = stockActionItemId('post_issue', itemId, items)
+      if (supplyId && supplyId !== itemId) chooseItem(supplyId)
       return
     }
     setAction(next.action)
     setQty(next.qty)
-    if (next.itemId) setItemId(next.itemId)
+    const nextItemId = stockActionItemId(next.action, itemId, items, next.itemId)
+    if (nextItemId && nextItemId !== itemId) {
+      if (next.action === 'post_issue' || next.action === 'post_outbound') chooseItem(nextItemId)
+      else setItemId(nextItemId)
+    }
     if (next.sourceOperationId) setSourceOperationId(next.sourceOperationId)
     if (next.warehouseId) setWarehouseId(next.warehouseId)
   }
@@ -268,10 +274,9 @@ export function StockPage() {
       return
     }
     if (nextAction === 'post_issue' || nextAction === 'post_outbound') {
-      if (isCompanyAssetItem(items.find((row) => row.id === itemId))) {
-        chooseItem(supplyItems(items)[0]?.id ?? 'item-paper')
-      }
-      const onHandQty = onHand(state, itemId, warehouseId)
+      const supplyId = stockActionItemId(nextAction, itemId, items)
+      if (supplyId && supplyId !== itemId) chooseItem(supplyId)
+      const onHandQty = onHand(state, supplyId && supplyId !== itemId ? supplyId : itemId, warehouseId)
       setQty(String(onHandQty > 0 ? Math.min(1, onHandQty) : 1))
       return
     }
