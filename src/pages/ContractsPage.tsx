@@ -20,6 +20,7 @@ import { applyOcrCandidates } from '../lib/contracts/parseFields'
 import { writeDefaultMaster } from '../lib/master/book'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
+import { loadContractsMenu } from '../lib/company/modules'
 
 function todayStamp() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date())
@@ -54,6 +55,7 @@ export function ContractsPage() {
   const [notice, setNotice] = useState('')
   const [message, setMessage] = useState('')
   const [ready, setReady] = useState(() => sqlite.isOpen(sqlite.companyId))
+  const [menuOff, setMenuOff] = useState(false)
   const opening = useRef(false)
   const fileInput = useRef<HTMLInputElement>(null)
   const ocrPanel = useRef<HTMLDivElement>(null)
@@ -75,6 +77,13 @@ export function ContractsPage() {
         setMessage('이 브라우저에서 영속 DB를 열 수 없습니다. 지정 Chrome에서 초기 설정을 먼저 하세요.')
         return
       }
+      if (!guest && !(await loadContractsMenu(sqlite))) {
+        setMenuOff(true)
+        setRows([])
+        setReady(true)
+        return
+      }
+      setMenuOff(false)
       if (!guest) await writeDefaultMaster(sqlite)
       const nextRows = await loadContracts(sqlite)
       const groups = groupContracts(nextRows, todayStamp())
@@ -234,6 +243,17 @@ export function ContractsPage() {
           로그인
         </Link>
       </p>
+    )
+  }
+  if (!guest && menuOff) {
+    return (
+      <div className="max-w-xl space-y-3">
+        <h1 className="text-3xl font-semibold">계약</h1>
+        <p className="text-sm text-muted">이 회사는 계약 메뉴를 쓰지 않습니다. 저장된 계약은 지우지 않았습니다.</p>
+        <Link className="text-sm text-accent underline" to="/settings">
+          회사 설정
+        </Link>
+      </div>
     )
   }
 
