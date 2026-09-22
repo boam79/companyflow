@@ -13,6 +13,7 @@ const MENUS = [
   { to: '/people', label: '입퇴사' },
   { to: '/contracts', label: '계약' },
   { to: '/ops/companies', label: '회사 관리' },
+  { to: '/settings', label: '회사 설정' },
 ]
 
 export function AppShell() {

@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
 import { AuthProvider } from './lib/AuthContext'
 import { AssetsPage } from './pages/AssetsPage'
+import { CompanySettingsPage } from './pages/CompanySettingsPage'
 import { ContractsPage } from './pages/ContractsPage'
 import { DeviceSetupPage } from './pages/DeviceSetupPage'
 import { GuestHomePage } from './pages/GuestHomePage'
@@ -30,6 +31,7 @@ export default function App() {
             <Route path="/q/:token" element={<QrScanPage />} />
             <Route path="/people" element={<PeoplePage />} />
             <Route path="/contracts" element={<ContractsPage />} />
+            <Route path="/settings" element={<CompanySettingsPage />} />
             <Route element={<GuestLayout />}>
               <Route path="/guest" element={<GuestHomePage />} />
               <Route path="/guest/master" element={<MasterDataPage />} />
