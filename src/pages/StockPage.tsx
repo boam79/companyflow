@@ -16,7 +16,7 @@ import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
 import { loadDisplayCurrency } from '../lib/company/displayCurrency'
-import { loadCompanyModule } from '../lib/company/modules'
+import { loadCompanyModule, showModuleLink } from '../lib/company/modules'
 import { ModuleClosed } from '../components/ModuleClosed'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
@@ -76,6 +76,7 @@ export function StockPage() {
   const [lastOperationId, setLastOperationId] = useState('')
   const [ready, setReady] = useState(() => sqlite.isOpen(sqlite.companyId))
   const [moduleOff, setModuleOff] = useState(false)
+  const [assetsLink, setAssetsLink] = useState(true)
   const [openFailed, setOpenFailed] = useState(false)
   const [saving, setSaving] = useState(false)
   const [ledgerFilter, setLedgerFilter] = useState<LedgerFilter>('all')
@@ -108,6 +109,7 @@ export function StockPage() {
         return
       }
       setModuleOff(false)
+      setAssetsLink(showModuleLink(guest, guest ? true : await loadCompanyModule(sqlite, 'assets')))
       if (!guest) {
         await ensureDefaultStockMaster(sqlite)
         await migrateProcessAssetsToChecks(sqlite)
@@ -536,9 +538,11 @@ export function StockPage() {
               )}
             </p>
           </div>
-          <Link className="text-sm text-accent underline" to={href('/assets')}>
-            가구·컴퓨터는 자산
-          </Link>
+          {assetsLink ? (
+            <Link className="text-sm text-accent underline" to={href('/assets')}>
+              가구·컴퓨터는 자산
+            </Link>
+          ) : null}
         </div>
         {inventory.length ? (
           <div className="mt-3 overflow-x-auto">

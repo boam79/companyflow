@@ -21,7 +21,7 @@ import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
 import { getSupabase } from '../lib/supabase'
-import { loadCompanyModule } from '../lib/company/modules'
+import { loadCompanyModule, showModuleLink } from '../lib/company/modules'
 import { ModuleClosed } from '../components/ModuleClosed'
 
 type NamedRow = { id: string; name: string }
@@ -68,6 +68,7 @@ export function AssetsPage() {
   const [message, setMessage] = useState('')
   const [ready, setReady] = useState(() => sqlite.isOpen(sqlite.companyId))
   const [moduleOff, setModuleOff] = useState(false)
+  const [stockLink, setStockLink] = useState(true)
   const [busy, setBusy] = useState(false)
   const opening = useRef(false)
 
@@ -123,6 +124,7 @@ export function AssetsPage() {
         return
       }
       setModuleOff(false)
+      setStockLink(showModuleLink(guest, guest ? true : await loadCompanyModule(sqlite, 'stock')))
       if (!guest) {
         await writeDefaultMaster(sqlite)
         await migrateProcessAssetsToChecks(sqlite)
@@ -361,9 +363,11 @@ export function AssetsPage() {
               ))}
             </select>
           )}
-          <Link className="rounded border border-line px-3 py-2 text-sm" to={href('/stock')}>
-            비품 재고
-          </Link>
+          {stockLink ? (
+            <Link className="rounded border border-line px-3 py-2 text-sm" to={href('/stock')}>
+              비품 재고
+            </Link>
+          ) : null}
         </div>
       </div>
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}

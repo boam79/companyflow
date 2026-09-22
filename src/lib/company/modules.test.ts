@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   firstEnabledModulePath,
+  showModuleLink,
   loadCompanyModules,
   loadContractsMenu,
   saveCompanyModule,
@@ -28,6 +29,12 @@ describe('회사 계약 메뉴', () => {
     expect(await loadContractsMenu(db)).toBe(false)
     expect(await saveContractsMenu(db, true)).toBe(true)
     expect(await loadContractsMenu(db)).toBe(true)
+  })
+
+  it('꺼진 메뉴로 가는 단추는 게스트가 아니면 숨긴다', () => {
+    expect(showModuleLink(false, false)).toBe(false)
+    expect(showModuleLink(false, true)).toBe(true)
+    expect(showModuleLink(true, false)).toBe(true)
   })
 
   it('꺼진 구매·재고 다음의 켠 메뉴로 업무를 시작한다', () => {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { writeDefaultMaster } from '../lib/master/book'
-import { loadCompanyModule } from '../lib/company/modules'
+import { loadCompanyModule, showModuleLink } from '../lib/company/modules'
 import { ModuleClosed } from '../components/ModuleClosed'
 import { ACTIVE_MASTER_WHERE } from '../lib/master/commands'
 import { toArrayBuffer } from '../lib/contracts/book'
@@ -106,6 +106,7 @@ export function PeoplePage() {
   const [message, setMessage] = useState('')
   const [ready, setReady] = useState(() => sqlite.isOpen(sqlite.companyId))
   const [moduleOff, setModuleOff] = useState(false)
+  const [assetsLink, setAssetsLink] = useState(true)
   const [badgeTemplate, setBadgeTemplate] = useState<BadgeTemplateRecord | undefined>()
   const [badgeFile, setBadgeFile] = useState<File | null>(null)
   const [badgePreview, setBadgePreview] = useState('')
@@ -143,6 +144,7 @@ export function PeoplePage() {
         return
       }
       setModuleOff(false)
+      setAssetsLink(showModuleLink(guest, guest ? true : await loadCompanyModule(sqlite, 'assets')))
       if (!guest) {
         await writeDefaultMaster(sqlite)
         await migrateProcessAssetsToChecks(sqlite)
@@ -606,9 +608,11 @@ export function PeoplePage() {
           <Link className="rounded border border-line px-3 py-2 text-sm" to={href('/master')}>
             기준정보
           </Link>
-          <Link className="rounded border border-line px-3 py-2 text-sm" to={href('/assets')}>
-            회사 자산
-          </Link>
+          {assetsLink ? (
+            <Link className="rounded border border-line px-3 py-2 text-sm" to={href('/assets')}>
+              회사 자산
+            </Link>
+          ) : null}
         </div>
       </div>
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
