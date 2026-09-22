@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { isQrScanPath } from '../lib/asset/qr'
 import { GUEST_MENUS, isGuestPath } from '../lib/guest/ids'
+import { PendingInviteBanner } from './PendingInviteBanner'
 
 const MENUS = [
   { to: '/', label: '홈' },
@@ -92,6 +93,7 @@ export function AppShell() {
             : 'w-full flex-1 bg-[#07090c]'
         }
       >
+        {scanMode || guest || !user ? null : <PendingInviteBanner />}
         <Outlet />
       </main>
     </div>
