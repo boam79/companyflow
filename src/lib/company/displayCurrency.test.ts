@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assertDisplayCurrency, assertDisplayTimezone, displayCurrencyName, formatCompanyClock, formatCompanyNumber, loadDisplayCurrency, loadDisplayGrouping, loadDisplayTimezone, saveDisplayCurrency, saveDisplayGrouping, saveDisplayTimezone } from './displayCurrency'
+import { assertDisplayCurrency, assertDisplayTimezone, displayCurrencyName, formatCompanyClock, formatCompanyNumber, loadCompanyDisplay, loadDisplayCurrency, loadDisplayGrouping, loadDisplayTimezone, saveDisplayCurrency, saveDisplayGrouping, saveDisplayTimezone } from './displayCurrency'
 
 function memoryDb(initial?: string) {
   const rows = new Map<string, string>()
@@ -50,5 +50,14 @@ describe('회사 표시 통화', () => {
     expect(await saveDisplayTimezone(db, 'UTC')).toBe('UTC')
     expect(await loadDisplayTimezone(db)).toBe('UTC')
     expect(() => assertDisplayTimezone('America/New_York')).toThrow(/시간대/)
+  })
+
+  it('회사 파일마다 표시를 따로 읽는다', async () => {
+    const db = memoryDb()
+    expect(await loadCompanyDisplay(db)).toEqual({ currency: 'KRW', grouping: true, timeZone: 'Asia/Seoul' })
+    await saveDisplayCurrency(db, 'USD')
+    await saveDisplayGrouping(db, false)
+    await saveDisplayTimezone(db, 'UTC')
+    expect(await loadCompanyDisplay(db)).toEqual({ currency: 'USD', grouping: false, timeZone: 'UTC' })
   })
 })

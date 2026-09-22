@@ -99,3 +99,17 @@ export async function saveDisplayTimezone(db: CurrencyDb, value: string) {
   await db.exec('insert or replace into meta(key, value) values(?, ?)', [DISPLAY_TIMEZONE_KEY, id])
   return id
 }
+
+export type CompanyDisplayState = {
+  currency: string
+  grouping: boolean
+  timeZone: string
+}
+
+export async function loadCompanyDisplay(db: Pick<CurrencyDb, 'query'>): Promise<CompanyDisplayState> {
+  return {
+    currency: await loadDisplayCurrency(db),
+    grouping: await loadDisplayGrouping(db),
+    timeZone: await loadDisplayTimezone(db),
+  }
+}

@@ -8,12 +8,11 @@ import {
   formatCompanyClock,
   formatCompanyNumber,
   GROUPING_SAMPLE,
-  loadDisplayCurrency,
-  loadDisplayGrouping,
-  loadDisplayTimezone,
+  loadCompanyDisplay,
   saveDisplayCurrency,
   saveDisplayGrouping,
   saveDisplayTimezone,
+  type CompanyDisplayState,
 } from '../lib/company/displayCurrency'
 import { COMPANY_DISPLAY, memberRoleLabel } from '../lib/company/settings'
 import { getCompanySqlite } from '../lib/sqlite/instance'
@@ -43,6 +42,7 @@ export function CompanySettingsPage() {
   const [groupingDraft, setGroupingDraft] = useState(true)
   const [timeZone, setTimeZone] = useState('Asia/Seoul')
   const [timeZoneDraft, setTimeZoneDraft] = useState('Asia/Seoul')
+  const [displays, setDisplays] = useState<Record<string, CompanyDisplayState>>({})
   const [message, setMessage] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
@@ -101,18 +101,22 @@ export function CompanySettingsPage() {
       )
       if (cancelled) return
       setRows(listed)
-      if (companyId) {
-        await sqlite.open(companyId)
-        const saved = await loadDisplayCurrency(sqlite)
-        const grouped = await loadDisplayGrouping(sqlite)
-        const zone = await loadDisplayTimezone(sqlite)
-        if (cancelled) return
-        setCurrency(saved)
-        setDraft(saved)
-        setGrouping(grouped)
-        setGroupingDraft(grouped)
-        setTimeZone(zone)
-        setTimeZoneDraft(zone)
+      const nextDisplays: Record<string, CompanyDisplayState> = {}
+      for (const company of listed) {
+        await sqlite.open(company.id)
+        nextDisplays[company.id] = await loadCompanyDisplay(sqlite)
+      }
+      if (cancelled) return
+      setDisplays(nextDisplays)
+      if (companyId && nextDisplays[companyId]) {
+        if (sqlite.companyId !== companyId) await sqlite.open(companyId)
+        const current = nextDisplays[companyId]
+        setCurrency(current.currency)
+        setDraft(current.currency)
+        setGrouping(current.grouping)
+        setGroupingDraft(current.grouping)
+        setTimeZone(current.timeZone)
+        setTimeZoneDraft(current.timeZone)
       }
       setReady(true)
     })().catch((error: unknown) => {
@@ -216,7 +220,12 @@ export function CompanySettingsPage() {
           <p className="mt-2 text-muted">다른 회사 원본은 이 회사의 통화·자리·시간대를 쓰지 않습니다.</p>
         </label>
       ) : null}
-      {rows.map((company) => (
+      {rows.map((company) => {
+        const shown =
+          company.id === companyId
+            ? { currency, grouping, timeZone }
+            : (displays[company.id] ?? { currency: 'KRW', grouping: true, timeZone: 'Asia/Seoul' })
+        return (
         <section key={company.id} className="space-y-4 rounded-lg border border-line bg-card p-6">
           <div>
             <h2 className="text-lg font-semibold">{company.display_name}</h2>
@@ -238,9 +247,8 @@ export function CompanySettingsPage() {
             <h3 className="text-sm font-semibold">표시</h3>
             <p className="mt-2 text-sm text-muted">
               {COMPANY_DISPLAY.language} ·{' '}
-              {company.id === companyId ? formatCompanyClock(new Date(), timeZone) : `${COMPANY_DISPLAY.timezone} 시간`} ·{' '}
-              {company.id === companyId ? displayCurrencyName(currency) : COMPANY_DISPLAY.currency}
-              {company.id === companyId ? ` · ${formatCompanyNumber(GROUPING_SAMPLE, grouping)}` : ''}
+              {formatCompanyClock(new Date(), shown.timeZone)} · {displayCurrencyName(shown.currency)} ·{' '}
+              {formatCompanyNumber(GROUPING_SAMPLE, shown.grouping)}
             </p>
             {company.id === companyId && (operator || company.role === 'company_admin') ? (
               <form
@@ -337,7 +345,8 @@ export function CompanySettingsPage() {
             ) : null}
           </div>
         </section>
-      ))}
+        )
+      })}
     </div>
   )
 }
