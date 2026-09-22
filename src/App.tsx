@@ -4,6 +4,7 @@ import { AuthProvider } from './lib/AuthContext'
 import { AssetsPage } from './pages/AssetsPage'
 import { CompanySettingsPage } from './pages/CompanySettingsPage'
 import { ContractsPage } from './pages/ContractsPage'
+import { DataPage } from './pages/DataPage'
 import { DeviceSetupPage } from './pages/DeviceSetupPage'
 import { GuestHomePage } from './pages/GuestHomePage'
 import { GuestLayout } from './pages/GuestLayout'
@@ -32,6 +33,7 @@ export default function App() {
             <Route path="/people" element={<PeoplePage />} />
             <Route path="/contracts" element={<ContractsPage />} />
             <Route path="/settings" element={<CompanySettingsPage />} />
+            <Route path="/data" element={<DataPage />} />
             <Route element={<GuestLayout />}>
               <Route path="/guest" element={<GuestHomePage />} />
               <Route path="/guest/master" element={<MasterDataPage />} />

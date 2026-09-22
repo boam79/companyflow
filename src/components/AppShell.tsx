@@ -14,6 +14,7 @@ const MENUS = [
   { to: '/contracts', label: '계약' },
   { to: '/ops/companies', label: '회사 관리' },
   { to: '/settings', label: '회사 설정' },
+  { to: '/data', label: '데이터 관리' },
 ]
 
 export function AppShell() {
