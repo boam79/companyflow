@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { loadCompanyModules, loadContractsMenu, saveCompanyModule, saveContractsMenu } from './modules'
+import {
+  firstEnabledModulePath,
+  loadCompanyModules,
+  loadContractsMenu,
+  saveCompanyModule,
+  saveContractsMenu,
+} from './modules'
 
 function memoryDb() {
   const rows = new Map<string, string>()
@@ -22,6 +28,14 @@ describe('회사 계약 메뉴', () => {
     expect(await loadContractsMenu(db)).toBe(false)
     expect(await saveContractsMenu(db, true)).toBe(true)
     expect(await loadContractsMenu(db)).toBe(true)
+  })
+
+  it('꺼진 구매·재고 다음의 켠 메뉴로 업무를 시작한다', () => {
+    expect(firstEnabledModulePath(undefined)).toBe('/stock')
+    expect(firstEnabledModulePath({ stock: false, assets: true, people: true, contracts: true })).toBe('/assets')
+    expect(
+      firstEnabledModulePath({ stock: false, assets: false, people: false, contracts: false }),
+    ).toBe('/settings')
   })
 
   it('구매·재고를 꺼도 자산·입퇴사·계약은 그대로다', async () => {

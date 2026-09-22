@@ -1,6 +1,9 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
+import { useCompanySession } from '../lib/companySession'
+import { firstEnabledModulePath, loadCompanyModules } from '../lib/company/modules'
+import { getCompanySqlite } from '../lib/sqlite/instance'
 import {
   HOME_COVER_GUEST,
   HOME_COVER_IMAGE,
@@ -95,7 +98,24 @@ function Film({
 
 export function HomePage() {
   const { user } = useAuth()
-  const startTo = user ? '/stock' : '/login'
+  const { companyId } = useCompanySession(Boolean(user))
+  const [startTo, setStartTo] = useState('/stock')
+
+  useEffect(() => {
+    if (!user || !companyId) return
+    let cancelled = false
+    void (async () => {
+      const sqlite = getCompanySqlite()
+      await sqlite.open(companyId)
+      const flags = await loadCompanyModules(sqlite)
+      if (!cancelled) setStartTo(firstEnabledModulePath(flags))
+    })().catch(() => {
+      if (!cancelled) setStartTo('/stock')
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [companyId, user])
 
   return (
     <div className="flex min-h-full flex-col bg-[#07090c] text-white antialiased">

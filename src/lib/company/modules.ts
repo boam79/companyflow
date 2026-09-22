@@ -46,6 +46,11 @@ export async function saveCompanyModule(db: ModuleDb, id: CompanyModuleId, on: b
   return on
 }
 
+export function firstEnabledModulePath(flags: Partial<Record<CompanyModuleId, boolean>> | undefined) {
+  const item = COMPANY_MODULES.find((module) => flags?.[module.id] !== false)
+  return item?.path ?? '/settings'
+}
+
 export async function loadContractsMenu(db: Pick<ModuleDb, 'query'>) {
   return loadCompanyModule(db, 'contracts')
 }
