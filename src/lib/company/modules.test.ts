@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { loadContractsMenu, saveContractsMenu } from './modules'
+import { loadCompanyModules, loadContractsMenu, saveCompanyModule, saveContractsMenu } from './modules'
 
 function memoryDb() {
   const rows = new Map<string, string>()
@@ -22,5 +22,22 @@ describe('회사 계약 메뉴', () => {
     expect(await loadContractsMenu(db)).toBe(false)
     expect(await saveContractsMenu(db, true)).toBe(true)
     expect(await loadContractsMenu(db)).toBe(true)
+  })
+
+  it('구매·재고를 꺼도 자산·입퇴사·계약은 그대로다', async () => {
+    const db = memoryDb()
+    expect(await loadCompanyModules(db)).toEqual({
+      stock: true,
+      assets: true,
+      people: true,
+      contracts: true,
+    })
+    await saveCompanyModule(db, 'stock', false)
+    expect(await loadCompanyModules(db)).toEqual({
+      stock: false,
+      assets: true,
+      people: true,
+      contracts: true,
+    })
   })
 })

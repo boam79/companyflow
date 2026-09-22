@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { writeDefaultMaster } from '../lib/master/book'
+import { loadCompanyModule } from '../lib/company/modules'
+import { ModuleClosed } from '../components/ModuleClosed'
 import { ACTIVE_MASTER_WHERE } from '../lib/master/commands'
 import { toArrayBuffer } from '../lib/contracts/book'
 import {
@@ -103,6 +105,7 @@ export function PeoplePage() {
   const [notice, setNotice] = useState('')
   const [message, setMessage] = useState('')
   const [ready, setReady] = useState(() => sqlite.isOpen(sqlite.companyId))
+  const [moduleOff, setModuleOff] = useState(false)
   const [badgeTemplate, setBadgeTemplate] = useState<BadgeTemplateRecord | undefined>()
   const [badgeFile, setBadgeFile] = useState<File | null>(null)
   const [badgePreview, setBadgePreview] = useState('')
@@ -134,6 +137,12 @@ export function PeoplePage() {
         setMessage('이 브라우저에서 영속 DB를 열 수 없습니다. 지정 Chrome에서 초기 설정을 먼저 하세요.')
         return
       }
+      if (!guest && !(await loadCompanyModule(sqlite, 'people'))) {
+        setModuleOff(true)
+        setReady(true)
+        return
+      }
+      setModuleOff(false)
       if (!guest) {
         await writeDefaultMaster(sqlite)
         await migrateProcessAssetsToChecks(sqlite)
@@ -553,6 +562,7 @@ export function PeoplePage() {
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
   if (!guest && !configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
+  if (!guest && moduleOff) return <ModuleClosed title="입퇴사" />
   if (!guest && !user) {
     return (
       <p className="text-sm">

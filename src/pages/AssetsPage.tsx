@@ -21,6 +21,8 @@ import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
 import { getSupabase } from '../lib/supabase'
+import { loadCompanyModule } from '../lib/company/modules'
+import { ModuleClosed } from '../components/ModuleClosed'
 
 type NamedRow = { id: string; name: string }
 type PrintedQr = { id: string; url: string; dataUrl: string }
@@ -65,6 +67,7 @@ export function AssetsPage() {
   const [notice, setNotice] = useState('')
   const [message, setMessage] = useState('')
   const [ready, setReady] = useState(() => sqlite.isOpen(sqlite.companyId))
+  const [moduleOff, setModuleOff] = useState(false)
   const [busy, setBusy] = useState(false)
   const opening = useRef(false)
 
@@ -114,6 +117,12 @@ export function AssetsPage() {
         setMessage('이 브라우저에서 영속 DB를 열 수 없습니다. 지정 Chrome에서 초기 설정을 먼저 하세요.')
         return
       }
+      if (!guest && !(await loadCompanyModule(sqlite, 'assets'))) {
+        setModuleOff(true)
+        setReady(true)
+        return
+      }
+      setModuleOff(false)
       if (!guest) {
         await writeDefaultMaster(sqlite)
         await migrateProcessAssetsToChecks(sqlite)
@@ -309,6 +318,7 @@ export function AssetsPage() {
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
   if (!guest && !configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
+  if (!guest && moduleOff) return <ModuleClosed title="자산" />
   if (!guest && !user) {
     return (
       <p className="text-sm">

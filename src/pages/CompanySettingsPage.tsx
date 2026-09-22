@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
-import { loadContractsMenu, saveContractsMenu } from '../lib/company/modules'
+import {
+  COMPANY_MODULES,
+  loadCompanyModules,
+  saveCompanyModule,
+  type CompanyModuleId,
+} from '../lib/company/modules'
 import { notifyCompanyModules, useCompanySession } from '../lib/companySession'
 import {
   displayCurrencyName,
@@ -42,8 +47,7 @@ export function CompanySettingsPage() {
   const [groupingDraft, setGroupingDraft] = useState(true)
   const [timeZone, setTimeZone] = useState('Asia/Seoul')
   const [timeZoneDraft, setTimeZoneDraft] = useState('Asia/Seoul')
-  const [contractsOn, setContractsOn] = useState(true)
-  const [contractsDraft, setContractsDraft] = useState(true)
+  const [modules, setModules] = useState<Record<string, Record<CompanyModuleId, boolean>>>({})
   const [message, setMessage] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
@@ -118,10 +122,18 @@ export function CompanySettingsPage() {
       setGroupingDraft(current.grouping)
       setTimeZone(current.timeZone)
       setTimeZoneDraft(current.timeZone)
-      const menuOn = await loadContractsMenu(sqlite)
+      const nextModules: Record<string, Record<CompanyModuleId, boolean>> = {}
+      nextModules[open.id] = await loadCompanyModules(sqlite)
+      for (const company of listed) {
+        if (company.id === open.id) continue
+        if (cancelled) return
+        await sqlite.open(company.id)
+        if (cancelled || sqlite.companyId !== company.id) return
+        nextModules[company.id] = await loadCompanyModules(sqlite)
+      }
+      if (sqlite.companyId !== open.id) await sqlite.open(open.id)
       if (cancelled || sqlite.companyId !== open.id) return
-      setContractsOn(menuOn)
-      setContractsDraft(menuOn)
+      setModules(nextModules)
       setReady(true)
     })().catch((error: unknown) => {
       if (cancelled) return
@@ -197,23 +209,60 @@ export function CompanySettingsPage() {
     }
   }
 
-  async function saveContracts() {
-    if (!companyId) return
+  async function saveModule(targetId: string, moduleId: CompanyModuleId, on: boolean) {
+    if (!targetId) return
     setBusy(true)
     setNotice('')
     setMessage('')
     try {
-      if (!(await openSelectedFile())) return
-      const saved = await saveContractsMenu(sqlite, contractsDraft)
-      setContractsOn(saved)
-      setContractsDraft(saved)
-      notifyCompanyModules()
-      setNotice(saved ? '이 회사 원본에서 계약 메뉴를 켰습니다.' : '이 회사 원본에서 계약 메뉴를 껐습니다.')
+      await sqlite.open(targetId)
+      if (sqlite.companyId !== targetId) {
+        setMessage('선택한 회사 원본이 열려 있지 않습니다.')
+        return
+      }
+      await saveCompanyModule(sqlite, moduleId, on)
+      setModules((current) => ({
+        ...current,
+        [targetId]: { ...current[targetId], [moduleId]: on },
+      }))
+      if (targetId === companyId) notifyCompanyModules()
+      const label = COMPANY_MODULES.find((item) => item.id === moduleId)?.label ?? '모듈'
+      const name = rows.find((row) => row.id === targetId)?.display_name ?? '회사'
+      setNotice(on ? `${name}의 ${label}을 켰습니다.` : `${name}의 ${label}을 껐습니다.`)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     } finally {
+      if (companyId && sqlite.companyId !== companyId) {
+        try {
+          await sqlite.open(companyId)
+        } catch (error) {
+          setMessage(error instanceof Error ? error.message : String(error))
+        }
+      }
       setBusy(false)
     }
+  }
+
+  function moduleFields(targetId: string) {
+    const flags = modules[targetId]
+    return (
+      <div className="mt-3 space-y-2">
+        {COMPANY_MODULES.map((item) => (
+          <label key={item.id} className="flex items-center justify-between gap-3 text-sm">
+            {item.label}
+            <select
+              className="rounded border border-line px-3 py-2"
+              value={flags?.[item.id] === false ? 'off' : 'on'}
+              disabled={busy || !flags}
+              onChange={(event) => void saveModule(targetId, item.id, event.target.value === 'on')}
+            >
+              <option value="on">사용</option>
+              <option value="off">사용 안 함</option>
+            </select>
+          </label>
+        ))}
+      </div>
+    )
   }
 
   if (!configured) {
@@ -253,7 +302,7 @@ export function CompanySettingsPage() {
               </option>
             ))}
           </select>
-          <p className="mt-2 text-muted">다른 회사의 사람과 표시는 그 회사를 연 뒤에 봅니다.</p>
+          <p className="mt-2 text-muted">다른 회사의 사람과 업무 내용은 그 회사를 연 뒤에 봅니다. 여기서는 모듈만 바꿉니다.</p>
         </label>
       ) : null}
       {openedCompanyOnly(rows, companyId).map((company) => {
@@ -374,32 +423,10 @@ export function CompanySettingsPage() {
               </form>
             ) : null}
             {company.id === companyId && (operator || company.role === 'company_admin') ? (
-              <form
-                className="mt-3 flex flex-wrap items-end gap-2"
-                onSubmit={(event) => {
-                  event.preventDefault()
-                  void saveContracts()
-                }}
-              >
-                <label className="text-sm">
-                  계약 메뉴
-                  <select
-                    className="mt-1 block rounded border border-line px-3 py-2"
-                    value={contractsDraft ? 'on' : 'off'}
-                    onChange={(event) => setContractsDraft(event.target.value === 'on')}
-                  >
-                    <option value="on">사용</option>
-                    <option value="off">사용 안 함</option>
-                  </select>
-                </label>
-                <button
-                  type="submit"
-                  disabled={busy || contractsDraft === contractsOn}
-                  className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                >
-                  이 회사에 저장
-                </button>
-              </form>
+              <div className="mt-4">
+                <h3 className="text-sm font-semibold">모듈</h3>
+                {moduleFields(company.id)}
+              </div>
             ) : null}
             {company.id === companyId && company.role === 'member' && !operator ? (
               <p className="mt-2 text-sm text-muted">통화 변경은 회사 관리자만 할 수 있습니다.</p>
@@ -408,6 +435,21 @@ export function CompanySettingsPage() {
         </section>
         )
       })}
+      {operator || rows.find((row) => row.id === companyId)?.role === 'company_admin'
+        ? rows
+            .filter((company) => company.id !== companyId)
+            .map((company) => (
+              <section key={company.id} className="space-y-3 rounded-lg border border-line bg-card p-6">
+                <div>
+                  <h2 className="text-lg font-semibold">{company.display_name}</h2>
+                  <p className="mt-1 text-sm text-muted">
+                    {company.company_code} · 모듈만 바꿉니다. 사람·재고·자산·계약 내용은 열지 않습니다.
+                  </p>
+                </div>
+                {moduleFields(company.id)}
+              </section>
+            ))
+        : null}
     </div>
   )
 }

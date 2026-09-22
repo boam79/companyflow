@@ -16,6 +16,8 @@ import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
 import { loadDisplayCurrency } from '../lib/company/displayCurrency'
+import { loadCompanyModule } from '../lib/company/modules'
+import { ModuleClosed } from '../components/ModuleClosed'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
 
@@ -73,6 +75,7 @@ export function StockPage() {
   const [notice, setNotice] = useState('')
   const [lastOperationId, setLastOperationId] = useState('')
   const [ready, setReady] = useState(() => sqlite.isOpen(sqlite.companyId))
+  const [moduleOff, setModuleOff] = useState(false)
   const [openFailed, setOpenFailed] = useState(false)
   const [saving, setSaving] = useState(false)
   const [ledgerFilter, setLedgerFilter] = useState<LedgerFilter>('all')
@@ -99,6 +102,12 @@ export function StockPage() {
         setMessage('이 브라우저에서 영속 DB를 열 수 없습니다. 지정 Chrome에서 초기 설정을 먼저 하세요.')
         return
       }
+      if (!guest && !(await loadCompanyModule(sqlite, 'stock'))) {
+        setModuleOff(true)
+        setReady(true)
+        return
+      }
+      setModuleOff(false)
       if (!guest) {
         await ensureDefaultStockMaster(sqlite)
         await migrateProcessAssetsToChecks(sqlite)
@@ -439,6 +448,7 @@ export function StockPage() {
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
   if (!guest && !configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
+  if (!guest && moduleOff) return <ModuleClosed title="구매·재고" />
   if (!guest && !user) {
     return (
       <p className="text-sm">

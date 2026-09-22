@@ -2,7 +2,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useAuth } from '../lib/AuthContext'
 import { isQrScanPath } from '../lib/asset/qr'
-import { loadContractsMenu } from '../lib/company/modules'
+import { COMPANY_MODULES, loadCompanyModules } from '../lib/company/modules'
 import { useCompanySession } from '../lib/companySession'
 import { GUEST_MENUS, isGuestPath } from '../lib/guest/ids'
 import { getCompanySqlite } from '../lib/sqlite/instance'
@@ -30,8 +30,14 @@ export function AppShell() {
   const { companyId } = useCompanySession(Boolean(user) && !guest)
   const [openCompanyId, setOpenCompanyId] = useState('')
   const [moduleTick, setModuleTick] = useState(0)
-  const [contractsOn, setContractsOn] = useState(true)
-  const menus = guest ? GUEST_MENUS : MENUS.filter((menu) => menu.to !== '/contracts' || contractsOn)
+  const [moduleFlags, setModuleFlags] = useState<Record<string, boolean>>({})
+  const menus = guest
+    ? GUEST_MENUS
+    : MENUS.filter((menu) => {
+        const item = COMPANY_MODULES.find((module) => module.path === menu.to)
+        if (!item) return true
+        return moduleFlags[item.id] !== false
+      })
 
   useEffect(() => {
     if (companyId) setOpenCompanyId(companyId)
@@ -59,10 +65,10 @@ export function AppShell() {
     void (async () => {
       const sqlite = getCompanySqlite()
       await sqlite.open(openCompanyId)
-      const on = await loadContractsMenu(sqlite)
-      if (!cancelled) setContractsOn(on)
+      const flags = await loadCompanyModules(sqlite)
+      if (!cancelled) setModuleFlags(flags)
     })().catch(() => {
-      if (!cancelled) setContractsOn(true)
+      if (!cancelled) setModuleFlags({})
     })
     return () => {
       cancelled = true
