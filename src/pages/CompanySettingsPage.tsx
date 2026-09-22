@@ -4,8 +4,12 @@ import { useAuth } from '../lib/AuthContext'
 import { useCompanySession } from '../lib/companySession'
 import {
   displayCurrencyName,
+  formatCompanyNumber,
+  GROUPING_SAMPLE,
   loadDisplayCurrency,
+  loadDisplayGrouping,
   saveDisplayCurrency,
+  saveDisplayGrouping,
 } from '../lib/company/displayCurrency'
 import { COMPANY_DISPLAY, memberRoleLabel } from '../lib/company/settings'
 import { getCompanySqlite } from '../lib/sqlite/instance'
@@ -31,6 +35,8 @@ export function CompanySettingsPage() {
   const [rows, setRows] = useState<CompanySettings[]>([])
   const [currency, setCurrency] = useState('KRW')
   const [draft, setDraft] = useState('KRW')
+  const [grouping, setGrouping] = useState(true)
+  const [groupingDraft, setGroupingDraft] = useState(true)
   const [message, setMessage] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
@@ -90,9 +96,12 @@ export function CompanySettingsPage() {
       if (companyId) {
         await sqlite.open(companyId)
         const saved = await loadDisplayCurrency(sqlite)
+        const grouped = await loadDisplayGrouping(sqlite)
         if (cancelled) return
         setCurrency(saved)
         setDraft(saved)
+        setGrouping(grouped)
+        setGroupingDraft(grouped)
       }
       setReady(true)
     })().catch((error: unknown) => {
@@ -115,6 +124,23 @@ export function CompanySettingsPage() {
       setCurrency(saved)
       setDraft(saved)
       setNotice('이 회사 원본에 통화를 저장했습니다.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function saveGrouping() {
+    if (!companyId) return
+    setBusy(true)
+    setNotice('')
+    setMessage('')
+    try {
+      const saved = await saveDisplayGrouping(sqlite, groupingDraft)
+      setGrouping(saved)
+      setGroupingDraft(saved)
+      setNotice('이 회사 원본에 자리 구분을 저장했습니다.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     } finally {
@@ -168,6 +194,7 @@ export function CompanySettingsPage() {
             <p className="mt-2 text-sm text-muted">
               {COMPANY_DISPLAY.language} · {COMPANY_DISPLAY.timezone} 시간 ·{' '}
               {company.id === companyId ? displayCurrencyName(currency) : COMPANY_DISPLAY.currency}
+              {company.id === companyId ? ` · ${formatCompanyNumber(GROUPING_SAMPLE, grouping)}` : ''}
             </p>
             {company.id === companyId && (operator || company.role === 'company_admin') ? (
               <form
@@ -194,6 +221,34 @@ export function CompanySettingsPage() {
                 <button
                   type="submit"
                   disabled={busy || draft === currency}
+                  className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  이 회사에 저장
+                </button>
+              </form>
+            ) : null}
+            {company.id === companyId && (operator || company.role === 'company_admin') ? (
+              <form
+                className="mt-3 flex flex-wrap items-end gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  void saveGrouping()
+                }}
+              >
+                <label className="text-sm">
+                  자리 구분
+                  <select
+                    className="mt-1 block rounded border border-line px-3 py-2"
+                    value={groupingDraft ? 'on' : 'off'}
+                    onChange={(event) => setGroupingDraft(event.target.value === 'on')}
+                  >
+                    <option value="on">사용</option>
+                    <option value="off">사용 안 함</option>
+                  </select>
+                </label>
+                <button
+                  type="submit"
+                  disabled={busy || groupingDraft === grouping}
                   className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                 >
                   이 회사에 저장

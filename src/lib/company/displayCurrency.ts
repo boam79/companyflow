@@ -1,6 +1,8 @@
 import { ORDER_CURRENCIES, orderCurrencyLabel } from '../stock/inventoryView'
 
 export const DISPLAY_CURRENCY_KEY = 'display_currency'
+export const DISPLAY_GROUPING_KEY = 'display_grouping'
+export const GROUPING_SAMPLE = 12345
 
 export function displayCurrencyCode(value: string | null | undefined) {
   const code = value?.trim() || 'KRW'
@@ -33,4 +35,24 @@ export async function saveDisplayCurrency(db: CurrencyDb, value: string) {
   const code = assertDisplayCurrency(value)
   await db.exec('insert or replace into meta(key, value) values(?, ?)', [DISPLAY_CURRENCY_KEY, code])
   return code
+}
+
+export function displayGroupingOn(value: string | null | undefined) {
+  return value?.trim() !== 'off'
+}
+
+export function formatCompanyNumber(value: number, grouping: boolean) {
+  if (!Number.isFinite(value)) return ''
+  return grouping ? value.toLocaleString('ko-KR') : String(value)
+}
+
+export async function loadDisplayGrouping(db: Pick<CurrencyDb, 'query'>) {
+  const rows = await db.query<{ value: string }>('select value from meta where key = ?', [DISPLAY_GROUPING_KEY])
+  return displayGroupingOn(rows[0]?.value)
+}
+
+export async function saveDisplayGrouping(db: CurrencyDb, grouping: boolean) {
+  const value = grouping ? 'on' : 'off'
+  await db.exec('insert or replace into meta(key, value) values(?, ?)', [DISPLAY_GROUPING_KEY, value])
+  return grouping
 }
