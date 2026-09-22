@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { useCompanySession } from '../lib/companySession'
-import { savedOnThisDevice, storageLines } from '../lib/data/storageStatus'
+import { canConfirmOriginalDevice, savedOnThisDevice, storageLines } from '../lib/data/storageStatus'
+import { localDeviceFingerprint } from '../lib/deviceFingerprint'
 import { fetchPendingQrInbox } from '../lib/asset/relay'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { getSupabase } from '../lib/supabase'
@@ -10,10 +11,15 @@ import { getSupabase } from '../lib/supabase'
 const sqlite = getCompanySqlite()
 
 export function DataPage() {
-  const { configured, loading, user } = useAuth()
+  const { configured, loading, user, operator } = useAuth()
   const { companies, companyId } = useCompanySession(Boolean(user))
   const [lines, setLines] = useState<Array<{ label: string; value: string }>>([])
+  const [savedHere, setSavedHere] = useState(false)
+  const [deviceStatus, setDeviceStatus] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [message, setMessage] = useState('')
+  const [notice, setNotice] = useState('')
+  const [busy, setBusy] = useState(false)
   const [ready, setReady] = useState(false)
 
   const company = companies.find((row) => row.id === companyId)
@@ -35,16 +41,30 @@ export function DataPage() {
       } catch (error) {
         openError = error instanceof Error ? error.message : String(error)
       }
-      const [{ data: device, error: deviceError }, inbox] = await Promise.all([
-        client.from('company_devices').select('status').eq('company_id', companyId).maybeSingle(),
-        fetchPendingQrInbox(client, companyId),
-      ])
+      const [{ data: device, error: deviceError }, { data: membership, error: membershipError }, inbox] =
+        await Promise.all([
+          client.from('company_devices').select('status').eq('company_id', companyId).maybeSingle(),
+          client
+            .from('company_memberships')
+            .select('role')
+            .eq('company_id', companyId)
+            .eq('user_id', user.id)
+            .eq('status', 'active')
+            .maybeSingle(),
+          fetchPendingQrInbox(client, companyId),
+        ])
       if (cancelled) return
       if (deviceError) throw new Error(deviceError.message)
+      if (membershipError) throw new Error(membershipError.message)
+      const status = (device?.status as string | undefined) ?? null
+      const admin = operator || membership?.role === 'company_admin'
+      setSavedHere(savedHere)
+      setDeviceStatus(status)
+      setIsAdmin(admin)
       setLines(
         storageLines({
           savedHere,
-          deviceStatus: (device?.status as string | undefined) ?? null,
+          deviceStatus: status,
           pendingReceive: inbox.length,
         }),
       )
@@ -58,7 +78,34 @@ export function DataPage() {
     return () => {
       cancelled = true
     }
-  }, [companyId, user])
+  }, [companyId, operator, user])
+
+  async function confirmThisPc() {
+    const client = getSupabase()
+    if (!client || !companyId || !canConfirm) return
+    setBusy(true)
+    setNotice('')
+    setMessage('')
+    try {
+      const fingerprint = await localDeviceFingerprint()
+      const { error } = await client.rpc('confirm_company_device', {
+        p_company_id: companyId,
+        p_device_fingerprint: fingerprint,
+      })
+      if (error) throw error
+      setDeviceStatus('confirmed')
+      setLines((current) =>
+        current.map((line) => (line.label === '관리자 PC 저장 완료' ? { ...line, value: '예' } : line)),
+      )
+      setNotice('이 PC를 원본으로 확정했습니다.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const canConfirm = canConfirmOriginalDevice({ savedHere, deviceStatus, isAdmin })
 
   if (!configured) {
     return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
@@ -86,6 +133,7 @@ export function DataPage() {
         </p>
       </div>
       {message ? <p className="text-sm text-danger">{message}</p> : null}
+      {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       <ul className="space-y-2 rounded-lg border border-line bg-card p-6 text-sm">
         {lines.map((line) => (
           <li key={line.label} className="flex items-baseline justify-between gap-4">
@@ -94,6 +142,19 @@ export function DataPage() {
           </li>
         ))}
       </ul>
+      {canConfirm ? (
+        <button
+          type="button"
+          disabled={busy}
+          className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          onClick={() => void confirmThisPc()}
+        >
+          이 PC를 원본으로 확정
+        </button>
+      ) : null}
+      {savedHere && deviceStatus === 'reserved' && !isAdmin ? (
+        <p className="text-sm text-muted">이 PC 확정은 회사 관리자만 할 수 있습니다.</p>
+      ) : null}
     </div>
   )
 }

@@ -14,6 +14,14 @@ export function deviceSavedLabel(status: string | null) {
   return '아니오'
 }
 
+export function canConfirmOriginalDevice(input: {
+  savedHere: boolean
+  deviceStatus: string | null
+  isAdmin: boolean
+}) {
+  return input.savedHere && input.isAdmin && input.deviceStatus === 'reserved'
+}
+
 export function storageLines(facts: StorageFacts) {
   const pending = facts.pendingReceive > 0 ? `${facts.pendingReceive}건` : '없음'
   return [
