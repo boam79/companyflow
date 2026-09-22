@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
+import { useCompanySession } from '../lib/companySession'
+import {
+  displayCurrencyName,
+  loadDisplayCurrency,
+  saveDisplayCurrency,
+} from '../lib/company/displayCurrency'
 import { COMPANY_DISPLAY, memberRoleLabel } from '../lib/company/settings'
+import { getCompanySqlite } from '../lib/sqlite/instance'
+import { ORDER_CURRENCIES } from '../lib/stock/inventoryView'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
 type MemberRow = {
@@ -15,10 +23,17 @@ type CompanySettings = CompanyRow & {
   members: MemberRow[]
 }
 
+const sqlite = getCompanySqlite()
+
 export function CompanySettingsPage() {
-  const { configured, loading, user } = useAuth()
+  const { configured, loading, user, operator } = useAuth()
+  const { companyId } = useCompanySession(Boolean(user))
   const [rows, setRows] = useState<CompanySettings[]>([])
+  const [currency, setCurrency] = useState('KRW')
+  const [draft, setDraft] = useState('KRW')
   const [message, setMessage] = useState('')
+  const [notice, setNotice] = useState('')
+  const [busy, setBusy] = useState(false)
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -72,6 +87,13 @@ export function CompanySettingsPage() {
       )
       if (cancelled) return
       setRows(listed)
+      if (companyId) {
+        await sqlite.open(companyId)
+        const saved = await loadDisplayCurrency(sqlite)
+        if (cancelled) return
+        setCurrency(saved)
+        setDraft(saved)
+      }
       setReady(true)
     })().catch((error: unknown) => {
       if (cancelled) return
@@ -81,7 +103,24 @@ export function CompanySettingsPage() {
     return () => {
       cancelled = true
     }
-  }, [user])
+  }, [companyId, user])
+
+  async function saveCurrency() {
+    if (!companyId) return
+    setBusy(true)
+    setNotice('')
+    setMessage('')
+    try {
+      const saved = await saveDisplayCurrency(sqlite, draft)
+      setCurrency(saved)
+      setDraft(saved)
+      setNotice('이 회사 원본에 통화를 저장했습니다.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   if (!configured) {
     return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
@@ -104,6 +143,7 @@ export function CompanySettingsPage() {
         <p className="mt-2 text-sm text-muted">이 계정에 연결된 회사와 사람입니다. 백업은 아직 열지 않습니다.</p>
       </div>
       {message ? <p className="text-sm text-danger">{message}</p> : null}
+      {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {rows.length === 0 ? <p className="text-sm text-muted">연결된 회사가 없습니다.</p> : null}
       {rows.map((company) => (
         <section key={company.id} className="space-y-4 rounded-lg border border-line bg-card p-6">
@@ -126,8 +166,43 @@ export function CompanySettingsPage() {
           <div>
             <h3 className="text-sm font-semibold">표시</h3>
             <p className="mt-2 text-sm text-muted">
-              {COMPANY_DISPLAY.language} · {COMPANY_DISPLAY.timezone} 시간 · {COMPANY_DISPLAY.currency}
+              {COMPANY_DISPLAY.language} · {COMPANY_DISPLAY.timezone} 시간 ·{' '}
+              {company.id === companyId ? displayCurrencyName(currency) : COMPANY_DISPLAY.currency}
             </p>
+            {company.id === companyId && (operator || company.role === 'company_admin') ? (
+              <form
+                className="mt-3 flex flex-wrap items-end gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  void saveCurrency()
+                }}
+              >
+                <label className="text-sm">
+                  통화
+                  <select
+                    className="mt-1 block rounded border border-line px-3 py-2"
+                    value={draft}
+                    onChange={(event) => setDraft(event.target.value)}
+                  >
+                    {ORDER_CURRENCIES.map((row) => (
+                      <option key={row.id} value={row.id}>
+                        {row.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="submit"
+                  disabled={busy || draft === currency}
+                  className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  이 회사에 저장
+                </button>
+              </form>
+            ) : null}
+            {company.id === companyId && company.role === 'member' && !operator ? (
+              <p className="mt-2 text-sm text-muted">통화 변경은 회사 관리자만 할 수 있습니다.</p>
+            ) : null}
           </div>
         </section>
       ))}

@@ -15,6 +15,7 @@ import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
+import { loadDisplayCurrency } from '../lib/company/displayCurrency'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
 
@@ -44,6 +45,7 @@ export function StockPage() {
   const [orderDueDate, setOrderDueDate] = useState('')
   const [orderDate, setOrderDate] = useState(todayYmd)
   const [orderCurrency, setOrderCurrency] = useState('KRW')
+  const currencyTouched = useRef(false)
   const [extraLines, setExtraLines] = useState<ExtraOrderLine[]>([])
   const [orderFileName, setOrderFileName] = useState('')
   const [pendingOrderFile, setPendingOrderFile] = useState<{
@@ -126,6 +128,7 @@ export function StockPage() {
     setWarehouses(warehouseRows)
     setDepartments(deptRows)
     setState(nextState)
+    if (!currencyTouched.current) setOrderCurrency(await loadDisplayCurrency(sqlite))
     setSelectedLine((prev) => {
       const visible = nextState.ledger.filter(isSupplyLedgerLine)
       if (prev) {
@@ -163,6 +166,7 @@ export function StockPage() {
     setOrderPartnerId(row.partnerId ?? '')
     setOrderDueDate(row.dueDate ?? '')
     setOrderDate(row.orderDate || todayYmd())
+    currencyTouched.current = true
     setOrderCurrency(row.currency || 'KRW')
     setOrderFileName(row.fileName)
     setPendingOrderFile(null)
@@ -827,7 +831,10 @@ export function StockPage() {
               <select
                 className="mt-1 w-full rounded border border-line px-3 py-2"
                 value={orderCurrency}
-                onChange={(e) => setOrderCurrency(e.target.value)}
+                onChange={(e) => {
+                  currencyTouched.current = true
+                  setOrderCurrency(e.target.value)
+                }}
               >
                 {ORDER_CURRENCIES.map((row) => (
                   <option key={row.id} value={row.id}>
