@@ -14,3 +14,7 @@ export function openedCompanyOnly<T extends { id: string }>(companies: T[], open
   if (!openId) return []
   return companies.filter((company) => company.id === openId)
 }
+
+export function controlsOtherCompanies(company: { company_code: string } | undefined) {
+  return company?.company_code === 'HQ01'
+}

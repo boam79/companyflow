@@ -19,7 +19,7 @@ import {
   saveDisplayGrouping,
   saveDisplayTimezone,
 } from '../lib/company/displayCurrency'
-import { COMPANY_DISPLAY, memberRoleLabel, openedCompanyOnly } from '../lib/company/settings'
+import { COMPANY_DISPLAY, controlsOtherCompanies, memberRoleLabel, openedCompanyOnly } from '../lib/company/settings'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { ORDER_CURRENCIES } from '../lib/stock/inventoryView'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
@@ -124,12 +124,14 @@ export function CompanySettingsPage() {
       setTimeZoneDraft(current.timeZone)
       const nextModules: Record<string, Record<CompanyModuleId, boolean>> = {}
       nextModules[open.id] = await loadCompanyModules(sqlite)
-      for (const company of listed) {
-        if (company.id === open.id) continue
-        if (cancelled) return
-        await sqlite.open(company.id)
-        if (cancelled || sqlite.companyId !== company.id) return
-        nextModules[company.id] = await loadCompanyModules(sqlite)
+      if (controlsOtherCompanies(open)) {
+        for (const company of listed) {
+          if (company.id === open.id) continue
+          if (cancelled) return
+          await sqlite.open(company.id)
+          if (cancelled || sqlite.companyId !== company.id) return
+          nextModules[company.id] = await loadCompanyModules(sqlite)
+        }
       }
       if (sqlite.companyId !== open.id) await sqlite.open(open.id)
       if (cancelled || sqlite.companyId !== open.id) return
@@ -211,6 +213,11 @@ export function CompanySettingsPage() {
 
   async function saveModule(targetId: string, moduleId: CompanyModuleId, on: boolean) {
     if (!targetId) return
+    const open = rows.find((row) => row.id === companyId)
+    if (targetId !== companyId && !controlsOtherCompanies(open)) {
+      setMessage('다른 회사 모듈은 본사에서만 바꿉니다.')
+      return
+    }
     setBusy(true)
     setNotice('')
     setMessage('')
@@ -302,7 +309,12 @@ export function CompanySettingsPage() {
               </option>
             ))}
           </select>
-          <p className="mt-2 text-muted">다른 회사의 사람과 업무 내용은 그 회사를 연 뒤에 봅니다. 여기서는 모듈만 바꿉니다.</p>
+          <p className="mt-2 text-muted">
+            다른 회사의 사람과 업무 내용은 그 회사를 연 뒤에 봅니다.
+            {controlsOtherCompanies(rows.find((row) => row.id === companyId))
+              ? ' 다른 회사 모듈은 본사에서만 바꿉니다.'
+              : ''}
+          </p>
         </label>
       ) : null}
       {openedCompanyOnly(rows, companyId).map((company) => {
@@ -435,7 +447,7 @@ export function CompanySettingsPage() {
         </section>
         )
       })}
-      {operator || rows.find((row) => row.id === companyId)?.role === 'company_admin'
+      {controlsOtherCompanies(rows.find((row) => row.id === companyId))
         ? rows
             .filter((company) => company.id !== companyId)
             .map((company) => (
