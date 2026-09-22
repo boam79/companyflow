@@ -9,3 +9,8 @@ export function memberRoleLabel(role: string) {
   if (role === 'member') return '사용자'
   throw new Error('허용되지 않은 역할입니다.')
 }
+
+export function openedCompanyOnly<T extends { id: string }>(companies: T[], openId: string) {
+  if (!openId) return []
+  return companies.filter((company) => company.id === openId)
+}

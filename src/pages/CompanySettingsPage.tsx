@@ -13,9 +13,8 @@ import {
   saveDisplayCurrency,
   saveDisplayGrouping,
   saveDisplayTimezone,
-  type CompanyDisplayState,
 } from '../lib/company/displayCurrency'
-import { COMPANY_DISPLAY, memberRoleLabel } from '../lib/company/settings'
+import { COMPANY_DISPLAY, memberRoleLabel, openedCompanyOnly } from '../lib/company/settings'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { ORDER_CURRENCIES } from '../lib/stock/inventoryView'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
@@ -45,7 +44,6 @@ export function CompanySettingsPage() {
   const [timeZoneDraft, setTimeZoneDraft] = useState('Asia/Seoul')
   const [contractsOn, setContractsOn] = useState(true)
   const [contractsDraft, setContractsDraft] = useState(true)
-  const [displays, setDisplays] = useState<Record<string, CompanyDisplayState>>({})
   const [message, setMessage] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
@@ -89,45 +87,41 @@ export function CompanySettingsPage() {
         setReady(true)
         return
       }
-      const listed = await Promise.all(
-        (companies ?? []).map(async (company) => {
-          const membership =
-            mine.find((row) => row.company_id === company.id && row.user_id === user.id) ??
-            mine.find((row) => row.company_id === company.id)
-          const { data, error } = await client.rpc('list_company_members', { p_company_id: company.id })
-          if (error) throw error
-          return {
-            ...(company as CompanyRow),
-            role: membership?.role ?? 'member',
-            members: (data ?? []) as MemberRow[],
-          }
-        }),
-      )
+      const listed = (companies ?? []).map((company) => {
+        const membership =
+          mine.find((row) => row.company_id === company.id && row.user_id === user.id) ??
+          mine.find((row) => row.company_id === company.id)
+        return {
+          ...(company as CompanyRow),
+          role: membership?.role ?? 'member',
+          members: [] as MemberRow[],
+        }
+      })
+      const open = openedCompanyOnly(listed, companyId)[0]
+      if (!open) {
+        if (cancelled) return
+        setRows(listed)
+        setReady(true)
+        return
+      }
+      const { data, error } = await client.rpc('list_company_members', { p_company_id: open.id })
+      if (error) throw error
       if (cancelled) return
+      open.members = (data ?? []) as MemberRow[]
       setRows(listed)
-      const nextDisplays: Record<string, CompanyDisplayState> = {}
-      for (const company of listed) {
-        if (cancelled) return
-        await sqlite.open(company.id)
-        if (cancelled) return
-        nextDisplays[company.id] = await loadCompanyDisplay(sqlite)
-      }
-      if (cancelled) return
-      setDisplays(nextDisplays)
-      if (companyId && nextDisplays[companyId]) {
-        if (sqlite.companyId !== companyId) await sqlite.open(companyId)
-        const current = nextDisplays[companyId]
-        setCurrency(current.currency)
-        setDraft(current.currency)
-        setGrouping(current.grouping)
-        setGroupingDraft(current.grouping)
-        setTimeZone(current.timeZone)
-        setTimeZoneDraft(current.timeZone)
-        const menuOn = await loadContractsMenu(sqlite)
-        if (cancelled) return
-        setContractsOn(menuOn)
-        setContractsDraft(menuOn)
-      }
+      await sqlite.open(open.id)
+      if (cancelled || sqlite.companyId !== open.id) return
+      const current = await loadCompanyDisplay(sqlite)
+      setCurrency(current.currency)
+      setDraft(current.currency)
+      setGrouping(current.grouping)
+      setGroupingDraft(current.grouping)
+      setTimeZone(current.timeZone)
+      setTimeZoneDraft(current.timeZone)
+      const menuOn = await loadContractsMenu(sqlite)
+      if (cancelled || sqlite.companyId !== open.id) return
+      setContractsOn(menuOn)
+      setContractsDraft(menuOn)
       setReady(true)
     })().catch((error: unknown) => {
       if (cancelled) return
@@ -240,7 +234,7 @@ export function CompanySettingsPage() {
     <div className="max-w-xl space-y-6">
       <div>
         <h1 className="text-3xl font-semibold">회사 설정</h1>
-        <p className="mt-2 text-sm text-muted">이 계정에 연결된 회사와 사람입니다. 백업은 아직 열지 않습니다.</p>
+        <p className="mt-2 text-sm text-muted">이 PC에서 연 회사의 사람과 표시입니다. 백업은 아직 열지 않습니다.</p>
       </div>
       {message ? <p className="text-sm text-danger">{message}</p> : null}
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
@@ -259,14 +253,11 @@ export function CompanySettingsPage() {
               </option>
             ))}
           </select>
-          <p className="mt-2 text-muted">다른 회사 원본은 이 회사의 통화·자리·시간대를 쓰지 않습니다.</p>
+          <p className="mt-2 text-muted">다른 회사의 사람과 표시는 그 회사를 연 뒤에 봅니다.</p>
         </label>
       ) : null}
-      {rows.map((company) => {
-        const shown =
-          company.id === companyId
-            ? { currency, grouping, timeZone }
-            : (displays[company.id] ?? { currency: 'KRW', grouping: true, timeZone: 'Asia/Seoul' })
+      {openedCompanyOnly(rows, companyId).map((company) => {
+        const shown = { currency, grouping, timeZone }
         return (
         <section key={company.id} className="space-y-4 rounded-lg border border-line bg-card p-6">
           <div>
