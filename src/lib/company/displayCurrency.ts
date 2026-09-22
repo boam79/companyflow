@@ -56,3 +56,46 @@ export async function saveDisplayGrouping(db: CurrencyDb, grouping: boolean) {
   await db.exec('insert or replace into meta(key, value) values(?, ?)', [DISPLAY_GROUPING_KEY, value])
   return grouping
 }
+
+export const DISPLAY_TIMEZONE_KEY = 'display_timezone'
+
+export const DISPLAY_TIMEZONES = [
+  { id: 'Asia/Seoul', name: '서울' },
+  { id: 'UTC', name: '세계시' },
+] as const
+
+export function displayTimezoneId(value: string | null | undefined) {
+  const id = value?.trim() || 'Asia/Seoul'
+  return DISPLAY_TIMEZONES.some((row) => row.id === id) ? id : 'Asia/Seoul'
+}
+
+export function assertDisplayTimezone(value: string) {
+  const id = value.trim()
+  if (!DISPLAY_TIMEZONES.some((row) => row.id === id)) {
+    throw new Error('시간대는 서울 또는 세계시만 받습니다.')
+  }
+  return id
+}
+
+export function formatCompanyClock(date: Date, timeZone: string) {
+  const id = displayTimezoneId(timeZone)
+  const zone = DISPLAY_TIMEZONES.find((row) => row.id === id) ?? DISPLAY_TIMEZONES[0]
+  const clock = new Intl.DateTimeFormat('en-GB', {
+    timeZone: id,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(date)
+  return `${zone.name} ${clock}`
+}
+
+export async function loadDisplayTimezone(db: Pick<CurrencyDb, 'query'>) {
+  const rows = await db.query<{ value: string }>('select value from meta where key = ?', [DISPLAY_TIMEZONE_KEY])
+  return displayTimezoneId(rows[0]?.value)
+}
+
+export async function saveDisplayTimezone(db: CurrencyDb, value: string) {
+  const id = assertDisplayTimezone(value)
+  await db.exec('insert or replace into meta(key, value) values(?, ?)', [DISPLAY_TIMEZONE_KEY, id])
+  return id
+}

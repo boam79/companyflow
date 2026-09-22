@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assertDisplayCurrency, displayCurrencyName, formatCompanyNumber, loadDisplayCurrency, loadDisplayGrouping, saveDisplayCurrency, saveDisplayGrouping } from './displayCurrency'
+import { assertDisplayCurrency, assertDisplayTimezone, displayCurrencyName, formatCompanyClock, formatCompanyNumber, loadDisplayCurrency, loadDisplayGrouping, loadDisplayTimezone, saveDisplayCurrency, saveDisplayGrouping, saveDisplayTimezone } from './displayCurrency'
 
 function memoryDb(initial?: string) {
   const rows = new Map<string, string>()
@@ -39,5 +39,16 @@ describe('회사 표시 통화', () => {
     expect(formatCompanyNumber(12345, false)).toBe('12345')
     expect(await saveDisplayGrouping(db, false)).toBe(false)
     expect(await loadDisplayGrouping(db)).toBe(false)
+  })
+
+  it('시간대는 기본 서울이고 세계시는 아홉 시간 앞이다', async () => {
+    const at = new Date('2026-09-22T12:00:00Z')
+    const db = memoryDb()
+    expect(await loadDisplayTimezone(db)).toBe('Asia/Seoul')
+    expect(formatCompanyClock(at, 'Asia/Seoul')).toBe('서울 21:00')
+    expect(formatCompanyClock(at, 'UTC')).toBe('세계시 12:00')
+    expect(await saveDisplayTimezone(db, 'UTC')).toBe('UTC')
+    expect(await loadDisplayTimezone(db)).toBe('UTC')
+    expect(() => assertDisplayTimezone('America/New_York')).toThrow(/시간대/)
   })
 })

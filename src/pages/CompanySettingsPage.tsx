@@ -4,12 +4,16 @@ import { useAuth } from '../lib/AuthContext'
 import { useCompanySession } from '../lib/companySession'
 import {
   displayCurrencyName,
+  DISPLAY_TIMEZONES,
+  formatCompanyClock,
   formatCompanyNumber,
   GROUPING_SAMPLE,
   loadDisplayCurrency,
   loadDisplayGrouping,
+  loadDisplayTimezone,
   saveDisplayCurrency,
   saveDisplayGrouping,
+  saveDisplayTimezone,
 } from '../lib/company/displayCurrency'
 import { COMPANY_DISPLAY, memberRoleLabel } from '../lib/company/settings'
 import { getCompanySqlite } from '../lib/sqlite/instance'
@@ -37,6 +41,8 @@ export function CompanySettingsPage() {
   const [draft, setDraft] = useState('KRW')
   const [grouping, setGrouping] = useState(true)
   const [groupingDraft, setGroupingDraft] = useState(true)
+  const [timeZone, setTimeZone] = useState('Asia/Seoul')
+  const [timeZoneDraft, setTimeZoneDraft] = useState('Asia/Seoul')
   const [message, setMessage] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
@@ -97,11 +103,14 @@ export function CompanySettingsPage() {
         await sqlite.open(companyId)
         const saved = await loadDisplayCurrency(sqlite)
         const grouped = await loadDisplayGrouping(sqlite)
+        const zone = await loadDisplayTimezone(sqlite)
         if (cancelled) return
         setCurrency(saved)
         setDraft(saved)
         setGrouping(grouped)
         setGroupingDraft(grouped)
+        setTimeZone(zone)
+        setTimeZoneDraft(zone)
       }
       setReady(true)
     })().catch((error: unknown) => {
@@ -141,6 +150,23 @@ export function CompanySettingsPage() {
       setGrouping(saved)
       setGroupingDraft(saved)
       setNotice('이 회사 원본에 자리 구분을 저장했습니다.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function saveTimeZone() {
+    if (!companyId) return
+    setBusy(true)
+    setNotice('')
+    setMessage('')
+    try {
+      const saved = await saveDisplayTimezone(sqlite, timeZoneDraft)
+      setTimeZone(saved)
+      setTimeZoneDraft(saved)
+      setNotice('이 회사 원본에 시간대를 저장했습니다.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     } finally {
@@ -192,7 +218,8 @@ export function CompanySettingsPage() {
           <div>
             <h3 className="text-sm font-semibold">표시</h3>
             <p className="mt-2 text-sm text-muted">
-              {COMPANY_DISPLAY.language} · {COMPANY_DISPLAY.timezone} 시간 ·{' '}
+              {COMPANY_DISPLAY.language} ·{' '}
+              {company.id === companyId ? formatCompanyClock(new Date(), timeZone) : `${COMPANY_DISPLAY.timezone} 시간`} ·{' '}
               {company.id === companyId ? displayCurrencyName(currency) : COMPANY_DISPLAY.currency}
               {company.id === companyId ? ` · ${formatCompanyNumber(GROUPING_SAMPLE, grouping)}` : ''}
             </p>
@@ -249,6 +276,37 @@ export function CompanySettingsPage() {
                 <button
                   type="submit"
                   disabled={busy || groupingDraft === grouping}
+                  className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  이 회사에 저장
+                </button>
+              </form>
+            ) : null}
+            {company.id === companyId && (operator || company.role === 'company_admin') ? (
+              <form
+                className="mt-3 flex flex-wrap items-end gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  void saveTimeZone()
+                }}
+              >
+                <label className="text-sm">
+                  시간대
+                  <select
+                    className="mt-1 block rounded border border-line px-3 py-2"
+                    value={timeZoneDraft}
+                    onChange={(event) => setTimeZoneDraft(event.target.value)}
+                  >
+                    {DISPLAY_TIMEZONES.map((row) => (
+                      <option key={row.id} value={row.id}>
+                        {row.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="submit"
+                  disabled={busy || timeZoneDraft === timeZone}
                   className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                 >
                   이 회사에 저장
