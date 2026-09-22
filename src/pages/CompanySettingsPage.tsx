@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
-import { useCompanySession } from '../lib/companySession'
+import { loadContractsMenu, saveContractsMenu } from '../lib/company/modules'
+import { notifyCompanyModules, useCompanySession } from '../lib/companySession'
 import {
   displayCurrencyName,
   DISPLAY_TIMEZONES,
@@ -42,6 +43,8 @@ export function CompanySettingsPage() {
   const [groupingDraft, setGroupingDraft] = useState(true)
   const [timeZone, setTimeZone] = useState('Asia/Seoul')
   const [timeZoneDraft, setTimeZoneDraft] = useState('Asia/Seoul')
+  const [contractsOn, setContractsOn] = useState(true)
+  const [contractsDraft, setContractsDraft] = useState(true)
   const [displays, setDisplays] = useState<Record<string, CompanyDisplayState>>({})
   const [message, setMessage] = useState('')
   const [notice, setNotice] = useState('')
@@ -117,6 +120,10 @@ export function CompanySettingsPage() {
         setGroupingDraft(current.grouping)
         setTimeZone(current.timeZone)
         setTimeZoneDraft(current.timeZone)
+        const menuOn = await loadContractsMenu(sqlite)
+        if (cancelled) return
+        setContractsOn(menuOn)
+        setContractsDraft(menuOn)
       }
       setReady(true)
     })().catch((error: unknown) => {
@@ -173,6 +180,24 @@ export function CompanySettingsPage() {
       setTimeZone(saved)
       setTimeZoneDraft(saved)
       setNotice('이 회사 원본에 시간대를 저장했습니다.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function saveContracts() {
+    if (!companyId) return
+    setBusy(true)
+    setNotice('')
+    setMessage('')
+    try {
+      const saved = await saveContractsMenu(sqlite, contractsDraft)
+      setContractsOn(saved)
+      setContractsDraft(saved)
+      notifyCompanyModules()
+      setNotice(saved ? '이 회사 원본에서 계약 메뉴를 켰습니다.' : '이 회사 원본에서 계약 메뉴를 껐습니다.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     } finally {
@@ -334,6 +359,34 @@ export function CompanySettingsPage() {
                 <button
                   type="submit"
                   disabled={busy || timeZoneDraft === timeZone}
+                  className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  이 회사에 저장
+                </button>
+              </form>
+            ) : null}
+            {company.id === companyId && (operator || company.role === 'company_admin') ? (
+              <form
+                className="mt-3 flex flex-wrap items-end gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  void saveContracts()
+                }}
+              >
+                <label className="text-sm">
+                  계약 메뉴
+                  <select
+                    className="mt-1 block rounded border border-line px-3 py-2"
+                    value={contractsDraft ? 'on' : 'off'}
+                    onChange={(event) => setContractsDraft(event.target.value === 'on')}
+                  >
+                    <option value="on">사용</option>
+                    <option value="off">사용 안 함</option>
+                  </select>
+                </label>
+                <button
+                  type="submit"
+                  disabled={busy || contractsDraft === contractsOn}
                   className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                 >
                   이 회사에 저장

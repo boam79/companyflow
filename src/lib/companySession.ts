@@ -97,6 +97,16 @@ export function seedInvalidCompanyList() {
   writeStore(LIST_KEY, '{')
 }
 
+export function notifyOpenCompany(id: string) {
+  if (typeof window === 'undefined' || !id) return
+  window.dispatchEvent(new CustomEvent('companyflow-open-company', { detail: id }))
+}
+
+export function notifyCompanyModules() {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent('companyflow-modules'))
+}
+
 export function companyIdInList(id: string, companies: CompanyRow[]) {
   const safe = safeCompanyId(id)
   if (safe && companies.some((row) => row.id === safe)) return safe
@@ -145,7 +155,10 @@ export function useCompanySession(enabled: boolean) {
 
   function setCompanyId(next: string) {
     const allowed = companyIdInList(next, companies) || safeCompanyId(next)
-    if (allowed) rememberOpenedCompany(allowed)
+    if (allowed) {
+      rememberOpenedCompany(allowed)
+      notifyOpenCompany(allowed)
+    }
     setCompanyIdState(allowed)
   }
 

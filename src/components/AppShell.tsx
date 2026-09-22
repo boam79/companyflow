@@ -1,7 +1,11 @@
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { useAuth } from '../lib/AuthContext'
 import { isQrScanPath } from '../lib/asset/qr'
+import { loadContractsMenu } from '../lib/company/modules'
+import { useCompanySession } from '../lib/companySession'
 import { GUEST_MENUS, isGuestPath } from '../lib/guest/ids'
+import { getCompanySqlite } from '../lib/sqlite/instance'
 import { PendingInviteBanner } from './PendingInviteBanner'
 
 const MENUS = [
@@ -23,7 +27,47 @@ export function AppShell() {
   const scanMode = isQrScanPath(location.pathname)
   const guest = isGuestPath(location.pathname)
   const home = location.pathname === '/'
-  const menus = guest ? GUEST_MENUS : MENUS
+  const { companyId } = useCompanySession(Boolean(user) && !guest)
+  const [openCompanyId, setOpenCompanyId] = useState('')
+  const [moduleTick, setModuleTick] = useState(0)
+  const [contractsOn, setContractsOn] = useState(true)
+  const menus = guest ? GUEST_MENUS : MENUS.filter((menu) => menu.to !== '/contracts' || contractsOn)
+
+  useEffect(() => {
+    if (companyId) setOpenCompanyId(companyId)
+  }, [companyId])
+
+  useEffect(() => {
+    function onOpen(event: Event) {
+      const id = (event as CustomEvent<string>).detail
+      if (id) setOpenCompanyId(id)
+    }
+    function onModules() {
+      setModuleTick((value) => value + 1)
+    }
+    window.addEventListener('companyflow-open-company', onOpen)
+    window.addEventListener('companyflow-modules', onModules)
+    return () => {
+      window.removeEventListener('companyflow-open-company', onOpen)
+      window.removeEventListener('companyflow-modules', onModules)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (guest || !user || !openCompanyId) return
+    let cancelled = false
+    void (async () => {
+      const sqlite = getCompanySqlite()
+      await sqlite.open(openCompanyId)
+      const on = await loadContractsMenu(sqlite)
+      if (!cancelled) setContractsOn(on)
+    })().catch(() => {
+      if (!cancelled) setContractsOn(true)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [guest, moduleTick, openCompanyId, user])
 
   return (
     <div className={`flex min-h-svh flex-col ${home ? 'bg-[#07090c]' : ''}`}>
