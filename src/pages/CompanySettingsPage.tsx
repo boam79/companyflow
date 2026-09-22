@@ -35,7 +35,7 @@ const sqlite = getCompanySqlite()
 
 export function CompanySettingsPage() {
   const { configured, loading, user, operator } = useAuth()
-  const { companyId } = useCompanySession(Boolean(user))
+  const { companyId, setCompanyId } = useCompanySession(Boolean(user))
   const [rows, setRows] = useState<CompanySettings[]>([])
   const [currency, setCurrency] = useState('KRW')
   const [draft, setDraft] = useState('KRW')
@@ -58,7 +58,7 @@ export function CompanySettingsPage() {
     void (async () => {
       const { data: memberships, error: membershipError } = await client
         .from('company_memberships')
-        .select('company_id, role')
+        .select('company_id, user_id, role')
         .eq('status', 'active')
       if (cancelled) return
       if (membershipError) {
@@ -87,7 +87,9 @@ export function CompanySettingsPage() {
       }
       const listed = await Promise.all(
         (companies ?? []).map(async (company) => {
-          const membership = mine.find((row) => row.company_id === company.id)
+          const membership =
+            mine.find((row) => row.company_id === company.id && row.user_id === user.id) ??
+            mine.find((row) => row.company_id === company.id)
           const { data, error } = await client.rpc('list_company_members', { p_company_id: company.id })
           if (error) throw error
           return {
@@ -197,6 +199,23 @@ export function CompanySettingsPage() {
       {message ? <p className="text-sm text-danger">{message}</p> : null}
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {rows.length === 0 ? <p className="text-sm text-muted">연결된 회사가 없습니다.</p> : null}
+      {rows.length > 0 ? (
+        <label className="block text-sm">
+          이 PC에서 연 회사
+          <select
+            className="mt-1 block rounded border border-line px-3 py-2"
+            value={companyId}
+            onChange={(event) => setCompanyId(event.target.value)}
+          >
+            {rows.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.display_name}
+              </option>
+            ))}
+          </select>
+          <p className="mt-2 text-muted">다른 회사 원본은 이 회사의 통화·자리·시간대를 쓰지 않습니다.</p>
+        </label>
+      ) : null}
       {rows.map((company) => (
         <section key={company.id} className="space-y-4 rounded-lg border border-line bg-card p-6">
           <div>
