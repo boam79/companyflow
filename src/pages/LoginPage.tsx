@@ -4,19 +4,18 @@ import { useAuth } from '../lib/AuthContext'
 import { safeLoginNext } from '../lib/loginNext'
 import { getSupabase } from '../lib/supabase'
 
-type Mode = 'signin' | 'signup'
-
 export function LoginPage() {
   const { configured, user } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const [mode, setMode] = useState<Mode>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [signupEmail, setSignupEmail] = useState('')
+  const [signupPassword, setSignupPassword] = useState('')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
 
-  async function onSubmit(event: FormEvent) {
+  async function onSignIn(event: FormEvent) {
     event.preventDefault()
     const client = getSupabase()
     if (!client) {
@@ -26,18 +25,39 @@ export function LoginPage() {
     setBusy(true)
     setMessage('')
     try {
-      if (mode === 'signup') {
-        const { error } = await client.auth.signUp({ email: email.trim(), password })
-        if (error) throw error
-        setMessage('가입 요청을 보냈습니다. 메일 확인이 켜져 있으면 받은편지함을 확인하세요.')
-        return
-      }
       const { error } = await client.auth.signInWithPassword({
         email: email.trim(),
         password,
       })
       if (error) throw error
       navigate(safeLoginNext(searchParams.get('next')))
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onSignUp(event: FormEvent) {
+    event.preventDefault()
+    const client = getSupabase()
+    if (!client) {
+      setMessage('중앙 운영이 연결되지 않았습니다.')
+      return
+    }
+    setBusy(true)
+    setMessage('')
+    try {
+      const { data, error } = await client.auth.signUp({
+        email: signupEmail.trim(),
+        password: signupPassword,
+      })
+      if (error) throw error
+      if (data.session) {
+        navigate(safeLoginNext(searchParams.get('next')))
+        return
+      }
+      setMessage('계정을 만들었습니다. 메일 확인이 필요하면 받은편지함을 연 뒤, 위 로그인 칸에서 같은 이메일로 들어오세요.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     } finally {
@@ -58,7 +78,7 @@ export function LoginPage() {
       <div>
         <h1 className="text-3xl font-semibold">로그인</h1>
         <p className="mt-2 text-sm text-muted">
-          운영 권한은 계정 프로필이 아니라 서버의 app_metadata로만 부여됩니다.
+          계정이 없으면 아래 회원가입에서 만듭니다. 운영 권한은 서버의 app_metadata로만 부여됩니다.
         </p>
       </div>
       {user ? (
@@ -69,28 +89,15 @@ export function LoginPage() {
           </Link>
         </p>
       ) : null}
-      <form className="space-y-4 rounded-lg border border-line bg-card p-6" onSubmit={onSubmit}>
-        <div className="flex gap-2 text-sm">
-          <button
-            type="button"
-            className={mode === 'signin' ? 'font-semibold text-accent' : 'text-muted'}
-            onClick={() => setMode('signin')}
-          >
-            로그인
-          </button>
-          <button
-            type="button"
-            className={mode === 'signup' ? 'font-semibold text-accent' : 'text-muted'}
-            onClick={() => setMode('signup')}
-          >
-            회원가입
-          </button>
-        </div>
+      <form className="space-y-4 rounded-lg border border-line bg-card p-6" onSubmit={onSignIn}>
+        <h2 className="text-lg font-semibold">로그인</h2>
         <label className="block text-sm">
           이메일
           <input
             required
             type="email"
+            name="loginEmail"
+            autoComplete="username"
             className="mt-1 w-full rounded border border-line px-3 py-2"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -102,6 +109,8 @@ export function LoginPage() {
             required
             minLength={8}
             type="password"
+            name="loginPassword"
+            autoComplete="current-password"
             className="mt-1 w-full rounded border border-line px-3 py-2"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -112,7 +121,43 @@ export function LoginPage() {
           disabled={busy}
           className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
         >
-          {mode === 'signup' ? '가입' : '로그인'}
+          로그인
+        </button>
+      </form>
+      <form className="space-y-4 rounded-lg border border-line bg-card p-6" onSubmit={onSignUp}>
+        <h2 className="text-lg font-semibold">회원가입</h2>
+        <p className="text-sm text-muted">초대받은 이메일은 여기서 계정을 만듭니다. 만든 뒤 로그인하면 수락이 나옵니다.</p>
+        <label className="block text-sm">
+          이메일
+          <input
+            required
+            type="email"
+            name="signupEmail"
+            autoComplete="email"
+            className="mt-1 w-full rounded border border-line px-3 py-2"
+            value={signupEmail}
+            onChange={(e) => setSignupEmail(e.target.value)}
+          />
+        </label>
+        <label className="block text-sm">
+          비밀번호
+          <input
+            required
+            minLength={8}
+            type="password"
+            name="signupPassword"
+            autoComplete="new-password"
+            className="mt-1 w-full rounded border border-line px-3 py-2"
+            value={signupPassword}
+            onChange={(e) => setSignupPassword(e.target.value)}
+          />
+        </label>
+        <button
+          type="submit"
+          disabled={busy}
+          className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          계정 만들기
         </button>
       </form>
       {message ? <p className="text-sm text-muted">{message}</p> : null}
