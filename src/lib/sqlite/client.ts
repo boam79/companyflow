@@ -4,6 +4,7 @@ import { acquireCompanyWriteLock } from '../tabLock'
 import { assertCompanyStorageId } from '../companyPaths'
 import { explainSqliteOpenError, isSahHandleBusy } from './openError'
 import { sqliteOpenMode } from './openPlan'
+import { createOpQueue } from './opQueue'
 
 type WorkerOk = { id: number; ok: true; payload: unknown }
 type WorkerErr = { id: number; ok: false; error: string }
@@ -20,6 +21,7 @@ export class CompanySqlite {
     { resolve: (value: unknown) => void; reject: (error: Error) => void }
   >()
   private lockRelease: (() => void) | null = null
+  private readonly enqueue = createOpQueue()
   readonly operations = new ProcessedOperations()
   persistOk = false
   vfsName = 'none'
@@ -38,14 +40,19 @@ export class CompanySqlite {
       return { status: 'duplicate', value: JSON.parse(existing[0].result_json) as T }
     }
     const value = await work()
-    await this.exec(
-      'insert into processed_operations(operation_id, result_json, created_at) values(?, ?, ?)',
-      [operationId, JSON.stringify(value), new Date().toISOString()],
-    )
+    await this.exec('insert into processed_operations(operation_id, result_json, created_at) values(?, ?, ?)', [
+      operationId,
+      JSON.stringify(value),
+      new Date().toISOString(),
+    ])
     return { status: 'applied', value }
   }
 
   async open(companyId: string, options?: { force?: boolean; memory?: boolean }): Promise<void> {
+    return this.enqueue(() => this.openNow(companyId, options))
+  }
+
+  private async openNow(companyId: string, options?: { force?: boolean; memory?: boolean }): Promise<void> {
     const id = assertCompanyStorageId(companyId)
     const memory = sqliteOpenMode({ companyId: id, memory: options?.memory }).memory
     if (!options?.force && this.isOpen(id) && (!memory || this.vfsName === 'memory')) return
@@ -77,10 +84,18 @@ export class CompanySqlite {
   }
 
   async exec(sql: string, params?: unknown[]): Promise<void> {
+    await this.enqueue(() => this.execNow(sql, params))
+  }
+
+  private async execNow(sql: string, params?: unknown[]): Promise<void> {
     await this.send('exec', { sql, params })
   }
 
   async query<T>(sql: string, params?: unknown[]): Promise<T[]> {
+    return this.enqueue(() => this.queryNow<T>(sql, params))
+  }
+
+  private async queryNow<T>(sql: string, params?: unknown[]): Promise<T[]> {
     const payload = (await this.send('query', { sql, params })) as {
       rows: T[]
     }
@@ -88,7 +103,7 @@ export class CompanySqlite {
   }
 
   async batch(statements: { sql: string; params?: unknown[] }[]): Promise<void> {
-    await this.send('batch', { statements })
+    await this.enqueue(() => this.send('batch', { statements }).then(() => undefined))
   }
 
   close() {
@@ -122,6 +137,9 @@ export class CompanySqlite {
   private detachWorker() {
     this.worker?.terminate()
     this.worker = null
+    for (const pending of this.pending.values()) {
+      pending.reject(new Error('SQLite worker가 닫혔습니다.'))
+    }
     this.pending.clear()
   }
 

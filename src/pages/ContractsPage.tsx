@@ -57,6 +57,7 @@ export function ContractsPage() {
   const [ready, setReady] = useState(() => sqlite.isOpen(sqlite.companyId))
   const [menuOff, setMenuOff] = useState(false)
   const opening = useRef(false)
+  const openTicket = useRef(0)
   const fileInput = useRef<HTMLInputElement>(null)
   const ocrPanel = useRef<HTMLDivElement>(null)
 
@@ -66,26 +67,38 @@ export function ContractsPage() {
   }, [companyId])
 
   async function openCompany(nextId: string, force = false) {
+    const ticket = ++openTicket.current
     opening.current = true
     setCompanyId(nextId)
+    setRows([])
+    setMenuOff(false)
     setMessage('')
     try {
       await sqlite.open(nextId, { force })
+      if (ticket !== openTicket.current) return
       assertGuestOpensMemory(guest, sqlite.vfsName)
       setReady(sqlite.persistOk)
       if (!sqlite.persistOk) {
         setMessage('이 브라우저에서 영속 DB를 열 수 없습니다. 지정 Chrome에서 초기 설정을 먼저 하세요.')
         return
       }
+      if (sqlite.companyId !== nextId) {
+        setRows([])
+        setMessage('선택한 회사 원본이 열려 있지 않습니다.')
+        return
+      }
       if (!guest && !(await loadContractsMenu(sqlite))) {
+        if (ticket !== openTicket.current || sqlite.companyId !== nextId) return
         setMenuOff(true)
         setRows([])
         setReady(true)
         return
       }
+      if (ticket !== openTicket.current || sqlite.companyId !== nextId) return
       setMenuOff(false)
       if (!guest) await writeDefaultMaster(sqlite)
       const nextRows = await loadContracts(sqlite)
+      if (ticket !== openTicket.current || sqlite.companyId !== nextId) return
       const groups = groupContracts(nextRows, todayStamp())
       setRows(nextRows)
       setSelectedId((prev) => {
@@ -99,10 +112,11 @@ export function ContractsPage() {
         return groups.find((section) => section.phase === tab)?.contracts[0]?.id ?? ''
       })
     } catch (error) {
+      if (ticket !== openTicket.current) return
       setReady(false)
       setMessage(error instanceof Error ? error.message : String(error))
     } finally {
-      opening.current = false
+      if (ticket === openTicket.current) opening.current = false
     }
   }
 

@@ -57,6 +57,7 @@ export function CompanySettingsPage() {
       setReady(true)
       return
     }
+    setReady(false)
     let cancelled = false
     void (async () => {
       const { data: memberships, error: membershipError } = await client
@@ -106,7 +107,9 @@ export function CompanySettingsPage() {
       setRows(listed)
       const nextDisplays: Record<string, CompanyDisplayState> = {}
       for (const company of listed) {
+        if (cancelled) return
         await sqlite.open(company.id)
+        if (cancelled) return
         nextDisplays[company.id] = await loadCompanyDisplay(sqlite)
       }
       if (cancelled) return
@@ -136,12 +139,23 @@ export function CompanySettingsPage() {
     }
   }, [companyId, user])
 
+  async function openSelectedFile() {
+    if (!companyId) return false
+    if (sqlite.companyId !== companyId) await sqlite.open(companyId)
+    if (sqlite.companyId !== companyId) {
+      setMessage('선택한 회사 원본이 열려 있지 않습니다.')
+      return false
+    }
+    return true
+  }
+
   async function saveCurrency() {
     if (!companyId) return
     setBusy(true)
     setNotice('')
     setMessage('')
     try {
+      if (!(await openSelectedFile())) return
       const saved = await saveDisplayCurrency(sqlite, draft)
       setCurrency(saved)
       setDraft(saved)
@@ -159,6 +173,7 @@ export function CompanySettingsPage() {
     setNotice('')
     setMessage('')
     try {
+      if (!(await openSelectedFile())) return
       const saved = await saveDisplayGrouping(sqlite, groupingDraft)
       setGrouping(saved)
       setGroupingDraft(saved)
@@ -176,6 +191,7 @@ export function CompanySettingsPage() {
     setNotice('')
     setMessage('')
     try {
+      if (!(await openSelectedFile())) return
       const saved = await saveDisplayTimezone(sqlite, timeZoneDraft)
       setTimeZone(saved)
       setTimeZoneDraft(saved)
@@ -193,6 +209,7 @@ export function CompanySettingsPage() {
     setNotice('')
     setMessage('')
     try {
+      if (!(await openSelectedFile())) return
       const saved = await saveContractsMenu(sqlite, contractsDraft)
       setContractsOn(saved)
       setContractsDraft(saved)
