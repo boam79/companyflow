@@ -214,8 +214,8 @@ export function CompanySettingsPage() {
   async function saveModule(targetId: string, moduleId: CompanyModuleId, on: boolean) {
     if (!targetId) return
     const open = rows.find((row) => row.id === companyId)
-    if (targetId !== companyId && !controlsOtherCompanies(open)) {
-      setMessage('다른 회사 모듈은 본사에서만 바꿉니다.')
+    if (!controlsOtherCompanies(open) || (!operator && open?.role !== 'company_admin')) {
+      setMessage('모듈은 본사에서만 바꿉니다.')
       return
     }
     setBusy(true)
@@ -434,7 +434,9 @@ export function CompanySettingsPage() {
                 </button>
               </form>
             ) : null}
-            {company.id === companyId && (operator || company.role === 'company_admin') ? (
+            {company.id === companyId &&
+            controlsOtherCompanies(company) &&
+            (operator || company.role === 'company_admin') ? (
               <div className="mt-4">
                 <h3 className="text-sm font-semibold">모듈</h3>
                 {moduleFields(company.id)}
@@ -447,7 +449,8 @@ export function CompanySettingsPage() {
         </section>
         )
       })}
-      {controlsOtherCompanies(rows.find((row) => row.id === companyId))
+      {controlsOtherCompanies(rows.find((row) => row.id === companyId)) &&
+      (operator || rows.find((row) => row.id === companyId)?.role === 'company_admin')
         ? rows
             .filter((company) => company.id !== companyId)
             .map((company) => (

@@ -15,7 +15,7 @@ describe('회사 설정 표시', () => {
     expect(openedCompanyOnly(companies, '')).toEqual([])
   })
 
-  it('다른 회사 모듈은 본사만 바꾼다', () => {
+  it('모듈을 바꾸는 권한은 본사만 가진다', () => {
     expect(controlsOtherCompanies({ company_code: 'HQ01' })).toBe(true)
     expect(controlsOtherCompanies({ company_code: 'BR01' })).toBe(false)
     expect(controlsOtherCompanies(undefined)).toBe(false)
