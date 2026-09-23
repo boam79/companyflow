@@ -26,6 +26,7 @@ import {
   COMPANY_DISPLAY,
   canEditCompanyModules,
   canEditCompanySettings,
+  controlsOtherCompanies,
   memberRoleLabel,
   openedCompanyOnly,
 } from '../lib/company/settings'
@@ -50,6 +51,7 @@ type OpenInvite = {
 
 type CompanySettings = CompanyRow & {
   role: string
+  linked: boolean
   members: MemberRow[]
 }
 
@@ -96,31 +98,54 @@ export function CompanySettingsPage() {
         return
       }
       const mine = memberships ?? []
-      if (mine.length === 0) {
+      let source: CompanyRow[] = []
+      if (operator) {
+        const { data, error: companyError } = await client
+          .from('companies')
+          .select('id, display_name, company_code, registration_status')
+          .order('created_at', { ascending: false })
+        if (companyError) {
+          setMessage(companyError.message)
+          setReady(true)
+          return
+        }
+        source = (data ?? []) as CompanyRow[]
+      } else {
+        if (mine.length === 0) {
+          setRows([])
+          setTenants([])
+          setInvites([])
+          setReady(true)
+          return
+        }
+        const { data, error: companyError } = await client
+          .from('companies')
+          .select('id, display_name, company_code, registration_status')
+          .in(
+            'id',
+            mine.map((row) => row.company_id as string),
+          )
+        if (companyError) {
+          setMessage(companyError.message)
+          setReady(true)
+          return
+        }
+        source = (data ?? []) as CompanyRow[]
+      }
+      if (cancelled) return
+      if (source.length === 0) {
         setRows([])
         setTenants([])
         setInvites([])
         setReady(true)
         return
       }
-      const { data: companies, error: companyError } = await client
-        .from('companies')
-        .select('id, display_name, company_code, registration_status')
-        .in(
-          'id',
-          mine.map((row) => row.company_id as string),
-        )
-      if (cancelled) return
-      if (companyError) {
-        setMessage(companyError.message)
-        setReady(true)
-        return
-      }
-      const listed = (companies ?? []).map((company) => {
+      const listed = source.map((company) => {
         const membership = mine.find((row) => row.company_id === company.id)
         return {
-          ...(company as CompanyRow),
+          ...company,
           role: membership?.role ?? 'member',
+          linked: Boolean(membership),
           members: [] as MemberRow[],
         }
       })
@@ -138,7 +163,7 @@ export function CompanySettingsPage() {
       if (cancelled) return
       open.members = (data ?? []) as MemberRow[]
       setRows(listed)
-      if (canEditCompanySettings(open.role)) {
+      if (canEditCompanySettings(open.role, operator)) {
         const listedInvites = await client.rpc('list_company_invitations', { p_company_id: open.id })
         if (listedInvites.error) throw listedInvites.error
         if (cancelled) return
@@ -156,7 +181,7 @@ export function CompanySettingsPage() {
       setTimeZone(current.timeZone)
       setTimeZoneDraft(current.timeZone)
       const others: CompanyRow[] = []
-      if (canEditCompanyModules(operator, open)) {
+      if (operator && controlsOtherCompanies(open)) {
         const { data: allCompanies, error: allError } = await client
           .from('companies')
           .select('id, display_name, company_code, registration_status')
@@ -168,7 +193,7 @@ export function CompanySettingsPage() {
       const nextModules: Record<string, Record<CompanyModuleId, boolean>> = {
         [open.id]: mergeModuleFlags(await loadCompanyModules(sqlite), allowed.get(open.id) ?? null),
       }
-      if (canEditCompanyModules(operator, open)) {
+      if (operator && controlsOtherCompanies(open)) {
         for (const company of others) {
           if (cancelled) return
           let local = allModulesOn()
@@ -210,8 +235,8 @@ export function CompanySettingsPage() {
 
   function canSaveOpenCompany() {
     const open = rows.find((row) => row.id === companyId)
-    if (!canEditCompanySettings(open?.role)) {
-      setMessage('표시와 모듈은 이 회사 관리자만 바꿉니다.')
+    if (!canEditCompanySettings(open?.role, operator)) {
+      setMessage('표시는 이 회사 관리자나 운영 계정만 바꿉니다.')
       return false
     }
     return true
@@ -272,9 +297,8 @@ export function CompanySettingsPage() {
   }
 
   async function saveModule(targetId: string, moduleId: CompanyModuleId, on: boolean) {
-    const open = rows.find((row) => row.id === companyId)
-    if (!targetId || !canEditCompanyModules(operator, open)) {
-      setMessage('모듈은 본사 최고 관리자만 바꿉니다.')
+    if (!targetId || !canEditCompanyModules(operator)) {
+      setMessage('모듈은 운영 계정만 바꿉니다.')
       return
     }
     setBusy(true)
@@ -318,7 +342,7 @@ export function CompanySettingsPage() {
     event.preventDefault()
     const client = getSupabase()
     const open = rows.find((row) => row.id === companyId)
-    if (!client || !open || !canEditCompanySettings(open.role)) return
+    if (!client || !open || !canEditCompanySettings(open.role, operator)) return
     setBusy(true)
     setNotice('')
     setMessage('')
@@ -384,7 +408,7 @@ export function CompanySettingsPage() {
       <div>
         <h1 className="text-3xl font-semibold">회사 설정</h1>
         <p className="mt-2 text-sm text-muted">
-          업무 원본은 연결된 회사만 엽니다. 본사 최고 관리자는 다른 회사 모듈만 켭니다. 사람·재고·계약은 열지 않습니다.
+          운영 계정은 회사를 골라 사람·재고·자산·계약을 엽니다. 아래 칸에서는 다른 회사 모듈만 켭니다.
         </p>
       </div>
       {message ? <p className="text-sm text-danger">{message}</p> : null}
@@ -405,22 +429,23 @@ export function CompanySettingsPage() {
             ))}
           </select>
           <p className="mt-2 text-muted">
-            {canEditCompanyModules(operator, rows.find((row) => row.id === companyId))
-              ? '다른 회사는 아래에서 모듈만 바꿉니다.'
-              : '모듈은 본사 최고 관리자만 바꿉니다.'}
+            {canEditCompanyModules(operator)
+              ? '다른 회사 사람·재고·자산·계약은 위에서 그 회사를 고른 뒤 해당 메뉴에서 바꿉니다.'
+              : '모듈은 운영 계정만 바꿉니다.'}
           </p>
         </label>
       ) : null}
       {openedCompanyOnly(rows, companyId).map((company) => {
         const shown = { currency, grouping, timeZone }
-        const canEdit = canEditCompanySettings(company.role)
-        const canModules = canEditCompanyModules(operator, company)
+        const canEdit = canEditCompanySettings(company.role, operator)
+        const canModules = canEditCompanyModules(operator)
         return (
           <section key={company.id} className="space-y-4 rounded-lg border border-line bg-card p-6">
             <div>
               <h2 className="text-lg font-semibold">{company.display_name}</h2>
               <p className="mt-1 text-sm text-muted">
-                {company.company_code} · 이 계정은 {memberRoleLabel(company.role)}
+                {company.company_code} · 이 계정은{' '}
+                {operator && !company.linked ? '운영(최고 관리자)' : memberRoleLabel(company.role)}
               </p>
             </div>
             <div>
@@ -581,7 +606,7 @@ export function CompanySettingsPage() {
                   {moduleFields(company.id)}
                 </div>
               ) : canEdit ? (
-                <p className="mt-2 text-sm text-muted">모듈은 본사 최고 관리자만 바꿉니다.</p>
+                <p className="mt-2 text-sm text-muted">모듈은 운영 계정만 바꿉니다.</p>
               ) : (
                 <p className="mt-2 text-sm text-muted">표시 변경은 이 회사 관리자만 할 수 있습니다.</p>
               )}
@@ -589,14 +614,22 @@ export function CompanySettingsPage() {
           </section>
         )
       })}
-      {canEditCompanyModules(operator, rows.find((row) => row.id === companyId))
+      {operator && controlsOtherCompanies(rows.find((row) => row.id === companyId))
         ? tenants.map((company) => (
             <section key={company.id} className="space-y-3 rounded-lg border border-line bg-card p-6">
               <div>
                 <h2 className="text-lg font-semibold">{company.display_name}</h2>
                 <p className="mt-1 text-sm text-muted">
-                  {company.company_code} · 모듈만 바꿉니다. 사람·재고·자산·계약 내용은 열지 않습니다.
+                  {company.company_code} · 이 칸에서는 모듈만 켭니다. 사람·재고·자산·계약은 위에서 이 회사를 고른 뒤
+                  해당 메뉴에서 바꿉니다.
                 </p>
+                <button
+                  type="button"
+                  className="mt-2 rounded border border-line px-3 py-1.5 text-sm"
+                  onClick={() => setCompanyId(company.id)}
+                >
+                  이 회사 사람·재고·자산·계약 열기
+                </button>
               </div>
               {moduleFields(company.id)}
             </section>

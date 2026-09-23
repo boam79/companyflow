@@ -11,7 +11,7 @@ import { getSupabase } from '../lib/supabase'
 const sqlite = getCompanySqlite()
 
 export function DataPage() {
-  const { configured, loading, user } = useAuth()
+  const { configured, loading, user, operator } = useAuth()
   const { companies, companyId } = useCompanySession(Boolean(user))
   const [lines, setLines] = useState<Array<{ label: string; value: string }>>([])
   const [savedHere, setSavedHere] = useState(false)
@@ -57,7 +57,7 @@ export function DataPage() {
       if (deviceError) throw new Error(deviceError.message)
       if (membershipError) throw new Error(membershipError.message)
       const status = (device?.status as string | undefined) ?? null
-      const admin = membership?.role === 'company_admin'
+      const admin = operator || membership?.role === 'company_admin'
       setSavedHere(savedHere)
       setDeviceStatus(status)
       setIsAdmin(admin)
@@ -78,7 +78,7 @@ export function DataPage() {
     return () => {
       cancelled = true
     }
-  }, [companyId, user])
+  }, [companyId, operator, user])
 
   async function confirmThisPc() {
     const client = getSupabase()

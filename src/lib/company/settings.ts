@@ -15,22 +15,24 @@ export function openedCompanyOnly<T extends { id: string }>(companies: T[], open
   return companies.filter((company) => company.id === openId)
 }
 
-export function canEditCompanySettings(role: string | undefined) {
-  return role === 'company_admin'
+export function canEditCompanySettings(role: string | undefined, operator = false) {
+  return operator || role === 'company_admin'
 }
 
 export function controlsOtherCompanies(company: { company_code: string } | undefined) {
   return company?.company_code === 'HQ01'
 }
 
-export function canEditCompanyModules(
-  operator: boolean,
-  openCompany: { company_code: string } | undefined,
-) {
-  return Boolean(operator && controlsOtherCompanies(openCompany))
+export function canEditCompanyModules(operator: boolean) {
+  return operator
 }
 
-export function workCompaniesForUser<T extends { id: string }>(companies: T[], membershipIds: string[]) {
+export function workCompaniesForUser<T extends { id: string }>(
+  companies: T[],
+  membershipIds: string[],
+  operator = false,
+) {
+  if (operator) return companies
   const allowed = new Set(membershipIds)
   return companies.filter((company) => allowed.has(company.id))
 }

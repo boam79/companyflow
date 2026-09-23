@@ -273,7 +273,7 @@ export function OperatorCompaniesPage() {
         <h1 className="text-3xl font-semibold">회사 관리</h1>
         <p className="mt-2 text-sm text-muted">
           {operator
-            ? '운영 관리자는 회사를 등록하고 고객 관리자를 초대합니다. 이름·코드만 보입니다. 다른 회사 모듈은 본사를 연 회사 설정에서 켭니다.'
+            ? '운영 관리자는 회사를 등록하고, 회사 설정에서 그 회사 사람·재고·자산·계약과 모듈을 엽니다. 이름·코드만 이 화면에 있습니다.'
             : '이 회사의 관리자만 사용자를 초대합니다. 수락 전에는 권한이 없습니다.'}
         </p>
       </div>
