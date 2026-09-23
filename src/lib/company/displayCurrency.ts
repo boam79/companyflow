@@ -89,6 +89,10 @@ export function formatCompanyClock(date: Date, timeZone: string) {
   return `${zone.name} ${clock}`
 }
 
+export function formatCompanyDate(date: Date, timeZone: string) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: displayTimezoneId(timeZone) }).format(date)
+}
+
 export async function loadDisplayTimezone(db: Pick<CurrencyDb, 'query'>) {
   const rows = await db.query<{ value: string }>('select value from meta where key = ?', [DISPLAY_TIMEZONE_KEY])
   return displayTimezoneId(rows[0]?.value)

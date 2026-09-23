@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { formatCompanyDate, loadDisplayTimezone } from '../lib/company/displayCurrency'
 import { writeDefaultMaster } from '../lib/master/book'
 import { loadCompanyModule, showModuleLink } from '../lib/company/modules'
 import { ModuleClosed } from '../components/ModuleClosed'
@@ -71,10 +72,6 @@ import { escapeHtml } from '../lib/htmlEscape'
 
 type NamedRow = { id: string; name: string }
 
-function todayStamp() {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date())
-}
-
 function printBadge(lines: string[]) {
   const win = window.open('', '_blank', 'width=420,height=320')
   if (!win) return
@@ -107,6 +104,7 @@ export function PeoplePage() {
   const [ready, setReady] = useState(() => sqlite.isOpen(sqlite.companyId))
   const [moduleOff, setModuleOff] = useState(false)
   const [assetsLink, setAssetsLink] = useState(true)
+  const [today, setToday] = useState(() => formatCompanyDate(new Date(), 'Asia/Seoul'))
   const [badgeTemplate, setBadgeTemplate] = useState<BadgeTemplateRecord | undefined>()
   const [badgeFile, setBadgeFile] = useState<File | null>(null)
   const [badgePreview, setBadgePreview] = useState('')
@@ -145,6 +143,8 @@ export function PeoplePage() {
       }
       setModuleOff(false)
       setAssetsLink(showModuleLink(guest, guest ? true : await loadCompanyModule(sqlite, 'assets')))
+      const stamp = formatCompanyDate(new Date(), guest ? 'Asia/Seoul' : await loadDisplayTimezone(sqlite))
+      setToday(stamp)
       if (!guest) {
         await writeDefaultMaster(sqlite)
         await migrateProcessAssetsToChecks(sqlite)
@@ -192,7 +192,7 @@ export function PeoplePage() {
         setPreviewStatus('idle')
       }
       setDrafts(
-        Object.fromEntries(employeeRows.map((row) => [row.id, employeeHireDraft(row, deptRows, todayStamp())])),
+        Object.fromEntries(employeeRows.map((row) => [row.id, employeeHireDraft(row, deptRows, stamp)])),
       )
     } catch (error) {
       setReady(false)
@@ -518,13 +518,13 @@ export function PeoplePage() {
       const result = await executeLeave(sqlite, {
         operationId: crypto.randomUUID(),
         employeeId,
-        leftAt: todayStamp(),
+        leftAt: today,
       })
       setNotice(result.status === 'duplicate' ? '같은 퇴사는 한 번만 반영됩니다.' : '퇴사를 기록했습니다.')
       setDrafts((prev) => {
         const current = prev[employeeId]
         if (!current) return prev
-        return { ...prev, [employeeId]: { ...current, hiredAt: todayStamp() } }
+        return { ...prev, [employeeId]: { ...current, hiredAt: today } }
       })
       const next = await refreshPeople()
       followEmployee(employeeId, next.employeeRows, next.checkRows)
@@ -540,7 +540,7 @@ export function PeoplePage() {
   const selectedEmployee =
     visibleEmployees.find((row) => row.id === badgeEmployeeId) ?? visibleEmployees[0]
   const selectedDraft = selectedEmployee
-    ? drafts[selectedEmployee.id] ?? employeeHireDraft(selectedEmployee, departments, todayStamp())
+    ? drafts[selectedEmployee.id] ?? employeeHireDraft(selectedEmployee, departments, today)
     : null
   const selectedProcess = selectedEmployee ? onboardingView(selectedEmployee.id, checks) : []
   const selectedHeld = selectedEmployee ? outstandingOnboarding(selectedProcess).length : 0
@@ -1007,7 +1007,7 @@ export function PeoplePage() {
                             ownerName: employees.find((row) => row.id === selectedWorkflowDraft.ownerId)?.name,
                             dueAt: selectedWorkflowDraft.dueAt || selectedWorkflow?.dueAt,
                           },
-                          todayStamp(),
+                          today,
                         )}
                       </p>
                     </div>

@@ -21,20 +21,17 @@ import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
 import { getSupabase } from '../lib/supabase'
+import { formatCompanyDate, loadDisplayTimezone } from '../lib/company/displayCurrency'
 import { loadCompanyModule, showModuleLink } from '../lib/company/modules'
 import { ModuleClosed } from '../components/ModuleClosed'
 
 type NamedRow = { id: string; name: string }
 type PrintedQr = { id: string; url: string; dataUrl: string }
 
-function todayStamp() {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date())
-}
-
-function emptyLifeForm() {
+function emptyLifeForm(today: string) {
   return {
     kind: 'transfer' as AssetLifeKind,
-    happenedAt: todayStamp(),
+    happenedAt: today,
   }
 }
 
@@ -62,7 +59,8 @@ export function AssetsPage() {
   const [blankCount, setBlankCount] = useState(4)
   const [selectedId, setSelectedId] = useState('')
   const [events, setEvents] = useState<AssetLifeEvent[]>([])
-  const [lifeForm, setLifeForm] = useState(emptyLifeForm)
+  const [today, setToday] = useState(() => formatCompanyDate(new Date(), 'Asia/Seoul'))
+  const [lifeForm, setLifeForm] = useState(() => emptyLifeForm(formatCompanyDate(new Date(), 'Asia/Seoul')))
   const [formTick, setFormTick] = useState(0)
   const [notice, setNotice] = useState('')
   const [message, setMessage] = useState('')
@@ -125,6 +123,9 @@ export function AssetsPage() {
       }
       setModuleOff(false)
       setStockLink(showModuleLink(guest, guest ? true : await loadCompanyModule(sqlite, 'stock')))
+      const stamp = formatCompanyDate(new Date(), guest ? 'Asia/Seoul' : await loadDisplayTimezone(sqlite))
+      setToday(stamp)
+      setLifeForm(emptyLifeForm(stamp))
       if (!guest) {
         await writeDefaultMaster(sqlite)
         await migrateProcessAssetsToChecks(sqlite)
@@ -146,7 +147,7 @@ export function AssetsPage() {
           )?.id ?? '')
       setSelectedId(nextSelected)
       if (nextSelected) {
-        setLifeForm(emptyLifeForm())
+        setLifeForm(emptyLifeForm(stamp))
         setFormTick((tick) => tick + 1)
         setEvents(await loadAssetEvents(sqlite, nextSelected))
       } else {
@@ -241,7 +242,7 @@ export function AssetsPage() {
       const bound = assetRows.find((asset) => asset.qrToken === row.label_id)
       if (bound) {
         setSelectedId(bound.id)
-        setLifeForm(emptyLifeForm())
+        setLifeForm(emptyLifeForm(today))
         setFormTick((tick) => tick + 1)
         setEvents(await loadAssetEvents(sqlite, bound.id))
       }
@@ -273,7 +274,7 @@ export function AssetsPage() {
       const assetRows = await loadAssets(sqlite)
       setAssets(assetRows)
       setEvents(await loadAssetEvents(sqlite, selectedId))
-      setLifeForm({ kind: fields.kind, happenedAt: todayStamp() })
+      setLifeForm({ kind: fields.kind, happenedAt: today })
       setFormTick((tick) => tick + 1)
       setNotice(
         result.status === 'duplicate'
@@ -526,7 +527,7 @@ export function AssetsPage() {
                       }`}
                       onClick={() => {
                         setSelectedId(asset.id)
-                        setLifeForm(emptyLifeForm())
+                        setLifeForm(emptyLifeForm(today))
                         setFormTick((tick) => tick + 1)
                         setMessage('')
                         void loadAssetEvents(sqlite, asset.id).then(setEvents)

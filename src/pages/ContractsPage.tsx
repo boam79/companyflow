@@ -22,18 +22,15 @@ import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
 import { loadContractsMenu } from '../lib/company/modules'
 import { ModuleClosed } from '../components/ModuleClosed'
+import { formatCompanyDate, loadDisplayTimezone } from '../lib/company/displayCurrency'
 
-function todayStamp() {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date())
-}
-
-function emptyForm() {
+function emptyForm(today: string) {
   return {
     title: '',
     contractNo: '',
     counterparty: '',
-    signedAt: todayStamp(),
-    startAt: todayStamp(),
+    signedAt: today,
+    startAt: today,
     endAt: '',
     amount: '',
     ownerName: '',
@@ -45,7 +42,8 @@ export function ContractsPage() {
   const [rows, setRows] = useState<ContractDraft[]>([])
   const [query, setQuery] = useState('')
   const [lifeTab, setLifeTab] = useState<ContractPhase>('active')
-  const [form, setForm] = useState(emptyForm)
+  const [today, setToday] = useState(() => formatCompanyDate(new Date(), 'Asia/Seoul'))
+  const [form, setForm] = useState(() => emptyForm(formatCompanyDate(new Date(), 'Asia/Seoul')))
   const [file, setFile] = useState<File | null>(null)
   const [fileKey, setFileKey] = useState(0)
   const [selectedId, setSelectedId] = useState('')
@@ -88,6 +86,10 @@ export function ContractsPage() {
         setMessage('선택한 회사 원본이 열려 있지 않습니다.')
         return
       }
+      const stamp = formatCompanyDate(new Date(), guest ? 'Asia/Seoul' : await loadDisplayTimezone(sqlite))
+      if (ticket !== openTicket.current) return
+      setToday(stamp)
+      setForm(emptyForm(stamp))
       if (!guest && !(await loadContractsMenu(sqlite))) {
         if (ticket !== openTicket.current || sqlite.companyId !== nextId) return
         setMenuOff(true)
@@ -100,12 +102,12 @@ export function ContractsPage() {
       if (!guest) await writeDefaultMaster(sqlite)
       const nextRows = await loadContracts(sqlite)
       if (ticket !== openTicket.current || sqlite.companyId !== nextId) return
-      const groups = groupContracts(nextRows, todayStamp())
+      const groups = groupContracts(nextRows, stamp)
       setRows(nextRows)
       setSelectedId((prev) => {
         const existing = nextRows.find((row) => row.id === prev)
         if (existing) {
-          setLifeTab(contractPhase(existing.endAt))
+          setLifeTab(contractPhase(existing.endAt, stamp))
           return existing.id
         }
         const tab = defaultContractTab(groups)
@@ -122,7 +124,7 @@ export function ContractsPage() {
   }
 
   function resetForm() {
-    setForm(emptyForm())
+    setForm(emptyForm(today))
     setFile(null)
     setFileKey((key) => key + 1)
     setOcrText('')
@@ -217,7 +219,7 @@ export function ContractsPage() {
       )
       const nextRows = await loadContracts(sqlite)
       setRows(nextRows)
-      setLifeTab(contractPhase(form.endAt || undefined))
+      setLifeTab(contractPhase(form.endAt || undefined, today))
       setSelectedId(id)
       resetForm()
     } catch (error) {
@@ -241,7 +243,7 @@ export function ContractsPage() {
     }
   }
 
-  const groups = useMemo(() => groupContracts(rows, todayStamp()), [rows])
+  const groups = useMemo(() => groupContracts(rows, today), [rows, today])
   const visible = useMemo(
     () => filterContracts(groups.find((section) => section.phase === lifeTab)?.contracts ?? [], query),
     [groups, lifeTab, query],
@@ -423,7 +425,7 @@ export function ContractsPage() {
                 <div>
                   <dt className="text-muted">기간</dt>
                   <dd>
-                    {contractPeriod(selected)} · {contractPhase(selected.endAt) === 'expired' ? '만료' : '계약중'}
+                    {contractPeriod(selected)} · {contractPhase(selected.endAt, today) === 'expired' ? '만료' : '계약중'}
                   </dd>
                 </div>
                 <div>

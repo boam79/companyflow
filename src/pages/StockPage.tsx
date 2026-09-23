@@ -11,11 +11,11 @@ import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { executeStockCommand, ensureDefaultStockMaster, loadOrderOriginal, loadStockState, orderAttachment } from '../lib/stock/persist'
 import { toArrayBuffer } from '../lib/contracts/book'
 import { companyOnHand, onHand, orderNetReceived, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
-import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, resolveOrderPartnerId, supplyItems, supplyOrderCsv, todayYmd, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, resolveOrderPartnerId, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
-import { loadDisplayCurrency } from '../lib/company/displayCurrency'
+import { loadDisplayCurrency, formatCompanyDate, loadDisplayTimezone } from '../lib/company/displayCurrency'
 import { loadCompanyModule, showModuleLink } from '../lib/company/modules'
 import { ModuleClosed } from '../components/ModuleClosed'
 import { useWorkAccess } from '../lib/guest/workAccess'
@@ -45,7 +45,8 @@ export function StockPage() {
   const [departments, setDepartments] = useState<NamedRow[]>([])
   const [orderPartnerId, setOrderPartnerId] = useState('')
   const [orderDueDate, setOrderDueDate] = useState('')
-  const [orderDate, setOrderDate] = useState(todayYmd)
+  const [orderDate, setOrderDate] = useState(() => formatCompanyDate(new Date(), 'Asia/Seoul'))
+  const [today, setToday] = useState(() => formatCompanyDate(new Date(), 'Asia/Seoul'))
   const [orderCurrency, setOrderCurrency] = useState('KRW')
   const currencyTouched = useRef(false)
   const [extraLines, setExtraLines] = useState<ExtraOrderLine[]>([])
@@ -110,6 +111,9 @@ export function StockPage() {
       }
       setModuleOff(false)
       setAssetsLink(showModuleLink(guest, guest ? true : await loadCompanyModule(sqlite, 'assets')))
+      const stamp = formatCompanyDate(new Date(), guest ? 'Asia/Seoul' : await loadDisplayTimezone(sqlite))
+      setToday(stamp)
+      setOrderDate(stamp)
       if (!guest) {
         await ensureDefaultStockMaster(sqlite)
         await migrateProcessAssetsToChecks(sqlite)
@@ -176,7 +180,7 @@ export function StockPage() {
     setItemId(row.itemId)
     setOrderPartnerId(row.partnerId ?? '')
     setOrderDueDate(row.dueDate ?? '')
-    setOrderDate(row.orderDate || todayYmd())
+    setOrderDate(row.orderDate || today)
     currencyTouched.current = true
     setOrderCurrency(row.currency || 'KRW')
     setOrderFileName(row.fileName)
