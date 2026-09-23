@@ -21,6 +21,7 @@ import { writeDefaultMaster } from '../lib/master/book'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
 import { loadContractsMenu } from '../lib/company/modules'
+import { ModuleClosed } from '../components/ModuleClosed'
 
 function todayStamp() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date())
@@ -261,13 +262,16 @@ export function ContractsPage() {
   }
   if (!guest && menuOff) {
     return (
-      <div className="max-w-xl space-y-3">
-        <h1 className="text-3xl font-semibold">계약</h1>
-        <p className="text-sm text-muted">이 회사는 계약 메뉴를 쓰지 않습니다. 저장된 계약은 지우지 않았습니다.</p>
-        <Link className="text-sm text-accent underline" to="/settings">
-          회사 설정
-        </Link>
-      </div>
+      <ModuleClosed
+        title="계약"
+        keep="저장된 계약은 지우지 않았습니다."
+        companies={companies}
+        companyId={companyId}
+        onOpen={(id) => {
+          setReady(false)
+          void openCompany(id, true)
+        }}
+      />
     )
   }
 

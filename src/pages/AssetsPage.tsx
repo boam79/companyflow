@@ -320,7 +320,19 @@ export function AssetsPage() {
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
   if (!guest && !configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
-  if (!guest && moduleOff) return <ModuleClosed title="자산" />
+  if (!guest && moduleOff) {
+    return (
+      <ModuleClosed
+        title="자산"
+        companies={companies}
+        companyId={companyId}
+        onOpen={(id) => {
+          setReady(false)
+          void openCompany(id, true)
+        }}
+      />
+    )
+  }
   if (!guest && !user) {
     return (
       <p className="text-sm">
