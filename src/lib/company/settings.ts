@@ -19,6 +19,17 @@ export function canEditCompanySettings(role: string | undefined) {
   return role === 'company_admin'
 }
 
+export function controlsOtherCompanies(company: { company_code: string } | undefined) {
+  return company?.company_code === 'HQ01'
+}
+
+export function canEditCompanyModules(
+  operator: boolean,
+  openCompany: { company_code: string } | undefined,
+) {
+  return Boolean(operator && controlsOtherCompanies(openCompany))
+}
+
 export function workCompaniesForUser<T extends { id: string }>(companies: T[], membershipIds: string[]) {
   const allowed = new Set(membershipIds)
   return companies.filter((company) => allowed.has(company.id))

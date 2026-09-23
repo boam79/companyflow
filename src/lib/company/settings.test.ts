@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   COMPANY_DISPLAY,
+  canEditCompanyModules,
   canEditCompanySettings,
+  controlsOtherCompanies,
   memberRoleLabel,
   openedCompanyOnly,
   workCompaniesForUser,
@@ -21,10 +23,18 @@ describe('회사 설정 표시', () => {
     expect(openedCompanyOnly(companies, '')).toEqual([])
   })
 
-  it('모듈은 그 회사 관리자만 바꾸고 운영 권한만으로는 못 바꾼다', () => {
+  it('표시는 그 회사 관리자가 바꾼다', () => {
     expect(canEditCompanySettings('company_admin')).toBe(true)
     expect(canEditCompanySettings('member')).toBe(false)
     expect(canEditCompanySettings(undefined)).toBe(false)
+  })
+
+  it('다른 회사 모듈은 본사 최고 관리자만 바꾼다', () => {
+    expect(controlsOtherCompanies({ company_code: 'HQ01' })).toBe(true)
+    expect(controlsOtherCompanies({ company_code: 'BR01' })).toBe(false)
+    expect(canEditCompanyModules(true, { company_code: 'HQ01' })).toBe(true)
+    expect(canEditCompanyModules(true, { company_code: 'BR01' })).toBe(false)
+    expect(canEditCompanyModules(false, { company_code: 'HQ01' })).toBe(false)
   })
 
   it('업무 목록에는 멤버로 연결된 회사만 남긴다', () => {

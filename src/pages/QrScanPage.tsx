@@ -7,7 +7,7 @@ import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
 import { executeQrRegistration, readQrAssetForm } from '../lib/asset/register'
 import { fetchQrLabel, submitAssetQr, type AssetQrLabelRow } from '../lib/asset/relay'
 import { isQrLabelId, sqliteIdForQrLabel } from '../lib/asset/qr'
-import { loadCompanyModule } from '../lib/company/modules'
+import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
 import { GUEST_COMPANY_ID } from '../lib/guest/ids'
 import { useWorkAccess } from '../lib/guest/workAccess'
@@ -109,7 +109,7 @@ export function QrScanPage() {
         setCompanyId(companyId)
         await sqlite.open(companyId)
         if (!sqlite.persistOk) return
-        if (!(await loadCompanyModule(sqlite, 'assets'))) {
+        if (!(await readCompanyModule(sqlite, companyId, 'assets'))) {
           if (!cancelled) setModuleOff(true)
           return
         }
@@ -167,7 +167,7 @@ export function QrScanPage() {
         setMessage('중앙 운영이 연결되지 않았습니다.')
         return
       }
-      if (sqlite.persistOk && !(await loadCompanyModule(sqlite, 'assets'))) {
+      if (sqlite.persistOk && !(await readCompanyModule(sqlite, sqlite.companyId, 'assets'))) {
         setModuleOff(true)
         return
       }

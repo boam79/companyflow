@@ -4,6 +4,8 @@ import {
   showModuleLink,
   loadCompanyModules,
   loadContractsMenu,
+  mergeModuleFlags,
+  parseAllowedModules,
   saveCompanyModule,
   saveContractsMenu,
 } from './modules'
@@ -43,6 +45,17 @@ describe('회사 계약 메뉴', () => {
     expect(
       firstEnabledModulePath({ stock: false, assets: false, people: false, contracts: false }),
     ).toBe('/settings')
+  })
+
+  it('본사가 정한 모듈이 회사 파일보다 앞선다', () => {
+    expect(parseAllowedModules([])).toBeNull()
+    expect(parseAllowedModules({ stock: false, contracts: true })).toEqual({ stock: false, contracts: true })
+    expect(
+      mergeModuleFlags(
+        { stock: true, assets: true, people: true, contracts: true },
+        { stock: false },
+      ),
+    ).toEqual({ stock: false, assets: true, people: true, contracts: true })
   })
 
   it('구매·재고를 꺼도 자산·입퇴사·계약은 그대로다', async () => {

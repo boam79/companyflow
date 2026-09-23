@@ -22,7 +22,8 @@ import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
 import { getSupabase } from '../lib/supabase'
 import { formatCompanyDate, loadDisplayTimezone } from '../lib/company/displayCurrency'
-import { loadCompanyModule, showModuleLink } from '../lib/company/modules'
+import { showModuleLink } from '../lib/company/modules'
+import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
 
 type NamedRow = { id: string; name: string }
@@ -116,13 +117,13 @@ export function AssetsPage() {
         setMessage('이 브라우저에서 영속 DB를 열 수 없습니다. 지정 Chrome에서 초기 설정을 먼저 하세요.')
         return
       }
-      if (!guest && !(await loadCompanyModule(sqlite, 'assets'))) {
+      if (!guest && !(await readCompanyModule(sqlite, nextId, 'assets'))) {
         setModuleOff(true)
         setReady(true)
         return
       }
       setModuleOff(false)
-      setStockLink(showModuleLink(guest, guest ? true : await loadCompanyModule(sqlite, 'stock')))
+      setStockLink(showModuleLink(guest, guest ? true : await readCompanyModule(sqlite, nextId, 'stock')))
       const stamp = formatCompanyDate(new Date(), guest ? 'Asia/Seoul' : await loadDisplayTimezone(sqlite))
       setToday(stamp)
       setLifeForm(emptyLifeForm(stamp))

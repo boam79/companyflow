@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatCompanyDate, loadDisplayTimezone } from '../lib/company/displayCurrency'
 import { writeDefaultMaster } from '../lib/master/book'
-import { loadCompanyModule, showModuleLink } from '../lib/company/modules'
+import { showModuleLink } from '../lib/company/modules'
+import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
 import { ACTIVE_MASTER_WHERE } from '../lib/master/commands'
 import { toArrayBuffer } from '../lib/contracts/book'
@@ -136,13 +137,13 @@ export function PeoplePage() {
         setMessage('이 브라우저에서 영속 DB를 열 수 없습니다. 지정 Chrome에서 초기 설정을 먼저 하세요.')
         return
       }
-      if (!guest && !(await loadCompanyModule(sqlite, 'people'))) {
+      if (!guest && !(await readCompanyModule(sqlite, nextId, 'people'))) {
         setModuleOff(true)
         setReady(true)
         return
       }
       setModuleOff(false)
-      setAssetsLink(showModuleLink(guest, guest ? true : await loadCompanyModule(sqlite, 'assets')))
+      setAssetsLink(showModuleLink(guest, guest ? true : await readCompanyModule(sqlite, nextId, 'assets')))
       const stamp = formatCompanyDate(new Date(), guest ? 'Asia/Seoul' : await loadDisplayTimezone(sqlite))
       setToday(stamp)
       if (!guest) {

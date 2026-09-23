@@ -3,10 +3,13 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import {
   COMPANY_MODULES,
+  allModulesOn,
   loadCompanyModules,
+  mergeModuleFlags,
   saveCompanyModule,
   type CompanyModuleId,
 } from '../lib/company/modules'
+import { fetchAllowedModulesByCompany, saveAllowedModules } from '../lib/company/moduleAccess'
 import { notifyCompanyModules, useCompanySession } from '../lib/companySession'
 import {
   displayCurrencyName,
@@ -21,6 +24,7 @@ import {
 } from '../lib/company/displayCurrency'
 import {
   COMPANY_DISPLAY,
+  canEditCompanyModules,
   canEditCompanySettings,
   memberRoleLabel,
   openedCompanyOnly,
@@ -52,9 +56,10 @@ type CompanySettings = CompanyRow & {
 const sqlite = getCompanySqlite()
 
 export function CompanySettingsPage() {
-  const { configured, loading, user } = useAuth()
+  const { configured, loading, user, operator } = useAuth()
   const { companyId, setCompanyId } = useCompanySession(Boolean(user))
   const [rows, setRows] = useState<CompanySettings[]>([])
+  const [tenants, setTenants] = useState<CompanyRow[]>([])
   const [currency, setCurrency] = useState('KRW')
   const [draft, setDraft] = useState('KRW')
   const [grouping, setGrouping] = useState(true)
@@ -93,6 +98,7 @@ export function CompanySettingsPage() {
       const mine = memberships ?? []
       if (mine.length === 0) {
         setRows([])
+        setTenants([])
         setInvites([])
         setReady(true)
         return
@@ -122,6 +128,7 @@ export function CompanySettingsPage() {
       if (!open) {
         if (cancelled) return
         setRows(listed)
+        setTenants([])
         setInvites([])
         setReady(true)
         return
@@ -148,7 +155,38 @@ export function CompanySettingsPage() {
       setGroupingDraft(current.grouping)
       setTimeZone(current.timeZone)
       setTimeZoneDraft(current.timeZone)
-      setModules({ [open.id]: await loadCompanyModules(sqlite) })
+      const others: CompanyRow[] = []
+      if (canEditCompanyModules(operator, open)) {
+        const { data: allCompanies, error: allError } = await client
+          .from('companies')
+          .select('id, display_name, company_code, registration_status')
+          .order('created_at', { ascending: false })
+        if (allError) throw allError
+        others.push(...((allCompanies ?? []) as CompanyRow[]).filter((company) => company.id !== open.id))
+      }
+      const allowed = await fetchAllowedModulesByCompany([open.id, ...others.map((company) => company.id)])
+      const nextModules: Record<string, Record<CompanyModuleId, boolean>> = {
+        [open.id]: mergeModuleFlags(await loadCompanyModules(sqlite), allowed.get(open.id) ?? null),
+      }
+      if (canEditCompanyModules(operator, open)) {
+        for (const company of others) {
+          if (cancelled) return
+          let local = allModulesOn()
+          try {
+            await sqlite.open(company.id)
+            if (sqlite.companyId === company.id && sqlite.persistOk) {
+              local = await loadCompanyModules(sqlite)
+            }
+          } catch {
+            local = allModulesOn()
+          }
+          nextModules[company.id] = mergeModuleFlags(local, allowed.get(company.id) ?? null)
+        }
+        if (sqlite.companyId !== open.id) await sqlite.open(open.id)
+      }
+      if (cancelled || sqlite.companyId !== open.id) return
+      setTenants(others)
+      setModules(nextModules)
       setReady(true)
     })().catch((error: unknown) => {
       if (cancelled) return
@@ -158,7 +196,7 @@ export function CompanySettingsPage() {
     return () => {
       cancelled = true
     }
-  }, [companyId, user])
+  }, [companyId, operator, user])
 
   async function openSelectedFile() {
     if (!companyId) return false
@@ -234,24 +272,44 @@ export function CompanySettingsPage() {
   }
 
   async function saveModule(targetId: string, moduleId: CompanyModuleId, on: boolean) {
-    if (!targetId || targetId !== companyId || !canSaveOpenCompany()) return
+    const open = rows.find((row) => row.id === companyId)
+    if (!targetId || !canEditCompanyModules(operator, open)) {
+      setMessage('모듈은 본사 최고 관리자만 바꿉니다.')
+      return
+    }
     setBusy(true)
     setNotice('')
     setMessage('')
     try {
-      if (!(await openSelectedFile())) return
-      await saveCompanyModule(sqlite, moduleId, on)
-      setModules((current) => ({
-        ...current,
-        [targetId]: { ...current[targetId], [moduleId]: on },
-      }))
-      notifyCompanyModules()
+      const current = modules[targetId] ?? allModulesOn()
+      const next = { ...current, [moduleId]: on }
+      try {
+        await sqlite.open(targetId)
+        if (sqlite.companyId === targetId && sqlite.persistOk) {
+          await saveCompanyModule(sqlite, moduleId, on)
+        }
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : String(error))
+      }
+      await saveAllowedModules(targetId, next)
+      setModules((prev) => ({ ...prev, [targetId]: next }))
+      if (targetId === companyId) notifyCompanyModules()
       const label = COMPANY_MODULES.find((item) => item.id === moduleId)?.label ?? '모듈'
-      const name = rows.find((row) => row.id === targetId)?.display_name ?? '회사'
+      const name =
+        rows.find((row) => row.id === targetId)?.display_name ??
+        tenants.find((row) => row.id === targetId)?.display_name ??
+        '회사'
       setNotice(on ? `${name}의 ${label}을 켰습니다.` : `${name}의 ${label}을 껐습니다.`)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     } finally {
+      if (companyId && sqlite.companyId !== companyId) {
+        try {
+          await sqlite.open(companyId)
+        } catch (error) {
+          setMessage(error instanceof Error ? error.message : String(error))
+        }
+      }
       setBusy(false)
     }
   }
@@ -326,7 +384,7 @@ export function CompanySettingsPage() {
       <div>
         <h1 className="text-3xl font-semibold">회사 설정</h1>
         <p className="mt-2 text-sm text-muted">
-          이 계정에 연결된 회사만 엽니다. 다른 회사의 사람·재고·계약은 그 회사 관리자가 연 뒤에만 봅니다.
+          업무 원본은 연결된 회사만 엽니다. 본사 최고 관리자는 다른 회사 모듈만 켭니다. 사람·재고·계약은 열지 않습니다.
         </p>
       </div>
       {message ? <p className="text-sm text-danger">{message}</p> : null}
@@ -346,12 +404,17 @@ export function CompanySettingsPage() {
               </option>
             ))}
           </select>
-          <p className="mt-2 text-muted">모듈은 지금 연 회사 관리자만 이 화면에서 바꿉니다.</p>
+          <p className="mt-2 text-muted">
+            {canEditCompanyModules(operator, rows.find((row) => row.id === companyId))
+              ? '다른 회사는 아래에서 모듈만 바꿉니다.'
+              : '모듈은 본사 최고 관리자만 바꿉니다.'}
+          </p>
         </label>
       ) : null}
       {openedCompanyOnly(rows, companyId).map((company) => {
         const shown = { currency, grouping, timeZone }
         const canEdit = canEditCompanySettings(company.role)
+        const canModules = canEditCompanyModules(operator, company)
         return (
           <section key={company.id} className="space-y-4 rounded-lg border border-line bg-card p-6">
             <div>
@@ -512,18 +575,33 @@ export function CompanySettingsPage() {
                   </button>
                 </form>
               ) : null}
-              {canEdit ? (
+              {canModules ? (
                 <div className="mt-4">
                   <h3 className="text-sm font-semibold">모듈</h3>
                   {moduleFields(company.id)}
                 </div>
+              ) : canEdit ? (
+                <p className="mt-2 text-sm text-muted">모듈은 본사 최고 관리자만 바꿉니다.</p>
               ) : (
-                <p className="mt-2 text-sm text-muted">표시·모듈 변경은 이 회사 관리자만 할 수 있습니다.</p>
+                <p className="mt-2 text-sm text-muted">표시 변경은 이 회사 관리자만 할 수 있습니다.</p>
               )}
             </div>
           </section>
         )
       })}
+      {canEditCompanyModules(operator, rows.find((row) => row.id === companyId))
+        ? tenants.map((company) => (
+            <section key={company.id} className="space-y-3 rounded-lg border border-line bg-card p-6">
+              <div>
+                <h2 className="text-lg font-semibold">{company.display_name}</h2>
+                <p className="mt-1 text-sm text-muted">
+                  {company.company_code} · 모듈만 바꿉니다. 사람·재고·자산·계약 내용은 열지 않습니다.
+                </p>
+              </div>
+              {moduleFields(company.id)}
+            </section>
+          ))
+        : null}
     </div>
   )
 }

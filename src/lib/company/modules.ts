@@ -46,6 +46,42 @@ export async function saveCompanyModule(db: ModuleDb, id: CompanyModuleId, on: b
   return on
 }
 
+export function allModulesOn() {
+  return {
+    stock: true,
+    assets: true,
+    people: true,
+    contracts: true,
+  } as Record<CompanyModuleId, boolean>
+}
+
+export function parseAllowedModules(raw: unknown): Partial<Record<CompanyModuleId, boolean>> | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const flags: Partial<Record<CompanyModuleId, boolean>> = {}
+  for (const item of COMPANY_MODULES) {
+    const value = (raw as Record<string, unknown>)[item.id]
+    if (typeof value === 'boolean') flags[item.id] = value
+  }
+  return Object.keys(flags).length ? flags : null
+}
+
+export function mergeModuleFlags(
+  local: Record<CompanyModuleId, boolean>,
+  remote: Partial<Record<CompanyModuleId, boolean>> | null,
+) {
+  if (!remote) return local
+  return { ...local, ...remote }
+}
+
+export function allowedModulesPayload(flags: Record<CompanyModuleId, boolean>) {
+  return {
+    stock: flags.stock,
+    assets: flags.assets,
+    people: flags.people,
+    contracts: flags.contracts,
+  }
+}
+
 export function showModuleLink(guest: boolean, enabled: boolean) {
   return guest || enabled
 }

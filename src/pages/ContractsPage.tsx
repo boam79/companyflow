@@ -20,7 +20,7 @@ import { applyOcrCandidates } from '../lib/contracts/parseFields'
 import { writeDefaultMaster } from '../lib/master/book'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
-import { loadContractsMenu } from '../lib/company/modules'
+import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
 import { displayCurrencyName, formatCompanyDate, loadCompanyDisplay } from '../lib/company/displayCurrency'
 
@@ -97,7 +97,7 @@ export function ContractsPage() {
       setCurrency(display.currency)
       setGrouping(display.grouping)
       setForm(emptyForm(stamp))
-      if (!guest && !(await loadContractsMenu(sqlite))) {
+      if (!guest && !(await readCompanyModule(sqlite, nextId, 'contracts'))) {
         if (ticket !== openTicket.current || sqlite.companyId !== nextId) return
         setMenuOff(true)
         setRows([])

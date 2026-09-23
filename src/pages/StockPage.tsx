@@ -16,7 +16,8 @@ import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
 import { loadDisplayCurrency, formatCompanyDate, loadDisplayTimezone } from '../lib/company/displayCurrency'
-import { loadCompanyModule, showModuleLink } from '../lib/company/modules'
+import { showModuleLink } from '../lib/company/modules'
+import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
@@ -104,13 +105,13 @@ export function StockPage() {
         setMessage('이 브라우저에서 영속 DB를 열 수 없습니다. 지정 Chrome에서 초기 설정을 먼저 하세요.')
         return
       }
-      if (!guest && !(await loadCompanyModule(sqlite, 'stock'))) {
+      if (!guest && !(await readCompanyModule(sqlite, nextId, 'stock'))) {
         setModuleOff(true)
         setReady(true)
         return
       }
       setModuleOff(false)
-      setAssetsLink(showModuleLink(guest, guest ? true : await loadCompanyModule(sqlite, 'assets')))
+      setAssetsLink(showModuleLink(guest, guest ? true : await readCompanyModule(sqlite, nextId, 'assets')))
       const stamp = formatCompanyDate(new Date(), guest ? 'Asia/Seoul' : await loadDisplayTimezone(sqlite))
       setToday(stamp)
       setOrderDate(stamp)

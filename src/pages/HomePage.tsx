@@ -2,7 +2,8 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { useCompanySession } from '../lib/companySession'
-import { firstEnabledModulePath, loadCompanyModules } from '../lib/company/modules'
+import { firstEnabledModulePath } from '../lib/company/modules'
+import { readCompanyModules } from '../lib/company/moduleAccess'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import {
   HOME_COVER_GUEST,
@@ -107,7 +108,7 @@ export function HomePage() {
     void (async () => {
       const sqlite = getCompanySqlite()
       await sqlite.open(companyId)
-      const flags = await loadCompanyModules(sqlite)
+      const flags = await readCompanyModules(sqlite, companyId)
       if (!cancelled) setStartTo(firstEnabledModulePath(flags))
     })().catch(() => {
       if (!cancelled) setStartTo('/stock')

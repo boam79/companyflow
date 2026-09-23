@@ -2,7 +2,8 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useAuth } from '../lib/AuthContext'
 import { isQrScanPath } from '../lib/asset/qr'
-import { COMPANY_MODULES, loadCompanyModules } from '../lib/company/modules'
+import { COMPANY_MODULES } from '../lib/company/modules'
+import { readCompanyModules } from '../lib/company/moduleAccess'
 import { useCompanySession } from '../lib/companySession'
 import { GUEST_MENUS, isGuestPath } from '../lib/guest/ids'
 import { getCompanySqlite } from '../lib/sqlite/instance'
@@ -66,7 +67,7 @@ export function AppShell() {
     void (async () => {
       const sqlite = getCompanySqlite()
       await sqlite.open(openCompanyId)
-      const flags = await loadCompanyModules(sqlite)
+      const flags = await readCompanyModules(sqlite, openCompanyId)
       if (!cancelled) setModuleFlags(flags)
     })().catch(() => {
       if (!cancelled) setModuleFlags({})
