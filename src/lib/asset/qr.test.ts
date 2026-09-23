@@ -9,6 +9,7 @@ import {
   isQrLabelId,
   isQrScanPath,
   qrScanPath,
+  sqliteIdForQrLabel,
 } from './qr'
 
 const ORIGIN = 'https://companyflow-opal.vercel.app'
@@ -34,6 +35,11 @@ describe('빈 자산 QR', () => {
     expect(isQrScanPath(`/q/${LABEL}`)).toBe(true)
     expect(isQrScanPath('/guest/assets')).toBe(false)
     expect(() => assertBlankQrUrl(`${ORIGIN}/guest/assets/${LABEL}`)).toThrow(/주소/)
+  })
+
+  it('QR 원본은 마지막으로 연 회사가 아니라 표식을 만든 회사다', () => {
+    expect(sqliteIdForQrLabel('지점-회사')).toBe('지점-회사')
+    expect(sqliteIdForQrLabel('')).toBe('')
   })
 
   it('인쇄용 파일 이름을 빈 QR 순번으로 만든다', () => {

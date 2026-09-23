@@ -6,15 +6,17 @@ import { loadQrAssetDetail, phoneQrSavedMessage, type QrAssetDetail } from '../l
 import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
 import { executeQrRegistration, readQrAssetForm } from '../lib/asset/register'
 import { fetchQrLabel, submitAssetQr, type AssetQrLabelRow } from '../lib/asset/relay'
-import { isQrLabelId } from '../lib/asset/qr'
-import { lastOpenedCompanyId, rememberCompanies, rememberOpenedCompany } from '../lib/companySession'
+import { isQrLabelId, sqliteIdForQrLabel } from '../lib/asset/qr'
+import { rememberCompanies } from '../lib/companySession'
+import { loadCompanyModule } from '../lib/company/modules'
+import { ModuleClosed } from '../components/ModuleClosed'
 import { GUEST_COMPANY_ID } from '../lib/guest/ids'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
 export function QrScanPage() {
   const { token = '' } = useParams()
-  const { guest, sqlite, href } = useWorkAccess()
+  const { guest, sqlite, href, setCompanyId } = useWorkAccess()
   const { configured, loading, user } = useAuth()
   const [label, setLabel] = useState<AssetQrLabelRow | null>(null)
   const [detail, setDetail] = useState<QrAssetDetail | null>(null)
@@ -23,12 +25,14 @@ export function QrScanPage() {
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
   const [formTick, setFormTick] = useState(0)
+  const [moduleOff, setModuleOff] = useState(false)
 
   useEffect(() => {
     if (!guest && !user) return
     setMessage('')
     setDetail(null)
     setNotice('')
+    setModuleOff(false)
     let cancelled = false
     void (async () => {
       try {
@@ -83,20 +87,24 @@ export function QrScanPage() {
           setMessage('이 QR은 회사 PC에서 만든 빈 QR이 아닙니다.')
           return
         }
+        const companyId = sqliteIdForQrLabel(row.company_id)
+        if (!companyId) {
+          setMessage('이 QR의 회사 원본을 열 수 없습니다.')
+          return
+        }
         const { data } = await client
           .from('companies')
           .select('id, display_name, company_code, registration_status')
           .order('created_at', { ascending: false })
         const rows = (data as CompanyRow[] | null) ?? []
         if (rows.length) rememberCompanies(rows)
-        const companyId =
-          rows.find((row) => row.id === lastOpenedCompanyId())?.id || rows[0]?.id
-        if (!companyId) return
-        rememberOpenedCompany(companyId)
-        if (!sqlite.isOpen(companyId)) {
-          await sqlite.open(companyId)
-        }
+        setCompanyId(companyId)
+        await sqlite.open(companyId)
         if (!sqlite.persistOk) return
+        if (!(await loadCompanyModule(sqlite, 'assets'))) {
+          if (!cancelled) setModuleOff(true)
+          return
+        }
         const items = await loadItems(sqlite)
         setItemOptions(COMPANY_ASSET_ITEMS)
         const local = await loadQrAssetDetail(sqlite, token, items)
@@ -151,6 +159,10 @@ export function QrScanPage() {
         setMessage('중앙 운영이 연결되지 않았습니다.')
         return
       }
+      if (sqlite.persistOk && !(await loadCompanyModule(sqlite, 'assets'))) {
+        setModuleOff(true)
+        return
+      }
       await submitAssetQr(client, token, payload)
       setLabel((prev) => (prev ? { ...prev, status: 'submitted' } : prev))
       setNotice('저장했습니다. 지정 PC 자산 화면에서 원본에 반영됩니다.')
@@ -164,6 +176,7 @@ export function QrScanPage() {
 
   if (!guest && loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
   if (!guest && !configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
+  if (!guest && moduleOff) return <ModuleClosed title="자산" />
   if (!guest && !user) {
     return (
       <div className="max-w-md space-y-4">

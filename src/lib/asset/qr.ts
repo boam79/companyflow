@@ -12,6 +12,10 @@ export function assertLabelId(labelId: string): string {
   return id
 }
 
+export function sqliteIdForQrLabel(labelCompanyId: string) {
+  return labelCompanyId.trim()
+}
+
 export function isQrScanPath(pathname: string) {
   return pathname.startsWith('/q/') || pathname.startsWith('/guest/q/')
 }
