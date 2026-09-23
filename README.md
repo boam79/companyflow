@@ -6,6 +6,7 @@
 
 - 원격: [https://github.com/boam79/companyflow](https://github.com/boam79/companyflow)
 - 제품 기준: [`DOC/PRD-v1.3.md`](DOC/PRD-v1.3.md)
+- 독립 회사·운영 계정: [`DOC/tenants.md`](DOC/tenants.md)
 - 지금 할 일: [`DOC/status.md`](DOC/status.md)
 
 ## 로컬 실행 (개발용)

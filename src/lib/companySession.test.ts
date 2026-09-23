@@ -4,6 +4,7 @@ import {
   clearCompanySession,
   initialCompanySession,
   lastOpenedCompanyId,
+  openCompanyWork,
   rememberCompanies,
   rememberOpenedCompany,
   rememberedCompanies,
@@ -79,5 +80,12 @@ describe('회사 세션', () => {
   it('목록에 없는 회사는 업무로 열지 않는다', () => {
     expect(allowedOpenedCompanyId(BRANCH.id, [HQ])).toBe('')
     expect(allowedOpenedCompanyId(HQ.id, [HQ])).toBe(HQ.id)
+  })
+
+  it('회사 관리에서 고른 회사를 업무 세션에 넣는다', () => {
+    expect(openCompanyWork(BRANCH.id, [HQ, BRANCH])).toBe(BRANCH.id)
+    expect(lastOpenedCompanyId()).toBe(BRANCH.id)
+    expect(rememberedCompanies()).toEqual([HQ, BRANCH])
+    expect(openCompanyWork(BRANCH.id, [HQ])).toBe('')
   })
 })

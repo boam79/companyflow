@@ -626,7 +626,10 @@ export function CompanySettingsPage() {
                 <button
                   type="button"
                   className="mt-2 rounded border border-line px-3 py-1.5 text-sm"
-                  onClick={() => setCompanyId(company.id)}
+                  onClick={() => {
+                    setCompanyId(company.id)
+                    void sqlite.open(company.id)
+                  }}
                 >
                   이 회사 사람·재고·자산·계약 열기
                 </button>

@@ -1,8 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { ProcessedOperations } from '../lib/idempotency'
 import { useAuth } from '../lib/AuthContext'
+import { operatorCompanyWorkPath } from '../lib/company/settings'
+import { openCompanyWork } from '../lib/companySession'
 import { assertInviteRole, normalizeInviteEmail, type InviteRole } from '../lib/invite'
+import { getCompanySqlite } from '../lib/sqlite/instance'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
 type CreateState = {
@@ -23,6 +26,7 @@ type OpenInvite = {
   accepted_at: string | null
 }
 
+/** 등록 목록만 불러온다. 여기서 rememberCompanies 하지 않는다. 열기는 openCompanyWork. */
 async function loadAdminCompanies(operator: boolean) {
   const client = getSupabase()
   if (!client || !operator) return [] as CompanyRow[]
@@ -36,6 +40,7 @@ async function loadAdminCompanies(operator: boolean) {
 
 export function OperatorCompaniesPage() {
   const { configured, loading, user, operator } = useAuth()
+  const navigate = useNavigate()
   const [form, setForm] = useState<CreateState>({
     name: '',
     code: '',
@@ -52,6 +57,7 @@ export function OperatorCompaniesPage() {
   const [invites, setInvites] = useState<OpenInvite[]>([])
   const [inviteMessage, setInviteMessage] = useState('')
   const [inviteError, setInviteError] = useState(false)
+  const [openingId, setOpeningId] = useState('')
 
   useEffect(() => {
     if (!user) return
@@ -122,7 +128,7 @@ export function OperatorCompaniesPage() {
         code: '',
         adminEmail: '',
         error: false,
-        message: `회사를 등록했습니다. id=${row.id} operation_id=${operationId} (${local.status}). 업무 원본은 고객 관리자가 연 뒤에만 보입니다.`,
+        message: `회사를 등록했습니다. id=${row.id} operation_id=${operationId} (${local.status}). 아래 이 회사 열기로 사람·재고·자산·계약을 엽니다.`,
       })
     } catch (error) {
       setForm((prev) => ({
@@ -187,11 +193,27 @@ export function OperatorCompaniesPage() {
     }
   }
 
+  async function openWork(id: string) {
+    const opened = openCompanyWork(id, companies)
+    if (!opened) return
+    setOpeningId(opened)
+    try {
+      await getCompanySqlite().open(opened)
+      navigate(operatorCompanyWorkPath())
+    } catch (error) {
+      setInviteError(true)
+      setInviteMessage(error instanceof Error ? error.message : String(error))
+    } finally {
+      setOpeningId('')
+    }
+  }
+
   const inviteForm = operator && companies.length > 0 ? (
     <form className="space-y-4 rounded-lg border border-line bg-card p-6" onSubmit={(event) => void onInvite(event)}>
       <h2 className="text-lg font-semibold">사용자 초대</h2>
       <p className="text-sm text-muted">
-        수락 전에는 그 회사 업무를 열 수 없습니다. 메일은 보내지 않습니다. 운영 계정은 초대만 남기고 원본을 열지 않습니다.
+        수락 전에는 일반 계정이 그 회사 업무를 열 수 없습니다. 메일은 보내지 않습니다. 운영 계정은 아래 이 회사 열기로
+        사람·재고·자산·계약을 엽니다.
       </p>
       <label className="block text-sm">
         회사
@@ -273,7 +295,7 @@ export function OperatorCompaniesPage() {
         <h1 className="text-3xl font-semibold">회사 관리</h1>
         <p className="mt-2 text-sm text-muted">
           {operator
-            ? '운영 관리자는 회사를 등록하고, 회사 설정에서 그 회사 사람·재고·자산·계약과 모듈을 엽니다. 이름·코드만 이 화면에 있습니다.'
+            ? '운영 관리자는 회사를 등록합니다. 이 회사 열기로 사람·재고·자산·계약을 엽니다. 모듈은 회사 설정에서 켭니다.'
             : '이 회사의 관리자만 사용자를 초대합니다. 수락 전에는 권한이 없습니다.'}
         </p>
       </div>
@@ -332,6 +354,14 @@ export function OperatorCompaniesPage() {
                 {company.company_code} · {company.registration_status}
               </span>
               <p className="mt-1 font-mono text-xs text-muted">{company.id}</p>
+              <button
+                type="button"
+                className="mt-2 rounded border border-line px-3 py-1.5 text-sm"
+                disabled={Boolean(openingId)}
+                onClick={() => void openWork(company.id)}
+              >
+                {openingId === company.id ? '여는 중' : '이 회사 열기'}
+              </button>
             </li>
           ))}
         </ul>

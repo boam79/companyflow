@@ -4,8 +4,9 @@
 
 1. 이 파일 (`DOC/README.md`)
 2. [`status.md`](status.md) — 지금 어디까지 했는지
-3. [`backlog.md`](backlog.md) — 다음 작업과 성공 기준
-4. 작업에 필요한 문서만 추가로 연다. 요구사항 원문은 항상 [`PRD-v1.3.md`](PRD-v1.3.md)
+3. [`tenants.md`](tenants.md) — 독립 회사·운영 계정. 화면·RLS·SQLite를 만지기 전에 읽는다
+4. [`backlog.md`](backlog.md) — 다음 작업과 성공 기준
+5. 작업에 필요한 문서만 추가로 연다. 요구사항 원문은 항상 [`PRD-v1.3.md`](PRD-v1.3.md)
 
 코드를 바꾸면 같은 작업에서 `status.md`와 관련 문서를 함께 고친다. 요구사항이 바뀌면 PRD와 [`decisions.md`](decisions.md)를 같이 갱신한다.
 
@@ -22,6 +23,7 @@
 | [lessons.md](lessons.md) | 반복하면 안 되는 실수·운영 규칙 |
 | [git.md](git.md) | GitHub 원격. origin.cursor.com 금지 |
 | [status.md](status.md) | 현재 진행 상태와 열린 질문 |
+| [tenants.md](tenants.md) | 독립 회사·운영 계정. 이후 개발 시 필수 |
 
 ## 역할 운영
 

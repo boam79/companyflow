@@ -5,6 +5,7 @@ import {
   canEditCompanySettings,
   controlsOtherCompanies,
   memberRoleLabel,
+  operatorCompanyWorkPath,
   openedCompanyOnly,
   workCompaniesForUser,
 } from './settings'
@@ -45,6 +46,10 @@ describe('회사 설정 표시', () => {
     expect(workCompaniesForUser(companies, ['a'])).toEqual([{ id: 'a', name: '가나다' }])
     expect(workCompaniesForUser(companies, [], true)).toEqual(companies)
     expect(workCompaniesForUser(companies, [])).toEqual([])
+  })
+
+  it('회사 관리에서 연 회사는 설정 화면으로 간다', () => {
+    expect(operatorCompanyWorkPath()).toBe('/settings')
   })
 
   it('연결된 역할만 한글로 보여 준다', () => {

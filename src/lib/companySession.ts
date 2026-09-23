@@ -119,6 +119,15 @@ export function allowedOpenedCompanyId(id: string, companies: CompanyRow[]) {
   return ''
 }
 
+export function openCompanyWork(id: string, companies: CompanyRow[]) {
+  const allowed = allowedOpenedCompanyId(id, companies)
+  if (!allowed) return ''
+  rememberCompanies(companies)
+  rememberOpenedCompany(allowed)
+  notifyOpenCompany(allowed)
+  return allowed
+}
+
 export function initialCompanySession(openId = '') {
   const companies = rememberedCompanies()
   const open = safeCompanyId(openId)
@@ -198,11 +207,10 @@ export function useCompanySession(enabled: boolean) {
     }
   }, [enabled])
 
-  function setCompanyId(next: string) {
-    const allowed = allowedOpenedCompanyId(next, companies)
+  function setCompanyId(next: string, list: CompanyRow[] = companies) {
+    const allowed = openCompanyWork(next, list)
     if (!allowed) return
-    rememberOpenedCompany(allowed)
-    notifyOpenCompany(allowed)
+    if (list !== companies) setCompanies(list)
     setCompanyIdState(allowed)
   }
 

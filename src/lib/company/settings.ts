@@ -27,6 +27,10 @@ export function canEditCompanyModules(operator: boolean) {
   return operator
 }
 
+export function operatorCompanyWorkPath() {
+  return '/settings'
+}
+
 export function workCompaniesForUser<T extends { id: string }>(
   companies: T[],
   membershipIds: string[],
