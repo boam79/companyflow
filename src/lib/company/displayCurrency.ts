@@ -46,6 +46,10 @@ export function formatCompanyNumber(value: number, grouping: boolean) {
   return grouping ? value.toLocaleString('ko-KR') : String(value)
 }
 
+export function formatCompanyMoney(amount: number, grouping: boolean, currency: string) {
+  return `${formatCompanyNumber(amount, grouping)}${displayCurrencyName(currency)}`
+}
+
 export async function loadDisplayGrouping(db: Pick<CurrencyDb, 'query'>) {
   const rows = await db.query<{ value: string }>('select value from meta where key = ?', [DISPLAY_GROUPING_KEY])
   return displayGroupingOn(rows[0]?.value)

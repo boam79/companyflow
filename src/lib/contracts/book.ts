@@ -1,3 +1,4 @@
+import { formatCompanyMoney } from '../company/displayCurrency'
 import { DISABLED_OCR, type OcrAdapter } from './ocr'
 
 export type ContractStatus = 'draft'
@@ -61,9 +62,9 @@ export function contractPeriod(row: { startAt?: string; endAt?: string }) {
   return [row.startAt, row.endAt].filter(Boolean).join(' ~ ')
 }
 
-export function contractAmountText(amount?: number) {
+export function contractAmountText(amount?: number, grouping = true, currency = 'KRW') {
   if (amount == null) return '금액 없음'
-  return `${amount.toLocaleString('ko-KR')}원`
+  return formatCompanyMoney(amount, grouping, currency)
 }
 
 export function contractLife(endAt?: string, today?: string) {

@@ -110,6 +110,7 @@ describe('계약 초안', () => {
     expect(filterContracts(rows, 'kt').map((row) => row.title)).toEqual(['인터넷 전용회선'])
     expect(contractPeriod(rows[0])).toBe('2024-01-01 ~ 2026-02-28')
     expect(contractAmountText(rows[0].amount)).toBe('12,000,000원')
+    expect(contractAmountText(12000000, false, 'USD')).toBe('12000000달러')
     expect(contractLife('2026-02-28', '2026-09-19')).toBe('종료')
     expect(contractLife('2026-12-31', '2026-09-19')).toBe('진행')
   })

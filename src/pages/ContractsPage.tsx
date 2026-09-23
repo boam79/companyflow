@@ -22,7 +22,7 @@ import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
 import { loadContractsMenu } from '../lib/company/modules'
 import { ModuleClosed } from '../components/ModuleClosed'
-import { formatCompanyDate, loadDisplayTimezone } from '../lib/company/displayCurrency'
+import { displayCurrencyName, formatCompanyDate, loadCompanyDisplay } from '../lib/company/displayCurrency'
 
 function emptyForm(today: string) {
   return {
@@ -43,6 +43,8 @@ export function ContractsPage() {
   const [query, setQuery] = useState('')
   const [lifeTab, setLifeTab] = useState<ContractPhase>('active')
   const [today, setToday] = useState(() => formatCompanyDate(new Date(), 'Asia/Seoul'))
+  const [currency, setCurrency] = useState('KRW')
+  const [grouping, setGrouping] = useState(true)
   const [form, setForm] = useState(() => emptyForm(formatCompanyDate(new Date(), 'Asia/Seoul')))
   const [file, setFile] = useState<File | null>(null)
   const [fileKey, setFileKey] = useState(0)
@@ -86,9 +88,14 @@ export function ContractsPage() {
         setMessage('선택한 회사 원본이 열려 있지 않습니다.')
         return
       }
-      const stamp = formatCompanyDate(new Date(), guest ? 'Asia/Seoul' : await loadDisplayTimezone(sqlite))
+      const display = guest
+        ? { currency: 'KRW', grouping: true, timeZone: 'Asia/Seoul' }
+        : await loadCompanyDisplay(sqlite)
+      const stamp = formatCompanyDate(new Date(), display.timeZone)
       if (ticket !== openTicket.current) return
       setToday(stamp)
+      setCurrency(display.currency)
+      setGrouping(display.grouping)
       setForm(emptyForm(stamp))
       if (!guest && !(await loadContractsMenu(sqlite))) {
         if (ticket !== openTicket.current || sqlite.companyId !== nextId) return
@@ -382,7 +389,7 @@ export function ContractsPage() {
                   {row.counterparty}
                 </span>
                 <span className="mt-0.5 text-xs text-muted">
-                  {contractPeriod(row)} · {contractAmountText(row.amount)}
+                  {contractPeriod(row)} · {contractAmountText(row.amount, grouping, currency)}
                   {row.hasOriginal ? ` · ${row.fileName}` : ' · 원본 없음'}
                   {row.ocrStatus === 'reviewed' ? ' · OCR 확인' : ''}
                 </span>
@@ -430,7 +437,7 @@ export function ContractsPage() {
                 </div>
                 <div>
                   <dt className="text-muted">금액</dt>
-                  <dd>{contractAmountText(selected.amount)}</dd>
+                  <dd>{contractAmountText(selected.amount, grouping, currency)}</dd>
                 </div>
                 <div className="sm:col-span-2">
                   <dt className="text-muted">상태</dt>
@@ -519,7 +526,7 @@ export function ContractsPage() {
               />
             </label>
             <label className="text-sm">
-              금액(원)
+              금액({displayCurrencyName(currency)})
               <input
                 type="number"
                 min="0"

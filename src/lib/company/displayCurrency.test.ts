@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assertDisplayCurrency, assertDisplayTimezone, displayCurrencyName, formatCompanyClock, formatCompanyDate, formatCompanyNumber, loadCompanyDisplay, loadDisplayCurrency, loadDisplayGrouping, loadDisplayTimezone, saveDisplayCurrency, saveDisplayGrouping, saveDisplayTimezone } from './displayCurrency'
+import { assertDisplayCurrency, assertDisplayTimezone, displayCurrencyName, formatCompanyClock, formatCompanyDate, formatCompanyMoney, formatCompanyNumber, loadCompanyDisplay, loadDisplayCurrency, loadDisplayGrouping, loadDisplayTimezone, saveDisplayCurrency, saveDisplayGrouping, saveDisplayTimezone } from './displayCurrency'
 
 function memoryDb(initial?: string) {
   const rows = new Map<string, string>()
@@ -52,6 +52,11 @@ describe('회사 표시 통화', () => {
     expect(await saveDisplayTimezone(db, 'UTC')).toBe('UTC')
     expect(await loadDisplayTimezone(db)).toBe('UTC')
     expect(() => assertDisplayTimezone('America/New_York')).toThrow(/시간대/)
+  })
+
+  it('금액은 회사 자리 구분과 통화 이름을 따른다', () => {
+    expect(formatCompanyMoney(12000000, true, 'KRW')).toBe('12,000,000원')
+    expect(formatCompanyMoney(12000000, false, 'USD')).toBe('12000000달러')
   })
 
   it('회사 파일마다 표시를 따로 읽는다', async () => {
