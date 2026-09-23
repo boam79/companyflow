@@ -15,6 +15,11 @@ export function openedCompanyOnly<T extends { id: string }>(companies: T[], open
   return companies.filter((company) => company.id === openId)
 }
 
-export function controlsOtherCompanies(company: { company_code: string } | undefined) {
-  return company?.company_code === 'HQ01'
+export function canEditCompanySettings(role: string | undefined) {
+  return role === 'company_admin'
+}
+
+export function workCompaniesForUser<T extends { id: string }>(companies: T[], membershipIds: string[]) {
+  const allowed = new Set(membershipIds)
+  return companies.filter((company) => allowed.has(company.id))
 }

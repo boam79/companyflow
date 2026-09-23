@@ -16,12 +16,12 @@ function fieldsOf(text: string) {
 describe('샘플 계약서', () => {
   it('임대·복합기·회선·보험 4건이고 받는 이름이 확장자와 맞다', () => {
     expect(SAMPLE_CONTRACT_DOCS.map((row) => row.title)).toEqual([
-      '본사 3층 임대',
+      '사무실 임대',
       '복합기 유지보수',
       '인터넷 전용회선',
       '영업배상 책임보험',
     ])
-    expect(sampleContractFileName(SAMPLE_CONTRACT_DOCS[0])).toBe('샘플-본사3층임대.pdf')
+    expect(sampleContractFileName(SAMPLE_CONTRACT_DOCS[0])).toBe('샘플-사무실임대.pdf')
     expect(sampleContractFileName(SAMPLE_CONTRACT_DOCS[1])).toBe('샘플-복합기유지보수.png')
     expect(sampleContractFileName(SAMPLE_CONTRACT_DOCS[2])).toBe('샘플-인터넷전용회선.jpg')
     expect(sampleContractFileName(SAMPLE_CONTRACT_DOCS[3])).toBe('샘플-영업배상책임보험.pdf')

@@ -21,7 +21,7 @@ describe('회사 샘플 데이터', () => {
     expect(SAMPLE_EMPLOYEES.map((row) => row.name)).toEqual(
       expect.arrayContaining(['김담당', '박재민', '이수진', '최민호', '정하나', '오세훈']),
     )
-    expect(names).toEqual(expect.arrayContaining(['마케팅', '박재민', '오세훈', '본사 3층 복사실']))
+    expect(names).toEqual(expect.arrayContaining(['마케팅', '박재민', '오세훈', '3층 복사실']))
     expect(COMPANY_ASSET_ITEMS.map((item) => item.name)).toEqual(
       expect.arrayContaining(['책상', '의자', '회의탁자', '서랍장', '컴퓨터', '모니터', '복합기']),
     )
@@ -33,7 +33,7 @@ describe('회사 샘플 데이터', () => {
     expect(statements.some((row) => row.sql.includes('employment_checks'))).toBe(true)
     expect(SAMPLE_CONTRACTS).toHaveLength(4)
     expect(sampleContractTitles()).toEqual(
-      expect.arrayContaining(['본사 3층 임대', '복합기 유지보수', '인터넷 전용회선', '영업배상 책임보험']),
+      expect.arrayContaining(['사무실 임대', '복합기 유지보수', '인터넷 전용회선', '영업배상 책임보험']),
     )
     expect(names).toEqual(expect.arrayContaining(['한국임대', '삼성화재', 'CON-2024-001']))
     expect(statements.some((row) => row.sql.includes('insert or ignore into contracts'))).toBe(true)
@@ -49,7 +49,7 @@ describe('회사 샘플 데이터', () => {
       },
     })
     expect(names).toEqual(
-      expect.arrayContaining(['박재민', '이수진', '오세훈', '모니터', '복합기', '본사 2층 개발석', 'CON-2024-001']),
+      expect.arrayContaining(['박재민', '이수진', '오세훈', '모니터', '복합기', '2층 개발석', 'CON-2024-001']),
     )
     expect(names).toEqual(expect.arrayContaining(['한국임대', '02-3456-1000', '1588-5114']))
   })

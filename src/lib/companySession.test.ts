@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
+  allowedOpenedCompanyId,
   clearCompanySession,
   initialCompanySession,
   lastOpenedCompanyId,
@@ -73,5 +74,10 @@ describe('회사 세션', () => {
     seedInvalidCompanyList()
     expect(rememberedCompanies()).toEqual([])
     expect(initialCompanySession('').companyId).toBe('')
+  })
+
+  it('목록에 없는 회사는 업무로 열지 않는다', () => {
+    expect(allowedOpenedCompanyId(BRANCH.id, [HQ])).toBe('')
+    expect(allowedOpenedCompanyId(HQ.id, [HQ])).toBe(HQ.id)
   })
 })

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { COMPANY_DISPLAY, controlsOtherCompanies, memberRoleLabel, openedCompanyOnly } from './settings'
+import {
+  COMPANY_DISPLAY,
+  canEditCompanySettings,
+  memberRoleLabel,
+  openedCompanyOnly,
+  workCompaniesForUser,
+} from './settings'
 
 describe('회사 설정 표시', () => {
   it('기본 표시는 한국어·서울·원이다', () => {
@@ -8,17 +14,26 @@ describe('회사 설정 표시', () => {
 
   it('연 회사만 화면에 남긴다', () => {
     const companies = [
-      { id: 'hq', name: '본사' },
-      { id: 'br', name: '지점' },
+      { id: 'a', name: '가나다' },
+      { id: 'b', name: '라마바' },
     ]
-    expect(openedCompanyOnly(companies, 'hq')).toEqual([{ id: 'hq', name: '본사' }])
+    expect(openedCompanyOnly(companies, 'a')).toEqual([{ id: 'a', name: '가나다' }])
     expect(openedCompanyOnly(companies, '')).toEqual([])
   })
 
-  it('모듈을 바꾸는 권한은 본사만 가진다', () => {
-    expect(controlsOtherCompanies({ company_code: 'HQ01' })).toBe(true)
-    expect(controlsOtherCompanies({ company_code: 'BR01' })).toBe(false)
-    expect(controlsOtherCompanies(undefined)).toBe(false)
+  it('모듈은 그 회사 관리자만 바꾸고 운영 권한만으로는 못 바꾼다', () => {
+    expect(canEditCompanySettings('company_admin')).toBe(true)
+    expect(canEditCompanySettings('member')).toBe(false)
+    expect(canEditCompanySettings(undefined)).toBe(false)
+  })
+
+  it('업무 목록에는 멤버로 연결된 회사만 남긴다', () => {
+    const companies = [
+      { id: 'a', name: '가나다' },
+      { id: 'b', name: '라마바' },
+    ]
+    expect(workCompaniesForUser(companies, ['a'])).toEqual([{ id: 'a', name: '가나다' }])
+    expect(workCompaniesForUser(companies, [])).toEqual([])
   })
 
   it('연결된 역할만 한글로 보여 준다', () => {

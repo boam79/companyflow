@@ -69,7 +69,7 @@ export const SAMPLE_EMPLOYEES = [
 ] as const
 
 export const SAMPLE_PARTNERS = [
-  { id: 'partner-lease', name: '한국임대', phone: '02-3456-1000', memo: '본사 3층 임대' },
+  { id: 'partner-lease', name: '한국임대', phone: '02-3456-1000', memo: '사무실 임대' },
   { id: 'partner-mfp', name: '사무기기코리아', phone: '02-3456-2000', memo: '복합기 유지보수' },
   { id: 'partner-kt', name: 'KT', phone: '100', memo: '인터넷 전용회선' },
   { id: 'partner-samsung', name: '삼성화재', phone: '1588-5114', memo: '영업배상 책임보험' },
@@ -78,7 +78,7 @@ export const SAMPLE_PARTNERS = [
 export const SAMPLE_CONTRACTS = [
   {
     id: 'sample:con-lease',
-    title: '본사 3층 임대',
+    title: '사무실 임대',
     contractNo: 'CON-2024-001',
     counterparty: '한국임대',
     signedAt: '2024-01-02',
@@ -133,7 +133,7 @@ export const SAMPLE_ASSETS = [
   {
     id: 'sample:desk-1',
     itemId: 'item-desk',
-    locationText: '본사 3층 총무석',
+    locationText: '3층 총무석',
     departmentName: '총무',
     ownerName: '김담당',
     model: '우드라인 1400',
@@ -143,7 +143,7 @@ export const SAMPLE_ASSETS = [
   {
     id: 'sample:desk-2',
     itemId: 'item-desk',
-    locationText: '본사 3층 마케팅',
+    locationText: '3층 마케팅',
     departmentName: '마케팅',
     ownerName: '박재민',
     model: '우드라인 1400',
@@ -153,7 +153,7 @@ export const SAMPLE_ASSETS = [
   {
     id: 'sample:chair-1',
     itemId: 'item-chair',
-    locationText: '본사 회의실 A',
+    locationText: '회의실 A',
     departmentName: '총무',
     ownerName: '',
     model: '메쉬 회의용의자',
@@ -163,7 +163,7 @@ export const SAMPLE_ASSETS = [
   {
     id: 'sample:table-1',
     itemId: 'item-table',
-    locationText: '본사 회의실 A',
+    locationText: '회의실 A',
     departmentName: '총무',
     ownerName: '',
     model: '회의탁자 10인',
@@ -173,7 +173,7 @@ export const SAMPLE_ASSETS = [
   {
     id: 'sample:cabinet-1',
     itemId: 'item-cabinet',
-    locationText: '본사 3층 문서실',
+    locationText: '3층 문서실',
     departmentName: '총무',
     ownerName: '정하나',
     model: '3단 서랍장',
@@ -183,7 +183,7 @@ export const SAMPLE_ASSETS = [
   {
     id: 'sample:computer-1',
     itemId: 'item-computer',
-    locationText: '본사 3층 마케팅',
+    locationText: '3층 마케팅',
     departmentName: '마케팅',
     ownerName: '박재민',
     model: 'iMac 24',
@@ -193,7 +193,7 @@ export const SAMPLE_ASSETS = [
   {
     id: 'sample:computer-2',
     itemId: 'item-computer',
-    locationText: '본사 2층 개발석',
+    locationText: '2층 개발석',
     departmentName: '개발',
     ownerName: '최민호',
     model: 'ThinkCentre M70',
@@ -203,7 +203,7 @@ export const SAMPLE_ASSETS = [
   {
     id: 'sample:monitor-1',
     itemId: 'item-monitor',
-    locationText: '본사 2층 개발석',
+    locationText: '2층 개발석',
     departmentName: '개발',
     ownerName: '최민호',
     model: '27인치 QHD',
@@ -213,7 +213,7 @@ export const SAMPLE_ASSETS = [
   {
     id: 'sample:printer-1',
     itemId: 'item-printer',
-    locationText: '본사 3층 복사실',
+    locationText: '3층 복사실',
     departmentName: '총무',
     ownerName: '김담당',
     model: '복합기 C3550',

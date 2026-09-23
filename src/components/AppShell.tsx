@@ -34,6 +34,7 @@ export function AppShell() {
   const menus = guest
     ? GUEST_MENUS
     : MENUS.filter((menu) => {
+        if (menu.to === '/ops/companies') return operator
         const item = COMPANY_MODULES.find((module) => module.path === menu.to)
         if (!item) return true
         return moduleFlags[item.id] !== false

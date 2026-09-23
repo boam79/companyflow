@@ -2,7 +2,6 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ProcessedOperations } from '../lib/idempotency'
 import { useAuth } from '../lib/AuthContext'
-import { rememberCompanies, rememberedCompanies } from '../lib/companySession'
 import { assertInviteRole, normalizeInviteEmail, type InviteRole } from '../lib/invite'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
@@ -26,27 +25,11 @@ type OpenInvite = {
 
 async function loadAdminCompanies(operator: boolean) {
   const client = getSupabase()
-  if (!client) return [] as CompanyRow[]
-  if (operator) {
-    const { data, error } = await client
-      .from('companies')
-      .select('id, display_name, company_code, registration_status')
-      .order('created_at', { ascending: false })
-    if (error) throw error
-    return (data ?? []) as CompanyRow[]
-  }
-  const { data: memberships, error: membershipError } = await client
-    .from('company_memberships')
-    .select('company_id')
-    .eq('role', 'company_admin')
-    .eq('status', 'active')
-  if (membershipError) throw membershipError
-  const ids = (memberships ?? []).map((row) => row.company_id as string)
-  if (ids.length === 0) return []
+  if (!client || !operator) return [] as CompanyRow[]
   const { data, error } = await client
     .from('companies')
     .select('id, display_name, company_code, registration_status')
-    .in('id', ids)
+    .order('created_at', { ascending: false })
   if (error) throw error
   return (data ?? []) as CompanyRow[]
 }
@@ -60,7 +43,7 @@ export function OperatorCompaniesPage() {
     message: '',
     error: false,
   })
-  const [companies, setCompanies] = useState<CompanyRow[]>(() => (operator ? rememberedCompanies() : []))
+  const [companies, setCompanies] = useState<CompanyRow[]>([])
   const [companiesReady, setCompaniesReady] = useState(false)
   const [busy, setBusy] = useState(false)
   const [inviteCompanyId, setInviteCompanyId] = useState('')
@@ -76,7 +59,6 @@ export function OperatorCompaniesPage() {
     void loadAdminCompanies(operator)
       .then((rows) => {
         if (cancelled) return
-        if (operator) rememberCompanies(rows)
         setCompanies(rows)
         setInviteCompanyId((current) => current || rows[0]?.id || '')
         setCompaniesReady(true)
@@ -134,17 +116,13 @@ export function OperatorCompaniesPage() {
       })
       if (error) throw error
       const row = data as CompanyRow
-      setCompanies((prev) => {
-        const next = [row, ...prev.filter((item) => item.id !== row.id)]
-        rememberCompanies(next)
-        return next
-      })
+      setCompanies((prev) => [row, ...prev.filter((item) => item.id !== row.id)])
       setForm({
         name: '',
         code: '',
         adminEmail: '',
         error: false,
-        message: `회사를 등록했습니다. id=${row.id} operation_id=${operationId} (${local.status})`,
+        message: `회사를 등록했습니다. id=${row.id} operation_id=${operationId} (${local.status}). 업무 원본은 고객 관리자가 연 뒤에만 보입니다.`,
       })
     } catch (error) {
       setForm((prev) => ({
@@ -209,10 +187,12 @@ export function OperatorCompaniesPage() {
     }
   }
 
-  const inviteForm = companies.length > 0 ? (
+  const inviteForm = operator && companies.length > 0 ? (
     <form className="space-y-4 rounded-lg border border-line bg-card p-6" onSubmit={(event) => void onInvite(event)}>
       <h2 className="text-lg font-semibold">사용자 초대</h2>
-      <p className="text-sm text-muted">수락 전에는 이 회사 업무를 열 수 없습니다. 메일은 보내지 않습니다.</p>
+      <p className="text-sm text-muted">
+        수락 전에는 그 회사 업무를 열 수 없습니다. 메일은 보내지 않습니다. 운영 계정은 초대만 남기고 원본을 열지 않습니다.
+      </p>
       <label className="block text-sm">
         회사
         <select
@@ -293,7 +273,7 @@ export function OperatorCompaniesPage() {
         <h1 className="text-3xl font-semibold">회사 관리</h1>
         <p className="mt-2 text-sm text-muted">
           {operator
-            ? '운영 관리자만 회사를 등록합니다. 같은 operation_id 는 한 번만 적용됩니다.'
+            ? '운영 관리자는 회사를 등록하고 고객 관리자를 초대합니다. 이름·코드만 보입니다. 재고·사람·계약 원본은 그 회사 관리자가 연 뒤에만 봅니다.'
             : '이 회사의 관리자만 사용자를 초대합니다. 수락 전에는 권한이 없습니다.'}
         </p>
       </div>
@@ -326,6 +306,9 @@ export function OperatorCompaniesPage() {
               value={form.adminEmail}
               onChange={(e) => setForm({ ...form, adminEmail: e.target.value })}
             />
+            <span className="mt-1 block text-muted">
+              팔 회사에는 고객 이메일을 적습니다. 운영 계정 이메일을 적으면 그 회사 멤버로 붙지 않고 초대만 남깁니다.
+            </span>
           </label>
           <button
             type="submit"

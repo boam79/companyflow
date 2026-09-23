@@ -7,12 +7,11 @@ import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
 import { executeQrRegistration, readQrAssetForm } from '../lib/asset/register'
 import { fetchQrLabel, submitAssetQr, type AssetQrLabelRow } from '../lib/asset/relay'
 import { isQrLabelId, sqliteIdForQrLabel } from '../lib/asset/qr'
-import { rememberCompanies } from '../lib/companySession'
 import { loadCompanyModule } from '../lib/company/modules'
 import { ModuleClosed } from '../components/ModuleClosed'
 import { GUEST_COMPANY_ID } from '../lib/guest/ids'
 import { useWorkAccess } from '../lib/guest/workAccess'
-import { getSupabase, type CompanyRow } from '../lib/supabase'
+import { getSupabase } from '../lib/supabase'
 
 export function QrScanPage() {
   const { token = '' } = useParams()
@@ -92,12 +91,21 @@ export function QrScanPage() {
           setMessage('이 QR의 회사 원본을 열 수 없습니다.')
           return
         }
-        const { data } = await client
-          .from('companies')
-          .select('id, display_name, company_code, registration_status')
-          .order('created_at', { ascending: false })
-        const rows = (data as CompanyRow[] | null) ?? []
-        if (rows.length) rememberCompanies(rows)
+        if (!user) {
+          setMessage('이 QR의 회사에 연결된 계정만 원본을 엽니다.')
+          return
+        }
+        const { data: member } = await client
+          .from('company_memberships')
+          .select('company_id')
+          .eq('user_id', user.id)
+          .eq('company_id', companyId)
+          .eq('status', 'active')
+          .maybeSingle()
+        if (!member) {
+          setMessage('이 QR의 회사에 연결된 계정만 원본을 엽니다.')
+          return
+        }
         setCompanyId(companyId)
         await sqlite.open(companyId)
         if (!sqlite.persistOk) return
