@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { afterInviteAcceptHref, assertInviteRole, normalizeInviteEmail } from './invite'
+import { afterInviteAcceptHref, assertInviteRole, homeInviteAcceptLabel, inviteRoleLabel, normalizeInviteEmail, showPendingInviteBanner, waitingCoverLead } from './invite'
 
 describe('회사 사용자 초대', () => {
   it('이메일은 소문자로 맞추고 빈 칸은 거절한다', () => {
@@ -15,5 +15,22 @@ describe('회사 사용자 초대', () => {
 
   it('수락 뒤에는 홈에서 멤버십을 다시 읽는다', () => {
     expect(afterInviteAcceptHref()).toBe('/')
+  })
+
+  it('홈 표지 수락 문구와 어두운 홈에서 배너를 숨긴다', () => {
+    expect(inviteRoleLabel('company_admin')).toBe('회사 관리자')
+    expect(homeInviteAcceptLabel('지점')).toBe('지점 수락')
+    expect(waitingCoverLead(0)).toContain('이 화면에서 수락')
+    expect(waitingCoverLead(0)).not.toMatch(/업무 시작/)
+    expect(waitingCoverLead(1)).toContain('아래 수락')
+    expect(
+      showPendingInviteBanner({ pathname: '/', scanMode: false, guest: false, signedIn: true }),
+    ).toBe(false)
+    expect(
+      showPendingInviteBanner({ pathname: '/settings', scanMode: false, guest: false, signedIn: true }),
+    ).toBe(true)
+    expect(
+      showPendingInviteBanner({ pathname: '/settings', scanMode: false, guest: false, signedIn: false }),
+    ).toBe(false)
   })
 })

@@ -6,6 +6,7 @@ import { APP_MENUS, hasWorkCompany, visibleShellMenus } from '../lib/company/nav
 import { readCompanyModules } from '../lib/company/moduleAccess'
 import { allowedOpenedCompanyId, useCompanySession } from '../lib/companySession'
 import { GUEST_MENUS, isGuestPath } from '../lib/guest/ids'
+import { showPendingInviteBanner } from '../lib/invite'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { PendingInviteBanner } from './PendingInviteBanner'
 
@@ -138,7 +139,14 @@ export function AppShell() {
             : 'w-full flex-1 bg-[#07090c]'
         }
       >
-        {scanMode || guest || !user ? null : <PendingInviteBanner />}
+        {showPendingInviteBanner({
+          pathname: location.pathname,
+          scanMode,
+          guest,
+          signedIn: Boolean(user),
+        }) ? (
+          <PendingInviteBanner />
+        ) : null}
         <Outlet />
       </main>
     </div>

@@ -15,16 +15,23 @@ import {
   HOME_COVER_START,
   HOME_COVER_TITLE,
   HOME_COVER_WAIT,
-  HOME_COVER_WAIT_LEAD,
   HOME_STORY,
   HOME_STORY_CLOSE,
   HOME_STORY_CLOSE_ALT,
   HOME_STORY_CLOSE_IMAGE,
 } from '../lib/home/intro'
+import { homeInviteAcceptLabel, waitingCoverLead } from '../lib/invite'
+import { usePendingInvites, type PendingInvite } from '../lib/pendingInvites'
 
 const titleClass =
   'whitespace-pre-line break-keep text-[2.125rem] font-semibold leading-[1.12] md:text-[3rem] md:leading-[1.08] lg:text-[3.5rem] lg:leading-[1.06]'
 const bodyClass = 'mt-5 max-w-[24rem] whitespace-pre-line text-[16px] font-normal leading-[1.5] text-white/60'
+
+function coverCtaClass(ghost?: boolean) {
+  return ghost
+    ? 'inline-flex h-10 items-center rounded-full border border-white/18 px-5 text-[14px] font-medium text-white/90 transition hover:bg-white/8'
+    : 'inline-flex h-10 items-center rounded-full bg-white px-5 text-[14px] font-medium text-[#111] transition hover:bg-white/90'
+}
 
 function Cta({
   to,
@@ -36,29 +43,59 @@ function Cta({
   ghost?: boolean
 }) {
   return (
-    <Link
-      to={to}
-      className={
-        ghost
-          ? 'inline-flex h-10 items-center rounded-full border border-white/18 px-5 text-[14px] font-medium text-white/90 transition hover:bg-white/8'
-          : 'inline-flex h-10 items-center rounded-full bg-white px-5 text-[14px] font-medium text-[#111] transition hover:bg-white/90'
-      }
-    >
+    <Link to={to} className={coverCtaClass(ghost)}>
       {children}
     </Link>
+  )
+}
+
+function CoverButton({
+  children,
+  onClick,
+}: {
+  children: ReactNode
+  onClick: () => void
+}) {
+  return (
+    <button type="button" onClick={onClick} className={coverCtaClass()}>
+      {children}
+    </button>
   )
 }
 
 function CoverActions({
   kind,
   startTo,
+  invites,
+  onAccept,
 }: {
   kind: ReturnType<typeof homeCoverKind>
   startTo: string
+  invites: PendingInvite[]
+  onAccept: (id: string) => void
 }) {
-  if (kind === 'work') return <Cta to={startTo}>{HOME_COVER_START}</Cta>
+  const acceptButtons = invites.map((row) => (
+    <CoverButton key={row.id} onClick={() => onAccept(row.id)}>
+      {homeInviteAcceptLabel(row.display_name)}
+    </CoverButton>
+  ))
+  if (kind === 'work') {
+    return (
+      <>
+        {acceptButtons}
+        <Cta to={startTo}>{HOME_COVER_START}</Cta>
+      </>
+    )
+  }
   if (kind === 'waiting') {
-    return <Cta to={GUEST_START_PATH}>{HOME_COVER_GUEST}</Cta>
+    return (
+      <>
+        {acceptButtons}
+        <Cta to={GUEST_START_PATH} ghost={invites.length > 0}>
+          {HOME_COVER_GUEST}
+        </Cta>
+      </>
+    )
   }
   return (
     <>
@@ -127,6 +164,7 @@ export function HomePage() {
   const { companyId, ready } = useCompanySession(Boolean(user), user?.id ?? '')
   const hasCompany = hasWorkCompany(ready, companyId)
   const coverKind = homeCoverKind(Boolean(user), hasCompany)
+  const { rows: invites, message: inviteMessage, accept } = usePendingInvites(Boolean(user))
   const [startTo, setStartTo] = useState('/stock')
 
   useEffect(() => {
@@ -181,9 +219,12 @@ export function HomePage() {
             <p className="text-[13px] font-medium text-white/50">CompanyFlow</p>
             <h1 className={`${titleClass} mt-4`}>{HOME_COVER_TITLE}</h1>
             <p className={bodyClass}>{HOME_COVER_LEAD}</p>
-            {coverKind === 'waiting' ? <p className={bodyClass}>{HOME_COVER_WAIT_LEAD}</p> : null}
+            {coverKind === 'waiting' ? (
+              <p className={bodyClass}>{waitingCoverLead(invites.length)}</p>
+            ) : null}
+            {inviteMessage ? <p className={bodyClass}>{inviteMessage}</p> : null}
             <div className="mt-8 flex flex-wrap gap-2.5">
-              <CoverActions kind={coverKind} startTo={startTo} />
+              <CoverActions kind={coverKind} startTo={startTo} invites={invites} onAccept={(id) => void accept(id)} />
             </div>
           </div>
         </div>
@@ -206,7 +247,7 @@ export function HomePage() {
         <h2 className={`mt-4 ${titleClass}`}>{HOME_STORY_CLOSE}</h2>
         {coverKind === 'waiting' ? <p className={bodyClass}>{HOME_COVER_WAIT}</p> : null}
         <div className="mt-8 flex flex-wrap gap-2.5">
-          <CoverActions kind={coverKind} startTo={startTo} />
+          <CoverActions kind={coverKind} startTo={startTo} invites={invites} onAccept={(id) => void accept(id)} />
         </div>
       </Film>
     </div>

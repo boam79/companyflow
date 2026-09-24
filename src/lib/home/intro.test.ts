@@ -22,7 +22,7 @@ describe('홈 인트로', () => {
     expect(HOME_COVER_GUEST).toBe('둘러보기')
     expect(HOME_COVER_GUEST).not.toMatch(/로그인/)
     expect(HOME_COVER_WAIT).toBe('연결된 회사가 없습니다')
-    expect(HOME_COVER_WAIT_LEAD).toContain('수락')
+    expect(HOME_COVER_WAIT_LEAD).toContain('이 화면에서 수락')
     expect(HOME_COVER_WAIT_LEAD).not.toMatch(/업무 시작/)
   })
 

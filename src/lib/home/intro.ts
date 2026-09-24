@@ -1,10 +1,11 @@
+import { waitingCoverLead } from '../invite'
+
 export const HOME_COVER_TITLE = '회사별 지정 PC\n업무 원본'
 export const HOME_COVER_LEAD = '입고, 반출, 재고현황을 이 PC에서 시작합니다.'
 export const HOME_COVER_START = '업무 시작'
 export const HOME_COVER_GUEST = '둘러보기'
 export const HOME_COVER_WAIT = '연결된 회사가 없습니다'
-export const HOME_COVER_WAIT_LEAD =
-  '초대를 받은 뒤 위 안내에서 수락하세요. 회사를 직접 만들 수는 없습니다.'
+export const HOME_COVER_WAIT_LEAD = waitingCoverLead(0)
 export const HOME_COVER_IMAGE = '/home/origin.jpg'
 export const HOME_COVER_IMAGE_ALT = '지정 PC 모니터와 책상'
 
