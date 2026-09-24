@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { afterInviteAcceptHref, assertCustomerAdminEmail, assertInviteRole, homeInviteAcceptLabel, inviteRoleLabel, normalizeInviteEmail, OPERATOR_EMAIL_NOT_CUSTOMER, operatorOpsInviteRole, opsCreateLead, opsInviteLead, showPendingInviteBanner, waitingCoverLead } from './invite'
+import { afterInviteAcceptHref, assertCustomerAdminEmail, assertInviteRole, homeInviteAcceptLabel, inviteRoleLabel, normalizeInviteEmail, OPERATOR_EMAIL_NOT_CUSTOMER, opsCreateLead, opsPageLead, showPendingInviteBanner, waitingCoverLead } from './invite'
 
 describe('회사 사용자 초대', () => {
   it('이메일은 소문자로 맞추고 빈 칸은 거절한다', () => {
@@ -25,12 +25,11 @@ describe('회사 사용자 초대', () => {
     )
   })
 
-  it('운영 회사 관리 초대는 사용자만 두고 회사 관리자는 생성에서만 지정한다', () => {
-    expect(operatorOpsInviteRole()).toBe('member')
+  it('운영 회사 관리는 초대를 두지 않고 생성과 회사 설정으로 나눈다', () => {
     expect(opsCreateLead()).toContain('새 회사')
     expect(opsCreateLead()).toContain('최초 관리자')
-    expect(opsInviteLead()).toContain('이미 있는 회사')
-    expect(opsInviteLead()).not.toMatch(/회사 관리자를 초대/)
+    expect(opsPageLead()).toContain('회사 설정')
+    expect(opsPageLead()).not.toMatch(/사용자 초대/)
   })
 
   it('회사 관리자 수락은 초기 설정으로, 사용자는 홈으로 간다', () => {

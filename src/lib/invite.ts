@@ -24,16 +24,12 @@ export function assertInviteRole(role: string): InviteRole {
   throw new Error('허용되지 않은 역할입니다.')
 }
 
-export function operatorOpsInviteRole(): InviteRole {
-  return 'member'
-}
-
 export function opsCreateLead() {
   return '새 회사를 만듭니다. 최초 관리자 이메일이 그 회사의 회사 관리자입니다. 운영 계정은 넣지 않습니다.'
 }
 
-export function opsInviteLead() {
-  return '이미 있는 회사에 사용자를 붙입니다. 회사 관리자는 왼쪽 회사 생성의 최초 관리자 이메일입니다.'
+export function opsPageLead() {
+  return '새 회사와 그 회사 관리자를 만듭니다. 추가 사람은 그 회사 지정 PC의 회사 설정에서 붙입니다.'
 }
 
 export function afterInviteAcceptHref(role?: string) {
