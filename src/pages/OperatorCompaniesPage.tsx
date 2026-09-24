@@ -4,6 +4,7 @@ import { ProcessedOperations } from '../lib/idempotency'
 import { useAuth } from '../lib/AuthContext'
 import { operatorDeleteAuthUser, operatorDeleteAccountConfirmMessage } from '../lib/account'
 import { assertCustomerAdminEmail, opsCreateLead, opsPageLead } from '../lib/invite'
+import { publicErrorMessage } from '../lib/publicError'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
 type CreateState = {
@@ -58,7 +59,7 @@ export function OperatorCompaniesPage() {
       .catch((error: unknown) => {
         if (cancelled) return
         setCompaniesReady(true)
-        setListError(error instanceof Error ? error.message : String(error))
+        setListError(publicErrorMessage(error))
       })
     return () => {
       cancelled = true
@@ -98,7 +99,7 @@ export function OperatorCompaniesPage() {
       setForm((prev) => ({
         ...prev,
         error: true,
-        message: error instanceof Error ? error.message : String(error),
+        message: publicErrorMessage(error),
       }))
     } finally {
       setBusy(false)
@@ -144,7 +145,7 @@ export function OperatorCompaniesPage() {
       setDeleteMessage('계정과 그 사람이 관리하던 회사(지점)를 지웠습니다. 같은 이메일로 다시 가입할 수 있습니다.')
     } catch (error) {
       setDeleteError(true)
-      setDeleteMessage(error instanceof Error ? error.message : String(error))
+      setDeleteMessage(publicErrorMessage(error))
     } finally {
       setBusy(false)
     }
