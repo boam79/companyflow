@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { ProcessedOperations } from '../lib/idempotency'
 import { useAuth } from '../lib/AuthContext'
 import { operatorDeleteAuthUser, operatorDeleteAccountConfirmMessage } from '../lib/account'
-import { assertInviteRole, assertCustomerAdminEmail, type InviteRole } from '../lib/invite'
+import { assertCustomerAdminEmail, operatorOpsInviteRole, opsCreateLead, opsInviteLead } from '../lib/invite'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
 type CreateState = {
@@ -50,7 +50,6 @@ export function OperatorCompaniesPage() {
   const [busy, setBusy] = useState(false)
   const [inviteCompanyId, setInviteCompanyId] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteRole, setInviteRole] = useState<InviteRole>('member')
   const [invites, setInvites] = useState<OpenInvite[]>([])
   const [inviteMessage, setInviteMessage] = useState('')
   const [inviteError, setInviteError] = useState(false)
@@ -173,7 +172,7 @@ export function OperatorCompaniesPage() {
     setInviteMessage('')
     try {
       const email = assertCustomerAdminEmail(inviteEmail, user?.email)
-      const role = assertInviteRole(inviteRole)
+      const role = operatorOpsInviteRole()
       const { error } = await client.rpc('invite_company_user', {
         p_company_id: inviteCompanyId,
         p_email: email,
@@ -216,70 +215,62 @@ export function OperatorCompaniesPage() {
     }
   }
 
-  const inviteForm = operator && companies.length > 0 ? (
+  const inviteForm = (
     <form className="space-y-4 rounded-lg border border-line bg-card p-6" onSubmit={(event) => void onInvite(event)}>
       <h2 className="text-lg font-semibold">사용자 초대</h2>
-      <p className="text-sm text-muted">
-        수락 전에는 일반 계정이 그 회사 업무를 열 수 없습니다. 메일은 보내지 않습니다. 운영 계정은 초대와 모듈만
-        다루고, 사람·재고 원본은 그 회사 지정 PC에서 엽니다.
-      </p>
-      <label className="block text-sm">
-        회사
-        <select
-          className="mt-1 w-full rounded border border-line px-3 py-2"
-          value={inviteCompanyId}
-          onChange={(event) => setInviteCompanyId(event.target.value)}
-        >
-          {companies.map((company) => (
-            <option key={company.id} value={company.id}>
-              {company.display_name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="block text-sm">
-        이메일
-        <input
-          required
-          type="email"
-          className="mt-1 w-full rounded border border-line px-3 py-2"
-          value={inviteEmail}
-          onChange={(event) => setInviteEmail(event.target.value)}
-        />
-      </label>
-      <label className="block text-sm">
-        역할
-        <select
-          className="mt-1 w-full rounded border border-line px-3 py-2"
-          value={inviteRole}
-          onChange={(event) => setInviteRole(assertInviteRole(event.target.value))}
-        >
-          <option value="member">사용자</option>
-          <option value="company_admin">회사 관리자</option>
-        </select>
-      </label>
-      <button
-        type="submit"
-        disabled={busy}
-        className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-      >
-        초대 남기기
-      </button>
-      {inviteMessage ? (
-        <p className={inviteError ? 'text-sm text-danger' : 'text-sm text-ok'}>{inviteMessage}</p>
-      ) : null}
-      {invites.length > 0 ? (
-        <ul className="space-y-1 text-sm text-muted">
-          {invites.map((invite) => (
-            <li key={invite.id}>
-              {invite.email} · {invite.role === 'company_admin' ? '회사 관리자' : '사용자'} ·{' '}
-              {invite.accepted_at ? '수락함' : '수락 전'}
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <p className="text-sm text-muted">{opsInviteLead()}</p>
+      {operator && companies.length > 0 ? (
+        <>
+          <label className="block text-sm">
+            회사
+            <select
+              className="mt-1 w-full rounded border border-line px-3 py-2"
+              value={inviteCompanyId}
+              onChange={(event) => setInviteCompanyId(event.target.value)}
+            >
+              {companies.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.display_name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm">
+            사용자 이메일
+            <input
+              required
+              type="email"
+              className="mt-1 w-full rounded border border-line px-3 py-2"
+              value={inviteEmail}
+              onChange={(event) => setInviteEmail(event.target.value)}
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={busy}
+            className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            사용자 초대
+          </button>
+          {inviteMessage ? (
+            <p className={inviteError ? 'text-sm text-danger' : 'text-sm text-ok'}>{inviteMessage}</p>
+          ) : null}
+          {invites.length > 0 ? (
+            <ul className="space-y-1 text-sm text-muted">
+              {invites.map((invite) => (
+                <li key={invite.id}>
+                  {invite.email} · {invite.role === 'company_admin' ? '회사 관리자' : '사용자'} ·{' '}
+                  {invite.accepted_at ? '수락함' : '수락 전'}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </>
+      ) : (
+        <p className="text-sm text-muted">회사를 먼저 만들면 그 회사에 사용자를 붙일 수 있습니다.</p>
+      )}
     </form>
-  ) : null
+  )
 
   if (!operator && !companiesReady) {
     return <p className="text-sm text-muted">회사 권한을 확인하는 중입니다.</p>
@@ -298,62 +289,64 @@ export function OperatorCompaniesPage() {
   }
 
   return (
-    <div className="max-w-xl space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-semibold">회사 관리</h1>
         <p className="mt-2 text-sm text-muted">
           {operator
-            ? '운영 관리자는 회사를 등록하고 모듈을 켭니다. 사람·재고·자산·계약은 그 회사 지정 PC에서만 보입니다.'
+            ? '회사 생성은 새 회사와 그 회사 관리자를 만듭니다. 사용자 초대는 이미 있는 회사에 사용자를 붙입니다.'
             : '이 회사의 관리자만 사용자를 초대합니다. 수락 전에는 권한이 없습니다.'}
         </p>
       </div>
       {operator ? (
-        <form className="space-y-4 rounded-lg border border-line bg-card p-6" onSubmit={onSubmit}>
-          <label className="block text-sm">
-            회사명
-            <input
-              required
-              className="mt-1 w-full rounded border border-line px-3 py-2"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-          </label>
-          <label className="block text-sm">
-            회사코드
-            <input
-              required
-              className="mt-1 w-full rounded border border-line px-3 py-2"
-              value={form.code}
-              onChange={(e) => setForm({ ...form, code: e.target.value })}
-            />
-          </label>
-          <label className="block text-sm">
-            최초 회사 관리자 이메일
-            <input
-              required
-              type="email"
-              className="mt-1 w-full rounded border border-line px-3 py-2"
-              value={form.adminEmail}
-              onChange={(e) => setForm({ ...form, adminEmail: e.target.value })}
-            />
-            <span className="mt-1 block text-muted">
-              팔 회사에는 고객 이메일을 적습니다. 운영 계정은 넣지 않습니다.
-            </span>
-          </label>
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-          >
-            회사 생성
-          </button>
-        </form>
+        <div className="grid items-start gap-4 lg:grid-cols-2">
+          <form className="space-y-4 rounded-lg border border-line bg-card p-6" onSubmit={onSubmit}>
+            <h2 className="text-lg font-semibold">회사 생성</h2>
+            <p className="text-sm text-muted">{opsCreateLead()}</p>
+            <label className="block text-sm">
+              회사명
+              <input
+                required
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </label>
+            <label className="block text-sm">
+              회사코드
+              <input
+                required
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={form.code}
+                onChange={(e) => setForm({ ...form, code: e.target.value })}
+              />
+            </label>
+            <label className="block text-sm">
+              최초 회사 관리자 이메일
+              <input
+                required
+                type="email"
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={form.adminEmail}
+                onChange={(e) => setForm({ ...form, adminEmail: e.target.value })}
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={busy}
+              className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              회사 생성
+            </button>
+            {form.message ? (
+              <p className={form.error ? 'text-sm text-danger' : 'text-sm text-ok'}>{form.message}</p>
+            ) : null}
+          </form>
+          {inviteForm}
+        </div>
       ) : null}
-      {form.message ? (
-        <p className={form.error ? 'text-sm text-danger' : 'text-sm text-ok'}>{form.message}</p>
-      ) : null}
-      {inviteForm}
       {operator ? (
+        <div className="grid items-start gap-4 lg:grid-cols-2">
         <form className="space-y-4 rounded-lg border border-line bg-card p-6" onSubmit={(event) => void onDeleteAuthUser(event)}>
           <h2 className="text-lg font-semibold">계정 삭제</h2>
           <p className="text-sm text-muted">
@@ -381,19 +374,20 @@ export function OperatorCompaniesPage() {
             <p className={deleteError ? 'text-sm text-danger' : 'text-sm text-ok'}>{deleteMessage}</p>
           ) : null}
         </form>
-      ) : null}
-      {operator && companies.length > 0 ? (
-        <ul className="space-y-2 text-sm">
-          {companies.map((company) => (
-            <li key={company.id} className="rounded border border-line bg-card px-4 py-3">
-              <strong>{company.display_name}</strong>{' '}
-              <span className="text-muted">
-                {company.company_code} · {company.registration_status}
-              </span>
-              <p className="mt-1 font-mono text-xs text-muted">{company.id}</p>
-            </li>
-          ))}
-        </ul>
+        {operator && companies.length > 0 ? (
+          <ul className="space-y-2 text-sm">
+            {companies.map((company) => (
+              <li key={company.id} className="rounded border border-line bg-card px-4 py-3">
+                <strong>{company.display_name}</strong>{' '}
+                <span className="text-muted">
+                  {company.company_code} · {company.registration_status}
+                </span>
+                <p className="mt-1 font-mono text-xs text-muted">{company.id}</p>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        </div>
       ) : null}
     </div>
   )
