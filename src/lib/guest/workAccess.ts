@@ -19,6 +19,7 @@ export function useWorkAccess() {
     user,
     companies: guest ? [GUEST_COMPANY] : session.companies,
     companyId: guest ? GUEST_COMPANY_ID : session.companyId,
+    sessionReady: guest ? true : session.ready,
     setCompanyId: guest ? () => undefined : session.setCompanyId,
     href: (path: string) => workPath(path, guest),
   }

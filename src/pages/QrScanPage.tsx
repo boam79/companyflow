@@ -35,12 +35,12 @@ export function QrScanPage() {
     let cancelled = false
     void (async () => {
       try {
+        if (!isQrLabelId(token)) {
+          setLabel(null)
+          setMessage(guest ? '이 QR은 샘플에서 만든 빈 QR이 아닙니다.' : '이 QR은 회사 PC에서 만든 빈 QR이 아닙니다.')
+          return
+        }
         if (guest) {
-          if (!isQrLabelId(token)) {
-            setLabel(null)
-            setMessage('이 QR은 샘플에서 만든 빈 QR이 아닙니다.')
-            return
-          }
           if (!sqlite.isOpen(GUEST_COMPANY_ID)) {
             setLabel(null)
             setMessage('샘플을 연 뒤에 QR을 읽으세요.')
@@ -149,6 +149,10 @@ export function QrScanPage() {
     try {
       const payload = readQrAssetForm(new FormData(event.currentTarget))
       if (guest) {
+        if (sqlite.companyId !== GUEST_COMPANY_ID) {
+          setMessage('샘플을 연 뒤에 QR을 읽으세요.')
+          return
+        }
         const result = await executeQrRegistration(sqlite, { labelId: token, payload })
         const items = await loadItems(sqlite)
         const local = await loadQrAssetDetail(sqlite, token, items)
@@ -184,6 +188,13 @@ export function QrScanPage() {
 
   if (!guest && loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
   if (!guest && !configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
+  if (!isQrLabelId(token)) {
+    return (
+      <p className="text-sm">
+        {guest ? '이 QR은 샘플에서 만든 빈 QR이 아닙니다.' : '이 QR은 회사 PC에서 만든 빈 QR이 아닙니다.'}
+      </p>
+    )
+  }
   if (!guest && moduleOff) return <ModuleClosed title="자산" />
   if (!guest && !user) {
     return (

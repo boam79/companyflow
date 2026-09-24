@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { WorkGateNotice } from '../components/WorkGateNotice'
 import {
   assertContractFile,
   contractAmountText,
@@ -18,6 +19,7 @@ import {
 } from '../lib/contracts/book'
 import { applyOcrCandidates } from '../lib/contracts/parseFields'
 import { writeDefaultMaster } from '../lib/master/book'
+import { canWriteOpenedCompany, mayOpenCompanyWork, workSessionKind } from '../lib/company/workGate'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
 import { readCompanyModule } from '../lib/company/moduleAccess'
@@ -38,7 +40,8 @@ function emptyForm(today: string) {
 }
 
 export function ContractsPage() {
-  const { guest, sqlite, loading, configured, user, companies, companyId, setCompanyId, href } = useWorkAccess()
+  const { guest, sqlite, loading, configured, user, companies, companyId, sessionReady, setCompanyId, href } =
+    useWorkAccess()
   const [rows, setRows] = useState<ContractDraft[]>([])
   const [query, setQuery] = useState('')
   const [lifeTab, setLifeTab] = useState<ContractPhase>('active')
@@ -68,6 +71,7 @@ export function ContractsPage() {
   }, [companyId])
 
   async function openCompany(nextId: string, force = false) {
+    if (!mayOpenCompanyWork(guest, nextId, companies)) return
     const ticket = ++openTicket.current
     opening.current = true
     setCompanyId(nextId)
@@ -184,7 +188,7 @@ export function ContractsPage() {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
-    if (!ready) return
+    if (!ready || !canWriteOpenedCompany(guest, companyId, sqlite.companyId)) return
     setMessage('')
     setNotice('')
     try {
@@ -259,14 +263,21 @@ export function ContractsPage() {
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
   if (!guest && !configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
-  if (!guest && !user) {
+  const gated = workSessionKind({
+    guest,
+    signedIn: Boolean(user),
+    ready: sessionReady,
+    companyId,
+  })
+  if (gated !== 'ok') {
     return (
-      <p className="text-sm">
-        계약은 로그인 후 지정 PC에서 다룹니다.{' '}
-        <Link className="text-accent underline" to="/login">
-          로그인
-        </Link>
-      </p>
+      <WorkGateNotice
+        guest={guest}
+        signedIn={Boolean(user)}
+        ready={sessionReady}
+        companyId={companyId}
+        loginHint="계약은 로그인 후 지정 PC에서 다룹니다."
+      />
     )
   }
   if (!guest && menuOff) {

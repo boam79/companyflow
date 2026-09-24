@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { StockLedgerTable } from '../components/StockLedgerTable'
+import { WorkGateNotice } from '../components/WorkGateNotice'
 import { isCompanyAssetItem, isSupplyItem, loadItems, type ItemRecord } from '../lib/master/book'
 import { ACTIVE_MASTER_WHERE } from '../lib/master/commands'
 import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
@@ -19,6 +20,7 @@ import { loadDisplayCurrency, formatCompanyDate, loadDisplayTimezone } from '../
 import { showModuleLink } from '../lib/company/modules'
 import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
+import { canWriteOpenedCompany, mayOpenCompanyWork, workSessionKind } from '../lib/company/workGate'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
 
@@ -39,7 +41,8 @@ function downloadSupplyOrderCsv(rows: PurchaseOrderRow[]) {
 }
 
 export function StockPage() {
-  const { guest, sqlite, loading, configured, user, companies, companyId, setCompanyId, href } = useWorkAccess()
+  const { guest, sqlite, loading, configured, user, companies, companyId, sessionReady, setCompanyId, href } =
+    useWorkAccess()
   const [items, setItems] = useState<ItemRecord[]>([])
   const [partners, setPartners] = useState<NamedRow[]>([])
   const [warehouses, setWarehouses] = useState<NamedRow[]>([])
@@ -91,6 +94,7 @@ export function StockPage() {
   }, [companyId, openFailed])
 
   async function openCompany(nextId: string, force = false) {
+    if (!mayOpenCompanyWork(guest, nextId, companies)) return
     opening.current = true
     setCompanyId(nextId)
     setMessage('')
@@ -376,7 +380,7 @@ export function StockPage() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!ready || !companyId) return
+    if (!ready || !canWriteOpenedCompany(guest, companyId, sqlite.companyId)) return
     setMessage('')
     setSaving(true)
     const nextOperationId = operationId.trim() || crypto.randomUUID()
@@ -455,6 +459,23 @@ export function StockPage() {
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
   if (!guest && !configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
+  const gated = workSessionKind({
+    guest,
+    signedIn: Boolean(user),
+    ready: sessionReady,
+    companyId,
+  })
+  if (gated !== 'ok') {
+    return (
+      <WorkGateNotice
+        guest={guest}
+        signedIn={Boolean(user)}
+        ready={sessionReady}
+        companyId={companyId}
+        loginHint="구매·재고는 로그인 후 지정 PC에서 다룹니다."
+      />
+    )
+  }
   if (!guest && moduleOff) {
     return (
       <ModuleClosed
@@ -466,16 +487,6 @@ export function StockPage() {
           void openCompany(id, true)
         }}
       />
-    )
-  }
-  if (!guest && !user) {
-    return (
-      <p className="text-sm">
-        구매·재고는 로그인 후 지정 PC에서 다룹니다.{' '}
-        <Link className="text-accent underline" to="/login">
-          로그인
-        </Link>
-      </p>
     )
   }
 

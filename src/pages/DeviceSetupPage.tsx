@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { WorkGateNotice } from '../components/WorkGateNotice'
 import { useAuth } from '../lib/AuthContext'
+import { workSessionKind } from '../lib/company/workGate'
 import { companyDbFileName } from '../lib/companyPaths'
 import { localDeviceFingerprint } from '../lib/deviceFingerprint'
 import { getCompanySqlite } from '../lib/sqlite/instance'
@@ -20,7 +21,10 @@ const sqlite = getCompanySqlite()
 
 export function DeviceSetupPage() {
   const { configured, loading, user, operator } = useAuth()
-  const { companies, companyId, setCompanyId } = useCompanySession(Boolean(user), user?.id ?? '')
+  const { companies, companyId, setCompanyId, ready: sessionReady } = useCompanySession(
+    Boolean(user),
+    user?.id ?? '',
+  )
   const [state, setState] = useState<SetupState>(initialSetupState())
   const [log, setLog] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
@@ -122,14 +126,21 @@ export function DeviceSetupPage() {
     )
   }
 
-  if (!user) {
+  const gated = workSessionKind({
+    guest: false,
+    signedIn: Boolean(user),
+    ready: sessionReady,
+    companyId,
+  })
+  if (gated !== 'ok') {
     return (
-      <p className="text-sm">
-        지정 PC 설정은 로그인 후 진행합니다.{' '}
-        <Link className="text-accent underline" to="/login">
-          로그인
-        </Link>
-      </p>
+      <WorkGateNotice
+        guest={false}
+        signedIn={Boolean(user)}
+        ready={sessionReady}
+        companyId={companyId}
+        loginHint="지정 PC 설정은 로그인 후 진행합니다."
+      />
     )
   }
 
@@ -148,26 +159,17 @@ export function DeviceSetupPage() {
         </p>
         <label className="block text-sm">
           회사
-          {companies.length > 0 ? (
-            <select
-              className="mt-1 w-full rounded border border-line px-3 py-2"
-              value={companyId}
-              onChange={(e) => setCompanyId(e.target.value)}
-            >
-              {companies.map((company) => (
-                <option key={company.id} value={company.id}>
-                  {company.display_name} ({company.company_code})
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input
-              className="mt-1 w-full rounded border border-line px-3 py-2"
-              placeholder="회사 UUID"
-              value={companyId}
-              onChange={(e) => setCompanyId(e.target.value.trim())}
-            />
-          )}
+          <select
+            className="mt-1 w-full rounded border border-line px-3 py-2"
+            value={companyId}
+            onChange={(e) => setCompanyId(e.target.value)}
+          >
+            {companies.map((company) => (
+              <option key={company.id} value={company.id}>
+                {company.display_name} ({company.company_code})
+              </option>
+            ))}
+          </select>
         </label>
         <button
           type="button"

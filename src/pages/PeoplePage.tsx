@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { WorkGateNotice } from '../components/WorkGateNotice'
 import { formatCompanyDate, loadDisplayTimezone } from '../lib/company/displayCurrency'
 import { writeDefaultMaster } from '../lib/master/book'
 import { showModuleLink } from '../lib/company/modules'
@@ -67,6 +68,7 @@ import {
   type HireDocumentCheck,
   type HireWorkflowRecord,
 } from '../lib/people/hireWorkflow'
+import { canWriteOpenedCompany, mayOpenCompanyWork, workSessionKind } from '../lib/company/workGate'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
 import { escapeHtml } from '../lib/htmlEscape'
@@ -90,7 +92,8 @@ function printBadge(lines: string[]) {
 }
 
 export function PeoplePage() {
-  const { guest, sqlite, loading, configured, user, companies, companyId, setCompanyId, href } = useWorkAccess()
+  const { guest, sqlite, loading, configured, user, companies, companyId, sessionReady, setCompanyId, href } =
+    useWorkAccess()
   const [departments, setDepartments] = useState<NamedRow[]>([])
   const [employees, setEmployees] = useState<EmployeeRecord[]>([])
   const [checks, setChecks] = useState<CheckRow[]>([])
@@ -126,6 +129,7 @@ export function PeoplePage() {
   }, [companyId])
 
   async function openCompany(nextId: string, force = false) {
+    if (!mayOpenCompanyWork(guest, nextId, companies)) return
     opening.current = true
     setCompanyId(nextId)
     setMessage('')
@@ -223,7 +227,14 @@ export function PeoplePage() {
     )
   }
 
+  function writingAllowed() {
+    if (canWriteOpenedCompany(guest, companyId, sqlite.companyId)) return true
+    setMessage('연결된 회사 원본만 저장합니다.')
+    return false
+  }
+
   async function saveNotify() {
+    if (!writingAllowed()) return
     setMessage('')
     setNotice('')
     try {
@@ -309,7 +320,7 @@ export function PeoplePage() {
   }
 
   async function saveHireWorkflow(employeeId: string, file?: File | null) {
-    if (saving) return
+    if (saving || !writingAllowed()) return
     const draft = workflowDrafts[employeeId] ?? { ownerId: '', dueAt: '' }
     setMessage('')
     setNotice('')
@@ -356,6 +367,7 @@ export function PeoplePage() {
   }
 
   async function saveBadgeTemplate() {
+    if (!writingAllowed()) return
     if (!badgeFile) {
       setMessage('명찰 템플릿 PDF 또는 AI 파일을 선택하세요.')
       return
@@ -409,7 +421,7 @@ export function PeoplePage() {
 
   async function hire(employeeId: string) {
     const draft = drafts[employeeId]
-    if (!draft || saving) return
+    if (!draft || saving || !writingAllowed()) return
     setMessage('')
     setNotice('')
     setSaving(true)
@@ -455,7 +467,7 @@ export function PeoplePage() {
   }
 
   async function toggleDocument(employeeId: string, row: HireDocumentCheck, done: boolean) {
-    if (saving) return
+    if (saving || !writingAllowed()) return
     setMessage('')
     setNotice('')
     setSaving(true)
@@ -483,7 +495,7 @@ export function PeoplePage() {
   }
 
   async function toggleCheck(employeeId: string, row: OnboardingCheck, issued: boolean) {
-    if (saving) return
+    if (saving || !writingAllowed()) return
     setMessage('')
     setNotice('')
     setSaving(true)
@@ -511,7 +523,7 @@ export function PeoplePage() {
   }
 
   async function leave(employeeId: string) {
-    if (saving) return
+    if (saving || !writingAllowed()) return
     setMessage('')
     setNotice('')
     setSaving(true)
@@ -565,6 +577,23 @@ export function PeoplePage() {
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
   if (!guest && !configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
+  const gated = workSessionKind({
+    guest,
+    signedIn: Boolean(user),
+    ready: sessionReady,
+    companyId,
+  })
+  if (gated !== 'ok') {
+    return (
+      <WorkGateNotice
+        guest={guest}
+        signedIn={Boolean(user)}
+        ready={sessionReady}
+        companyId={companyId}
+        loginHint="입퇴사는 로그인 후 지정 PC에서 다룹니다."
+      />
+    )
+  }
   if (!guest && moduleOff) {
     return (
       <ModuleClosed
@@ -576,16 +605,6 @@ export function PeoplePage() {
           void openCompany(id, true)
         }}
       />
-    )
-  }
-  if (!guest && !user) {
-    return (
-      <p className="text-sm">
-        입퇴사는 로그인 후 지정 PC에서 다룹니다.{' '}
-        <Link className="text-accent underline" to="/login">
-          로그인
-        </Link>
-      </p>
     )
   }
 

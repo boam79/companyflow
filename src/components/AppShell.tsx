@@ -1,10 +1,10 @@
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../lib/AuthContext'
 import { isQrScanPath } from '../lib/asset/qr'
 import { APP_MENUS, hasWorkCompany, visibleShellMenus } from '../lib/company/nav'
 import { readCompanyModules } from '../lib/company/moduleAccess'
-import { useCompanySession } from '../lib/companySession'
+import { allowedOpenedCompanyId, useCompanySession } from '../lib/companySession'
 import { GUEST_MENUS, isGuestPath } from '../lib/guest/ids'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { PendingInviteBanner } from './PendingInviteBanner'
@@ -15,8 +15,10 @@ export function AppShell() {
   const scanMode = isQrScanPath(location.pathname)
   const guest = isGuestPath(location.pathname)
   const home = location.pathname === '/'
-  const { companyId, ready } = useCompanySession(Boolean(user) && !guest, user?.id ?? '')
+  const { companyId, ready, companies } = useCompanySession(Boolean(user) && !guest, user?.id ?? '')
   const hasCompany = hasWorkCompany(ready, companyId)
+  const companiesRef = useRef(companies)
+  companiesRef.current = companies
   const [openCompanyId, setOpenCompanyId] = useState('')
   const [moduleTick, setModuleTick] = useState(0)
   const [moduleFlags, setModuleFlags] = useState<Record<string, boolean>>({})
@@ -35,8 +37,8 @@ export function AppShell() {
 
   useEffect(() => {
     function onOpen(event: Event) {
-      const id = (event as CustomEvent<string>).detail
-      if (id) setOpenCompanyId(id)
+      const allowed = allowedOpenedCompanyId((event as CustomEvent<string>).detail, companiesRef.current)
+      if (allowed) setOpenCompanyId(allowed)
     }
     function onModules() {
       setModuleTick((value) => value + 1)
@@ -51,6 +53,7 @@ export function AppShell() {
 
   useEffect(() => {
     if (guest || !user || !openCompanyId) return
+    if (!allowedOpenedCompanyId(openCompanyId, companies)) return
     let cancelled = false
     void (async () => {
       const sqlite = getCompanySqlite()
@@ -63,7 +66,7 @@ export function AppShell() {
     return () => {
       cancelled = true
     }
-  }, [guest, moduleTick, openCompanyId, user])
+  }, [companies, guest, moduleTick, openCompanyId, user])
 
   return (
     <div className={`flex min-h-svh flex-col ${home ? 'bg-[#07090c]' : ''}`}>

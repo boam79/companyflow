@@ -7,7 +7,7 @@
 
 ## 지금 하는 일
 
-연결된 회사가 없으면 업무 메뉴를 숨긴다.
+S1 로그아웃 원본 닫기·멤버십 없는 업무 URL 차단. 사용자 확인 전.
 
 ## 보드
 
@@ -32,7 +32,8 @@
 - [ ] 메뉴 전체 유저스토리 QA(회사 세션·원장 빈 안내·잘못된 QR). 지정 Chrome 확인 전.
 - [ ] 홈 인트로 3번 남색 표지. 지정 Chrome 확인 전.
 - [ ] 게스트 둘러보기. 배포에서 샘플 재고 7·견본 이름 확인. 자산 QR은 샘플 UUID. 사용자 확인 전.
-- [ ] 회사 없는 계정은 업무 시작 숨김. 사용자 확인 전.
+- [x] 회사 없는 계정은 업무 시작 숨김. 사용자 확인.
+- [ ] 로그아웃 원본 닫기·멤버십 없는 업무 URL. 사용자 확인 전.
 - [x] 회사 자산은 직원에게 배정하지 않음. 퇴사 차단 해제.
 
 배포 URL: https://companyflow-opal.vercel.app  
@@ -50,6 +51,8 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 - Supabase 활성: `companyflow`, `boardroom`. 정지: `boam79_patient_data`, `qr-asset-manager`, `policyfund-ai-v2`.
 - `confirm_company_device` RPC 추가. 초기 설정 성공 후 원본 장치를 confirmed 로 올린다.
 
+- 2026-09-24: 로그아웃은 sqlite를 닫고 홈으로 간다. 멤버십 없는 업무 URL은 안내만. CustomEvent는 멤버십 회사만. 명찰은 PDF 매직.
+- 2026-09-24: N1 회사 없는 계정 업무 숨김. 사용자 확인.
 - 2026-09-24: 가입만 한 계정은 업무 시작·업무 메뉴를 숨긴다. 초대 수락 안내만. 이전 PC 세션 회사도 멤버십 전에 열지 않는다.
 - 2026-09-24: 게스트 책상·컴퓨터 QR은 샘플 UUID. 빈 QR 입력은 `/guest/q/`만. 본사 `asset_qr_labels`는 안 씀.
 - 2026-09-24: 배포 `/guest` 재고 7·자산 2·견본 김대리·샘플 사무실 임대. 둘러보기는 `/guest/stock`. 지정 Chrome SAH는 열지 않음.

@@ -93,6 +93,11 @@ export function clearCompanySession() {
   }
 }
 
+export function endCompanyWorkSession() {
+  clearCompanySession()
+  getCompanySqlite().close()
+}
+
 export function seedInvalidCompanyList() {
   writeStore(LIST_KEY, '{')
 }

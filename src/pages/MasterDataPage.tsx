@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { WorkGateNotice } from '../components/WorkGateNotice'
 import { writeDefaultMaster, loadPartnerOriginal } from '../lib/master/book'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
@@ -27,6 +27,7 @@ import {
   type PurchaseKindRow,
 } from '../lib/master/commands'
 import { toArrayBuffer } from '../lib/contracts/book'
+import { canWriteOpenedCompany, mayOpenCompanyWork, workSessionKind } from '../lib/company/workGate'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
 
@@ -124,7 +125,8 @@ const FIELD_ENTITIES: { id: MasterFieldEntity; label: string }[] = [
 ]
 
 export function MasterDataPage() {
-  const { guest, sqlite, loading, configured, user, companies, companyId, setCompanyId } = useWorkAccess()
+  const { guest, sqlite, loading, configured, user, companies, companyId, sessionReady, setCompanyId } =
+    useWorkAccess()
   const [tab, setTab] = useState<TabId>('departments')
   const [listTab, setListTab] = useState<TabId>('departments')
   const [rows, setRows] = useState<NamedRow[]>([])
@@ -169,6 +171,7 @@ export function MasterDataPage() {
   }, [companyId, openFailed])
 
   async function openCompany(nextId: string, force = false) {
+    if (!mayOpenCompanyWork(guest, nextId, companies)) return
     opening.current = true
     setCompanyId(nextId)
     setMessage('')
@@ -249,9 +252,15 @@ export function MasterDataPage() {
     void reload(tab)
   }, [tab, ready, companyId])
 
+  function writingAllowed() {
+    if (canWriteOpenedCompany(guest, companyId, sqlite.companyId)) return true
+    setMessage('연결된 회사 원본만 저장합니다.')
+    return false
+  }
+
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
-    if (!ready || !name.trim()) return
+    if (!ready || !name.trim() || !writingAllowed()) return
     setMessage('')
     const operationId = crypto.randomUUID()
     try {
@@ -316,7 +325,7 @@ export function MasterDataPage() {
   }
 
   async function saveItemCatalog() {
-    if (!ready || !selectedItemId) return
+    if (!ready || !selectedItemId || !writingAllowed()) return
     setMessage('')
     const operationId = crypto.randomUUID()
     try {
@@ -368,7 +377,7 @@ export function MasterDataPage() {
   }
 
   async function savePartner() {
-    if (!ready || !selectedPartnerId) return
+    if (!ready || !selectedPartnerId || !writingAllowed()) return
     setMessage('')
     const operationId = crypto.randomUUID()
     try {
@@ -420,7 +429,7 @@ export function MasterDataPage() {
   }
 
   async function deactivateRow() {
-    if (!ready || tab === 'fields' || tab === 'employees') return
+    if (!ready || tab === 'fields' || tab === 'employees' || !writingAllowed()) return
     setMessage('')
     const operationId = crypto.randomUUID()
     try {
@@ -451,7 +460,7 @@ export function MasterDataPage() {
   }
 
   async function addPurchaseKind() {
-    if (!ready) return
+    if (!ready || !writingAllowed()) return
     setMessage('')
     try {
       assertUniquePurchaseKindName(purchaseKindName, purchaseKinds)
@@ -474,7 +483,7 @@ export function MasterDataPage() {
   }
 
   async function savePurchaseKind() {
-    if (!ready) return
+    if (!ready || !writingAllowed()) return
     setMessage('')
     try {
       assertPurchaseKind(purchaseKind, activePurchaseKinds())
@@ -492,7 +501,7 @@ export function MasterDataPage() {
   }
 
   async function deactivatePurchaseKind() {
-    if (!ready) return
+    if (!ready || !writingAllowed()) return
     setMessage('')
     try {
       const remaining = activePurchaseKinds().filter((row) => row.id !== purchaseKind)
@@ -512,14 +521,21 @@ export function MasterDataPage() {
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
   if (!guest && !configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
-  if (!guest && !user) {
+  const gated = workSessionKind({
+    guest,
+    signedIn: Boolean(user),
+    ready: sessionReady,
+    companyId,
+  })
+  if (gated !== 'ok') {
     return (
-      <p className="text-sm">
-        기준정보는 로그인 후 지정 PC에서 다룹니다.{' '}
-        <Link className="text-accent underline" to="/login">
-          로그인
-        </Link>
-      </p>
+      <WorkGateNotice
+        guest={guest}
+        signedIn={Boolean(user)}
+        ready={sessionReady}
+        companyId={companyId}
+        loginHint="기준정보는 로그인 후 지정 PC에서 다룹니다."
+      />
     )
   }
 

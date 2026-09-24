@@ -210,16 +210,16 @@ export async function inspectBadgeTemplate(bytes: Uint8Array, fileName: string):
   assertBadgeTemplateFile(bytes.byteLength, undefined, fileName)
   const offset = pdfMagicOffset(bytes)
   const ext = extOf(fileName)
-  if (ext === 'pdf' && offset < 0) throw new Error('PDF 형식이 아닙니다.')
-  const sourceKind: BadgeSourceKind = offset >= 0 ? (ext === 'ai' ? 'ai-pdf' : 'pdf') : 'ai-binary'
+  if (offset < 0) throw new Error('명찰 템플릿은 PDF 원본만 받습니다.')
+  const sourceKind: BadgeSourceKind = ext === 'ai' ? 'ai-pdf' : 'pdf'
   const pdfBytes = offset > 0 ? bytes.subarray(offset) : bytes
-  const parts = [new TextDecoder('utf-8', { fatal: false }).decode(bytes)]
-  if (offset >= 0) {
-    const latin = asLatin1(pdfBytes)
-    parts.push(extractPdfLiterals(latin).join('\n'))
-    parts.push(extractPdfHexStrings(latin).join('\n'))
-    parts.push(await extractFlateText(pdfBytes))
-  }
+  const latin = asLatin1(pdfBytes)
+  const parts = [
+    new TextDecoder('utf-8', { fatal: false }).decode(bytes),
+    extractPdfLiterals(latin).join('\n'),
+    extractPdfHexStrings(latin).join('\n'),
+    await extractFlateText(pdfBytes),
+  ]
   const combined = parts.join('\n')
   const fields = detectBadgeFields(combined)
   return {

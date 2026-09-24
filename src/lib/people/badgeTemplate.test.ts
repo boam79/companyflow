@@ -41,17 +41,12 @@ describe('명찰 템플릿', () => {
     expect(found.fields.map((row) => row.key)).toEqual(['name', 'department'])
   })
 
-  it('PDF가 아닌 .ai는 원본으로 두고 한글 라벨이 있으면 칸을 읽는다', async () => {
+  it('PDF 매직이 없는 .ai는 받지 않는다', async () => {
     const bytes = new TextEncoder().encode('Illustrator 비호환 성명 부서')
-    const found = await inspectBadgeTemplate(bytes, 'badge.ai')
-    expect(found.sourceKind).toBe('ai-binary')
-    expect(found.fields.map((row) => row.key)).toEqual(['name', 'department'])
-  })
-
-  it('라벨이 없는 바이너리 .ai는 칸이 비어 있다', async () => {
-    const found = await inspectBadgeTemplate(new Uint8Array([0, 1, 2, 3, 4, 5]), 'badge.ai')
-    expect(found.sourceKind).toBe('ai-binary')
-    expect(found.fields).toEqual([])
+    await expect(inspectBadgeTemplate(bytes, 'badge.ai')).rejects.toThrow(/PDF 원본/)
+    await expect(inspectBadgeTemplate(new Uint8Array([0, 1, 2, 3, 4, 5]), 'badge.ai')).rejects.toThrow(
+      /PDF 원본/,
+    )
   })
 
   it('파악한 칸 순서로 직원 값을 넣는다', () => {

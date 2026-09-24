@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { WorkGateNotice } from '../components/WorkGateNotice'
 import { assetNumber, loadAssets, type AssetRecord } from '../lib/asset/book'
 import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
 import {
@@ -18,6 +19,7 @@ import { isCompanyAssetItem, loadItems, writeDefaultMaster, type ItemRecord } fr
 import { ACTIVE_MASTER_WHERE } from '../lib/master/commands'
 import { migrateProcessAssetsToChecks } from '../lib/people/onboarding'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
+import { canWriteOpenedCompany, mayOpenCompanyWork, workSessionKind } from '../lib/company/workGate'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
 import { getSupabase } from '../lib/supabase'
@@ -50,7 +52,8 @@ function payloadFromUnknown(value: unknown): QrAssetPayload {
 }
 
 export function AssetsPage() {
-  const { guest, sqlite, loading, configured, user, companies, companyId, setCompanyId, href } = useWorkAccess()
+  const { guest, sqlite, loading, configured, user, companies, companyId, sessionReady, setCompanyId, href } =
+    useWorkAccess()
   const [items, setItems] = useState<ItemRecord[]>([])
   const [warehouses, setWarehouses] = useState<NamedRow[]>([])
   const [assets, setAssets] = useState<AssetRecord[]>([])
@@ -106,6 +109,7 @@ export function AssetsPage() {
   }
 
   async function openCompany(nextId: string, force = false) {
+    if (!mayOpenCompanyWork(guest, nextId, companies)) return
     opening.current = true
     setCompanyId(nextId)
     setMessage('')
@@ -179,7 +183,7 @@ export function AssetsPage() {
   }
 
   async function makeBlankQrs() {
-    if (!companyId || !ready) {
+    if (!canWriteOpenedCompany(guest, companyId, sqlite.companyId) || !ready) {
       setMessage(guest ? '샘플을 연 뒤에 빈 QR을 만듭니다.' : '지정 PC에서 회사를 연 뒤에 빈 QR을 만듭니다.')
       return
     }
@@ -231,7 +235,7 @@ export function AssetsPage() {
 
   async function importOne(row: AssetQrInboxRow) {
     const client = getSupabase()
-    if (!client || !ready) return
+    if (!client || !ready || !canWriteOpenedCompany(guest, companyId, sqlite.companyId)) return
     setBusy(true)
     setMessage('')
     try {
@@ -261,7 +265,7 @@ export function AssetsPage() {
   }
 
   async function recordLife(data: FormData) {
-    if (!ready || !selectedId) return
+    if (!ready || !selectedId || !canWriteOpenedCompany(guest, companyId, sqlite.companyId)) return
     setBusy(true)
     setMessage('')
     setNotice('')
@@ -322,6 +326,23 @@ export function AssetsPage() {
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
   if (!guest && !configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
+  const gated = workSessionKind({
+    guest,
+    signedIn: Boolean(user),
+    ready: sessionReady,
+    companyId,
+  })
+  if (gated !== 'ok') {
+    return (
+      <WorkGateNotice
+        guest={guest}
+        signedIn={Boolean(user)}
+        ready={sessionReady}
+        companyId={companyId}
+        loginHint="자산은 로그인 후 지정 PC에서 다룹니다."
+      />
+    )
+  }
   if (!guest && moduleOff) {
     return (
       <ModuleClosed
@@ -333,16 +354,6 @@ export function AssetsPage() {
           void openCompany(id, true)
         }}
       />
-    )
-  }
-  if (!guest && !user) {
-    return (
-      <p className="text-sm">
-        자산은 로그인 후 지정 PC에서 다룹니다.{' '}
-        <Link className="text-accent underline" to="/login">
-          로그인
-        </Link>
-      </p>
     )
   }
 

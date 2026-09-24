@@ -7,7 +7,8 @@ import {
   type ReactNode,
 } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
-import { clearCompanySession } from './companySession'
+import { endCompanyWorkSession } from './companySession'
+import { afterSignOutHref } from './loginNext'
 import { getSupabase, operatorFromUser } from './supabase'
 
 type AuthValue = {
@@ -56,7 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       configured: Boolean(client),
       signOut: async () => {
         await client?.auth.signOut()
-        clearCompanySession()
+        endCompanyWorkSession()
+        if (typeof window !== 'undefined') window.location.assign(afterSignOutHref())
       },
     }),
     [client, loading, session],
