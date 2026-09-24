@@ -11,7 +11,11 @@ test('로그아웃 홈은 둘러보기와 로그인만 둔다', async ({ page })
   await expect(page.getByRole('navigation').getByRole('link', { name: '구매·재고' })).toHaveCount(0)
 })
 
-test('로그아웃 구매·재고 주소는 로그인 안내만 둔다', async ({ page }) => {
+test('로그아웃 초기 설정 주소는 로그인 안내만 둔다', async ({ page }) => {
+  await page.goto('/setup')
+  await expect(page.getByText('지정 PC 설정은 로그인 후')).toBeVisible()
+  await expect(page.getByRole('heading', { name: '지정 PC 초기 설정' })).toHaveCount(0)
+})
   await page.goto('/stock')
   await expect(page.getByText('구매·재고는 로그인 후')).toBeVisible()
   await expect(page.getByRole('heading', { name: '구매·재고' })).toHaveCount(0)

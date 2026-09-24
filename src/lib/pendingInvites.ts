@@ -32,13 +32,14 @@ export function usePendingInvites(enabled: boolean) {
     const client = getSupabase()
     if (!client) return
     setMessage('')
+    const row = rows.find((item) => item.id === id)
     const { error } = await client.rpc('accept_company_invitation', { p_invitation_id: id })
     if (error) {
       setMessage(error.message)
       return
     }
-    setRows((prev) => prev.filter((row) => row.id !== id))
-    window.location.assign(afterInviteAcceptHref())
+    setRows((prev) => prev.filter((item) => item.id !== id))
+    window.location.assign(afterInviteAcceptHref(row?.role))
   }
 
   return { rows, message, accept }

@@ -13,8 +13,10 @@ describe('회사 사용자 초대', () => {
     expect(() => assertInviteRole('platform_operator')).toThrow(/역할/)
   })
 
-  it('수락 뒤에는 홈에서 멤버십을 다시 읽는다', () => {
+  it('회사 관리자 수락은 초기 설정으로, 사용자는 홈으로 간다', () => {
     expect(afterInviteAcceptHref()).toBe('/')
+    expect(afterInviteAcceptHref('member')).toBe('/')
+    expect(afterInviteAcceptHref('company_admin')).toBe('/setup')
   })
 
   it('홈 표지 수락 문구와 어두운 홈에서 배너를 숨긴다', () => {

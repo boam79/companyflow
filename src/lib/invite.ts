@@ -13,8 +13,8 @@ export function assertInviteRole(role: string): InviteRole {
   throw new Error('허용되지 않은 역할입니다.')
 }
 
-export function afterInviteAcceptHref() {
-  return '/'
+export function afterInviteAcceptHref(role?: string) {
+  return role === 'company_admin' ? '/setup' : '/'
 }
 
 export function inviteRoleLabel(role: string) {
