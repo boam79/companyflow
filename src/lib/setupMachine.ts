@@ -91,6 +91,14 @@ export function setupShowsStepLog() {
   return false
 }
 
+export function setupRunButtonVisible(usable: boolean) {
+  return !usable
+}
+
+export function setupCardLead(usable: boolean) {
+  return usable ? setupReadyLead() : setupPageLead()
+}
+
 export function setupNeedsSqliteOpen(alreadyOpen: boolean) {
   return !alreadyOpen
 }

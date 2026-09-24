@@ -8,6 +8,8 @@ import {
   setupNeedsSqliteOpen,
   setupPageLead,
   setupReadyLead,
+  setupRunButtonVisible,
+  setupCardLead,
   setupShowsStepLog,
 } from './setupMachine'
 
@@ -32,6 +34,13 @@ describe('지정 PC 초기화 상태', () => {
     expect(setupReadyLead()).toContain('업무 원본')
     expect(setupReadyLead()).toContain('업무 시작')
     expect(setupLabel('ready')).toBe('사용 가능')
+  })
+
+  it('사용 가능이면 다시 설정 버튼을 두지 않는다', () => {
+    expect(setupRunButtonVisible(true)).toBe(false)
+    expect(setupRunButtonVisible(false)).toBe(true)
+    expect(setupCardLead(true)).toBe(setupReadyLead())
+    expect(setupCardLead(false)).toBe(setupPageLead())
   })
 
   it('이미 열린 원본은 다시 열지 않고, 저장된 사용 가능을 복원한다', () => {

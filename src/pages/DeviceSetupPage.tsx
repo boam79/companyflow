@@ -11,8 +11,9 @@ import {
   setupFromStoredPhase,
   setupLabel,
   setupNeedsSqliteOpen,
-  setupPageLead,
   setupReadyLead,
+  setupRunButtonVisible,
+  setupCardLead,
   type SetupState,
 } from '../lib/setupMachine'
 import { CompanyMasterBook, seedDefaultMaster, writeDefaultMaster } from '../lib/master/book'
@@ -32,10 +33,12 @@ export function DeviceSetupPage() {
   const [state, setState] = useState<SetupState>(initialSetupState())
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
+  const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
     if (!companyId) return
     let cancelled = false
+    setHydrated(false)
     void (async () => {
       if (setupNeedsSqliteOpen(sqlite.isOpen(companyId))) {
         await sqlite.open(companyId)
@@ -43,10 +46,14 @@ export function DeviceSetupPage() {
       const rows = await sqlite.query<{ value: string }>('select value from setup_state where key = ?', ['phase'])
       if (cancelled) return
       const stored = setupFromStoredPhase(rows[0]?.value)
-      if (!canMarkUsable(stored)) return
-      setState(stored)
-      setNotice(setupReadyLead())
-    })().catch(() => undefined)
+      if (canMarkUsable(stored)) {
+        setState(stored)
+        setNotice(setupReadyLead())
+      }
+      setHydrated(true)
+    })().catch(() => {
+      if (!cancelled) setHydrated(true)
+    })
     return () => {
       cancelled = true
     }
@@ -154,38 +161,49 @@ export function DeviceSetupPage() {
     )
   }
 
+  const usable = canMarkUsable(state)
+  const company = companies.find((row) => row.id === companyId)
+
   return (
     <div className="max-w-2xl space-y-6">
       <div>
         <h1 className="text-3xl font-semibold">지정 PC 초기 설정</h1>
-        <p className="mt-2 text-sm text-muted">{setupPageLead()}</p>
+        <p className="mt-2 text-sm text-muted">{setupCardLead(usable)}</p>
       </div>
       <div className="space-y-4 rounded-lg border border-line bg-card p-6">
         <p className="text-sm">
-          현재 단계: <strong>{setupLabel(state.phase)}</strong>
+          현재 단계: <strong>{hydrated ? setupLabel(state.phase) : '확인 중'}</strong>
         </p>
-        <label className="block text-sm">
-          회사
-          <select
-            className="mt-1 w-full rounded border border-line px-3 py-2"
-            value={companyId}
-            onChange={(e) => setCompanyId(e.target.value)}
+        {usable && company ? (
+          <p className="text-sm">
+            회사 <strong>{company.display_name}</strong> ({company.company_code})
+          </p>
+        ) : (
+          <label className="block text-sm">
+            회사
+            <select
+              className="mt-1 w-full rounded border border-line px-3 py-2"
+              value={companyId}
+              onChange={(e) => setCompanyId(e.target.value)}
+            >
+              {companies.map((row) => (
+                <option key={row.id} value={row.id}>
+                  {row.display_name} ({row.company_code})
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {hydrated && setupRunButtonVisible(usable) ? (
+          <button
+            type="button"
+            disabled={busy || !companyId}
+            onClick={() => void runSetup()}
+            className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {companies.map((company) => (
-              <option key={company.id} value={company.id}>
-                {company.display_name} ({company.company_code})
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
-          disabled={busy || !companyId}
-          onClick={() => void runSetup()}
-          className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-        >
-          이 PC를 업무 원본 장치로 설정
-        </button>
+            이 PC를 업무 원본 장치로 설정
+          </button>
+        ) : null}
         {state.reason ? <p className="text-sm text-danger">{state.reason}</p> : null}
         {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       </div>
