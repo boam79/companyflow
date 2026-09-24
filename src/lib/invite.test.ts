@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { afterInviteAcceptHref, assertInviteRole, homeInviteAcceptLabel, inviteRoleLabel, normalizeInviteEmail, showPendingInviteBanner, waitingCoverLead } from './invite'
+import { afterInviteAcceptHref, assertCustomerAdminEmail, assertInviteRole, homeInviteAcceptLabel, inviteRoleLabel, normalizeInviteEmail, OPERATOR_EMAIL_NOT_CUSTOMER, showPendingInviteBanner, waitingCoverLead } from './invite'
 
 describe('회사 사용자 초대', () => {
   it('이메일은 소문자로 맞추고 빈 칸은 거절한다', () => {
@@ -11,6 +11,18 @@ describe('회사 사용자 초대', () => {
     expect(assertInviteRole('member')).toBe('member')
     expect(assertInviteRole('company_admin')).toBe('company_admin')
     expect(() => assertInviteRole('platform_operator')).toThrow(/역할/)
+  })
+
+  it('팔 회사 최초 관리자에 운영자 이메일을 받지 않는다', () => {
+    expect(assertCustomerAdminEmail('  Customer@Example.com ', 'pjm7908@hanmail.net')).toBe(
+      'customer@example.com',
+    )
+    expect(() => assertCustomerAdminEmail('pjm7908@hanmail.net', 'pjm7908@hanmail.net')).toThrow(
+      OPERATOR_EMAIL_NOT_CUSTOMER,
+    )
+    expect(() => assertCustomerAdminEmail('PJM7908@hanmail.net', 'pjm7908@hanmail.net')).toThrow(
+      /고객 이메일/,
+    )
   })
 
   it('회사 관리자 수락은 초기 설정으로, 사용자는 홈으로 간다', () => {

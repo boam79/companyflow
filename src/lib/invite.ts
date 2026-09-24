@@ -8,6 +8,17 @@ export function normalizeInviteEmail(value: string) {
   return email
 }
 
+export const OPERATOR_EMAIL_NOT_CUSTOMER =
+  '팔 회사에는 고객 이메일을 적습니다. 운영 계정은 넣지 않습니다.'
+
+export function assertCustomerAdminEmail(adminEmail: string, operatorEmail?: string | null) {
+  const email = normalizeInviteEmail(adminEmail)
+  if (operatorEmail && email === operatorEmail.trim().toLowerCase()) {
+    throw new Error(OPERATOR_EMAIL_NOT_CUSTOMER)
+  }
+  return email
+}
+
 export function assertInviteRole(role: string): InviteRole {
   if (role === 'company_admin' || role === 'member') return role
   throw new Error('허용되지 않은 역할입니다.')

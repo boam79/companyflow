@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { ProcessedOperations } from '../lib/idempotency'
 import { useAuth } from '../lib/AuthContext'
 import { operatorDeleteAuthUser, operatorDeleteAccountConfirmMessage } from '../lib/account'
-import { assertInviteRole, normalizeInviteEmail, type InviteRole } from '../lib/invite'
+import { assertInviteRole, assertCustomerAdminEmail, type InviteRole } from '../lib/invite'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
 type CreateState = {
@@ -109,7 +109,7 @@ export function OperatorCompaniesPage() {
     const payload = {
       name: form.name.trim(),
       code: form.code.trim(),
-      adminEmail: form.adminEmail.trim(),
+      adminEmail: assertCustomerAdminEmail(form.adminEmail, user?.email),
     }
     const local = createOps.run(operationId, () => payload)
     try {
@@ -122,6 +122,7 @@ export function OperatorCompaniesPage() {
       if (error) throw error
       const row = data as CompanyRow
       setCompanies((prev) => [row, ...prev.filter((item) => item.id !== row.id)])
+      setInviteCompanyId(row.id)
       setForm({
         name: '',
         code: '',
@@ -171,7 +172,7 @@ export function OperatorCompaniesPage() {
     setInviteError(false)
     setInviteMessage('')
     try {
-      const email = normalizeInviteEmail(inviteEmail)
+      const email = assertCustomerAdminEmail(inviteEmail, user?.email)
       const role = assertInviteRole(inviteRole)
       const { error } = await client.rpc('invite_company_user', {
         p_company_id: inviteCompanyId,
@@ -336,7 +337,7 @@ export function OperatorCompaniesPage() {
               onChange={(e) => setForm({ ...form, adminEmail: e.target.value })}
             />
             <span className="mt-1 block text-muted">
-              팔 회사에는 고객 이메일을 적습니다. 운영 계정 이메일을 적으면 그 회사 멤버로 붙지 않고 초대만 남깁니다.
+              팔 회사에는 고객 이메일을 적습니다. 운영 계정은 넣지 않습니다.
             </span>
           </label>
           <button

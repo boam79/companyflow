@@ -30,7 +30,7 @@ import {
   memberRoleLabel,
   openedCompanyOnly,
 } from '../lib/company/settings'
-import { assertInviteRole, normalizeInviteEmail, type InviteRole } from '../lib/invite'
+import { assertInviteRole, assertCustomerAdminEmail, type InviteRole } from '../lib/invite'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { ORDER_CURRENCIES } from '../lib/stock/inventoryView'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
@@ -318,7 +318,7 @@ export function CompanySettingsPage() {
     setNotice('')
     setMessage('')
     try {
-      const email = normalizeInviteEmail(inviteEmail)
+      const email = assertCustomerAdminEmail(inviteEmail, user?.email)
       const role = assertInviteRole(inviteRole)
       const { error } = await client.rpc('invite_company_user', {
         p_company_id: open.id,
