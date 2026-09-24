@@ -4,7 +4,6 @@ import { useAuth } from '../lib/AuthContext'
 import { isQrScanPath } from '../lib/asset/qr'
 import { APP_MENUS, hasWorkCompany, visibleShellMenus } from '../lib/company/nav'
 import { readCompanyModules } from '../lib/company/moduleAccess'
-import { canDeleteOwnAccount, deleteAccountConfirmMessage } from '../lib/account'
 import { allowedOpenedCompanyId, useCompanySession } from '../lib/companySession'
 import { GUEST_MENUS, isGuestPath } from '../lib/guest/ids'
 import { showPendingInviteBanner } from '../lib/invite'
@@ -12,7 +11,7 @@ import { getCompanySqlite } from '../lib/sqlite/instance'
 import { PendingInviteBanner } from './PendingInviteBanner'
 
 export function AppShell() {
-  const { loading, user, operator, signOut, deleteAccount } = useAuth()
+  const { loading, user, operator, signOut } = useAuth()
   const location = useLocation()
   const scanMode = isQrScanPath(location.pathname)
   const guest = isGuestPath(location.pathname)
@@ -113,20 +112,6 @@ export function AppShell() {
                 <button type="button" className={home ? 'text-white/45' : 'text-muted'} onClick={() => void signOut()}>
                   로그아웃
                 </button>
-                {canDeleteOwnAccount(operator) ? (
-                  <button
-                    type="button"
-                    className={home ? 'text-white/45' : 'text-muted'}
-                    onClick={() => {
-                      if (!window.confirm(deleteAccountConfirmMessage())) return
-                      void deleteAccount().catch((error: unknown) => {
-                        window.alert(error instanceof Error ? error.message : String(error))
-                      })
-                    }}
-                  >
-                    계정 삭제
-                  </button>
-                ) : null}
               </>
             ) : guest ? null : (
               <NavLink

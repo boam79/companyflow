@@ -5,12 +5,14 @@ import {
   operatorDeleteAccountConfirmMessage,
   shouldDropCompanyWithAccount,
   shouldDropEmptyCompanyOnOperatorDelete,
+  showHeaderAccountDelete,
 } from './account'
 
 describe('계정 삭제', () => {
   it('운영 계정은 스스로 지우지 않고 테스트 이메일만 지운다', () => {
     expect(canDeleteOwnAccount(true)).toBe(false)
     expect(canDeleteOwnAccount(false)).toBe(true)
+    expect(showHeaderAccountDelete()).toBe(false)
     expect(deleteAccountConfirmMessage()).toContain('같은 이메일')
     expect(deleteAccountConfirmMessage()).toContain('회사(지점)도 중앙에서 지웁니다')
     expect(deleteAccountConfirmMessage()).toContain('원본 파일은 남습니다')

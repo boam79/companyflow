@@ -5,6 +5,11 @@ export function canDeleteOwnAccount(operator: boolean) {
   return !operator
 }
 
+/** 일반 화면 헤더에는 계정 삭제를 두지 않는다. 테스트 계정은 회사 관리에서만 지운다. */
+export function showHeaderAccountDelete() {
+  return false
+}
+
 export function shouldDropCompanyWithAccount(input: {
   operatorIsMember: boolean
   otherCompanyAdmins: boolean
