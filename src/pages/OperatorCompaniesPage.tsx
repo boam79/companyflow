@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { ProcessedOperations } from '../lib/idempotency'
 import { useAuth } from '../lib/AuthContext'
+import { operatorDeleteAuthUser, deleteAccountConfirmMessage } from '../lib/account'
 import { assertInviteRole, normalizeInviteEmail, type InviteRole } from '../lib/invite'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
@@ -53,6 +54,9 @@ export function OperatorCompaniesPage() {
   const [invites, setInvites] = useState<OpenInvite[]>([])
   const [inviteMessage, setInviteMessage] = useState('')
   const [inviteError, setInviteError] = useState(false)
+  const [deleteEmail, setDeleteEmail] = useState('')
+  const [deleteMessage, setDeleteMessage] = useState('')
+  const [deleteError, setDeleteError] = useState(false)
 
   useEffect(() => {
     if (!user) return
@@ -183,6 +187,26 @@ export function OperatorCompaniesPage() {
     } catch (error) {
       setInviteError(true)
       setInviteMessage(error instanceof Error ? error.message : String(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onDeleteAuthUser(event: FormEvent) {
+    event.preventDefault()
+    const client = getSupabase()
+    if (!client) return
+    if (!window.confirm(deleteAccountConfirmMessage())) return
+    setBusy(true)
+    setDeleteError(false)
+    setDeleteMessage('')
+    try {
+      await operatorDeleteAuthUser(client, deleteEmail)
+      setDeleteEmail('')
+      setDeleteMessage('계정을 지웠습니다. 같은 이메일로 다시 가입하거나 초대할 수 있습니다.')
+    } catch (error) {
+      setDeleteError(true)
+      setDeleteMessage(error instanceof Error ? error.message : String(error))
     } finally {
       setBusy(false)
     }
@@ -325,6 +349,35 @@ export function OperatorCompaniesPage() {
         <p className={form.error ? 'text-sm text-danger' : 'text-sm text-ok'}>{form.message}</p>
       ) : null}
       {inviteForm}
+      {operator ? (
+        <form className="space-y-4 rounded-lg border border-line bg-card p-6" onSubmit={(event) => void onDeleteAuthUser(event)}>
+          <h2 className="text-lg font-semibold">계정 삭제</h2>
+          <p className="text-sm text-muted">
+            테스트 이메일을 다시 쓰려면 그 계정을 지웁니다. 운영 계정은 지우지 않습니다. 이 PC의 회사 원본 파일은
+            남습니다.
+          </p>
+          <label className="block text-sm">
+            이메일
+            <input
+              required
+              type="email"
+              className="mt-1 w-full rounded border border-line px-3 py-2"
+              value={deleteEmail}
+              onChange={(event) => setDeleteEmail(event.target.value)}
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={busy}
+            className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            이 이메일 계정 지우기
+          </button>
+          {deleteMessage ? (
+            <p className={deleteError ? 'text-sm text-danger' : 'text-sm text-ok'}>{deleteMessage}</p>
+          ) : null}
+        </form>
+      ) : null}
       {operator && companies.length > 0 ? (
         <ul className="space-y-2 text-sm">
           {companies.map((company) => (

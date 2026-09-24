@@ -44,7 +44,7 @@
 - 업무 목록 = 활성 멤버십 회사만. 운영 계정도 같다. `useCompanySession`.
 - `setCompanyId`는 그 목록에 있는 id만 받는다.
 - 멤버십을 읽기 전에는 sessionStorage에 남은 회사 id로 업무 sqlite를 열지 않는다. 회사 없는 계정은 업무 시작·업무 메뉴가 없다.
-- `회사 관리`(`/ops/companies`)는 등록·초대만 한다. `rememberCompanies`를 호출하지 않는다. 이 회사 열기로 원본을 열지 않는다.
+- `회사 관리`(`/ops/companies`)는 등록·초대·테스트 계정 삭제를 한다. `rememberCompanies`를 호출하지 않는다. 이 회사 열기로 원본을 열지 않는다.
 - 회사 설정은 **지금 연 회사**(멤버십)의 사람·표시만 보여 준다. 본사(HQ01)를 연 운영자에게만 다른 회사 **모듈 칸**을 아래에 둔다. 그 칸에서 사람·재고를 나열하지 않고, 그 회사 파일도 열지 않는다.
 
 핵심 파일: `src/lib/companySession.ts`, `src/lib/company/settings.ts`, `src/lib/company/modules.ts`, `src/lib/company/moduleAccess.ts`, `src/pages/CompanySettingsPage.tsx`, `src/pages/OperatorCompaniesPage.tsx`.
@@ -62,6 +62,7 @@
 - `create_company`는 운영자만. 최초 관리자 이메일이 **다른 사용자**면 그 계정을 `company_admin`으로 붙인다.
 - 이메일이 **운영자 본인**이면 멤버십을 붙이지 않고 초대만 남긴다. 팔 회사에 운영 이메일을 넣지 않는다.
 - 초대는 수락 전에 멤버십이 없다(AC-33). 메일은 보내지 않는다.
+- 같은 이메일을 다시 쓰려면 Auth 계정을 지운다. 운영이 아닌 계정은 헤더 **계정 삭제**. 운영자는 회사 관리에서 이메일로 지운다. 운영 계정은 지우지 않는다. 이 PC sqlite는 남긴다.
 - 새 회사 샘플 문구는 `본사`를 쓰지 않는다. 이미 있는 파일의 insert-or-ignore 행은 덮지 않는다.
 
 ## 하면 안 되는 것
@@ -74,6 +75,7 @@
 6. 일반 회사 관리자에게 모듈 토글을 준다.
 7. 모듈 OFF를 데이터 삭제로 구현한다.
 8. 운영 계정이라는 이유로 지점 sqlite를 이 PC에서 `open`한다. 모듈 저장도 중앙 허용만 쓴다.
+9. 운영 계정(`platform_operator`)을 계정 삭제로 지운다.
 
 ## 확인 시나리오
 

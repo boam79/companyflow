@@ -9,6 +9,7 @@ import {
 import type { Session, User } from '@supabase/supabase-js'
 import { endCompanyWorkSession } from './companySession'
 import { afterSignOutHref } from './loginNext'
+import { deleteOwnAccount } from './account'
 import { getSupabase, operatorFromUser } from './supabase'
 
 type AuthValue = {
@@ -18,6 +19,7 @@ type AuthValue = {
   operator: boolean
   configured: boolean
   signOut: () => Promise<void>
+  deleteAccount: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthValue | null>(null)
@@ -57,6 +59,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       configured: Boolean(client),
       signOut: async () => {
         await client?.auth.signOut()
+        endCompanyWorkSession()
+        if (typeof window !== 'undefined') window.location.assign(afterSignOutHref())
+      },
+      deleteAccount: async () => {
+        if (!client) throw new Error('중앙 운영이 연결되지 않았습니다.')
+        await deleteOwnAccount(client)
         endCompanyWorkSession()
         if (typeof window !== 'undefined') window.location.assign(afterSignOutHref())
       },
