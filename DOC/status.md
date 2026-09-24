@@ -7,7 +7,7 @@
 
 ## 지금 하는 일
 
-회사 설정 칸을 가로로 나란히 둔다.
+회원가입 확인 메일이 배포 로그인으로 돌아오게 한다.
 
 ## 보드
 
@@ -49,6 +49,7 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 - Supabase 활성: `companyflow`, `boardroom`. 정지: `boam79_patient_data`, `qr-asset-manager`, `policyfund-ai-v2`.
 - `confirm_company_device` RPC 추가. 초기 설정 성공 후 원본 장치를 confirmed 로 올린다.
 
+- 2026-09-24: 회원가입 확인 링크는 `https://companyflow-opal.vercel.app/login` 로 보낸다. Site URL이 localhost면 대시보드에서 배포 주소도 허용해야 한다.
 - 2026-09-24: 회사 설정 본사·다른 회사 칸을 가로로 나란히 둔다.
 - 2026-09-24: 운영자 메뉴의 지점 값은 이 PC OPFS·샘플이다. 업무 세션은 멤버십만. 다른 회사 sqlite는 열지 않는다(D-33).
 - 2026-09-24: 독립 회사·운영 계정 규칙을 `DOC/tenants.md`에 고정(D-32).

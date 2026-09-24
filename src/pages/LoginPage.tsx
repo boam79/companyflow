@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
-import { safeLoginNext } from '../lib/loginNext'
+import { safeLoginNext, signupEmailRedirectTo } from '../lib/loginNext'
 import { getSupabase } from '../lib/supabase'
 
 export function LoginPage() {
@@ -51,13 +51,16 @@ export function LoginPage() {
       const { data, error } = await client.auth.signUp({
         email: signupEmail.trim(),
         password: signupPassword,
+        options: { emailRedirectTo: signupEmailRedirectTo() },
       })
       if (error) throw error
       if (data.session) {
         navigate(safeLoginNext(searchParams.get('next')))
         return
       }
-      setMessage('계정을 만들었습니다. 메일 확인이 필요하면 받은편지함을 연 뒤, 위 로그인 칸에서 같은 이메일로 들어오세요.')
+      setMessage(
+        '계정을 만들었습니다. 메일 확인이 필요하면 받은편지함의 링크를 연 뒤, 위 로그인 칸에서 같은 이메일로 들어오세요. 확인 링크는 이 사이트 배포 주소로 돌아옵니다.',
+      )
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     } finally {
