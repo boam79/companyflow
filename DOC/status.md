@@ -7,7 +7,7 @@
 
 ## 지금 하는 일
 
-A6 회사 생성 실패(`[object Object]`). 초대 토큰 pgcrypto.
+A7 초대 가입은 확인 메일 없이 로그인. 네이버는 supabase 메일을 막음.
 
 ## 보드
 
@@ -37,6 +37,7 @@ A6 회사 생성 실패(`[object Object]`). 초대 토큰 pgcrypto.
 - [x] A2 계정 삭제 시 지점 중앙 등록도 삭제. 본사는 남김. 사용자 확인.
 - [x] A1 테스트 계정 삭제. 네이버 계정 삭제 확인.
 - [x] A4 회사 관리 가로 배열. 초대는 사용자만. 사용자 확인 후 초대 칸 삭제.
+- [ ] A7 초대 가입 메일 없이 로그인. 사용자 확인 전.
 - [ ] A6 회사 생성 초대 토큰·오류 문구. 사용자 확인 전.
 - [ ] A5 회사 관리 사용자 초대 칸 삭제. 사용자 확인 전.
 - [ ] A3 팔 회사 최초 관리자에 운영자 이메일 금지. 사용자 확인 전.
@@ -57,6 +58,7 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 - Supabase 활성: `companyflow`, `boardroom`. 정지: `boam79_patient_data`, `qr-asset-manager`, `policyfund-ai-v2`.
 - `confirm_company_device` RPC 추가. 초기 설정 성공 후 원본 장치를 confirmed 로 올린다.
 
+- 2026-09-24: A7 재민/boam 생성 확인(pending_admin). 네이버 가입은 confirmation_sent_at 있음. 메일은 noreply@mail.app.supabase.io, 네이버 미도착. Auth referer는 localhost:3000. 초대 이메일은 가입 시 바로 확인. 사용자 확인 전.
 - 2026-09-24: A6 회사 생성 실패. 고객 이메일(미가입)은 초대를 만드는데 gen_random_bytes 스키마가 없어 롤백. 화면은 `[object Object]`. pgcrypto 경로 수정. 사용자 확인 전.
 - 2026-09-24: A5 회사 관리에서 사용자 초대를 뺀다. 추가 사람은 회사 설정. 사용자 확인 전.
 - 2026-09-24: A4 회사 관리 가로. 생성은 새 회사+최초 관리자. 초대 칸은 A5에서 삭제.

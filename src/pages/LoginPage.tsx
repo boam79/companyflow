@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
-import { safeLoginNext, signupEmailRedirectTo } from '../lib/loginNext'
+import { safeLoginNext, signupDoneMessage, signupEmailRedirectTo } from '../lib/loginNext'
 import { getSupabase } from '../lib/supabase'
 
 export function LoginPage() {
@@ -58,9 +58,7 @@ export function LoginPage() {
         navigate(safeLoginNext(searchParams.get('next')))
         return
       }
-      setMessage(
-        '계정을 만들었습니다. 메일 확인이 필요하면 받은편지함의 링크를 연 뒤, 위 로그인 칸에서 같은 이메일로 들어오세요. 확인 링크는 이 사이트 배포 주소로 돌아옵니다.',
-      )
+      setMessage(signupDoneMessage())
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     } finally {
@@ -129,7 +127,7 @@ export function LoginPage() {
       </form>
       <form className="space-y-4 rounded-lg border border-line bg-card p-6" onSubmit={onSignUp}>
         <h2 className="text-lg font-semibold">회원가입</h2>
-        <p className="text-sm text-muted">초대받은 이메일은 여기서 계정을 만듭니다. 만든 뒤 로그인하면 수락이 나옵니다.</p>
+        <p className="text-sm text-muted">초대받은 이메일은 여기서 계정을 만든 뒤, 메일을 기다리지 말고 위 로그인으로 들어옵니다.</p>
         <label className="block text-sm">
           이메일
           <input
