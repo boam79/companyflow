@@ -7,6 +7,8 @@ export const GUEST_PAPER_QTY = 7
 export const GUEST_PAPER_IN_OP = 'guest:paper-in'
 export const GUEST_PAPER_ITEM_ID = 'item-paper'
 export const GUEST_BLANK_QR_ID = 'c0ffee00-0000-4000-8000-000000000001'
+export const GUEST_DESK_QR_ID = 'c0ffee00-0000-4000-8000-000000000011'
+export const GUEST_PC_QR_ID = 'c0ffee00-0000-4000-8000-000000000012'
 
 export function assertGuestOpensMemory(guest: boolean, vfsName: string) {
   if (guest && vfsName !== MEMORY_VFS) {
@@ -127,7 +129,7 @@ export async function seedGuestCompany(
       'item-desk',
       'guest:desk-1',
       now,
-      'guest-qr:desk-1',
+      GUEST_DESK_QR_ID,
       '견본 책상',
       'DEMO-DSK-01',
       '샘플 1층 로비',
@@ -146,7 +148,7 @@ export async function seedGuestCompany(
       'item-computer',
       'guest:pc-1',
       now,
-      'guest-qr:pc-1',
+      GUEST_PC_QR_ID,
       '견본 노트북',
       'DEMO-PC-01',
       '샘플 1층 로비',
@@ -155,10 +157,23 @@ export async function seedGuestCompany(
       '2026-09-01',
     ],
   )
-  await db.exec('insert or ignore into qr_labels(id, status, created_at) values(?, ?, ?)', [
+  await db.exec('insert or ignore into qr_labels(id, status, created_at, asset_id) values(?, ?, ?, ?)', [
     GUEST_BLANK_QR_ID,
     'blank',
     now,
+    null,
+  ])
+  await db.exec('insert or ignore into qr_labels(id, status, created_at, asset_id) values(?, ?, ?, ?)', [
+    GUEST_DESK_QR_ID,
+    'bound',
+    now,
+    'guest:desk-1',
+  ])
+  await db.exec('insert or ignore into qr_labels(id, status, created_at, asset_id) values(?, ?, ?, ?)', [
+    GUEST_PC_QR_ID,
+    'bound',
+    now,
+    'guest:pc-1',
   ])
   await db.exec(
     `insert or ignore into contracts(

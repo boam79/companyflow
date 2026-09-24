@@ -31,6 +31,7 @@ describe('등록 QR 자산 상세', () => {
     })
     expect(findAssetByQrToken(assets, LABEL)?.id).toBe(asset.id)
     expect(findAssetByQrToken(assets, '22222222-2222-4222-8222-222222222222')).toBeUndefined()
+    expect(() => findAssetByQrToken(assets, 'guest-qr:desk-1')).toThrow(/표식/)
     const events: AssetLifeEvent[] = [
       {
         id: 'e1',

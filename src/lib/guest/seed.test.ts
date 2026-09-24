@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { PAPER_ITEM } from '../master/book'
+import { isQrLabelId } from '../asset/qr'
 import {
   assertGuestOpensMemory,
   GUEST_BLANK_QR_ID,
+  GUEST_DESK_QR_ID,
   GUEST_PAPER_IN_OP,
   GUEST_PAPER_QTY,
+  GUEST_PC_QR_ID,
   seedGuestCompany,
 } from './seed'
 
@@ -50,6 +53,13 @@ describe('게스트 샘플 시드', () => {
     expect(batchParams.some((params) => params.includes(GUEST_PAPER_IN_OP))).toBe(true)
     expect(batchParams.some((params) => params.includes(GUEST_PAPER_QTY))).toBe(true)
     expect(execParams.some((params) => params.includes(GUEST_BLANK_QR_ID))).toBe(true)
+    expect(execParams.some((params) => params.includes(GUEST_DESK_QR_ID))).toBe(true)
+    expect(execParams.some((params) => params.includes(GUEST_PC_QR_ID))).toBe(true)
+    expect(names).not.toContain('guest-qr:desk-1')
+    expect(names).not.toContain('guest-qr:pc-1')
+    expect(isQrLabelId(GUEST_BLANK_QR_ID)).toBe(true)
+    expect(isQrLabelId(GUEST_DESK_QR_ID)).toBe(true)
+    expect(isQrLabelId(GUEST_PC_QR_ID)).toBe(true)
     expect(execSql.some((sql) => sql.includes('insert or ignore into qr_labels'))).toBe(true)
     expect(GUEST_PAPER_QTY).toBe(7)
   })

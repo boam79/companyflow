@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { GUEST_BLANK_QR_ID, GUEST_DESK_QR_ID } from '../guest/seed'
 import {
   assertBlankQrCount,
   assertBlankQrUrl,
@@ -35,6 +36,9 @@ describe('빈 자산 QR', () => {
     expect(isQrScanPath(`/q/${LABEL}`)).toBe(true)
     expect(isQrScanPath('/guest/assets')).toBe(false)
     expect(() => assertBlankQrUrl(`${ORIGIN}/guest/assets/${LABEL}`)).toThrow(/주소/)
+    expect(qrScanPath(GUEST_BLANK_QR_ID, true)).toBe(`/guest/q/${GUEST_BLANK_QR_ID}`)
+    expect(qrScanPath(GUEST_DESK_QR_ID, true)).toBe(`/guest/q/${GUEST_DESK_QR_ID}`)
+    expect(qrScanPath(GUEST_DESK_QR_ID, false)).toBe(`/q/${GUEST_DESK_QR_ID}`)
   })
 
   it('QR 원본은 마지막으로 연 회사가 아니라 표식을 만든 회사다', () => {
