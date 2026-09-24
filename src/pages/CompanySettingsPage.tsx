@@ -98,40 +98,26 @@ export function CompanySettingsPage() {
         return
       }
       const mine = memberships ?? []
-      let source: CompanyRow[] = []
-      if (operator) {
-        const { data, error: companyError } = await client
-          .from('companies')
-          .select('id, display_name, company_code, registration_status')
-          .order('created_at', { ascending: false })
-        if (companyError) {
-          setMessage(companyError.message)
-          setReady(true)
-          return
-        }
-        source = (data ?? []) as CompanyRow[]
-      } else {
-        if (mine.length === 0) {
-          setRows([])
-          setTenants([])
-          setInvites([])
-          setReady(true)
-          return
-        }
-        const { data, error: companyError } = await client
-          .from('companies')
-          .select('id, display_name, company_code, registration_status')
-          .in(
-            'id',
-            mine.map((row) => row.company_id as string),
-          )
-        if (companyError) {
-          setMessage(companyError.message)
-          setReady(true)
-          return
-        }
-        source = (data ?? []) as CompanyRow[]
+      if (mine.length === 0) {
+        setRows([])
+        setTenants([])
+        setInvites([])
+        setReady(true)
+        return
       }
+      const { data, error: companyError } = await client
+        .from('companies')
+        .select('id, display_name, company_code, registration_status')
+        .in(
+          'id',
+          mine.map((row) => row.company_id as string),
+        )
+      if (companyError) {
+        setMessage(companyError.message)
+        setReady(true)
+        return
+      }
+      const source = (data ?? []) as CompanyRow[]
       if (cancelled) return
       if (source.length === 0) {
         setRows([])
@@ -195,19 +181,8 @@ export function CompanySettingsPage() {
       }
       if (operator && controlsOtherCompanies(open)) {
         for (const company of others) {
-          if (cancelled) return
-          let local = allModulesOn()
-          try {
-            await sqlite.open(company.id)
-            if (sqlite.companyId === company.id && sqlite.persistOk) {
-              local = await loadCompanyModules(sqlite)
-            }
-          } catch {
-            local = allModulesOn()
-          }
-          nextModules[company.id] = mergeModuleFlags(local, allowed.get(company.id) ?? null)
+          nextModules[company.id] = mergeModuleFlags(allModulesOn(), allowed.get(company.id) ?? null)
         }
-        if (sqlite.companyId !== open.id) await sqlite.open(open.id)
       }
       if (cancelled || sqlite.companyId !== open.id) return
       setTenants(others)
@@ -307,17 +282,13 @@ export function CompanySettingsPage() {
     try {
       const current = modules[targetId] ?? allModulesOn()
       const next = { ...current, [moduleId]: on }
-      try {
-        await sqlite.open(targetId)
-        if (sqlite.companyId === targetId && sqlite.persistOk) {
-          await saveCompanyModule(sqlite, moduleId, on)
-        }
-      } catch (error) {
-        setMessage(error instanceof Error ? error.message : String(error))
+      if (targetId === companyId) {
+        if (!(await openSelectedFile())) return
+        await saveCompanyModule(sqlite, moduleId, on)
+        notifyCompanyModules()
       }
       await saveAllowedModules(targetId, next)
       setModules((prev) => ({ ...prev, [targetId]: next }))
-      if (targetId === companyId) notifyCompanyModules()
       const label = COMPANY_MODULES.find((item) => item.id === moduleId)?.label ?? '모듈'
       const name =
         rows.find((row) => row.id === targetId)?.display_name ??
@@ -408,7 +379,7 @@ export function CompanySettingsPage() {
       <div>
         <h1 className="text-3xl font-semibold">회사 설정</h1>
         <p className="mt-2 text-sm text-muted">
-          운영 계정은 회사를 골라 사람·재고·자산·계약을 엽니다. 아래 칸에서는 다른 회사 모듈만 켭니다.
+          운영 계정은 다른 회사 모듈만 켭니다. 사람·재고·자산·계약은 그 회사 지정 PC에서만 보입니다.
         </p>
       </div>
       {message ? <p className="text-sm text-danger">{message}</p> : null}
@@ -430,7 +401,7 @@ export function CompanySettingsPage() {
           </select>
           <p className="mt-2 text-muted">
             {canEditCompanyModules(operator)
-              ? '다른 회사 사람·재고·자산·계약은 위에서 그 회사를 고른 뒤 해당 메뉴에서 바꿉니다.'
+              ? '다른 회사 사람·재고는 이 PC 메뉴에 넣지 않습니다. 아래 칸에서 모듈만 켭니다.'
               : '모듈은 운영 계정만 바꿉니다.'}
           </p>
         </label>
@@ -620,19 +591,8 @@ export function CompanySettingsPage() {
               <div>
                 <h2 className="text-lg font-semibold">{company.display_name}</h2>
                 <p className="mt-1 text-sm text-muted">
-                  {company.company_code} · 이 칸에서는 모듈만 켭니다. 사람·재고·자산·계약은 위에서 이 회사를 고른 뒤
-                  해당 메뉴에서 바꿉니다.
+                  {company.company_code} · 이 칸에서는 모듈만 켭니다. 사람·재고·자산·계약은 이 PC 메뉴에 넣지 않습니다.
                 </p>
-                <button
-                  type="button"
-                  className="mt-2 rounded border border-line px-3 py-1.5 text-sm"
-                  onClick={() => {
-                    setCompanyId(company.id)
-                    void sqlite.open(company.id)
-                  }}
-                >
-                  이 회사 사람·재고·자산·계약 열기
-                </button>
               </div>
               {moduleFields(company.id)}
             </section>

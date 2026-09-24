@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { assertCompanyStorageId } from './companyPaths'
 import { getCompanySqlite } from './sqlite/instance'
-import { getSupabase, operatorFromUser, type CompanyRow } from './supabase'
+import { getSupabase, type CompanyRow } from './supabase'
 
 const COMPANY_KEY = 'companyflow.lastCompanyId'
 const LIST_KEY = 'companyflow.companies'
@@ -153,22 +153,6 @@ export function useCompanySession(enabled: boolean) {
       const user = sessionData.user
       const userId = user?.id
       if (!userId) return
-      if (operatorFromUser(user)) {
-        const { data } = await client
-          .from('companies')
-          .select('id, display_name, company_code, registration_status')
-          .order('created_at', { ascending: false })
-        if (cancelled) return
-        const rows = (data as CompanyRow[] | null) ?? []
-        rememberCompanies(rows)
-        setCompanies(rows)
-        setCompanyIdState((prev) => {
-          const next = companyIdInList(prev, rows)
-          if (next) rememberOpenedCompany(next)
-          return next
-        })
-        return
-      }
       const { data: memberships, error: membershipError } = await client
         .from('company_memberships')
         .select('company_id')

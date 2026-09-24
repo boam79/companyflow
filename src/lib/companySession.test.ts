@@ -82,10 +82,11 @@ describe('회사 세션', () => {
     expect(allowedOpenedCompanyId(HQ.id, [HQ])).toBe(HQ.id)
   })
 
-  it('회사 관리에서 고른 회사를 업무 세션에 넣는다', () => {
-    expect(openCompanyWork(BRANCH.id, [HQ, BRANCH])).toBe(BRANCH.id)
-    expect(lastOpenedCompanyId()).toBe(BRANCH.id)
-    expect(rememberedCompanies()).toEqual([HQ, BRANCH])
+  it('회사 관리 목록에 있어도 멤버십 없는 회사는 업무 세션에 넣지 않는다', () => {
+    rememberCompanies([HQ])
     expect(openCompanyWork(BRANCH.id, [HQ])).toBe('')
+    expect(lastOpenedCompanyId()).toBe('')
+    expect(openCompanyWork(HQ.id, [HQ])).toBe(HQ.id)
+    expect(lastOpenedCompanyId()).toBe(HQ.id)
   })
 })

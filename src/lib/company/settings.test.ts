@@ -5,7 +5,6 @@ import {
   canEditCompanySettings,
   controlsOtherCompanies,
   memberRoleLabel,
-  operatorCompanyWorkPath,
   openedCompanyOnly,
   workCompaniesForUser,
 } from './settings'
@@ -38,18 +37,13 @@ describe('회사 설정 표시', () => {
     expect(canEditCompanyModules(false)).toBe(false)
   })
 
-  it('업무 목록은 멤버 회사만, 운영 계정은 등록된 회사 모두', () => {
+  it('업무 목록은 멤버 회사만이다. 운영 계정도 멤버십 없는 회사 원본은 열지 않는다', () => {
     const companies = [
       { id: 'a', name: '가나다' },
       { id: 'b', name: '라마바' },
     ]
     expect(workCompaniesForUser(companies, ['a'])).toEqual([{ id: 'a', name: '가나다' }])
-    expect(workCompaniesForUser(companies, [], true)).toEqual(companies)
     expect(workCompaniesForUser(companies, [])).toEqual([])
-  })
-
-  it('회사 관리에서 연 회사는 설정 화면으로 간다', () => {
-    expect(operatorCompanyWorkPath()).toBe('/settings')
   })
 
   it('연결된 역할만 한글로 보여 준다', () => {

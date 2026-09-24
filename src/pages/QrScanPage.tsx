@@ -16,7 +16,7 @@ import { getSupabase } from '../lib/supabase'
 export function QrScanPage() {
   const { token = '' } = useParams()
   const { guest, sqlite, href, setCompanyId } = useWorkAccess()
-  const { configured, loading, user, operator } = useAuth()
+  const { configured, loading, user } = useAuth()
   const [label, setLabel] = useState<AssetQrLabelRow | null>(null)
   const [detail, setDetail] = useState<QrAssetDetail | null>(null)
   const [itemOptions, setItemOptions] = useState(COMPANY_ASSET_ITEMS)
@@ -102,7 +102,7 @@ export function QrScanPage() {
           .eq('company_id', companyId)
           .eq('status', 'active')
           .maybeSingle()
-        if (!member && !operator) {
+        if (!member) {
           setMessage('이 QR의 회사에 연결된 계정만 원본을 엽니다.')
           return
         }
