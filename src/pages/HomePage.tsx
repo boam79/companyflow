@@ -5,6 +5,7 @@ import { useCompanySession } from '../lib/companySession'
 import { firstEnabledModulePath } from '../lib/company/modules'
 import { readCompanyModules } from '../lib/company/moduleAccess'
 import { getCompanySqlite } from '../lib/sqlite/instance'
+import { GUEST_START_PATH } from '../lib/guest/ids'
 import {
   HOME_COVER_GUEST,
   HOME_COVER_IMAGE,
@@ -159,7 +160,7 @@ export function HomePage() {
                 <Cta to={startTo}>{HOME_COVER_START}</Cta>
               ) : (
                 <>
-                  <Cta to="/guest">{HOME_COVER_GUEST}</Cta>
+                  <Cta to={GUEST_START_PATH}>{HOME_COVER_GUEST}</Cta>
                   <Cta to="/login" ghost>
                     로그인
                   </Cta>
@@ -190,7 +191,7 @@ export function HomePage() {
             <Cta to={startTo}>{HOME_COVER_START}</Cta>
           ) : (
             <>
-              <Cta to="/guest">{HOME_COVER_GUEST}</Cta>
+              <Cta to={GUEST_START_PATH}>{HOME_COVER_GUEST}</Cta>
               <Cta to="/login" ghost>
                 로그인
               </Cta>

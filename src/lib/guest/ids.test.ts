@@ -3,6 +3,8 @@ import {
   GUEST_COMPANY,
   GUEST_COMPANY_ID,
   GUEST_MENUS,
+  GUEST_START_CARDS,
+  GUEST_START_PATH,
   isGuestCompanyId,
   isGuestPath,
   workPath,
@@ -25,6 +27,14 @@ describe('게스트 경로', () => {
     expect(workPath('/stock', true)).toBe('/guest/stock')
     expect(workPath('/stock', false)).toBe('/stock')
     expect(workPath('/guest/master', true)).toBe('/guest/master')
+    expect(GUEST_START_PATH).toBe('/guest/stock')
+    expect(GUEST_START_CARDS.map((item) => item.to)).toEqual([
+      '/guest/stock',
+      '/guest/assets',
+      '/guest/people',
+      '/guest/contracts',
+      '/guest/master',
+    ])
     expect(GUEST_MENUS.map((item) => item.label)).toEqual([
       '샘플',
       '기준정보',

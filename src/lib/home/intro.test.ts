@@ -18,6 +18,7 @@ describe('홈 인트로', () => {
     expect(HOME_COVER_LEAD).toContain('반출')
     expect(HOME_COVER_START).toBe('업무 시작')
     expect(HOME_COVER_GUEST).toBe('둘러보기')
+    expect(HOME_COVER_GUEST).not.toMatch(/로그인/)
   })
 
   it('하단 메뉴 대신 스크롤 설명으로 사이트 전체를 말한다', () => {
