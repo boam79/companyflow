@@ -135,7 +135,8 @@ export function initialCompanySession(openId = '') {
   return { companies, companyId: companyIdInList(lastOpenedCompanyId(), companies) }
 }
 
-export function useCompanySession(enabled: boolean) {
+export function useCompanySession(enabled: boolean, userId = '') {
+  const [loaded, setLoaded] = useState(false)
   const [companies, setCompanies] = useState(
     () => initialCompanySession(getCompanySqlite().companyId).companies,
   )
@@ -144,25 +145,41 @@ export function useCompanySession(enabled: boolean) {
   )
 
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled) {
+      setLoaded(false)
+      return
+    }
     const client = getSupabase()
-    if (!client) return
+    if (!client) {
+      setLoaded(true)
+      return
+    }
+    setLoaded(false)
     let cancelled = false
     void (async () => {
       const { data: sessionData } = await client.auth.getUser()
       const user = sessionData.user
-      const userId = user?.id
-      if (!userId) return
+      const nextUserId = userId || user?.id
+      if (!nextUserId) {
+        if (!cancelled) {
+          rememberCompanies([])
+          setCompanies([])
+          setCompanyIdState('')
+          setLoaded(true)
+        }
+        return
+      }
       const { data: memberships, error: membershipError } = await client
         .from('company_memberships')
         .select('company_id')
-        .eq('user_id', userId)
+        .eq('user_id', nextUserId)
         .eq('status', 'active')
       if (cancelled) return
       if (membershipError || !memberships?.length) {
         rememberCompanies([])
         setCompanies([])
         setCompanyIdState('')
+        setLoaded(true)
         return
       }
       const ids = [...new Set(memberships.map((row) => row.company_id as string))]
@@ -171,10 +188,12 @@ export function useCompanySession(enabled: boolean) {
         .select('id, display_name, company_code, registration_status')
         .in('id', ids)
         .order('created_at', { ascending: false })
-      if (cancelled || !data?.length) {
+      if (cancelled) return
+      if (!data?.length) {
         rememberCompanies([])
         setCompanies([])
         setCompanyIdState('')
+        setLoaded(true)
         return
       }
       const rows = data as CompanyRow[]
@@ -185,11 +204,12 @@ export function useCompanySession(enabled: boolean) {
         if (next) rememberOpenedCompany(next)
         return next
       })
+      setLoaded(true)
     })()
     return () => {
       cancelled = true
     }
-  }, [enabled])
+  }, [enabled, userId])
 
   function setCompanyId(next: string, list: CompanyRow[] = companies) {
     const allowed = openCompanyWork(next, list)
@@ -198,5 +218,12 @@ export function useCompanySession(enabled: boolean) {
     setCompanyIdState(allowed)
   }
 
-  return { companies, companyId, setCompanyId, setCompanies }
+  const ready = !enabled || loaded
+  return {
+    companies: ready && enabled ? companies : [],
+    companyId: ready && enabled ? companyId : '',
+    ready,
+    setCompanyId,
+    setCompanies,
+  }
 }

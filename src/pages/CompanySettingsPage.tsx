@@ -59,7 +59,7 @@ const sqlite = getCompanySqlite()
 
 export function CompanySettingsPage() {
   const { configured, loading, user, operator } = useAuth()
-  const { companyId, setCompanyId } = useCompanySession(Boolean(user))
+  const { companyId, setCompanyId } = useCompanySession(Boolean(user), user?.id ?? '')
   const [rows, setRows] = useState<CompanySettings[]>([])
   const [tenants, setTenants] = useState<CompanyRow[]>([])
   const [currency, setCurrency] = useState('KRW')

@@ -12,7 +12,7 @@ const sqlite = getCompanySqlite()
 
 export function DataPage() {
   const { configured, loading, user, operator } = useAuth()
-  const { companies, companyId } = useCompanySession(Boolean(user))
+  const { companies, companyId } = useCompanySession(Boolean(user), user?.id ?? '')
   const [lines, setLines] = useState<Array<{ label: string; value: string }>>([])
   const [savedHere, setSavedHere] = useState(false)
   const [deviceStatus, setDeviceStatus] = useState<string | null>(null)

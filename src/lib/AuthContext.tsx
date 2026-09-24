@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
+import { clearCompanySession } from './companySession'
 import { getSupabase, operatorFromUser } from './supabase'
 
 type AuthValue = {
@@ -55,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       configured: Boolean(client),
       signOut: async () => {
         await client?.auth.signOut()
+        clearCompanySession()
       },
     }),
     [client, loading, session],

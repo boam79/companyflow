@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getSupabase } from '../lib/supabase'
 import { useAuth } from '../lib/AuthContext'
+import { afterInviteAcceptHref } from '../lib/invite'
 
 type PendingInvite = {
   id: string
@@ -42,6 +43,7 @@ export function PendingInviteBanner() {
     }
     setRows((prev) => prev.filter((row) => row.id !== id))
     setMessage('초대를 수락했습니다. 이 회사 업무를 열 수 있습니다.')
+    window.location.assign(afterInviteAcceptHref())
   }
 
   return (

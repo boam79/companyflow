@@ -5,6 +5,8 @@ import {
   HOME_COVER_LEAD,
   HOME_COVER_START,
   HOME_COVER_TITLE,
+  HOME_COVER_WAIT,
+  HOME_COVER_WAIT_LEAD,
   HOME_STORY,
   HOME_STORY_CLOSE,
   homeStoryMuted,
@@ -19,6 +21,9 @@ describe('홈 인트로', () => {
     expect(HOME_COVER_START).toBe('업무 시작')
     expect(HOME_COVER_GUEST).toBe('둘러보기')
     expect(HOME_COVER_GUEST).not.toMatch(/로그인/)
+    expect(HOME_COVER_WAIT).toBe('연결된 회사가 없습니다')
+    expect(HOME_COVER_WAIT_LEAD).toContain('수락')
+    expect(HOME_COVER_WAIT_LEAD).not.toMatch(/업무 시작/)
   })
 
   it('하단 메뉴 대신 스크롤 설명으로 사이트 전체를 말한다', () => {

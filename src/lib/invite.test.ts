@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { assertInviteRole, normalizeInviteEmail } from './invite'
+import { afterInviteAcceptHref, assertInviteRole, normalizeInviteEmail } from './invite'
 
 describe('회사 사용자 초대', () => {
   it('이메일은 소문자로 맞추고 빈 칸은 거절한다', () => {
@@ -11,5 +11,9 @@ describe('회사 사용자 초대', () => {
     expect(assertInviteRole('member')).toBe('member')
     expect(assertInviteRole('company_admin')).toBe('company_admin')
     expect(() => assertInviteRole('platform_operator')).toThrow(/역할/)
+  })
+
+  it('수락 뒤에는 홈에서 멤버십을 다시 읽는다', () => {
+    expect(afterInviteAcceptHref()).toBe('/')
   })
 })

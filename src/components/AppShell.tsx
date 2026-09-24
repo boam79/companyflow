@@ -2,25 +2,12 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useAuth } from '../lib/AuthContext'
 import { isQrScanPath } from '../lib/asset/qr'
-import { COMPANY_MODULES } from '../lib/company/modules'
+import { APP_MENUS, hasWorkCompany, visibleShellMenus } from '../lib/company/nav'
 import { readCompanyModules } from '../lib/company/moduleAccess'
 import { useCompanySession } from '../lib/companySession'
 import { GUEST_MENUS, isGuestPath } from '../lib/guest/ids'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { PendingInviteBanner } from './PendingInviteBanner'
-
-const MENUS = [
-  { to: '/', label: '홈' },
-  { to: '/setup', label: '초기 설정' },
-  { to: '/master', label: '기준정보' },
-  { to: '/stock', label: '구매·재고' },
-  { to: '/assets', label: '자산' },
-  { to: '/people', label: '입퇴사' },
-  { to: '/contracts', label: '계약' },
-  { to: '/ops/companies', label: '회사 관리' },
-  { to: '/settings', label: '회사 설정' },
-  { to: '/data', label: '데이터 관리' },
-]
 
 export function AppShell() {
   const { loading, user, operator, signOut } = useAuth()
@@ -28,22 +15,23 @@ export function AppShell() {
   const scanMode = isQrScanPath(location.pathname)
   const guest = isGuestPath(location.pathname)
   const home = location.pathname === '/'
-  const { companyId } = useCompanySession(Boolean(user) && !guest)
+  const { companyId, ready } = useCompanySession(Boolean(user) && !guest, user?.id ?? '')
+  const hasCompany = hasWorkCompany(ready, companyId)
   const [openCompanyId, setOpenCompanyId] = useState('')
   const [moduleTick, setModuleTick] = useState(0)
   const [moduleFlags, setModuleFlags] = useState<Record<string, boolean>>({})
   const menus = guest
     ? GUEST_MENUS
-    : MENUS.filter((menu) => {
-        if (menu.to === '/ops/companies') return operator
-        const item = COMPANY_MODULES.find((module) => module.path === menu.to)
-        if (!item) return true
-        return moduleFlags[item.id] !== false
+    : visibleShellMenus(APP_MENUS, {
+        signedIn: Boolean(user),
+        operator,
+        hasCompany,
+        moduleFlags,
       })
 
   useEffect(() => {
-    if (companyId) setOpenCompanyId(companyId)
-  }, [companyId])
+    setOpenCompanyId(hasCompany ? companyId : '')
+  }, [companyId, hasCompany])
 
   useEffect(() => {
     function onOpen(event: Event) {

@@ -6,6 +6,7 @@ import { firstEnabledModulePath } from '../lib/company/modules'
 import { readCompanyModules } from '../lib/company/moduleAccess'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { GUEST_START_PATH } from '../lib/guest/ids'
+import { hasWorkCompany, homeCoverKind } from '../lib/company/nav'
 import {
   HOME_COVER_GUEST,
   HOME_COVER_IMAGE,
@@ -13,6 +14,8 @@ import {
   HOME_COVER_LEAD,
   HOME_COVER_START,
   HOME_COVER_TITLE,
+  HOME_COVER_WAIT,
+  HOME_COVER_WAIT_LEAD,
   HOME_STORY,
   HOME_STORY_CLOSE,
   HOME_STORY_CLOSE_ALT,
@@ -43,6 +46,27 @@ function Cta({
     >
       {children}
     </Link>
+  )
+}
+
+function CoverActions({
+  kind,
+  startTo,
+}: {
+  kind: ReturnType<typeof homeCoverKind>
+  startTo: string
+}) {
+  if (kind === 'work') return <Cta to={startTo}>{HOME_COVER_START}</Cta>
+  if (kind === 'waiting') {
+    return <Cta to={GUEST_START_PATH}>{HOME_COVER_GUEST}</Cta>
+  }
+  return (
+    <>
+      <Cta to={GUEST_START_PATH}>{HOME_COVER_GUEST}</Cta>
+      <Cta to="/login" ghost>
+        로그인
+      </Cta>
+    </>
   )
 }
 
@@ -100,11 +124,13 @@ function Film({
 
 export function HomePage() {
   const { user } = useAuth()
-  const { companyId } = useCompanySession(Boolean(user))
+  const { companyId, ready } = useCompanySession(Boolean(user), user?.id ?? '')
+  const hasCompany = hasWorkCompany(ready, companyId)
+  const coverKind = homeCoverKind(Boolean(user), hasCompany)
   const [startTo, setStartTo] = useState('/stock')
 
   useEffect(() => {
-    if (!user || !companyId) return
+    if (!user || !hasCompany) return
     let cancelled = false
     void (async () => {
       const sqlite = getCompanySqlite()
@@ -117,7 +143,7 @@ export function HomePage() {
     return () => {
       cancelled = true
     }
-  }, [companyId, user])
+  }, [companyId, hasCompany, user])
 
   return (
     <div className="flex min-h-full flex-col bg-[#07090c] text-white antialiased">
@@ -155,17 +181,9 @@ export function HomePage() {
             <p className="text-[13px] font-medium text-white/50">CompanyFlow</p>
             <h1 className={`${titleClass} mt-4`}>{HOME_COVER_TITLE}</h1>
             <p className={bodyClass}>{HOME_COVER_LEAD}</p>
+            {coverKind === 'waiting' ? <p className={bodyClass}>{HOME_COVER_WAIT_LEAD}</p> : null}
             <div className="mt-8 flex flex-wrap gap-2.5">
-              {user ? (
-                <Cta to={startTo}>{HOME_COVER_START}</Cta>
-              ) : (
-                <>
-                  <Cta to={GUEST_START_PATH}>{HOME_COVER_GUEST}</Cta>
-                  <Cta to="/login" ghost>
-                    로그인
-                  </Cta>
-                </>
-              )}
+              <CoverActions kind={coverKind} startTo={startTo} />
             </div>
           </div>
         </div>
@@ -186,17 +204,9 @@ export function HomePage() {
       <Film image={HOME_STORY_CLOSE_IMAGE} imageAlt={HOME_STORY_CLOSE_ALT}>
         <Kicker index="07" label="원본" />
         <h2 className={`mt-4 ${titleClass}`}>{HOME_STORY_CLOSE}</h2>
+        {coverKind === 'waiting' ? <p className={bodyClass}>{HOME_COVER_WAIT}</p> : null}
         <div className="mt-8 flex flex-wrap gap-2.5">
-          {user ? (
-            <Cta to={startTo}>{HOME_COVER_START}</Cta>
-          ) : (
-            <>
-              <Cta to={GUEST_START_PATH}>{HOME_COVER_GUEST}</Cta>
-              <Cta to="/login" ghost>
-                로그인
-              </Cta>
-            </>
-          )}
+          <CoverActions kind={coverKind} startTo={startTo} />
         </div>
       </Film>
     </div>

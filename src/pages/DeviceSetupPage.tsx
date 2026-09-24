@@ -20,7 +20,7 @@ const sqlite = getCompanySqlite()
 
 export function DeviceSetupPage() {
   const { configured, loading, user, operator } = useAuth()
-  const { companies, companyId, setCompanyId } = useCompanySession(Boolean(user))
+  const { companies, companyId, setCompanyId } = useCompanySession(Boolean(user), user?.id ?? '')
   const [state, setState] = useState<SetupState>(initialSetupState())
   const [log, setLog] = useState<string[]>([])
   const [busy, setBusy] = useState(false)

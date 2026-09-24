@@ -9,7 +9,7 @@ export function useWorkAccess() {
   const guest = isGuestPath(location.pathname)
   const { loading, configured, user } = useAuth()
   const sqlite = guest ? getGuestSqlite() : getCompanySqlite()
-  const session = useCompanySession(Boolean(user) && !guest)
+  const session = useCompanySession(Boolean(user) && !guest, user?.id ?? '')
 
   return {
     guest,
