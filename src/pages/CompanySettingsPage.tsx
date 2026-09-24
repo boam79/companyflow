@@ -105,7 +105,7 @@ export function CompanySettingsPage() {
         setReady(true)
         return
       }
-      const { data, error: companyError } = await client
+      const { data: companyRows, error: companyError } = await client
         .from('companies')
         .select('id, display_name, company_code, registration_status')
         .in(
@@ -117,7 +117,7 @@ export function CompanySettingsPage() {
         setReady(true)
         return
       }
-      const source = (data ?? []) as CompanyRow[]
+      const source = (companyRows ?? []) as CompanyRow[]
       if (cancelled) return
       if (source.length === 0) {
         setRows([])
@@ -144,10 +144,10 @@ export function CompanySettingsPage() {
         setReady(true)
         return
       }
-      const { data, error } = await client.rpc('list_company_members', { p_company_id: open.id })
+      const { data: memberRows, error } = await client.rpc('list_company_members', { p_company_id: open.id })
       if (error) throw error
       if (cancelled) return
-      open.members = (data ?? []) as MemberRow[]
+      open.members = (memberRows ?? []) as MemberRow[]
       setRows(listed)
       if (canEditCompanySettings(open.role, operator)) {
         const listedInvites = await client.rpc('list_company_invitations', { p_company_id: open.id })
