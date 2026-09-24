@@ -341,7 +341,7 @@ export function CompanySettingsPage() {
   function moduleFields(targetId: string) {
     const flags = modules[targetId]
     return (
-      <div className="mt-3 space-y-2">
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
         {COMPANY_MODULES.map((item) => (
           <label key={item.id} className="flex items-center justify-between gap-3 text-sm">
             {item.label}
@@ -375,7 +375,7 @@ export function CompanySettingsPage() {
   }
 
   return (
-    <div className="max-w-xl space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-semibold">회사 설정</h1>
         <p className="mt-2 text-sm text-muted">
@@ -386,7 +386,7 @@ export function CompanySettingsPage() {
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {rows.length === 0 ? <p className="text-sm text-muted">연결된 회사가 없습니다.</p> : null}
       {rows.length > 0 ? (
-        <label className="block text-sm">
+        <label className="block max-w-md text-sm">
           이 PC에서 연 회사
           <select
             className="mt-1 block rounded border border-line px-3 py-2"
@@ -401,11 +401,12 @@ export function CompanySettingsPage() {
           </select>
           <p className="mt-2 text-muted">
             {canEditCompanyModules(operator)
-              ? '다른 회사 사람·재고는 이 PC 메뉴에 넣지 않습니다. 아래 칸에서 모듈만 켭니다.'
+              ? '다른 회사 사람·재고는 이 PC 메뉴에 넣지 않습니다. 옆 칸에서 모듈만 켭니다.'
               : '모듈은 운영 계정만 바꿉니다.'}
           </p>
         </label>
       ) : null}
+      <div className="grid items-start gap-4 lg:grid-cols-2 xl:grid-cols-3">
       {openedCompanyOnly(rows, companyId).map((company) => {
         const shown = { currency, grouping, timeZone }
         const canEdit = canEditCompanySettings(company.role, operator)
@@ -419,6 +420,7 @@ export function CompanySettingsPage() {
                 {operator && !company.linked ? '운영(최고 관리자)' : memberRoleLabel(company.role)}
               </p>
             </div>
+            <div className="grid gap-6">
             <div>
               <h3 className="text-sm font-semibold">연결된 사람</h3>
               <ul className="mt-2 space-y-1 text-sm">
@@ -482,8 +484,9 @@ export function CompanySettingsPage() {
                 {formatCompanyNumber(GROUPING_SAMPLE, shown.grouping)}
               </p>
               {canEdit ? (
+                <div className="mt-3 flex flex-wrap items-end gap-3">
                 <form
-                  className="mt-3 flex flex-wrap items-end gap-2"
+                  className="flex flex-wrap items-end gap-2"
                   onSubmit={(event) => {
                     event.preventDefault()
                     void saveCurrency()
@@ -511,10 +514,8 @@ export function CompanySettingsPage() {
                     이 회사에 저장
                   </button>
                 </form>
-              ) : null}
-              {canEdit ? (
                 <form
-                  className="mt-3 flex flex-wrap items-end gap-2"
+                  className="flex flex-wrap items-end gap-2"
                   onSubmit={(event) => {
                     event.preventDefault()
                     void saveGrouping()
@@ -539,10 +540,8 @@ export function CompanySettingsPage() {
                     이 회사에 저장
                   </button>
                 </form>
-              ) : null}
-              {canEdit ? (
                 <form
-                  className="mt-3 flex flex-wrap items-end gap-2"
+                  className="flex flex-wrap items-end gap-2"
                   onSubmit={(event) => {
                     event.preventDefault()
                     void saveTimeZone()
@@ -570,17 +569,19 @@ export function CompanySettingsPage() {
                     이 회사에 저장
                   </button>
                 </form>
-              ) : null}
-              {canModules ? (
-                <div className="mt-4">
-                  <h3 className="text-sm font-semibold">모듈</h3>
-                  {moduleFields(company.id)}
                 </div>
-              ) : canEdit ? (
-                <p className="mt-2 text-sm text-muted">모듈은 운영 계정만 바꿉니다.</p>
-              ) : (
-                <p className="mt-2 text-sm text-muted">표시 변경은 이 회사 관리자만 할 수 있습니다.</p>
-              )}
+              ) : null}
+            </div>
+            {canModules ? (
+              <div>
+                <h3 className="text-sm font-semibold">모듈</h3>
+                {moduleFields(company.id)}
+              </div>
+            ) : canEdit ? (
+              <p className="text-sm text-muted">모듈은 운영 계정만 바꿉니다.</p>
+            ) : (
+              <p className="text-sm text-muted">표시 변경은 이 회사 관리자만 할 수 있습니다.</p>
+            )}
             </div>
           </section>
         )
@@ -598,6 +599,7 @@ export function CompanySettingsPage() {
             </section>
           ))
         : null}
+      </div>
     </div>
   )
 }
