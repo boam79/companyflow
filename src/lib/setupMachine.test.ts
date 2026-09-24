@@ -3,7 +3,9 @@ import {
   canMarkUsable,
   initialSetupState,
   reduceSetup,
+  setupFromStoredPhase,
   setupLabel,
+  setupNeedsSqliteOpen,
   setupPageLead,
   setupReadyLead,
   setupShowsStepLog,
@@ -30,6 +32,13 @@ describe('지정 PC 초기화 상태', () => {
     expect(setupReadyLead()).toContain('업무 원본')
     expect(setupReadyLead()).toContain('업무 시작')
     expect(setupLabel('ready')).toBe('사용 가능')
+  })
+
+  it('이미 열린 원본은 다시 열지 않고, 저장된 사용 가능을 복원한다', () => {
+    expect(setupNeedsSqliteOpen(true)).toBe(false)
+    expect(setupNeedsSqliteOpen(false)).toBe(true)
+    expect(canMarkUsable(setupFromStoredPhase('ready'))).toBe(true)
+    expect(setupFromStoredPhase('pc_init_pending').phase).toBe('admin_pending')
   })
 
   it('장치 예약과 영속 저장이 끝난 뒤에만 사용 가능하다', () => {

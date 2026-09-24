@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { WorkGateNotice } from '../components/WorkGateNotice'
 import { useAuth } from '../lib/AuthContext'
 import { workSessionKind } from '../lib/company/workGate'
@@ -8,7 +8,9 @@ import {
   canMarkUsable,
   initialSetupState,
   reduceSetup,
+  setupFromStoredPhase,
   setupLabel,
+  setupNeedsSqliteOpen,
   setupPageLead,
   setupReadyLead,
   type SetupState,
@@ -30,6 +32,25 @@ export function DeviceSetupPage() {
   const [state, setState] = useState<SetupState>(initialSetupState())
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (!companyId) return
+    let cancelled = false
+    void (async () => {
+      if (setupNeedsSqliteOpen(sqlite.isOpen(companyId))) {
+        await sqlite.open(companyId)
+      }
+      const rows = await sqlite.query<{ value: string }>('select value from setup_state where key = ?', ['phase'])
+      if (cancelled) return
+      const stored = setupFromStoredPhase(rows[0]?.value)
+      if (!canMarkUsable(stored)) return
+      setState(stored)
+      setNotice(setupReadyLead())
+    })().catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [companyId])
 
   async function runSetup() {
     setBusy(true)
@@ -54,7 +75,9 @@ export function DeviceSetupPage() {
       if (navigator.storage?.persist) {
         persistGranted = await navigator.storage.persist()
       }
-      await sqlite.open(companyId, { force: true })
+      if (setupNeedsSqliteOpen(sqlite.isOpen(companyId))) {
+        await sqlite.open(companyId)
+      }
       if (!canStartRealData({ opfsOpen: sqlite.persistOk, persistGranted })) {
         next = reduceSetup(next, {
           type: 'fail',

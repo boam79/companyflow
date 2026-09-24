@@ -90,3 +90,14 @@ export function setupReadyLead() {
 export function setupShowsStepLog() {
   return false
 }
+
+export function setupNeedsSqliteOpen(alreadyOpen: boolean) {
+  return !alreadyOpen
+}
+
+export function setupFromStoredPhase(phase?: string): SetupState {
+  if (phase !== 'ready') return initialSetupState()
+  let next = reduceSetup(initialSetupState(), { type: 'admin_linked' })
+  next = reduceSetup(next, { type: 'pc_claimed' })
+  return reduceSetup(next, { type: 'persist_ok' })
+}
