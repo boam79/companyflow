@@ -78,3 +78,15 @@ export function setupLabel(phase: SetupPhase): string {
   if (phase === 'ready') return '사용 가능'
   return '실패'
 }
+
+export function setupPageLead() {
+  return '이 PC를 그 회사의 업무 원본으로 만듭니다. 다른 CompanyFlow 창은 닫고 이 창만 남기세요.'
+}
+
+export function setupReadyLead() {
+  return '이 PC가 이 회사의 업무 원본입니다. 홈에서 업무 시작을 누르면 됩니다.'
+}
+
+export function setupShowsStepLog() {
+  return false
+}

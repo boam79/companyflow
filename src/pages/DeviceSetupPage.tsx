@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { WorkGateNotice } from '../components/WorkGateNotice'
 import { useAuth } from '../lib/AuthContext'
 import { workSessionKind } from '../lib/company/workGate'
-import { companyDbFileName } from '../lib/companyPaths'
 import { localDeviceFingerprint } from '../lib/deviceFingerprint'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import {
@@ -10,34 +9,33 @@ import {
   initialSetupState,
   reduceSetup,
   setupLabel,
+  setupPageLead,
+  setupReadyLead,
   type SetupState,
 } from '../lib/setupMachine'
 import { CompanyMasterBook, seedDefaultMaster, writeDefaultMaster } from '../lib/master/book'
 import { canStartRealData } from '../lib/sqlite/durableStore'
 import { useCompanySession } from '../lib/companySession'
+import { publicErrorMessage } from '../lib/publicError'
 import { getSupabase } from '../lib/supabase'
 
 const sqlite = getCompanySqlite()
 
 export function DeviceSetupPage() {
-  const { configured, loading, user, operator } = useAuth()
+  const { configured, loading, user } = useAuth()
   const { companies, companyId, setCompanyId, ready: sessionReady } = useCompanySession(
     Boolean(user),
     user?.id ?? '',
   )
   const [state, setState] = useState<SetupState>(initialSetupState())
-  const [log, setLog] = useState<string[]>([])
+  const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
-
-  function push(line: string) {
-    setLog((prev) => [...prev, line])
-  }
 
   async function runSetup() {
     setBusy(true)
+    setNotice('')
     try {
       let next = reduceSetup(initialSetupState(), { type: 'admin_linked' })
-      push(operator ? '운영 권한으로 장치 예약을 시도합니다' : '관리자 연결 확인')
       const client = getSupabase()
       if (client && companyId) {
         const fingerprint = await localDeviceFingerprint()
@@ -46,33 +44,23 @@ export function DeviceSetupPage() {
           p_device_fingerprint: fingerprint,
         })
         if (error) {
-          next = reduceSetup(next, { type: 'fail', reason: error.message })
+          next = reduceSetup(next, { type: 'fail', reason: publicErrorMessage(error) })
           setState(next)
-          push(error.message)
           return
         }
-        push('중앙에 원본 장치를 예약했습니다')
       }
       next = reduceSetup(next, { type: 'pc_claimed' })
-      push(`원본 장치 예약: ${companyDbFileName(companyId)}`)
       let persistGranted = false
       if (navigator.storage?.persist) {
         persistGranted = await navigator.storage.persist()
-        if (!persistGranted) {
-          push(
-            'Chrome 저장소 영속 권한은 아직 꺼져 있습니다. OPFS 파일이 열리면 계속 진행합니다. 이 사이트를 북마크하면 권한이 잘 붙습니다.',
-          )
-        }
       }
       await sqlite.open(companyId, { force: true })
-      push(`로컬 VFS: ${sqlite.vfsName}`)
       if (!canStartRealData({ opfsOpen: sqlite.persistOk, persistGranted })) {
         next = reduceSetup(next, {
           type: 'fail',
-          reason: 'OPFS 영속 DB를 열 수 없습니다.',
+          reason: '이 PC에서 원본 파일을 열 수 없습니다. 다른 CompanyFlow 창을 닫고 다시 누르세요.',
         })
         setState(next)
-        push(next.reason ?? '')
         return
       }
       await sqlite.exec(
@@ -88,8 +76,7 @@ export function DeviceSetupPage() {
           [field.entity, field.key, field.label],
         )
       }
-      const replay = sqlite.operations.run(`setup:${companyId}`, () => 'ok')
-      push(`기본 설정 복사 (${replay.status})`)
+      sqlite.operations.run(`setup:${companyId}`, () => 'ok')
       if (client) {
         const fingerprint = await localDeviceFingerprint()
         const { error } = await client.rpc('confirm_company_device', {
@@ -97,18 +84,18 @@ export function DeviceSetupPage() {
           p_device_fingerprint: fingerprint,
         })
         if (error) {
-          push(`원본 장치 확정은 보류했습니다: ${error.message}`)
-        } else {
-          push('중앙에 원본 장치를 확정했습니다')
+          next = reduceSetup(next, { type: 'persist_ok' })
+          setState(next)
+          setNotice('이 PC 원본은 열렸습니다. 중앙 장치 확정은 나중에 다시 눌러 주세요.')
+          return
         }
       }
       next = reduceSetup(next, { type: 'persist_ok' })
       setState(next)
-      push(canMarkUsable(next) ? '사용 가능' : '검증 부족')
+      setNotice(canMarkUsable(next) ? setupReadyLead() : '검증이 부족합니다. 다시 눌러 주세요.')
     } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error)
+      const reason = publicErrorMessage(error)
       setState((prev) => reduceSetup(prev, { type: 'fail', reason }))
-      push(reason)
     } finally {
       setBusy(false)
     }
@@ -148,12 +135,9 @@ export function DeviceSetupPage() {
     <div className="max-w-2xl space-y-6">
       <div>
         <h1 className="text-3xl font-semibold">지정 PC 초기 설정</h1>
-        <p className="mt-2 text-sm text-muted">
-          휴대폰 로그인은 원본 장치로 취급하지 않습니다. OPFS 파일이 열리지 않으면 사용 가능으로
-          표시하지 않습니다.
-        </p>
+        <p className="mt-2 text-sm text-muted">{setupPageLead()}</p>
       </div>
-      <div className="rounded-lg border border-line bg-card p-6 space-y-4">
+      <div className="space-y-4 rounded-lg border border-line bg-card p-6">
         <p className="text-sm">
           현재 단계: <strong>{setupLabel(state.phase)}</strong>
         </p>
@@ -180,11 +164,7 @@ export function DeviceSetupPage() {
           이 PC를 업무 원본 장치로 설정
         </button>
         {state.reason ? <p className="text-sm text-danger">{state.reason}</p> : null}
-        <ol className="list-decimal space-y-1 pl-5 text-sm text-muted">
-          {log.map((line, index) => (
-            <li key={`${index}-${line}`}>{line}</li>
-          ))}
-        </ol>
+        {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       </div>
     </div>
   )

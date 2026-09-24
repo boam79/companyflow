@@ -4,6 +4,9 @@ import {
   initialSetupState,
   reduceSetup,
   setupLabel,
+  setupPageLead,
+  setupReadyLead,
+  setupShowsStepLog,
 } from './setupMachine'
 
 describe('지정 PC 초기화 상태', () => {
@@ -19,6 +22,14 @@ describe('지정 PC 초기화 상태', () => {
     state = reduceSetup(state, { type: 'pc_claimed' })
     expect(state.phase).toBe('pc_init_pending')
     expect(canMarkUsable(state)).toBe(false)
+  })
+
+  it('성공하면 사용 가능만 알리고 단계 로그는 두지 않는다', () => {
+    expect(setupShowsStepLog()).toBe(false)
+    expect(setupPageLead()).toContain('다른 CompanyFlow 창은 닫고')
+    expect(setupReadyLead()).toContain('업무 원본')
+    expect(setupReadyLead()).toContain('업무 시작')
+    expect(setupLabel('ready')).toBe('사용 가능')
   })
 
   it('장치 예약과 영속 저장이 끝난 뒤에만 사용 가능하다', () => {
