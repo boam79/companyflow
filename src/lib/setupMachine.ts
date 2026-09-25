@@ -84,7 +84,15 @@ export function setupPageLead() {
 }
 
 export function setupReadyLead() {
-  return '이 PC가 이 회사의 업무 원본입니다. 홈에서 업무 시작을 누르면 됩니다.'
+  return '이 PC가 이 회사의 업무 원본입니다.'
+}
+
+export function setupStartLabel() {
+  return '업무 시작'
+}
+
+export function setupStartHref() {
+  return '/'
 }
 
 export function setupShowsStepLog() {

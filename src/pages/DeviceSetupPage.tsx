@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { WorkGateNotice } from '../components/WorkGateNotice'
 import { useAuth } from '../lib/AuthContext'
 import { workSessionKind } from '../lib/company/workGate'
@@ -11,9 +12,10 @@ import {
   setupFromStoredPhase,
   setupLabel,
   setupNeedsSqliteOpen,
-  setupReadyLead,
   setupRunButtonVisible,
   setupCardLead,
+  setupStartHref,
+  setupStartLabel,
   type SetupState,
 } from '../lib/setupMachine'
 import { CompanyMasterBook, seedDefaultMaster, writeDefaultMaster } from '../lib/master/book'
@@ -48,7 +50,7 @@ export function DeviceSetupPage() {
       const stored = setupFromStoredPhase(rows[0]?.value)
       if (canMarkUsable(stored)) {
         setState(stored)
-        setNotice(setupReadyLead())
+        setNotice('')
       }
       setHydrated(true)
     })().catch(() => {
@@ -122,7 +124,7 @@ export function DeviceSetupPage() {
       }
       next = reduceSetup(next, { type: 'persist_ok' })
       setState(next)
-      setNotice(canMarkUsable(next) ? setupReadyLead() : '검증이 부족합니다. 다시 눌러 주세요.')
+      setNotice(canMarkUsable(next) ? '' : '검증이 부족합니다. 다시 눌러 주세요.')
     } catch (error) {
       const reason = publicErrorMessage(error)
       setState((prev) => reduceSetup(prev, { type: 'fail', reason }))
@@ -203,6 +205,14 @@ export function DeviceSetupPage() {
           >
             이 PC를 업무 원본 장치로 설정
           </button>
+        ) : null}
+        {hydrated && usable ? (
+          <Link
+            to={setupStartHref()}
+            className="inline-flex rounded bg-accent px-4 py-2 text-sm font-semibold text-white"
+          >
+            {setupStartLabel()}
+          </Link>
         ) : null}
         {state.reason ? <p className="text-sm text-danger">{state.reason}</p> : null}
         {notice ? <p className="text-sm text-ok">{notice}</p> : null}

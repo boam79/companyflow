@@ -11,6 +11,8 @@ import {
   setupRunButtonVisible,
   setupCardLead,
   setupShowsStepLog,
+  setupStartHref,
+  setupStartLabel,
 } from './setupMachine'
 
 describe('지정 PC 초기화 상태', () => {
@@ -32,7 +34,9 @@ describe('지정 PC 초기화 상태', () => {
     expect(setupShowsStepLog()).toBe(false)
     expect(setupPageLead()).toContain('다른 CompanyFlow 창은 닫고')
     expect(setupReadyLead()).toContain('업무 원본')
-    expect(setupReadyLead()).toContain('업무 시작')
+    expect(setupReadyLead()).not.toMatch(/홈에서/)
+    expect(setupStartLabel()).toBe('업무 시작')
+    expect(setupStartHref()).toBe('/')
     expect(setupLabel('ready')).toBe('사용 가능')
   })
 
