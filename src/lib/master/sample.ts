@@ -337,3 +337,27 @@ export async function writeSampleCompanyData(db: {
     )
   }
 }
+
+export async function stripDemoSample(db: {
+  exec: (sql: string, params?: unknown[]) => Promise<void>
+}): Promise<void> {
+  for (const employee of SAMPLE_EMPLOYEES) {
+    await db.exec('delete from employment_checks where employee_id = ?', [employee.id])
+    await db.exec('delete from employment_events where employee_id = ?', [employee.id])
+    await db.exec('delete from employment_workflows where employee_id = ?', [employee.id])
+    await db.exec('delete from employees where id = ?', [employee.id])
+  }
+  for (const asset of SAMPLE_ASSETS) {
+    await db.exec('delete from asset_events where asset_id = ?', [asset.id])
+    await db.exec('delete from assets where id = ?', [asset.id])
+  }
+  for (const contract of SAMPLE_CONTRACTS) {
+    await db.exec('delete from contracts where id = ?', [contract.id])
+  }
+  for (const partner of SAMPLE_PARTNERS) {
+    await db.exec('delete from partners where id = ?', [partner.id])
+  }
+  for (const id of ['dept-marketing', 'dept-sales', 'dept-dev'] as const) {
+    await db.exec('delete from departments where id = ?', [id])
+  }
+}

@@ -120,7 +120,7 @@ export function StockPage() {
       setToday(stamp)
       setOrderDate(stamp)
       if (!guest) {
-        await ensureDefaultStockMaster(sqlite)
+        await ensureDefaultStockMaster(sqlite, companies.find((row) => row.id === nextId)?.company_code)
         await migrateProcessAssetsToChecks(sqlite)
         await retireSupplyAssets(sqlite)
       }

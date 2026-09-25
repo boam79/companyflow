@@ -110,7 +110,11 @@ export function ContractsPage() {
       }
       if (ticket !== openTicket.current || sqlite.companyId !== nextId) return
       setMenuOff(false)
-      if (!guest) await writeDefaultMaster(sqlite)
+      if (!guest) {
+        await writeDefaultMaster(sqlite, {
+          companyCode: companies.find((row) => row.id === nextId)?.company_code,
+        })
+      }
       const nextRows = await loadContracts(sqlite)
       if (ticket !== openTicket.current || sqlite.companyId !== nextId) return
       const groups = groupContracts(nextRows, stamp)

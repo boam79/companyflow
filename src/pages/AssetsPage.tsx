@@ -132,7 +132,7 @@ export function AssetsPage() {
       setToday(stamp)
       setLifeForm(emptyLifeForm(stamp))
       if (!guest) {
-        await writeDefaultMaster(sqlite)
+        await writeDefaultMaster(sqlite, { companyCode: companies.find((row) => row.id === nextId)?.company_code })
         await migrateProcessAssetsToChecks(sqlite)
         await retireSupplyAssets(sqlite)
       }

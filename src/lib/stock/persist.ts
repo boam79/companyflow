@@ -346,6 +346,9 @@ export async function executeStockCommand(
   }
 }
 
-export async function ensureDefaultStockMaster(db: Pick<CompanySqlite, 'exec'>): Promise<void> {
-  await writeDefaultMaster(db)
+export async function ensureDefaultStockMaster(
+  db: Pick<CompanySqlite, 'exec' | 'query'>,
+  companyCode?: string | null,
+): Promise<void> {
+  await writeDefaultMaster(db, { companyCode })
 }

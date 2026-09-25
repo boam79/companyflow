@@ -101,7 +101,9 @@ export function DeviceSetupPage() {
       )
       const book = new CompanyMasterBook(companyId)
       seedDefaultMaster(book)
-      await writeDefaultMaster(sqlite)
+      await writeDefaultMaster(sqlite, {
+        companyCode: companies.find((row) => row.id === companyId)?.company_code,
+      })
       for (const field of book.fields.values()) {
         await sqlite.exec(
           'insert or replace into custom_field_defs(entity, key, label) values(?, ?, ?)',

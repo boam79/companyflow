@@ -9,6 +9,7 @@ import {
   isCompanyAssetItem,
   isSupplyItem,
   seedDefaultMaster,
+  seedsDemoSample,
 } from './book'
 
 describe('회사별 기준정보 격리', () => {
@@ -34,10 +35,11 @@ describe('회사별 기준정보 격리', () => {
     expect(a.companyId).not.toBe(b.companyId)
   })
 
-  it('기본 시드는 반출·배정에 쓰는 김담당을 만든다', () => {
+  it('기본 시드는 총무와 복사용지를 만든다', () => {
     const book = new CompanyMasterBook('hq')
     seedDefaultMaster(book)
-    expect(book.employees.get('emp-kim')).toEqual({ id: 'emp-kim', name: '김담당' })
+    expect(book.employees.size).toBe(0)
+    expect(book.warehouses.get('wh-main')?.name).toBe('기본창고')
     expect(book.departments.get('dept-admin')?.name).toBe('총무')
     expect(book.items.get('item-paper')?.name).toBe('복사용지')
   })
@@ -76,5 +78,11 @@ describe('회사별 기준정보 격리', () => {
       },
     ]
     expect(() => assertCompanyAssetsReturned(held, 'emp-1', COMPANY_ASSET_ITEMS)).not.toThrow()
+  })
+
+  it('본사만 샘플 사람을 넣는다', () => {
+    expect(seedsDemoSample('HQ01')).toBe(true)
+    expect(seedsDemoSample('boam')).toBe(false)
+    expect(seedsDemoSample(undefined)).toBe(true)
   })
 })

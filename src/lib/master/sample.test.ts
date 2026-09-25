@@ -41,17 +41,41 @@ describe('회사 샘플 데이터', () => {
 
   it('기본 시드가 샘플 직원·자산을 insert or ignore 한다', async () => {
     const names: string[] = []
-    await writeDefaultMaster({
-      exec: async (_sql, params) => {
-        for (const value of params ?? []) {
-          if (typeof value === 'string') names.push(value)
-        }
+    await writeDefaultMaster(
+      {
+        exec: async (_sql, params) => {
+          for (const value of params ?? []) {
+            if (typeof value === 'string') names.push(value)
+          }
+        },
       },
-    })
+      { companyCode: 'HQ01' },
+    )
     expect(names).toEqual(
       expect.arrayContaining(['박재민', '이수진', '오세훈', '모니터', '복합기', '2층 개발석', 'CON-2024-001']),
     )
     expect(names).toEqual(expect.arrayContaining(['한국임대', '02-3456-1000', '1588-5114']))
+  })
+
+  it('팔 회사 시드는 본사 샘플 사람을 넣지 않는다', async () => {
+    const names: string[] = []
+    const sqls: string[] = []
+    await writeDefaultMaster(
+      {
+        exec: async (sql, params) => {
+          sqls.push(sql)
+          for (const value of params ?? []) {
+            if (typeof value === 'string') names.push(value)
+          }
+        },
+      },
+      { companyCode: 'boam' },
+    )
+    expect(names).toContain('기본창고')
+    expect(names).not.toContain('본사창고')
+    expect(names).not.toContain('박재민')
+    expect(names).not.toContain('CON-2024-001')
+    expect(sqls.some((sql) => sql.includes('delete from employees'))).toBe(true)
   })
 
   it('같은 이름 정리 때 sqlite query의 this를 잃지 않는다', async () => {

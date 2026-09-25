@@ -194,19 +194,15 @@ export function seedDefaultMaster(book: CompanyMasterBook): void {
   })
   book.upsertWarehouse(`${book.companyId}:seed:wh-main`, {
     id: 'wh-main',
-    name: '본사창고',
+    name: '기본창고',
   })
   book.upsertWarehouse(`${book.companyId}:seed:wh-sub`, {
     id: 'wh-sub',
-    name: '부속창고',
+    name: '보조창고',
   })
   book.upsertItem(`${book.companyId}:seed:item-paper`, {
     id: PAPER_ITEM.id,
     name: PAPER_ITEM.name,
-  })
-  book.upsertEmployee(`${book.companyId}:seed:emp-kim`, {
-    id: DEFAULT_EMPLOYEE.id,
-    name: DEFAULT_EMPLOYEE.name,
   })
   book.defineField(`${book.companyId}:seed:field-emp-no`, {
     entity: 'employee',
@@ -215,11 +211,19 @@ export function seedDefaultMaster(book: CompanyMasterBook): void {
   })
 }
 
-export async function writeDefaultMaster(db: {
-  exec: (sql: string, params?: unknown[]) => Promise<void>
-  query?: <T>(sql: string, params?: unknown[]) => Promise<T[]>
-}): Promise<void> {
+export function seedsDemoSample(companyCode?: string | null) {
+  return !companyCode || companyCode === 'HQ01'
+}
+
+export async function writeDefaultMaster(
+  db: {
+    exec: (sql: string, params?: unknown[]) => Promise<void>
+    query?: <T>(sql: string, params?: unknown[]) => Promise<T[]>
+  },
+  options?: { companyCode?: string | null },
+): Promise<void> {
   const now = new Date().toISOString()
+  const demo = seedsDemoSample(options?.companyCode)
   await db.exec('insert or ignore into departments(id, name, created_at) values(?, ?, ?)', [
     'dept-admin',
     '총무',
@@ -227,12 +231,12 @@ export async function writeDefaultMaster(db: {
   ])
   await db.exec('insert or ignore into warehouses(id, name, created_at) values(?, ?, ?)', [
     'wh-main',
-    '본사창고',
+    '기본창고',
     now,
   ])
   await db.exec('insert or ignore into warehouses(id, name, created_at) values(?, ?, ?)', [
     'wh-sub',
-    '부속창고',
+    '보조창고',
     now,
   ])
   for (const kind of PURCHASE_KINDS) {
@@ -262,21 +266,27 @@ export async function writeDefaultMaster(db: {
     await db.exec("update items set code = ? where id = ? and (code is null or code = '')", [code, id])
   }
   await db.exec(`delete from items where id in ('item-badge', 'item-uniform', 'item-laptop')`)
-  const { writeSampleCompanyData } = await import('./sample')
-  await writeSampleCompanyData(db)
-  await db.exec(
-    `insert or ignore into employees(id, name, department_id, title, hired_at, badge_name, created_at)
-      values(?, ?, ?, ?, ?, ?, ?)`,
-    [
-      DEFAULT_EMPLOYEE.id,
-      DEFAULT_EMPLOYEE.name,
-      DEFAULT_EMPLOYEE.departmentId,
-      DEFAULT_EMPLOYEE.title,
-      now.slice(0, 10),
-      DEFAULT_EMPLOYEE.name,
-      now,
-    ],
-  )
+  const { stripDemoSample, writeSampleCompanyData } = await import('./sample')
+  if (demo) {
+    await writeSampleCompanyData(db)
+    await db.exec(
+      `insert or ignore into employees(id, name, department_id, title, hired_at, badge_name, created_at)
+        values(?, ?, ?, ?, ?, ?, ?)`,
+      [
+        DEFAULT_EMPLOYEE.id,
+        DEFAULT_EMPLOYEE.name,
+        DEFAULT_EMPLOYEE.departmentId,
+        DEFAULT_EMPLOYEE.title,
+        now.slice(0, 10),
+        DEFAULT_EMPLOYEE.name,
+        now,
+      ],
+    )
+  } else {
+    await db.exec("update warehouses set name = '기본창고' where id = 'wh-main'")
+    await db.exec("update warehouses set name = '보조창고' where id = 'wh-sub'")
+    await stripDemoSample(db)
+  }
   if (db.query) {
     await retireDuplicateItems({
       exec: (sql, params) => db.exec(sql, params),

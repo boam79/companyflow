@@ -11,6 +11,8 @@ export function normalizeInviteEmail(value: string) {
 export const OPERATOR_EMAIL_NOT_CUSTOMER =
   '팔 회사에는 고객 이메일을 적습니다. 운영 계정은 넣지 않습니다.'
 
+export const EXTRA_USER_NOT_NEEDED = '추가 사람은 붙이지 않습니다.'
+
 export function assertCustomerAdminEmail(adminEmail: string, operatorEmail?: string | null) {
   const email = normalizeInviteEmail(adminEmail)
   if (operatorEmail && email === operatorEmail.trim().toLowerCase()) {

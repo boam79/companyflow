@@ -187,7 +187,7 @@ export function MasterDataPage() {
         return
       }
       if (!guest) {
-        await writeDefaultMaster(sqlite)
+        await writeDefaultMaster(sqlite, { companyCode: companies.find((row) => row.id === nextId)?.company_code })
         await retireSupplyAssets(sqlite)
       }
       setNotice(guest ? '샘플이 열렸습니다. 저장되지 않습니다.' : `로컬 원본이 열렸습니다. VFS ${sqlite.vfsName}`)
