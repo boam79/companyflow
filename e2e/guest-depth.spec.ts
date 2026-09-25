@@ -37,14 +37,29 @@ test('게스트 기준정보 부서·창고·직원은 샘플만 둔다', async 
 test('게스트 입퇴사 탭은 견본만 두고 본사 사람을 두지 않는다', async ({ page }) => {
   await page.goto('/guest/people')
   await expect(page.getByRole('heading', { name: '직원·입퇴사' })).toBeVisible({ timeout: 20000 })
-  await page.getByRole('button', { name: /입사 중/ }).click()
-  await expect(page.getByText('견본 김대리')).toBeVisible()
-  await expect(page.getByText('데모 이사원')).toBeVisible()
-  await page.getByRole('button', { name: /퇴사/ }).click()
-  await expect(page.getByText('견본 최과장')).toBeVisible()
+  await page.getByRole('button', { name: /^입사 중/ }).click()
+  await expect(page.getByRole('button', { name: /견본 김대리/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /데모 이사원/ })).toBeVisible()
+  await page.getByRole('button', { name: /^퇴사/ }).click()
+  await expect(page.getByRole('button', { name: /견본 최과장/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /^재직/ })).toHaveCount(0)
   await expect(page.getByText('김담당')).toHaveCount(0)
   await expect(page.getByText('지급 전 · 입사 중 프로세스부터')).toHaveCount(0)
+})
+
+test('게스트 재고 명령 여러 개는 영어와 본사 잔재를 두지 않는다', async ({ page }) => {
+  await page.goto('/guest/stock')
+  await expect(page.getByRole('heading', { name: '구매·재고' })).toBeVisible({ timeout: 20000 })
+  await page.getByRole('button', { name: '발주·검수 더 보기' }).click()
+  const commands = [
+    ...['post_direct_in', 'post_issue', 'post_return'],
+    ...['confirm_order', 'post_receipt', 'post_supplier_return', 'draft_order', 'post_outbound', 'adjust_stock', 'reverse_transaction'],
+  ] as const
+  for (const command of commands) {
+    await page.getByLabel('명령').selectOption(command)
+    await expectNoHqLeftovers(page)
+    await expect(page.getByText(/operation_id/)).toHaveCount(0)
+  }
 })
 
 test('게스트 입고는 저장하고 영어 거래 번호를 두지 않는다', async ({ page }) => {
@@ -62,7 +77,7 @@ test('게스트 입고는 저장하고 영어 거래 번호를 두지 않는다'
 test('게스트 계약 초안은 본사 김담당 없이 저장한다', async ({ page }) => {
   await page.goto('/guest/contracts')
   await expect(page.getByRole('heading', { name: '계약' }).first()).toBeVisible({ timeout: 20000 })
-  await expect(page.getByText('샘플 사무실 임대')).toBeVisible()
+  await expect(page.getByRole('heading', { name: '샘플 사무실 임대' })).toBeVisible()
   await page.getByRole('button', { name: '새 초안' }).click()
   await page.getByLabel('계약명').fill('샘플 청소 계약')
   await page.getByLabel('상대방').fill('견본청소')
@@ -78,6 +93,7 @@ test('게스트 빈 QR은 샘플 품목만 넣고 지정 PC를 건드리지 않�
   await page.getByLabel('위치').fill('샘플 2층')
   await page.getByRole('button', { name: '저장' }).click()
   await expect(page.getByText('샘플에 저장했습니다. 지정 PC 원본은 건드리지 않습니다.')).toBeVisible()
+  await expectNoHqLeftovers(page)
 })
 
 test('게스트 묶인 QR은 샘플 자산만 보여 준다', async ({ page }) => {
@@ -90,12 +106,13 @@ test('게스트 묶인 QR은 샘플 자산만 보여 준다', async ({ page }) =
   const missing = '11111111-1111-4111-8111-111111111111'
   await page.goto(`/guest/q/${missing}`)
   await expect(page.getByText('이 QR은 샘플에서 만든 빈 QR이 아닙니다.')).toBeVisible()
+  await expectNoHqLeftovers(page)
 })
 
 test('로그아웃 정상 UUID QR은 로그인만 안내한다', async ({ page }) => {
   await page.goto(`/q/${GUEST_BLANK_QR_ID}`)
   await expect(page.getByText('빈 QR을 읽었습니다. 로그인 후')).toBeVisible()
-  const login = page.getByRole('link', { name: '로그인' })
+  const login = page.getByRole('main').getByRole('link', { name: '로그인' })
   await expect(login).toBeVisible()
   const href = (await login.getAttribute('href')) ?? ''
   expect(href).toContain('/login')

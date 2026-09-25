@@ -8,6 +8,9 @@ const LOGOUT_GATES = [
   ['/assets', '자산은 로그인 후', '자산'],
   ['/people', '입퇴사는 로그인 후', '직원·입퇴사'],
   ['/contracts', '계약은 로그인 후', '계약'],
+  ['/settings', '회사 설정은 로그인한 뒤', '회사 설정'],
+  ['/data', '데이터 관리는 로그인', '데이터 관리'],
+  ['/ops/companies', '회사 등록은 로그인한 운영 관리자만', '회사 관리'],
 ] as const
 
 const MISSING_PATHS = ['/reports', '/foo', '/api', '/ops', '/guesting'] as const
@@ -19,9 +22,20 @@ const GUEST_MISSING = [
   '/guest/ops/companies',
   '/guest/login',
   '/guest/reports',
+  '/guest/foo',
+  '/guest/ops',
 ] as const
 
-const HEADER_PATHS = ['/', '/login', '/guest', '/q/not-a-token', '/settings'] as const
+const HEADER_PATHS = ['/', '/login', '/guest', '/q/not-a-token', '/settings', '/guest/stock', '/reports'] as const
+
+const GUEST_WORK = [
+  ['/guest', '샘플 회사'],
+  ['/guest/stock', '구매·재고'],
+  ['/guest/assets', '자산'],
+  ['/guest/people', '직원·입퇴사'],
+  ['/guest/contracts', '계약'],
+  ['/guest/master', '기준정보'],
+] as const
 
 test('로그아웃 업무 주소는 로그인 안내만 두고 본사 잔재를 두지 않는다', async ({ page }) => {
   for (const [path, hint, heading] of LOGOUT_GATES) {
@@ -55,5 +69,13 @@ test('게스트에 없는 화면 여러 개는 샘플 안내만 둔다', async (
 test('배포 헤더는 여러 주소에서 같다', async ({ page }) => {
   for (const path of HEADER_PATHS) {
     await expectSecureHeaders(page, path)
+  }
+})
+
+test('게스트 업무 화면은 본사 잔재를 두지 않는다', async ({ page }) => {
+  for (const [path, heading] of GUEST_WORK) {
+    await page.goto(path)
+    await expect(page.getByRole('heading', { name: heading }).first()).toBeVisible({ timeout: 20000 })
+    await expectNoHqLeftovers(page)
   }
 })
