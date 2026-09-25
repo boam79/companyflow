@@ -5,6 +5,7 @@ import {
   ISSUE_ITEMS,
   PAPER_ITEM,
   assertCompanyAssetsReturned,
+  assertAssignableCompanyAsset,
   assertConvertibleItem,
   isCompanyAssetItem,
   isSupplyItem,
@@ -62,7 +63,10 @@ describe('회사별 기준정보 격리', () => {
 
   it('복사용지는 비품 재고이고 책상·컴퓨터만 자산화한다', () => {
     expect(() => assertConvertibleItem(ISSUE_ITEMS[0])).toThrow(/입퇴사 프로세스/)
-    expect(() => assertConvertibleItem(PAPER_ITEM)).toThrow(/비품 재고/)
+    expect(() => assertConvertibleItem(PAPER_ITEM)).toThrow(/자리의 물건/)
+    expect(() => assertConvertibleItem(PAPER_ITEM)).not.toThrow(/책상·컴퓨터/)
+    expect(() => assertAssignableCompanyAsset(PAPER_ITEM)).toThrow(/회사 자산 품목만/)
+    expect(() => assertAssignableCompanyAsset(PAPER_ITEM)).not.toThrow(/책상·컴퓨터/)
     expect(isSupplyItem(PAPER_ITEM)).toBe(true)
     expect(isSupplyItem(COMPANY_ASSET_ITEMS[0])).toBe(false)
     expect(isCompanyAssetItem(PAPER_ITEM)).toBe(false)

@@ -17,6 +17,7 @@ import {
   partnerUpdateStatement,
   PURCHASE_KINDS,
   purchaseKindLabel,
+  purchaseKindNamePlaceholder,
   purchaseKindInsertStatement,
   purchaseKindRenameStatement,
   purchaseKindDeactivateStatement,
@@ -31,6 +32,7 @@ import { toArrayBuffer } from '../lib/contracts/book'
 import { canWriteOpenedCompany, mayOpenCompanyWork, workSessionKind } from '../lib/company/workGate'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
+import { countHeading } from '../lib/company/nav'
 import { showsWorkDbReopen, workOpenedNotice } from '../lib/data/storageStatus'
 
 type NamedRow = {
@@ -140,7 +142,7 @@ export function MasterDataPage() {
   const [itemCode, setItemCode] = useState('')
   const [itemUnit, setItemUnit] = useState('개')
   const [purchaseKind, setPurchaseKind] = useState('supply')
-  const [purchaseKindName, setPurchaseKindName] = useState('일반 비품')
+  const [purchaseKindName, setPurchaseKindName] = useState(purchaseKindNamePlaceholder)
   const [purchaseKinds, setPurchaseKinds] = useState<PurchaseKindRow[]>(
     PURCHASE_KINDS.map((item) => ({ id: item.id, name: item.label })),
   )
@@ -316,7 +318,7 @@ export function MasterDataPage() {
       setItemCode('')
       setItemUnit('개')
       setPurchaseKind('supply')
-      setPurchaseKindName('일반 비품')
+      setPurchaseKindName(purchaseKindNamePlaceholder())
       setItemPartnerId('')
       setSelectedItemId('')
       resetPartnerForm()
@@ -684,7 +686,7 @@ export function MasterDataPage() {
               setItemCode('')
               setItemUnit('개')
               setPurchaseKind('supply')
-              setPurchaseKindName('일반 비품')
+              setPurchaseKindName(purchaseKindNamePlaceholder())
               setItemPartnerId('')
               setSelectedNamedId('')
               resetPartnerForm()
@@ -758,7 +760,7 @@ export function MasterDataPage() {
               구분 이름
               <input
                 className="mt-1 w-full rounded border border-line px-3 py-2 text-sm"
-                placeholder="일반 비품"
+                placeholder={purchaseKindNamePlaceholder()}
                 value={purchaseKindName}
                 onChange={(e) => setPurchaseKindName(e.target.value)}
               />
@@ -988,7 +990,7 @@ export function MasterDataPage() {
       {tab === listTab && (tab === 'fields' ? fields.length : rows.length) ? (
         <>
           <h2 className="mb-2 text-base font-semibold">
-            {tabLabel} {tab === 'fields' ? fields.length : rows.length}
+            {countHeading(tabLabel, tab === 'fields' ? fields.length : rows.length)}
           </h2>
           <MasterTable
             columns={table.columns}

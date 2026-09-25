@@ -40,7 +40,7 @@ export const HOME_STORY: HomeStoryBeat[] = [
   {
     kicker: '자산',
     title: '빈 QR을 붙이고,\n자리의 물건을 남깁니다.',
-    body: '책상·컴퓨터는 직원에게 배정하지 않습니다.\n빈 QR로 위치를 넣고, 이 PC가 원본에 반영합니다.',
+    body: '자리의 물건은 직원에게 배정하지 않습니다.\n빈 QR로 위치를 넣고, 이 PC가 원본에 반영합니다.',
     tone: 'paper',
     image: '/home/assets.jpg',
     imageAlt: '책상에 붙인 빈 QR',

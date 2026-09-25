@@ -12,6 +12,7 @@ import {
   assertUniqueItemCode,
   assertUniquePartnerName,
   purchaseKindLabel,
+  purchaseKindNamePlaceholder,
   assertPurchaseKind,
   purchaseKindInsertStatement,
   purchaseKindRenameStatement,
@@ -116,6 +117,7 @@ describe('기준정보 SQL 명령', () => {
 
   it('구매 구분은 회사가 추가·이름 변경·사용 안 함 할 수 있다', () => {
     expect(purchaseKindLabel('supply')).toBe('일반 비품')
+    expect(purchaseKindNamePlaceholder()).toBe('')
     expect(purchaseKindLabel('material')).toBe('자재')
     expect(purchaseKindLabel('service')).toBe('서비스')
     expect(purchaseKindLabel('kind-rent', [{ id: 'kind-rent', name: '임대' }])).toBe('임대')

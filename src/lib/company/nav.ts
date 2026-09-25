@@ -54,7 +54,7 @@ export function peopleBadgeEmptyLead() {
 
 export function peoplePageLead(hasEmployees: boolean) {
   if (!hasEmployees) return '기준정보에서 직원을 추가하면 입사·퇴사를 여기서 진행합니다.'
-  return '왼쪽 탭에서 입사 중·재직·퇴사를 고릅니다. 입사 서류(근로계약·보안·개인정보·통장·신분증)와 담당자·기한·첨부를 둡니다. 가구·컴퓨터는 자산 메뉴에서 QR로 등록하며, 직원에게 배정하지 않습니다.'
+  return '왼쪽 탭에서 입사 중·재직·퇴사를 고릅니다. 입사 서류(근로계약·보안·개인정보·통장·신분증)와 담당자·기한·첨부를 둡니다. 자리의 물건은 자산 메뉴에서 QR로 등록하며, 직원에게 배정하지 않습니다.'
 }
 
 export function showsBadgeTemplate(employeeCount: number) {

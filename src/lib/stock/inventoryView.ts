@@ -26,6 +26,10 @@ export function stockInboundItemHint() {
   return '없는 이름은 입고할 때 비품으로 등록됩니다. 자리의 물건은 자산 메뉴입니다.'
 }
 
+export function stockAssetsLinkLabel() {
+  return '자리의 물건은 자산'
+}
+
 export function stockIssuePersonName() {
   return ''
 }

@@ -51,6 +51,10 @@ export const PURCHASE_KINDS = [
   { id: 'service', label: '서비스' },
 ] as const
 
+export function purchaseKindNamePlaceholder() {
+  return ''
+}
+
 export type PurchaseKindRow = { id: string; name: string; active?: number | null }
 
 export function assertPurchaseKind(value: string, kinds?: PurchaseKindRow[]) {

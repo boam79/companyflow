@@ -2,7 +2,18 @@ export function assetsPageLead(guest: boolean) {
   if (guest) {
     return '샘플에서 빈 QR을 만들고 입력 열기로 가구·컴퓨터 정보를 넣습니다. 지정 PC 원본과 중앙 QR은 쓰지 않습니다. 회사 자산은 자리에 두는 물건이며 직원에게 배정하지 않습니다.'
   }
-  return '빈 QR을 가구·컴퓨터에 붙인 뒤 스마트폰으로 위치와 품목을 넣습니다. 이 PC가 원본에 반영합니다. 직원에게 배정하지 않습니다.'
+  return '빈 QR을 자리의 물건에 붙인 뒤 스마트폰으로 위치와 품목을 넣습니다. 이 PC가 원본에 반영합니다. 직원에게 배정하지 않습니다.'
+}
+
+export function qrLoggedOutLead() {
+  return '빈 QR을 읽었습니다. 로그인 후 자리의 물건 정보를 넣으세요.'
+}
+
+export function assetsPrintedQrLead(count: number, guest: boolean) {
+  if (guest) {
+    return `샘플 빈 QR ${count}장을 만들었습니다. 입력 열기를 눌러 이 화면에서 확인하세요. 지정 PC 원본은 건드리지 않습니다.`
+  }
+  return `빈 QR ${count}장을 만들었습니다. 인쇄해 자리의 물건에 붙인 뒤 스마트폰으로 읽으세요.`
 }
 
 export function assetsInboxHeading(guest: boolean, count: number) {

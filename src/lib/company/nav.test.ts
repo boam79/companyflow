@@ -120,6 +120,7 @@ describe('업무 메뉴', () => {
     expect(peoplePageLead(false)).toContain('기준정보에서 직원을 추가')
     expect(peoplePageLead(true)).toContain('입사 중')
     expect(peoplePageLead(true)).toContain('직원에게 배정하지 않습니다')
+    expect(peoplePageLead(true)).not.toMatch(/가구·컴퓨터|책상/)
     expect(showsBadgeTemplate(0)).toBe(false)
     expect(showsBadgeTemplate(1)).toBe(true)
     expect(showsSetupMenu('admin_linked')).toBe(true)

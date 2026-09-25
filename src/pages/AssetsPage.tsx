@@ -28,7 +28,7 @@ import { formatCompanyDate, loadDisplayTimezone } from '../lib/company/displayCu
 import { showModuleLink } from '../lib/company/modules'
 import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
-import { assetsEmptyLead, assetsInboxHeading, assetsListHeading, assetsMissingQrHint, assetsPageLead } from '../lib/asset/empty'
+import { assetsEmptyLead, assetsInboxHeading, assetsListHeading, assetsMissingQrHint, assetsPageLead, assetsPrintedQrLead } from '../lib/asset/empty'
 import { countHeading, showsEmptyPickHint } from '../lib/company/nav'
 
 type NamedRow = { id: string; name: string }
@@ -227,11 +227,7 @@ export function AssetsPage() {
         })),
       )
       setPrinted((prev) => (guest ? [...prev, ...urls] : urls))
-      setNotice(
-        guest
-          ? `샘플 빈 QR ${count}장을 만들었습니다. 입력 열기를 눌러 이 화면에서 확인하세요. 지정 PC 원본은 건드리지 않습니다.`
-          : `빈 QR ${count}장을 만들었습니다. 인쇄해 가구·컴퓨터에 붙인 뒤 스마트폰으로 읽으세요.`,
-      )
+      setNotice(assetsPrintedQrLead(count, guest))
     } catch (error) {
       setMessage(error instanceof Error ? error.message : String(error))
     } finally {

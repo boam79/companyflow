@@ -12,6 +12,7 @@ test('로그아웃 홈은 둘러보기와 로그인만 둔다', async ({ page })
   await expect(page.getByRole('button', { name: '계정 삭제' })).toHaveCount(0)
   await expect(page.getByText('운영 권한')).toHaveCount(0)
   await expect(page.getByText('접혀 있습니다')).toHaveCount(0)
+  await expect(page.getByText('책상·컴퓨터는 직원에게 배정하지 않습니다')).toHaveCount(0)
 })
 
 test('로그아웃 회사 설정은 로그인 안내만 두고 초대를 두지 않는다', async ({ page }) => {
@@ -60,6 +61,7 @@ test('게스트 둘러보기는 샘플 구매부터 연다', async ({ page }) =>
   await expect(page.getByText(/아직입니다/)).toHaveCount(0)
   await expect(page.getByText('책상·컴퓨터는 자산입니다')).toHaveCount(0)
   await expect(page.getByText('책상·컴퓨터는 그대로 자산입니다')).toHaveCount(0)
+  await expect(page.getByRole('link', { name: '가구·컴퓨터는 자산' })).toHaveCount(0)
 })
 
 test('게스트 입퇴사는 샘플 직원이 있으면 명찰을 둔다', async ({ page }) => {
@@ -79,6 +81,8 @@ test('게스트 기준정보는 VFS 안내와 다시 열기를 두지 않는다'
   await expect(page.getByRole('button', { name: '이 회사 DB 다시 열기' })).toHaveCount(0)
   await expect(page.getByText(/VFS/)).toHaveCount(0)
   await expect(page.getByPlaceholder('PAPER')).toHaveCount(0)
+  await page.getByRole('button', { name: '품목' }).click()
+  await expect(page.getByPlaceholder('일반 비품')).toHaveCount(0)
   await page.getByRole('button', { name: '거래처' }).click()
   await expect(page.getByPlaceholder('02-1234-5678')).toHaveCount(0)
   await page.getByRole('button', { name: '필드' }).click()

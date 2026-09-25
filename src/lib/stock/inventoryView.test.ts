@@ -9,6 +9,7 @@ import {
   resolveOrderPartnerId,
   stockEmptyItemsLead,
   stockInboundItemHint,
+  stockAssetsLinkLabel,
   stockPageLead,
   stockDraftOrderId,
   stockIssuePersonName,
@@ -52,6 +53,8 @@ describe('비품 현재고', () => {
     expect(stockPageLead()).not.toMatch(/책상|컴퓨터/)
     expect(stockInboundItemHint()).toContain('비품으로 등록')
     expect(stockInboundItemHint()).not.toMatch(/책상|컴퓨터/)
+    expect(stockAssetsLinkLabel()).toBe('자리의 물건은 자산')
+    expect(stockAssetsLinkLabel()).not.toMatch(/가구|책상/)
     expect(stockIssuePersonName()).toBe('')
     expect(stockDraftOrderId()).toBe('')
     expect(stockAdjustReason()).toBe('')

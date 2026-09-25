@@ -57,7 +57,7 @@ export function assertConvertibleItem(item: ItemRecord | undefined): ItemRecord 
     throw new Error('명찰·유니폼·노트북은 자산이 아닙니다. 입퇴사 프로세스에서 지급·회수하세요.')
   }
   if (!item?.assetManaged) {
-    throw new Error(`${item?.name ?? '이 품목'}은 비품 재고입니다. 책상·컴퓨터처럼 자산관리 품목만 자산화하세요.`)
+    throw new Error(`${item?.name ?? '이 품목'}은 비품 재고입니다. 자리의 물건처럼 자산관리 품목만 자산화하세요.`)
   }
   return item
 }
@@ -114,7 +114,7 @@ export function heldCompanyAssets(
 
 export function assertAssignableCompanyAsset(item?: ItemRecord): ItemRecord {
   if (!item || !isCompanyAssetItem(item)) {
-    throw new Error('책상·컴퓨터만 직원에게 배정합니다.')
+    throw new Error('회사 자산 품목만 다룹니다.')
   }
   return item
 }

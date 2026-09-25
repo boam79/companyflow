@@ -10,7 +10,7 @@ import { isQrLabelId, sqliteIdForQrLabel } from '../lib/asset/qr'
 import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
 import { countHeading } from '../lib/company/nav'
-import { qrEmptyCatalogLead } from '../lib/asset/empty'
+import { qrEmptyCatalogLead, qrLoggedOutLead } from '../lib/asset/empty'
 import { GUEST_COMPANY_ID } from '../lib/guest/ids'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { getSupabase } from '../lib/supabase'
@@ -201,7 +201,7 @@ export function QrScanPage() {
     return (
       <div className="max-w-md space-y-4">
         <h1 className="text-2xl font-semibold">자산 정보 입력</h1>
-        <p className="text-sm text-muted">빈 QR을 읽었습니다. 로그인 후 가구·컴퓨터 정보를 넣으세요.</p>
+        <p className="text-sm text-muted">{qrLoggedOutLead()}</p>
         <Link className="inline-block rounded bg-accent px-4 py-2 text-sm font-semibold text-white" to={`/login?next=/q/${token}`}>
           로그인
         </Link>
