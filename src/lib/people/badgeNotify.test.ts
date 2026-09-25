@@ -5,6 +5,7 @@ import {
   badgeNotifyMessage,
   mailtoHref,
   slackFormBody,
+  slackWebhookPlaceholder,
 } from './badgeNotify'
 
 describe('명찰 보내기', () => {
@@ -17,7 +18,9 @@ describe('명찰 보내기', () => {
     expect(assertAdminEmail('ops@company.example')).toBe('ops@company.example')
     expect(() => assertAdminEmail('ops')).toThrow(/이메일/)
     expect(assertSlackWebhook('https://hooks.slack.com/services/T/B/XXX')).toContain('hooks.slack.com')
-    expect(() => assertSlackWebhook('https://example.com/hook')).toThrow(/슬랙/)
+    expect(() => assertSlackWebhook('https://example.com/hook')).toThrow(/슬랙 웹훅/)
+    expect(slackWebhookPlaceholder()).toBe('슬랙 웹훅 주소')
+    expect(slackWebhookPlaceholder()).not.toMatch(/Incoming|Webhook/)
   })
 
   it('mailto와 슬랙 payload를 만든다', () => {

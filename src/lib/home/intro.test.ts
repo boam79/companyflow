@@ -37,6 +37,8 @@ describe('홈 인트로', () => {
     expect(HOME_STORY.every((beat) => beat.image.startsWith('/home/'))).toBe(true)
     expect(HOME_STORY.every((beat) => !/복사용지/.test(beat.imageAlt))).toBe(true)
     expect(HOME_STORY.every((beat) => !/운영 권한/.test(beat.body))).toBe(true)
+    expect(HOME_STORY.every((beat) => !/접혀/.test(beat.body))).toBe(true)
+    expect(HOME_STORY.some((beat) => /더 보기/.test(beat.body))).toBe(true)
     expect(HOME_COVER_IMAGE).toBe('/home/origin.jpg')
     expect(homeStorySurface('navy')).toContain('bg-accent')
     expect(homeStoryMuted('paper')).toBe('text-[#6e6e73]')

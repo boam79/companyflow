@@ -4,7 +4,7 @@ import { WorkGateNotice } from '../components/WorkGateNotice'
 import { WorkCompanyControl } from '../components/WorkCompanyControl'
 import { formatCompanyDate, loadDisplayTimezone } from '../lib/company/displayCurrency'
 import { writeDefaultMaster } from '../lib/master/book'
-import { peopleBadgeEmptyLead, peopleEmptyLead, peopleHistoryEmptyLead, peoplePageLead, showsBadgeTemplate } from '../lib/company/nav'
+import { peopleBadgeEmptyLead, peopleEmptyLead, peopleHistoryEmptyLead, peoplePageLead, showsBadgeTemplate, countLabel } from '../lib/company/nav'
 import { showModuleLink } from '../lib/company/modules'
 import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
@@ -25,6 +25,7 @@ import {
   executeSaveNotifySettings,
   loadNotifySettings,
   sendSlackWebhook,
+  slackWebhookPlaceholder,
   type NotifySettings,
 } from '../lib/people/badgeNotify'
 import {
@@ -33,7 +34,9 @@ import {
   employeeRosterPhase,
   executeHire,
   executeLeave,
+  filledRosterSections,
   groupRoster,
+  rosterTabColumns,
   hireProcessSteps,
   hireProcessSummary,
   loadEmployees,
@@ -551,6 +554,7 @@ export function PeoplePage() {
   }
 
   const roster = groupRoster(employees, checks)
+  const filledRoster = filledRosterSections(roster)
   const visibleEmployees = roster.find((section) => section.phase === rosterTab)?.employees ?? []
   const selectedEmployee =
     visibleEmployees.find((row) => row.id === badgeEmployeeId) ?? visibleEmployees[0]
@@ -653,8 +657,8 @@ export function PeoplePage() {
         {employees.length ? (
           <>
             <nav className="flex max-h-[calc(100svh-9rem)] min-h-0 flex-col overflow-hidden rounded-lg border border-line bg-card">
-              <div className="grid shrink-0 grid-cols-3 border-b border-line">
-                {roster.map((section) => {
+              <div className={`grid shrink-0 ${rosterTabColumns(filledRoster.length)} border-b border-line`}>
+                {filledRoster.map((section) => {
                   const active = section.phase === rosterTab
                   return (
                     <button
@@ -674,7 +678,9 @@ export function PeoplePage() {
                       }}
                     >
                       <span className="block whitespace-nowrap">{section.label}</span>
-                      <span className="mt-0.5 block font-medium">{section.employees.length}</span>
+                      {countLabel(section.employees.length) ? (
+                        <span className="mt-0.5 block font-medium">{section.employees.length}</span>
+                      ) : null}
                     </button>
                   )
                 })}
@@ -1192,7 +1198,7 @@ export function PeoplePage() {
                 </button>
                 <input
                   className="w-full rounded border border-line px-3 py-2"
-                  placeholder="슬랙 Incoming Webhook"
+                  placeholder={slackWebhookPlaceholder()}
                   value={notify.slackWebhook}
                   onChange={(e) => setNotify((prev) => ({ ...prev, slackWebhook: e.target.value }))}
                 />

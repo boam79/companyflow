@@ -87,6 +87,16 @@ export function groupRoster(employees: EmployeeRecord[], checkRows: CheckRow[]) 
   }))
 }
 
+export function filledRosterSections<T extends { employees: unknown[] }>(sections: T[]): T[] {
+  return sections.filter((section) => section.employees.length > 0)
+}
+
+export function rosterTabColumns(count: number) {
+  if (count <= 1) return 'grid-cols-1'
+  if (count === 2) return 'grid-cols-2'
+  return 'grid-cols-3'
+}
+
 export function defaultRosterTab(groups: { phase: RosterPhase; employees: unknown[] }[]): RosterPhase {
   return (
     ROSTER_SECTIONS.find((section) => groups.find((group) => group.phase === section.phase)?.employees.length)?.phase ??

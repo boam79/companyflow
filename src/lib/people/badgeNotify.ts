@@ -22,10 +22,14 @@ export function assertAdminEmail(value: string) {
   return email
 }
 
+export function slackWebhookPlaceholder() {
+  return '슬랙 웹훅 주소'
+}
+
 export function assertSlackWebhook(value: string) {
   const url = value.trim()
   if (!/^https:\/\/hooks\.slack\.com\//i.test(url)) {
-    throw new Error('슬랙 Incoming Webhook 주소만 받습니다.')
+    throw new Error('슬랙 웹훅 주소만 받습니다.')
   }
   return url
 }

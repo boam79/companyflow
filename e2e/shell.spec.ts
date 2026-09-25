@@ -11,6 +11,7 @@ test('로그아웃 홈은 둘러보기와 로그인만 둔다', async ({ page })
   await expect(page.getByRole('navigation').getByRole('link', { name: '구매·재고' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '계정 삭제' })).toHaveCount(0)
   await expect(page.getByText('운영 권한')).toHaveCount(0)
+  await expect(page.getByText('접혀 있습니다')).toHaveCount(0)
 })
 
 test('로그아웃 회사 설정은 로그인 안내만 두고 초대를 두지 않는다', async ({ page }) => {
@@ -57,6 +58,8 @@ test('게스트 둘러보기는 샘플 구매부터 연다', async ({ page }) =>
   await expect(page.getByText('실사 차이')).toHaveCount(0)
   await page.getByLabel('명령').selectOption('post_supplier_return')
   await expect(page.getByText(/아직입니다/)).toHaveCount(0)
+  await expect(page.getByText('책상·컴퓨터는 자산입니다')).toHaveCount(0)
+  await expect(page.getByText('책상·컴퓨터는 그대로 자산입니다')).toHaveCount(0)
 })
 
 test('게스트 입퇴사는 샘플 직원이 있으면 명찰을 둔다', async ({ page }) => {
@@ -64,6 +67,10 @@ test('게스트 입퇴사는 샘플 직원이 있으면 명찰을 둔다', async
   await expect(page.getByRole('heading', { name: '직원·입퇴사' })).toBeVisible({ timeout: 20000 })
   await expect(page.getByRole('heading', { name: '명찰 템플릿' })).toBeVisible()
   await expect(page.getByText('모듈은 운영 계정만 바꿉니다.')).toHaveCount(0)
+  await expect(page.getByPlaceholder('슬랙 Incoming Webhook')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '퇴사 0' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '재직 0' })).toHaveCount(0)
+  await expect(page.getByText('지급 전 · 입사 중 프로세스부터')).toHaveCount(0)
 })
 
 test('게스트 기준정보는 VFS 안내와 다시 열기를 두지 않는다', async ({ page }) => {

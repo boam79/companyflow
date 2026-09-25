@@ -8,6 +8,8 @@ import {
   orderRemainingCaption,
   resolveOrderPartnerId,
   stockEmptyItemsLead,
+  stockInboundItemHint,
+  stockPageLead,
   stockDraftOrderId,
   stockIssuePersonName,
   stockAdjustReason,
@@ -46,6 +48,10 @@ describe('비품 현재고', () => {
     expect(supplyItems(items).map((item) => item.id)).toEqual(['item-paper'])
     expect(stockEmptyItemsLead()).toContain('기준정보에서 품목을 등록')
     expect(stockEmptyItemsLead()).not.toMatch(/복사용지/)
+    expect(stockPageLead()).toContain('자산 메뉴')
+    expect(stockPageLead()).not.toMatch(/책상|컴퓨터/)
+    expect(stockInboundItemHint()).toContain('비품으로 등록')
+    expect(stockInboundItemHint()).not.toMatch(/책상|컴퓨터/)
     expect(stockIssuePersonName()).toBe('')
     expect(stockDraftOrderId()).toBe('')
     expect(stockAdjustReason()).toBe('')

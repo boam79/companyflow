@@ -18,6 +18,14 @@ export function stockEmptyItemsLead() {
   return '비품이 없습니다. 오른쪽에서 이름을 적고 입고하거나, 기준정보에서 품목을 등록하세요.'
 }
 
+export function stockPageLead() {
+  return '입고하면 현재고가 늘고 반출하면 줄어듭니다. 자리의 물건은 자산 메뉴입니다.'
+}
+
+export function stockInboundItemHint() {
+  return '없는 이름은 입고할 때 비품으로 등록됩니다. 자리의 물건은 자산 메뉴입니다.'
+}
+
 export function stockIssuePersonName() {
   return ''
 }

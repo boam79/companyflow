@@ -7,7 +7,9 @@ import {
   employeeHireDraft,
   employeeRosterPhase,
   executeHire,
+  filledRosterSections,
   groupRoster,
+  rosterTabColumns,
   hireProcessSteps,
   hireProcessSummary,
   rosterCaption,
@@ -136,6 +138,13 @@ describe('입퇴사', () => {
     expect(defaultRosterTab(groups.map((group) => (group.phase === 'joining' ? { ...group, employees: [] } : group)))).toBe(
       'employed',
     )
+    expect(filledRosterSections(groups).map((group) => group.phase)).toEqual(['joining', 'employed', 'left'])
+    expect(filledRosterSections(groups.map((group) => (group.phase === 'employed' ? { ...group, employees: [] } : group))).map((group) => group.phase)).toEqual(
+      ['joining', 'left'],
+    )
+    expect(rosterTabColumns(1)).toBe('grid-cols-1')
+    expect(rosterTabColumns(2)).toBe('grid-cols-2')
+    expect(rosterTabColumns(3)).toBe('grid-cols-3')
     expect(employeeRosterPhase('emp-oh', [joining, employed, left], checks)).toBe('left')
     expect(employeeRosterPhase('emp-lee', [joining, employed, left], checks)).toBe('employed')
   })

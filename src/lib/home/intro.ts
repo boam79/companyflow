@@ -32,7 +32,7 @@ export const HOME_STORY: HomeStoryBeat[] = [
   {
     kicker: '매일',
     title: '입고하고, 반출하고,\n재고를 봅니다.',
-    body: '구매·재고의 앞면은 오늘 쓰는 입고·반출·재고현황입니다.\n발주 두 단계는 접혀 있습니다.',
+    body: '구매·재고의 앞면은 오늘 쓰는 입고·반출·재고현황입니다.\n발주·검수는 더 보기에서 엽니다.',
     tone: 'navy',
     image: '/home/stock.jpg',
     imageAlt: '입고 선반',

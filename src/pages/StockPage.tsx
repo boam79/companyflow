@@ -13,7 +13,7 @@ import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { executeStockCommand, ensureDefaultStockMaster, loadOrderOriginal, loadStockState, orderAttachment } from '../lib/stock/persist'
 import { toArrayBuffer } from '../lib/contracts/book'
 import { onHand, orderNetReceived, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
-import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, resolveOrderPartnerId, stockAdjustReason, stockDraftOrderId, stockEmptyItemsLead, stockIssuePersonName, stockSupplierReturnLead, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, resolveOrderPartnerId, stockAdjustReason, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssuePersonName, stockPageLead, stockSupplierReturnLead, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -507,7 +507,7 @@ export function StockPage() {
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold">구매·재고</h1>
           <p className="mt-1 max-w-3xl text-sm text-muted">
-            입고하면 현재고가 늘고 반출하면 줄어듭니다. 책상·컴퓨터는 자산입니다.
+            {stockPageLead()}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -930,7 +930,7 @@ export function StockPage() {
               </datalist>
               <span className="mt-1 block text-xs text-muted">
                 {isInboundStockAction(action)
-                  ? '없는 이름은 입고할 때 비품으로 등록됩니다. 책상·컴퓨터는 그대로 자산입니다.'
+                  ? stockInboundItemHint()
                   : '있는 비품 이름만 반출·출고할 수 있습니다.'}
               </span>
             </label>

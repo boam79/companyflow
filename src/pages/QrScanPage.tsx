@@ -10,6 +10,7 @@ import { isQrLabelId, sqliteIdForQrLabel } from '../lib/asset/qr'
 import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
 import { countHeading } from '../lib/company/nav'
+import { qrEmptyCatalogLead } from '../lib/asset/empty'
 import { GUEST_COMPANY_ID } from '../lib/guest/ids'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { getSupabase } from '../lib/supabase'
@@ -296,8 +297,8 @@ export function QrScanPage() {
         >
           <label className="block text-sm">
             품목
-            <select name="itemName" required className="mt-1 w-full rounded border border-line px-3 py-2" defaultValue="">
-              <option value="">품목을 고르세요</option>
+            <select name="itemName" required className="mt-1 w-full rounded border border-line px-3 py-2" defaultValue="" disabled={!itemOptions.length}>
+              <option value="">{itemOptions.length ? '품목을 고르세요' : '품목이 없습니다'}</option>
               {itemOptions.map((item) => (
                 <option key={item.id} value={item.name}>
                   {item.name}
@@ -305,6 +306,7 @@ export function QrScanPage() {
               ))}
             </select>
           </label>
+          {itemOptions.length ? null : <p className="text-sm text-muted">{qrEmptyCatalogLead()}</p>}
           <label className="block text-sm">
             모델
             <input name="model" autoComplete="off" className="mt-1 w-full rounded border border-line px-3 py-2" defaultValue="" />
@@ -329,7 +331,7 @@ export function QrScanPage() {
             취득일
             <input type="date" name="acquiredAt" className="mt-1 w-full rounded border border-line px-3 py-2" defaultValue="" />
           </label>
-          <button type="submit" disabled={busy} className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+          <button type="submit" disabled={busy || !itemOptions.length} className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
             저장
           </button>
         </form>
