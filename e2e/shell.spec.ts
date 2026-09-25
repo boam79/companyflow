@@ -59,3 +59,20 @@ test('게스트 기준정보는 VFS 안내와 다시 열기를 두지 않는다'
   await expect(page.getByRole('button', { name: '이 회사 DB 다시 열기' })).toHaveCount(0)
   await expect(page.getByText(/VFS/)).toHaveCount(0)
 })
+
+test('게스트 자산은 본사 복사용지 안내를 두지 않는다', async ({ page }) => {
+  await page.goto('/guest/assets')
+  await expect(page.getByRole('heading', { name: '자산' })).toBeVisible({ timeout: 20000 })
+  await expect(page.getByRole('button', { name: '이 회사 DB 다시 열기' })).toHaveCount(0)
+  await expect(page.getByText(/VFS/)).toHaveCount(0)
+  await expect(page.getByText('복사용지 같은 비품')).toHaveCount(0)
+  await expect(page.getByText('샘플로 넣은 책상')).toHaveCount(0)
+})
+
+test('로그아웃 데이터 관리는 로그인 안내만 두고 백업 줄을 두지 않는다', async ({ page }) => {
+  await page.goto('/data')
+  await expect(page.getByText('데이터 관리는 로그인한 뒤 봅니다.')).toBeVisible()
+  await expect(page.getByRole('heading', { name: '데이터 관리' })).toHaveCount(0)
+  await expect(page.getByText('최근 백업')).toHaveCount(0)
+  await expect(page.getByText('전송 대기')).toHaveCount(0)
+})

@@ -28,6 +28,7 @@ import { formatCompanyDate, loadDisplayTimezone } from '../lib/company/displayCu
 import { showModuleLink } from '../lib/company/modules'
 import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
+import { assetsEmptyLead, assetsMissingQrHint, assetsPageLead } from '../lib/asset/empty'
 
 type NamedRow = { id: string; name: string }
 type PrintedQr = { id: string; url: string; dataUrl: string }
@@ -363,11 +364,7 @@ export function AssetsPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold">자산</h1>
-          <p className="mt-1 max-w-4xl text-sm text-muted">
-            {guest
-              ? '샘플에서 빈 QR을 만들고 입력 열기로 가구·컴퓨터 정보를 넣습니다. 지정 PC 원본과 중앙 QR은 쓰지 않습니다. 회사 자산은 자리에 두는 물건이며 직원에게 배정하지 않습니다.'
-              : '빈 QR을 만들어 책상·의자·컴퓨터 같은 회사 자산에 붙입니다. 직원이 스마트폰으로 읽고 위치·품목 정보를 넣으면, 이 PC가 원본에 반영합니다. 회사 자산은 자리에 두는 물건이며 직원에게 배정하지 않습니다. 자리 이동은 이관, 고치면 수리, 못 쓰면 폐기로 이력을 남깁니다. 복사용지 같은 비품은 재고이며 QR을 붙이지 않습니다.'}
-          </p>
+          <p className="mt-1 max-w-4xl text-sm text-muted">{assetsPageLead(guest)}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {guest ? (
@@ -559,9 +556,7 @@ export function AssetsPage() {
           </div>
         ) : (
           <p className="mt-2 text-sm text-muted">
-            {ready
-              ? '회사 자산이 없습니다. 빈 QR을 가구·컴퓨터에 붙인 뒤 스마트폰에서 정보를 넣으세요.'
-              : '회사 DB를 여는 중입니다.'}
+            {ready ? assetsEmptyLead() : '회사 DB를 여는 중입니다.'}
           </p>
         )}
       </section>
@@ -619,11 +614,7 @@ export function AssetsPage() {
               </div>
             </div>
           ) : (
-            <p className="mt-3 text-sm text-muted">
-              {guest
-                ? '빈 QR로 등록된 자산만 QR 상세를 엽니다. 견본으로 넣은 책상은 표식이 없습니다.'
-                : '빈 QR로 등록된 자산만 QR 상세를 엽니다. 샘플로 넣은 책상은 표식이 없습니다.'}
-            </p>
+            <p className="mt-3 text-sm text-muted">{assetsMissingQrHint(guest)}</p>
           )}
           <form
             key={`${selected.id}:${formTick}`}
