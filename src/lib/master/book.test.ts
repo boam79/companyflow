@@ -15,6 +15,8 @@ import {
   stripUnusedDemoCatalog,
   masterEmptyListLead,
   fieldKeyPlaceholder,
+  partnerPhonePlaceholder,
+  loadFirstWarehouseId,
 } from './book'
 
 describe('회사별 기준정보 격리', () => {
@@ -85,13 +87,24 @@ describe('회사별 기준정보 격리', () => {
     expect(() => assertCompanyAssetsReturned(held, 'emp-1', COMPANY_ASSET_ITEMS)).not.toThrow()
   })
 
-  it('본사만 샘플 사람과 복사용지 품목을 넣는다', () => {
+  it('본사만 샘플 사람과 복사용지 품목을 넣는다', async () => {
     expect(seedsDemoSample('HQ01')).toBe(true)
     expect(seedsDemoSample('boam')).toBe(false)
     expect(seedsDemoSample(undefined)).toBe(true)
     expect(itemCodePlaceholder()).toBe('')
     expect(masterEmptyListLead()).not.toMatch(/아직/)
     expect(fieldKeyPlaceholder()).toBe('')
+    expect(partnerPhonePlaceholder()).toBe('')
+    await expect(
+      loadFirstWarehouseId({
+        query: async <T>() => [{ id: 'wh-a' }] as T[],
+      }),
+    ).resolves.toBe('wh-a')
+    await expect(
+      loadFirstWarehouseId({
+        query: async <T>() => [] as T[],
+      }),
+    ).rejects.toThrow(/창고가 없습니다/)
     expect(qrAssetItemChoices([PAPER_ITEM, ...COMPANY_ASSET_ITEMS]).map((item) => item.id)).toEqual(
       COMPANY_ASSET_ITEMS.map((item) => item.id),
     )

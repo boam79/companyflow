@@ -28,6 +28,7 @@ describe('등록 QR 자산 상세', () => {
       labelId: LABEL,
       payload: PAYLOAD,
       createdAt: 't',
+      items: [{ id: 'item-desk', name: '책상', stockManaged: false, assetManaged: true }],
     })
     expect(findAssetByQrToken(assets, LABEL)?.id).toBe(asset.id)
     expect(findAssetByQrToken(assets, '22222222-2222-4222-8222-222222222222')).toBeUndefined()

@@ -10,6 +10,7 @@ test('로그아웃 홈은 둘러보기와 로그인만 둔다', async ({ page })
   await expect(page.getByRole('navigation').getByRole('link', { name: '초기 설정' })).toHaveCount(0)
   await expect(page.getByRole('navigation').getByRole('link', { name: '구매·재고' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '계정 삭제' })).toHaveCount(0)
+  await expect(page.getByText('운영 권한')).toHaveCount(0)
 })
 
 test('로그아웃 회사 설정은 로그인 안내만 두고 초대를 두지 않는다', async ({ page }) => {
@@ -71,6 +72,8 @@ test('게스트 기준정보는 VFS 안내와 다시 열기를 두지 않는다'
   await expect(page.getByRole('button', { name: '이 회사 DB 다시 열기' })).toHaveCount(0)
   await expect(page.getByText(/VFS/)).toHaveCount(0)
   await expect(page.getByPlaceholder('PAPER')).toHaveCount(0)
+  await page.getByRole('button', { name: '거래처' }).click()
+  await expect(page.getByPlaceholder('02-1234-5678')).toHaveCount(0)
   await page.getByRole('button', { name: '필드' }).click()
   await expect(page.getByPlaceholder('필드 키')).toHaveValue('')
 })

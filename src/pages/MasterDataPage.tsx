@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { WorkGateNotice } from '../components/WorkGateNotice'
 import { WorkCompanyControl } from '../components/WorkCompanyControl'
-import { writeDefaultMaster, loadPartnerOriginal, itemCodePlaceholder, masterEmptyListLead, fieldKeyPlaceholder } from '../lib/master/book'
+import { writeDefaultMaster, loadPartnerOriginal, itemCodePlaceholder, masterEmptyListLead, fieldKeyPlaceholder, partnerPhonePlaceholder } from '../lib/master/book'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
 import {
@@ -845,7 +845,7 @@ export function MasterDataPage() {
               연락처
               <input
                 className="mt-1 w-full rounded border border-line px-3 py-2 text-sm"
-                placeholder="02-1234-5678"
+                placeholder={partnerPhonePlaceholder()}
                 value={partnerPhone}
                 onChange={(e) => setPartnerPhone(e.target.value)}
               />

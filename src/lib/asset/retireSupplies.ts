@@ -1,13 +1,11 @@
-import { PAPER_ITEM, isCompanyAssetItem, loadItems } from '../master/book'
+import { isCompanyAssetItem, loadItems } from '../master/book'
 
 export async function retireSupplyAssets(db: {
   query: <T>(sql: string, params?: unknown[]) => Promise<T[]>
   exec: (sql: string, params?: unknown[]) => Promise<void>
 }): Promise<number> {
   const items = await loadItems(db)
-  const supplyIds = new Set(
-    [...items.filter((item) => !isCompanyAssetItem(item)).map((item) => item.id), PAPER_ITEM.id],
-  )
+  const supplyIds = new Set(items.filter((item) => !isCompanyAssetItem(item)).map((item) => item.id))
   const assets = await db.query<{ id: string; item_id: string; warehouse_id: string }>(
     'select id, item_id, warehouse_id from assets',
   )

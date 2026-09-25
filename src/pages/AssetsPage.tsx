@@ -41,17 +41,20 @@ function emptyLifeForm(today: string) {
   }
 }
 
-function payloadFromUnknown(value: unknown): QrAssetPayload {
+function payloadFromUnknown(value: unknown, items: ItemRecord[]): QrAssetPayload {
   const row = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
-  return assertQrAssetPayload({
-    itemName: String(row.itemName ?? ''),
-    model: String(row.model ?? ''),
-    serialNo: String(row.serialNo ?? ''),
-    location: String(row.location ?? ''),
-    departmentName: String(row.departmentName ?? ''),
-    ownerName: String(row.ownerName ?? ''),
-    acquiredAt: String(row.acquiredAt ?? ''),
-  })
+  return assertQrAssetPayload(
+    {
+      itemName: String(row.itemName ?? ''),
+      model: String(row.model ?? ''),
+      serialNo: String(row.serialNo ?? ''),
+      location: String(row.location ?? ''),
+      departmentName: String(row.departmentName ?? ''),
+      ownerName: String(row.ownerName ?? ''),
+      acquiredAt: String(row.acquiredAt ?? ''),
+    },
+    items,
+  )
 }
 
 export function AssetsPage() {
@@ -242,7 +245,7 @@ export function AssetsPage() {
     setBusy(true)
     setMessage('')
     try {
-      const payload = payloadFromUnknown(row.payload)
+      const payload = payloadFromUnknown(row.payload, items)
       const result = await executeQrRegistration(sqlite, { labelId: row.label_id, payload })
       await importAssetQr(client, row.label_id)
       const assetRows = await loadAssets(sqlite)

@@ -64,7 +64,7 @@ export const HOME_STORY: HomeStoryBeat[] = [
   {
     kicker: '회사',
     title: '회사마다\n원본이 갈라집니다.',
-    body: '한 회사 화면을 다른 회사에 복사하지 않습니다.\n운영 권한은 계정 칸이 아니라 서버가 부여합니다.',
+    body: '한 회사 화면을 다른 회사에 복사하지 않습니다.\n사람·재고·자산은 그 회사 지정 PC에만 있습니다.',
     tone: 'paper',
     image: '/home/company.jpg',
     imageAlt: '서로 다른 회사 건물',

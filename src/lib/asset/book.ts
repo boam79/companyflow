@@ -250,7 +250,14 @@ export async function executeIssueAsset(
   if (!employees.length) throw new Error('직원을 찾을 수 없습니다.')
   if (employees[0].left_at) throw new Error('퇴사한 직원에게는 지급할 수 없습니다.')
   const assetId = `${command.operationId}:1`
-  const warehouseId = command.warehouseId ?? 'wh-main'
+  const warehouseId =
+    command.warehouseId ??
+    (
+      await db.query<{ id: string }>(
+        'select id from warehouses where coalesce(active, 1) = 1 order by name',
+      )
+    )[0]?.id
+  if (!warehouseId) throw new Error('창고가 없습니다. 기준정보에서 창고를 추가하세요.')
   try {
     await db.batch([
       {

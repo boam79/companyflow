@@ -23,6 +23,7 @@ describe('빈 QR 자산 등록', () => {
       labelId: LABEL,
       payload: PAYLOAD,
       createdAt: 't',
+      items: COMPANY_ASSET_ITEMS,
     })
     expect(result.asset).toMatchObject({
       id: `${LABEL}:1`,
@@ -37,23 +38,32 @@ describe('빈 QR 자산 등록', () => {
       status: 'in_storage',
     })
     expect(result.labels[0].status).toBe('bound')
-    expect(itemIdForQrName('컴퓨터')).toBe('item-computer')
-    expect(itemIdForQrName('모니터')).toBe('item-monitor')
-    expect(itemIdForQrName('의자')).toBe('item-chair')
+    expect(() =>
+      applyQrRegistration([], labels, {
+        operationId: `qr-bind:${LABEL}`,
+        labelId: LABEL,
+        payload: PAYLOAD,
+        createdAt: 't',
+      }),
+    ).toThrow(/회사 자산/)
+    expect(itemIdForQrName('컴퓨터', COMPANY_ASSET_ITEMS)).toBe('item-computer')
+    expect(itemIdForQrName('모니터', COMPANY_ASSET_ITEMS)).toBe('item-monitor')
+    expect(itemIdForQrName('의자', COMPANY_ASSET_ITEMS)).toBe('item-chair')
     expect(itemIdForQrName('샘플 책상', [{ ...COMPANY_ASSET_ITEMS[0], name: '샘플 책상' }])).toBe('item-desk')
     expect(() => itemIdForQrName('책상', [])).toThrow(/회사 자산/)
     expect(() => itemIdForQrName('복사용지', [PAPER_ITEM])).toThrow(/회사 자산/)
   })
 
   it('복사용지 같은 비품과 이미 저장된 QR은 막는다', () => {
-    expect(() => assertQrAssetPayload({ itemName: '복사용지', location: '창고' })).toThrow(/회사 자산/)
-    expect(() => assertQrAssetPayload({ itemName: '책상' })).toThrow(/위치/)
+    expect(() => assertQrAssetPayload({ itemName: '복사용지', location: '창고' }, [PAPER_ITEM])).toThrow(/회사 자산/)
+    expect(() => assertQrAssetPayload({ itemName: '책상' }, COMPANY_ASSET_ITEMS)).toThrow(/위치/)
     const labels = [{ id: LABEL, status: 'blank' as const, createdAt: 't' }]
     const first = applyQrRegistration([], labels, {
       operationId: `qr-bind:${LABEL}`,
       labelId: LABEL,
       payload: PAYLOAD,
       createdAt: 't',
+      items: COMPANY_ASSET_ITEMS,
     })
     expect(() =>
       applyQrRegistration(first.assets, first.labels, {
@@ -61,6 +71,7 @@ describe('빈 QR 자산 등록', () => {
         labelId: LABEL,
         payload: PAYLOAD,
         createdAt: 't',
+        items: COMPANY_ASSET_ITEMS,
       }),
     ).toThrow(/이미 저장/)
     expect(() =>
@@ -69,6 +80,7 @@ describe('빈 QR 자산 등록', () => {
         labelId: '22222222-2222-4222-8222-222222222222',
         payload: PAYLOAD,
         createdAt: 't',
+        items: COMPANY_ASSET_ITEMS,
       }),
     ).toThrow(/빈 QR/)
   })
@@ -82,7 +94,7 @@ describe('빈 QR 자산 등록', () => {
     data.set('departmentName', '총무'.normalize('NFD'))
     data.set('ownerName', '김담당')
     data.set('acquiredAt', '2026-09-18')
-    expect(readQrAssetForm(data)).toMatchObject({
+    expect(readQrAssetForm(data, COMPANY_ASSET_ITEMS)).toMatchObject({
       itemName: '책상',
       location: '본사 3층',
       departmentName: '총무',

@@ -1,4 +1,4 @@
-import { COMPANY_ASSET_ITEMS, loadItems, qrAssetItemChoices, type ItemRecord } from '../master/book'
+import { loadFirstWarehouseId, loadItems, qrAssetItemChoices, type ItemRecord } from '../master/book'
 import { assetNumber, loadAssets, type AssetRecord } from './book'
 import { normalizeHangulField } from './life'
 
@@ -28,7 +28,7 @@ export type QrAssetPayload = {
   acquiredAt: string
 }
 
-export function itemIdForQrName(itemName: string, items: ItemRecord[] = COMPANY_ASSET_ITEMS) {
+export function itemIdForQrName(itemName: string, items: ItemRecord[]) {
   const hit = qrAssetItemChoices(items).find((item) => item.name === itemName.trim())
   if (!hit) throw new Error('회사 자산 품목만 등록합니다.')
   return hit.id
@@ -36,10 +36,11 @@ export function itemIdForQrName(itemName: string, items: ItemRecord[] = COMPANY_
 
 export function assertQrAssetPayload(
   input: Partial<QrAssetPayload>,
-  items: ItemRecord[] = COMPANY_ASSET_ITEMS,
+  items?: ItemRecord[],
 ): QrAssetPayload {
   const itemName = normalizeHangulField(input.itemName ?? '')
-  itemIdForQrName(itemName, items)
+  if (items) itemIdForQrName(itemName, items)
+  else if (!itemName) throw new Error('회사 자산 품목만 등록합니다.')
   const location = normalizeHangulField(input.location ?? '')
   if (!location) throw new Error('위치를 입력하세요.')
   return {
@@ -53,7 +54,7 @@ export function assertQrAssetPayload(
   }
 }
 
-export function readQrAssetForm(data: FormData, items: ItemRecord[] = COMPANY_ASSET_ITEMS): QrAssetPayload {
+export function readQrAssetForm(data: FormData, items: ItemRecord[]): QrAssetPayload {
   return assertQrAssetPayload(
     {
       itemName: String(data.get('itemName') ?? ''),
@@ -80,7 +81,7 @@ export function applyQrRegistration(
     items?: ItemRecord[]
   },
 ): { assets: AssetRecord[]; labels: QrLabel[]; asset: AssetRecord } {
-  const catalog = command.items ?? COMPANY_ASSET_ITEMS
+  const catalog = command.items ?? []
   const payload = assertQrAssetPayload(command.payload, catalog)
   const label = labels.find((row) => row.id === command.labelId)
   if (!label) throw new Error('이 QR은 빈 QR이 아닙니다.')
@@ -91,7 +92,7 @@ export function applyQrRegistration(
   const asset: AssetRecord = {
     id: `${command.labelId}:1`,
     itemId: itemIdForQrName(payload.itemName, catalog),
-    warehouseId: command.warehouseId ?? 'wh-main',
+    warehouseId: command.warehouseId ?? '',
     status: 'in_storage',
     sourceOperationId: command.operationId,
     createdAt: command.createdAt,
@@ -152,6 +153,7 @@ export async function executeQrRegistration(
   )
   if (existing.length) return { status: 'duplicate' }
   const [assets, labels, items] = await Promise.all([loadAssets(db), loadQrLabels(db), loadItems(db)])
+  const warehouseId = command.warehouseId ?? (await loadFirstWarehouseId(db))
   const nextLabels =
     labels.some((row) => row.id === command.labelId)
       ? labels
@@ -160,7 +162,7 @@ export async function executeQrRegistration(
     operationId,
     labelId: command.labelId,
     payload: command.payload,
-    warehouseId: command.warehouseId,
+    warehouseId,
     createdAt,
     items,
   })

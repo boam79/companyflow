@@ -1,7 +1,7 @@
 import { ProcessedOperations, type ProcessResult } from '../idempotency'
 import type { AssetRecord } from '../asset/book'
 import { base64ToBytes } from '../contracts/book'
-import { duplicateItemRepairs, PURCHASE_KINDS } from './commands'
+import { duplicateItemRepairs, PURCHASE_KINDS, ACTIVE_MASTER_WHERE } from './commands'
 
 export type MasterEntity = 'department' | 'employee' | 'item' | 'partner' | 'warehouse'
 
@@ -84,6 +84,19 @@ export function masterEmptyListLead() {
 
 export function fieldKeyPlaceholder() {
   return ''
+}
+
+export function partnerPhonePlaceholder() {
+  return ''
+}
+
+export async function loadFirstWarehouseId(db: {
+  query: <T>(sql: string, params?: unknown[]) => Promise<T[]>
+}) {
+  const rows = await db.query<{ id: string }>(`select id from warehouses where ${ACTIVE_MASTER_WHERE} order by name`)
+  const id = rows[0]?.id ?? ''
+  if (!id) throw new Error('창고가 없습니다. 기준정보에서 창고를 추가하세요.')
+  return id
 }
 
 export function heldCompanyAssets(
