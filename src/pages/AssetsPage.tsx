@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { WorkGateNotice } from '../components/WorkGateNotice'
+import { WorkCompanyControl } from '../components/WorkCompanyControl'
 import { assetNumber, loadAssets, type AssetRecord } from '../lib/asset/book'
 import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
 import {
@@ -372,21 +373,15 @@ export function AssetsPage() {
           {guest ? (
             <p className="rounded border border-line px-3 py-2 text-sm text-muted">샘플 회사</p>
           ) : (
-            <select
-              className="rounded border border-line px-3 py-2 text-sm"
-              value={companyId}
-              onChange={(e) => {
+            <WorkCompanyControl
+              guest={false}
+              companies={companies}
+              companyId={companyId}
+              onChange={(id) => {
                 setReady(false)
-                void openCompany(e.target.value, true)
+                void openCompany(id, true)
               }}
-            >
-              <option value="">회사 선택</option>
-              {companies.map((company) => (
-                <option key={company.id} value={company.id}>
-                  {company.display_name} ({company.company_code})
-                </option>
-              ))}
-            </select>
+            />
           )}
           {stockLink ? (
             <Link className="rounded border border-line px-3 py-2 text-sm" to={href('/stock')}>

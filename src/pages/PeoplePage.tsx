@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { WorkGateNotice } from '../components/WorkGateNotice'
+import { WorkCompanyControl } from '../components/WorkCompanyControl'
 import { formatCompanyDate, loadDisplayTimezone } from '../lib/company/displayCurrency'
 import { writeDefaultMaster } from '../lib/master/book'
+import { peopleEmptyLead } from '../lib/company/nav'
 import { showModuleLink } from '../lib/company/modules'
 import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
@@ -621,21 +623,15 @@ export function PeoplePage() {
           {guest ? (
             <p className="rounded border border-line px-3 py-2 text-sm text-muted">샘플 회사</p>
           ) : (
-            <select
-              className="rounded border border-line px-3 py-2 text-sm"
-              value={companyId}
-              onChange={(e) => {
+            <WorkCompanyControl
+              guest={false}
+              companies={companies}
+              companyId={companyId}
+              onChange={(id) => {
                 setReady(false)
-                void openCompany(e.target.value, true)
+                void openCompany(id, true)
               }}
-            >
-              <option value="">회사 선택</option>
-              {companies.map((company) => (
-                <option key={company.id} value={company.id}>
-                  {company.display_name} ({company.company_code})
-                </option>
-              ))}
-            </select>
+            />
           )}
           <Link className="rounded border border-line px-3 py-2 text-sm" to={href('/master')}>
             기준정보
@@ -703,7 +699,7 @@ export function PeoplePage() {
                     )
                   })
                 ) : (
-                  <p className="px-3 py-4 text-xs text-muted">이 목록에 직원이 없습니다.</p>
+                  <p className="px-3 py-4 text-xs text-muted">{peopleEmptyLead()}</p>
                 )}
               </div>
             </nav>
@@ -1049,7 +1045,7 @@ export function PeoplePage() {
                 ) : null}
               </article>
             ) : (
-              <p className="rounded-lg border border-line bg-card p-5 text-sm text-muted">이 목록에 직원이 없습니다.</p>
+              <p className="rounded-lg border border-line bg-card p-5 text-sm text-muted">{peopleEmptyLead()}</p>
             )}
           </>
         ) : (

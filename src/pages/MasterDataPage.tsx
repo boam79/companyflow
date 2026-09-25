@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { WorkGateNotice } from '../components/WorkGateNotice'
+import { WorkCompanyControl } from '../components/WorkCompanyControl'
 import { writeDefaultMaster, loadPartnerOriginal } from '../lib/master/book'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
@@ -640,22 +641,16 @@ export function MasterDataPage() {
             <p className="rounded border border-line px-3 py-2 text-sm text-muted">샘플 회사</p>
           ) : (
             <>
-              <select
-                className="rounded border border-line px-3 py-2 text-sm"
-                value={companyId}
-                onChange={(e) => {
+              <WorkCompanyControl
+                guest={false}
+                companies={companies}
+                companyId={companyId}
+                onChange={(id) => {
                   setReady(false)
                   setOpenFailed(false)
-                  void openCompany(e.target.value, true)
+                  void openCompany(id, true)
                 }}
-              >
-                <option value="">회사 선택</option>
-                {companies.map((company) => (
-                  <option key={company.id} value={company.id}>
-                    {company.display_name} ({company.company_code})
-                  </option>
-                ))}
-              </select>
+              />
               <button
                 type="button"
                 className="rounded border border-line px-3 py-2 text-sm"

@@ -19,6 +19,19 @@ export function hasWorkCompany(ready: boolean, companyId: string) {
   return ready && Boolean(companyId)
 }
 
+export function showsCompanyPicker(companyCount: number) {
+  return companyCount > 1
+}
+
+export function openedCompanyCaption(company?: { display_name: string; company_code: string } | null) {
+  if (!company) return ''
+  return `${company.display_name} (${company.company_code})`
+}
+
+export function peopleEmptyLead() {
+  return '직원이 없습니다. 기준정보에서 직원을 추가하세요.'
+}
+
 export function exposedCompanySession<T>(input: {
   enabled: boolean
   loaded: boolean

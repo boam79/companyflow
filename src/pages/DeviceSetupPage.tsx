@@ -21,6 +21,7 @@ import {
 import { CompanyMasterBook, seedDefaultMaster, writeDefaultMaster } from '../lib/master/book'
 import { canStartRealData } from '../lib/sqlite/durableStore'
 import { useCompanySession } from '../lib/companySession'
+import { openedCompanyCaption, showsCompanyPicker } from '../lib/company/nav'
 import { publicErrorMessage } from '../lib/publicError'
 import { getSupabase } from '../lib/supabase'
 
@@ -178,11 +179,7 @@ export function DeviceSetupPage() {
         <p className="text-sm">
           현재 단계: <strong>{hydrated ? setupLabel(state.phase) : '확인 중'}</strong>
         </p>
-        {usable && company ? (
-          <p className="text-sm">
-            회사 <strong>{company.display_name}</strong> ({company.company_code})
-          </p>
-        ) : (
+        {showsCompanyPicker(companies.length) ? (
           <label className="block text-sm">
             회사
             <select
@@ -192,12 +189,16 @@ export function DeviceSetupPage() {
             >
               {companies.map((row) => (
                 <option key={row.id} value={row.id}>
-                  {row.display_name} ({row.company_code})
+                  {openedCompanyCaption(row)}
                 </option>
               ))}
             </select>
           </label>
-        )}
+        ) : company ? (
+          <p className="text-sm">
+            회사 <strong>{company.display_name}</strong> ({company.company_code})
+          </p>
+        ) : null}
         {hydrated && setupRunButtonVisible(usable) ? (
           <button
             type="button"

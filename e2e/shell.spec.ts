@@ -39,4 +39,5 @@ test('잘못된 QR은 한글 안내만 둔다', async ({ page }) => {
 test('게스트 둘러보기는 샘플 구매부터 연다', async ({ page }) => {
   await page.goto('/guest/stock')
   await expect(page.getByRole('heading', { name: '구매·재고' })).toBeVisible({ timeout: 20000 })
+  await expect(page.getByText('회사 선택')).toHaveCount(0)
 })

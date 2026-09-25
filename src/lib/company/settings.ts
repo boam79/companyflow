@@ -1,3 +1,5 @@
+import { showsCompanyPicker } from './nav'
+
 export const COMPANY_DISPLAY = {
   language: '한국어',
   timezone: '서울',
@@ -35,7 +37,7 @@ export function settingsPageLead(operator: boolean) {
 }
 
 export function settingsShowsCompanyPicker(companyCount: number) {
-  return companyCount > 1
+  return showsCompanyPicker(companyCount)
 }
 
 export function settingsShowsExtraUserInvite() {
