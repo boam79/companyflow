@@ -29,8 +29,13 @@ import {
   controlsOtherCompanies,
   memberRoleLabel,
   openedCompanyOnly,
+  settingsInviteDoneMessage,
+  settingsInviteLead,
+  settingsPageLead,
+  settingsShowsCompanyPicker,
 } from '../lib/company/settings'
 import { assertInviteRole, assertCustomerAdminEmail, type InviteRole } from '../lib/invite'
+import { publicErrorMessage } from '../lib/publicError'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { ORDER_CURRENCIES } from '../lib/stock/inventoryView'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
@@ -327,12 +332,12 @@ export function CompanySettingsPage() {
       })
       if (error) throw error
       setInviteEmail('')
-      setNotice('초대를 남겼습니다. 메일은 보내지 않습니다. 그 계정으로 로그인한 뒤 수락해야 권한이 생깁니다.')
+      setNotice(settingsInviteDoneMessage())
       const listed = await client.rpc('list_company_invitations', { p_company_id: open.id })
       if (listed.error) throw listed.error
       setInvites((listed.data ?? []) as OpenInvite[])
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       setBusy(false)
     }
@@ -378,14 +383,12 @@ export function CompanySettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-semibold">회사 설정</h1>
-        <p className="mt-2 text-sm text-muted">
-          운영 계정은 다른 회사 모듈만 켭니다. 사람·재고·자산·계약은 그 회사 지정 PC에서만 보입니다.
-        </p>
+        <p className="mt-2 text-sm text-muted">{settingsPageLead(operator)}</p>
       </div>
       {message ? <p className="text-sm text-danger">{message}</p> : null}
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {rows.length === 0 ? <p className="text-sm text-muted">연결된 회사가 없습니다.</p> : null}
-      {rows.length > 0 ? (
+      {rows.length > 0 && settingsShowsCompanyPicker(rows.length) ? (
         <label className="block max-w-md text-sm">
           이 PC에서 연 회사
           <select
@@ -399,11 +402,11 @@ export function CompanySettingsPage() {
               </option>
             ))}
           </select>
-          <p className="mt-2 text-muted">
-            {canEditCompanyModules(operator)
-              ? '다른 회사 사람·재고는 이 PC 메뉴에 넣지 않습니다. 옆 칸에서 모듈만 켭니다.'
-              : '모듈은 운영 계정만 바꿉니다.'}
-          </p>
+          {canEditCompanyModules(operator) ? (
+            <p className="mt-2 text-muted">
+              다른 회사 사람·재고는 이 PC 메뉴에 넣지 않습니다. 옆 칸에서 모듈만 켭니다.
+            </p>
+          ) : null}
         </label>
       ) : null}
       <div className="grid items-start gap-4 lg:grid-cols-2 xl:grid-cols-3">
@@ -432,7 +435,7 @@ export function CompanySettingsPage() {
               </ul>
               {canEdit ? (
                 <form className="mt-3 space-y-2" onSubmit={(event) => void onInvite(event)}>
-                  <p className="text-sm text-muted">이 회사 사용자만 초대합니다. 메일은 보내지 않습니다.</p>
+                  <p className="text-sm text-muted">{settingsInviteLead()}</p>
                   <div className="flex flex-wrap items-end gap-2">
                     <label className="text-sm">
                       이메일

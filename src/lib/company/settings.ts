@@ -27,6 +27,25 @@ export function canEditCompanyModules(operator: boolean) {
   return operator
 }
 
+export function settingsPageLead(operator: boolean) {
+  if (operator) {
+    return '운영 계정은 다른 회사 모듈만 켭니다. 사람·재고·자산·계약은 그 회사 지정 PC에서만 보입니다.'
+  }
+  return '이 회사 사람과 표시를 다룹니다. 추가 사람은 여기서 붙입니다. 가입 후 홈에서 수락합니다.'
+}
+
+export function settingsShowsCompanyPicker(companyCount: number) {
+  return companyCount > 1
+}
+
+export function settingsInviteLead() {
+  return '이 회사 사람만 붙입니다. 메일은 보내지 않습니다. 그 이메일은 가입한 뒤 홈에서 수락합니다.'
+}
+
+export function settingsInviteDoneMessage() {
+  return '초대를 남겼습니다. 그 이메일은 가입한 뒤 홈에서 수락합니다.'
+}
+
 export function workCompaniesForUser<T extends { id: string }>(
   companies: T[],
   membershipIds: string[],
