@@ -31,6 +31,10 @@ export function countLabel(count: number) {
   return count ? String(count) : ''
 }
 
+export function countHeading(label: string, count: number) {
+  return count ? `${label} ${count}` : label
+}
+
 export function openedCompanyCaption(company?: { display_name: string; company_code: string } | null) {
   if (!company) return ''
   return `${company.display_name} (${company.company_code})`

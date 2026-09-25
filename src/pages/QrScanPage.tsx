@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
-import { COMPANY_ASSET_ITEMS, loadItems } from '../lib/master/book'
+import { loadItems, qrAssetItemChoices, type ItemRecord } from '../lib/master/book'
 import { loadQrAssetDetail, phoneQrSavedMessage, type QrAssetDetail } from '../lib/asset/qrLookup'
 import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
 import { executeQrRegistration, readQrAssetForm } from '../lib/asset/register'
@@ -9,6 +9,7 @@ import { fetchQrLabel, submitAssetQr, type AssetQrLabelRow } from '../lib/asset/
 import { isQrLabelId, sqliteIdForQrLabel } from '../lib/asset/qr'
 import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
+import { countHeading } from '../lib/company/nav'
 import { GUEST_COMPANY_ID } from '../lib/guest/ids'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { getSupabase } from '../lib/supabase'
@@ -19,7 +20,7 @@ export function QrScanPage() {
   const { configured, loading, user } = useAuth()
   const [label, setLabel] = useState<AssetQrLabelRow | null>(null)
   const [detail, setDetail] = useState<QrAssetDetail | null>(null)
-  const [itemOptions, setItemOptions] = useState(COMPANY_ASSET_ITEMS)
+  const [itemOptions, setItemOptions] = useState<ItemRecord[]>([])
   const [message, setMessage] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
@@ -66,8 +67,7 @@ export function QrScanPage() {
             created_at: row.created_at,
           })
           const items = await loadItems(sqlite)
-          const options = COMPANY_ASSET_ITEMS.filter((item) => items.some((row) => row.id === item.id))
-          setItemOptions(options.length ? options : COMPANY_ASSET_ITEMS)
+          setItemOptions(qrAssetItemChoices(items))
           const local = await loadQrAssetDetail(sqlite, token, items)
           if (cancelled) return
           if (local) {
@@ -114,7 +114,7 @@ export function QrScanPage() {
           return
         }
         const items = await loadItems(sqlite)
-        setItemOptions(COMPANY_ASSET_ITEMS)
+        setItemOptions(qrAssetItemChoices(items))
         const local = await loadQrAssetDetail(sqlite, token, items)
         if (cancelled) return
         if (local) {
@@ -147,7 +147,7 @@ export function QrScanPage() {
     setMessage('')
     setNotice('')
     try {
-      const payload = readQrAssetForm(new FormData(event.currentTarget))
+      const payload = readQrAssetForm(new FormData(event.currentTarget), itemOptions)
       if (guest) {
         if (sqlite.companyId !== GUEST_COMPANY_ID) {
           setMessage('샘플을 연 뒤에 QR을 읽으세요.')
@@ -249,7 +249,7 @@ export function QrScanPage() {
           </div>
         </dl>
         <section>
-          <h2 className="text-sm font-semibold">이력 {detail.history.length}</h2>
+          <h2 className="text-sm font-semibold">{countHeading('이력', detail.history.length)}</h2>
           {detail.history.length ? (
             <ul className="mt-2 space-y-2 text-sm">
               {detail.history.map((line, index) => (
@@ -296,7 +296,8 @@ export function QrScanPage() {
         >
           <label className="block text-sm">
             품목
-            <select name="itemName" className="mt-1 w-full rounded border border-line px-3 py-2" defaultValue={itemOptions[0]?.name ?? '책상'}>
+            <select name="itemName" required className="mt-1 w-full rounded border border-line px-3 py-2" defaultValue="">
+              <option value="">품목을 고르세요</option>
               {itemOptions.map((item) => (
                 <option key={item.id} value={item.name}>
                   {item.name}

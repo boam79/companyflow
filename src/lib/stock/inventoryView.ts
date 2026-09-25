@@ -26,6 +26,10 @@ export function stockDraftOrderId() {
   return ''
 }
 
+export function stockAdjustReason() {
+  return ''
+}
+
 export function buildSupplyInventory(
   items: ItemRecord[],
   warehouses: NamedWarehouse[],

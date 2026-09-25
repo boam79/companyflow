@@ -33,7 +33,7 @@ export function settingsPageLead(operator: boolean) {
   if (operator) {
     return '운영 계정은 다른 회사 모듈만 켭니다. 사람·재고·자산·계약은 그 회사 지정 PC에서만 보입니다.'
   }
-  return '이 회사의 표시와 연결된 사람을 봅니다. 추가 사람은 붙이지 않습니다.'
+  return '이 회사의 표시와 연결된 사람을 봅니다.'
 }
 
 export function settingsShowsCompanyPicker(companyCount: number) {

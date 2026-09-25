@@ -29,7 +29,7 @@ import { showModuleLink } from '../lib/company/modules'
 import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
 import { assetsEmptyLead, assetsInboxHeading, assetsListHeading, assetsMissingQrHint, assetsPageLead } from '../lib/asset/empty'
-import { showsEmptyPickHint } from '../lib/company/nav'
+import { countHeading, showsEmptyPickHint } from '../lib/company/nav'
 
 type NamedRow = { id: string; name: string }
 type PrintedQr = { id: string; url: string; dataUrl: string }
@@ -707,7 +707,7 @@ export function AssetsPage() {
               </button>
             </div>
           </form>
-          <h3 className="mt-4 text-sm font-semibold">이력 {events.length}</h3>
+          <h3 className="mt-4 text-sm font-semibold">{countHeading('이력', events.length)}</h3>
           {events.length ? (
             <ul className="mt-2 space-y-1 text-sm">
               {events.map((event) => (

@@ -18,6 +18,7 @@ test('로그아웃 회사 설정은 로그인 안내만 두고 초대를 두지 
   await expect(page.getByRole('button', { name: '초대 남기기' })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: '회사 설정' })).toHaveCount(0)
   await expect(page.getByText('모듈은 운영 계정만 바꿉니다.')).toHaveCount(0)
+  await expect(page.getByText('추가 사람은 붙이지 않습니다.')).toHaveCount(0)
 })
 
 test('로그아웃 초기 설정 주소는 로그인 안내만 둔다', async ({ page }) => {
@@ -50,6 +51,9 @@ test('게스트 둘러보기는 샘플 구매부터 연다', async ({ page }) =>
   await page.getByRole('button', { name: '발주·검수 더 보기' }).click()
   await page.getByLabel('명령').selectOption('draft_order')
   await expect(page.getByLabel('발주 번호')).toHaveValue('')
+  await page.getByLabel('명령').selectOption('adjust_stock')
+  await expect(page.getByLabel('실사 사유')).toHaveValue('')
+  await expect(page.getByText('실사 차이')).toHaveCount(0)
 })
 
 test('게스트 입퇴사는 샘플 직원이 있으면 명찰을 둔다', async ({ page }) => {
@@ -64,6 +68,7 @@ test('게스트 기준정보는 VFS 안내와 다시 열기를 두지 않는다'
   await expect(page.getByRole('heading', { name: '기준정보' })).toBeVisible({ timeout: 20000 })
   await expect(page.getByRole('button', { name: '이 회사 DB 다시 열기' })).toHaveCount(0)
   await expect(page.getByText(/VFS/)).toHaveCount(0)
+  await expect(page.getByPlaceholder('PAPER')).toHaveCount(0)
 })
 
 test('게스트 자산은 본사 복사용지 안내를 두지 않는다', async ({ page }) => {
@@ -75,6 +80,7 @@ test('게스트 자산은 본사 복사용지 안내를 두지 않는다', async
   await expect(page.getByText('샘플로 넣은 책상')).toHaveCount(0)
   await expect(page.getByRole('heading', { name: '스마트폰에서 저장 0' })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: '회사 자산 0' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: '이력 0' })).toHaveCount(0)
 })
 
 test('로그아웃 데이터 관리는 로그인 안내만 두고 백업 줄을 두지 않는다', async ({ page }) => {

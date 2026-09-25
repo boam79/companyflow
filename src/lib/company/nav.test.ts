@@ -9,6 +9,7 @@ import {
   peoplePageLead,
   showsBadgeTemplate,
   showsCompanyPicker,
+  countHeading,
   countLabel,
   showsEmptyPickHint,
   showsSetupMenu,
@@ -108,6 +109,8 @@ describe('업무 메뉴', () => {
     expect(showsEmptyPickHint(2)).toBe(true)
     expect(countLabel(0)).toBe('')
     expect(countLabel(3)).toBe('3')
+    expect(countHeading('이력', 0)).toBe('이력')
+    expect(countHeading('이력', 2)).toBe('이력 2')
     expect(openedCompanyCaption({ display_name: '재민', company_code: 'boam' })).toBe('재민 (boam)')
     expect(peopleEmptyLead()).toContain('기준정보')
     expect(peoplePageLead(false)).toContain('기준정보에서 직원을 추가')

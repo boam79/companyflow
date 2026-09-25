@@ -13,7 +13,7 @@ import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { executeStockCommand, ensureDefaultStockMaster, loadOrderOriginal, loadStockState, orderAttachment } from '../lib/stock/persist'
 import { toArrayBuffer } from '../lib/contracts/book'
 import { onHand, orderNetReceived, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
-import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, resolveOrderPartnerId, stockDraftOrderId, stockEmptyItemsLead, stockIssuePersonName, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, resolveOrderPartnerId, stockAdjustReason, stockDraftOrderId, stockEmptyItemsLead, stockIssuePersonName, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -77,7 +77,7 @@ export function StockPage() {
   const [personName, setPersonName] = useState(stockIssuePersonName)
   const [departmentId, setDepartmentId] = useState('')
   const [sourceOperationId, setSourceOperationId] = useState('')
-  const [reason, setReason] = useState('실사 차이')
+  const [reason, setReason] = useState(stockAdjustReason)
   const [message, setMessage] = useState('')
   const [notice, setNotice] = useState('')
   const [lastOperationId, setLastOperationId] = useState('')

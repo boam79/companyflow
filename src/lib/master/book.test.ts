@@ -8,6 +8,8 @@ import {
   assertConvertibleItem,
   isCompanyAssetItem,
   isSupplyItem,
+  itemCodePlaceholder,
+  qrAssetItemChoices,
   seedDefaultMaster,
   seedsDemoSample,
   stripUnusedDemoCatalog,
@@ -85,6 +87,11 @@ describe('회사별 기준정보 격리', () => {
     expect(seedsDemoSample('HQ01')).toBe(true)
     expect(seedsDemoSample('boam')).toBe(false)
     expect(seedsDemoSample(undefined)).toBe(true)
+    expect(itemCodePlaceholder()).toBe('')
+    expect(qrAssetItemChoices([PAPER_ITEM, ...COMPANY_ASSET_ITEMS]).map((item) => item.id)).toEqual(
+      COMPANY_ASSET_ITEMS.map((item) => item.id),
+    )
+    expect(qrAssetItemChoices([])).toEqual([])
   })
 
   it('쓰이지 않은 본사 품목만 팔 회사에서 지운다', async () => {

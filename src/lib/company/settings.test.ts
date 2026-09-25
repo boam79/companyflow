@@ -54,7 +54,7 @@ describe('회사 설정 표시', () => {
   it('회사 설정은 추가 사람 초대를 두지 않는다', () => {
     expect(settingsPageLead(true)).toContain('다른 회사 모듈')
     expect(settingsPageLead(false)).toContain('연결된 사람')
-    expect(settingsPageLead(false)).toContain('추가 사람은 붙이지 않습니다')
+    expect(settingsPageLead(false)).not.toMatch(/추가 사람/)
     expect(settingsPageLead(false)).not.toMatch(/운영 계정은 다른 회사/)
     expect(settingsShowsCompanyPicker(1)).toBe(false)
     expect(settingsShowsCompanyPicker(2)).toBe(true)

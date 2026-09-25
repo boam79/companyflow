@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { assetsFromConvert } from './book'
+import { COMPANY_ASSET_ITEMS, PAPER_ITEM } from '../master/book'
 import { applyQrRegistration, assertQrAssetPayload, itemIdForQrName, readQrAssetForm } from './register'
 
 const LABEL = '11111111-1111-4111-8111-111111111111'
@@ -39,6 +40,9 @@ describe('빈 QR 자산 등록', () => {
     expect(itemIdForQrName('컴퓨터')).toBe('item-computer')
     expect(itemIdForQrName('모니터')).toBe('item-monitor')
     expect(itemIdForQrName('의자')).toBe('item-chair')
+    expect(itemIdForQrName('샘플 책상', [{ ...COMPANY_ASSET_ITEMS[0], name: '샘플 책상' }])).toBe('item-desk')
+    expect(() => itemIdForQrName('책상', [])).toThrow(/회사 자산/)
+    expect(() => itemIdForQrName('복사용지', [PAPER_ITEM])).toThrow(/회사 자산/)
   })
 
   it('복사용지 같은 비품과 이미 저장된 QR은 막는다', () => {

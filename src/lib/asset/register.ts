@@ -1,4 +1,4 @@
-import { COMPANY_ASSET_ITEMS } from '../master/book'
+import { COMPANY_ASSET_ITEMS, loadItems, qrAssetItemChoices, type ItemRecord } from '../master/book'
 import { assetNumber, loadAssets, type AssetRecord } from './book'
 import { normalizeHangulField } from './life'
 
@@ -28,15 +28,18 @@ export type QrAssetPayload = {
   acquiredAt: string
 }
 
-export function itemIdForQrName(itemName: string) {
-  const hit = COMPANY_ASSET_ITEMS.find((item) => item.name === itemName.trim())
+export function itemIdForQrName(itemName: string, items: ItemRecord[] = COMPANY_ASSET_ITEMS) {
+  const hit = qrAssetItemChoices(items).find((item) => item.name === itemName.trim())
   if (!hit) throw new Error('회사 자산 품목만 등록합니다.')
   return hit.id
 }
 
-export function assertQrAssetPayload(input: Partial<QrAssetPayload>): QrAssetPayload {
+export function assertQrAssetPayload(
+  input: Partial<QrAssetPayload>,
+  items: ItemRecord[] = COMPANY_ASSET_ITEMS,
+): QrAssetPayload {
   const itemName = normalizeHangulField(input.itemName ?? '')
-  itemIdForQrName(itemName)
+  itemIdForQrName(itemName, items)
   const location = normalizeHangulField(input.location ?? '')
   if (!location) throw new Error('위치를 입력하세요.')
   return {
@@ -50,16 +53,19 @@ export function assertQrAssetPayload(input: Partial<QrAssetPayload>): QrAssetPay
   }
 }
 
-export function readQrAssetForm(data: FormData): QrAssetPayload {
-  return assertQrAssetPayload({
-    itemName: String(data.get('itemName') ?? ''),
-    model: String(data.get('model') ?? ''),
-    serialNo: String(data.get('serialNo') ?? ''),
-    location: String(data.get('location') ?? ''),
-    departmentName: String(data.get('departmentName') ?? ''),
-    ownerName: String(data.get('ownerName') ?? ''),
-    acquiredAt: String(data.get('acquiredAt') ?? ''),
-  })
+export function readQrAssetForm(data: FormData, items: ItemRecord[] = COMPANY_ASSET_ITEMS): QrAssetPayload {
+  return assertQrAssetPayload(
+    {
+      itemName: String(data.get('itemName') ?? ''),
+      model: String(data.get('model') ?? ''),
+      serialNo: String(data.get('serialNo') ?? ''),
+      location: String(data.get('location') ?? ''),
+      departmentName: String(data.get('departmentName') ?? ''),
+      ownerName: String(data.get('ownerName') ?? ''),
+      acquiredAt: String(data.get('acquiredAt') ?? ''),
+    },
+    items,
+  )
 }
 
 export function applyQrRegistration(
@@ -71,9 +77,11 @@ export function applyQrRegistration(
     payload: QrAssetPayload
     warehouseId?: string
     createdAt: string
+    items?: ItemRecord[]
   },
 ): { assets: AssetRecord[]; labels: QrLabel[]; asset: AssetRecord } {
-  const payload = assertQrAssetPayload(command.payload)
+  const catalog = command.items ?? COMPANY_ASSET_ITEMS
+  const payload = assertQrAssetPayload(command.payload, catalog)
   const label = labels.find((row) => row.id === command.labelId)
   if (!label) throw new Error('이 QR은 빈 QR이 아닙니다.')
   if (label.status !== 'blank') throw new Error('이미 저장된 QR입니다.')
@@ -82,7 +90,7 @@ export function applyQrRegistration(
   }
   const asset: AssetRecord = {
     id: `${command.labelId}:1`,
-    itemId: itemIdForQrName(payload.itemName),
+    itemId: itemIdForQrName(payload.itemName, catalog),
     warehouseId: command.warehouseId ?? 'wh-main',
     status: 'in_storage',
     sourceOperationId: command.operationId,
@@ -143,7 +151,7 @@ export async function executeQrRegistration(
     [operationId],
   )
   if (existing.length) return { status: 'duplicate' }
-  const [assets, labels] = await Promise.all([loadAssets(db), loadQrLabels(db)])
+  const [assets, labels, items] = await Promise.all([loadAssets(db), loadQrLabels(db), loadItems(db)])
   const nextLabels =
     labels.some((row) => row.id === command.labelId)
       ? labels
@@ -154,6 +162,7 @@ export async function executeQrRegistration(
     payload: command.payload,
     warehouseId: command.warehouseId,
     createdAt,
+    items,
   })
   try {
     await db.batch([

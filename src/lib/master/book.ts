@@ -70,6 +70,14 @@ export function isSupplyItem(item?: ItemRecord) {
   return Boolean(item?.stockManaged) && !item?.assetManaged
 }
 
+export function qrAssetItemChoices(items: ItemRecord[]) {
+  return items.filter(isCompanyAssetItem)
+}
+
+export function itemCodePlaceholder() {
+  return ''
+}
+
 export function heldCompanyAssets(
   assets: AssetRecord[],
   employeeId: string,
