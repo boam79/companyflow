@@ -14,6 +14,7 @@ import { MasterDataPage } from './pages/MasterDataPage'
 import { OperatorCompaniesPage } from './pages/OperatorCompaniesPage'
 import { PeoplePage } from './pages/PeoplePage'
 import { QrScanPage } from './pages/QrScanPage'
+import { MissingRoutePage } from './pages/MissingRoutePage'
 import { StockPage } from './pages/StockPage'
 
 export default function App() {
@@ -42,7 +43,9 @@ export default function App() {
               <Route path="/guest/q/:token" element={<QrScanPage />} />
               <Route path="/guest/people" element={<PeoplePage />} />
               <Route path="/guest/contracts" element={<ContractsPage />} />
+              <Route path="/guest/*" element={<MissingRoutePage guest />} />
             </Route>
+            <Route path="*" element={<MissingRoutePage />} />
           </Route>
         </Routes>
       </AuthProvider>

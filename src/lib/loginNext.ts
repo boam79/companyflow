@@ -27,3 +27,7 @@ export function safeLoginNext(value: string | null | undefined) {
   }
   return '/'
 }
+
+export function qrLoginHref(token: string) {
+  return `/login?next=${encodeURIComponent(safeLoginNext(`/q/${token.trim()}`))}`
+}

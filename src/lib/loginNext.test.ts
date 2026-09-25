@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { afterSignOutHref, APP_ORIGIN, loginContinueLabel, loginPageLead, safeLoginNext, signupDoneMessage, signupEmailRedirectTo } from './loginNext'
+import { afterSignOutHref, APP_ORIGIN, loginContinueLabel, loginPageLead, qrLoginHref, safeLoginNext, signupDoneMessage, signupEmailRedirectTo } from './loginNext'
 
 describe('로그인 다음 주소', () => {
   it('빈 QR 입력 주소만 통과하고 바깥 주소는 홈으로 보낸다', () => {
@@ -9,7 +9,12 @@ describe('로그인 다음 주소', () => {
     expect(safeLoginNext('//evil.example')).toBe('/')
     expect(safeLoginNext('/guest/q/' + token)).toBe('/')
     expect(safeLoginNext('/assets')).toBe('/')
+    expect(safeLoginNext('/ops/companies')).toBe('/')
+    expect(safeLoginNext('/q/11111111-1111-4111-8111-111111111111/extra')).toBe('/')
     expect(safeLoginNext(null)).toBe('/')
+    expect(qrLoginHref(token)).toBe(`/login?next=${encodeURIComponent(`/q/${token}`)}`)
+    expect(qrLoginHref('not-a-token')).toBe('/login?next=%2F')
+    expect(qrLoginHref('../ops/companies')).toBe('/login?next=%2F')
   })
 
   it('가입 확인 메일은 배포 로그인으로 돌아온다', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { afterInviteAcceptHref, assertCustomerAdminEmail, assertInviteRole, EXTRA_USER_NOT_NEEDED, homeInviteAcceptLabel, inviteRoleLabel, normalizeInviteEmail, OPERATOR_EMAIL_NOT_CUSTOMER, opsCreateLead, opsPageLead, showPendingInviteBanner, waitingCoverLead } from './invite'
+import { afterInviteAcceptHref, assertCustomerAdminEmail, assertInviteRole, companyCreatedNotice, EXTRA_USER_NOT_NEEDED, homeInviteAcceptLabel, inviteRoleLabel, normalizeInviteEmail, OPERATOR_EMAIL_NOT_CUSTOMER, opsCreateLead, opsDeniedLead, opsLoginHint, opsPageLead, showPendingInviteBanner, waitingCoverLead } from './invite'
 
 describe('회사 사용자 초대', () => {
   it('이메일은 소문자로 맞추고 빈 칸은 거절한다', () => {
@@ -31,6 +31,9 @@ describe('회사 사용자 초대', () => {
     expect(opsPageLead()).toContain('관리자 한 명')
     expect(opsPageLead()).not.toMatch(/사용자 초대/)
     expect(opsPageLead()).not.toMatch(/추가 사람/)
+    expect(opsLoginHint()).toContain('운영 관리자만')
+    expect(opsDeniedLead()).not.toMatch(/app_metadata/)
+    expect(companyCreatedNotice()).not.toMatch(/id=|operation_id/)
   })
 
   it('추가 사람 초대는 거절한다', () => {

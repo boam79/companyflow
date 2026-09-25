@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { ProcessedOperations } from '../lib/idempotency'
 import { useAuth } from '../lib/AuthContext'
 import { operatorDeleteAuthUser, operatorDeleteAccountConfirmMessage } from '../lib/account'
-import { assertCustomerAdminEmail, opsCreateLead, opsPageLead } from '../lib/invite'
+import { assertCustomerAdminEmail, companyCreatedNotice, opsCreateLead, opsDeniedLead, opsLoginHint, opsPageLead } from '../lib/invite'
 import { publicErrorMessage } from '../lib/publicError'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 
@@ -77,7 +77,7 @@ export function OperatorCompaniesPage() {
       code: form.code.trim(),
       adminEmail: assertCustomerAdminEmail(form.adminEmail, user?.email),
     }
-    const local = createOps.run(operationId, () => payload)
+    createOps.run(operationId, () => payload)
     try {
       const { data, error } = await client.rpc('create_company', {
         p_display_name: payload.name,
@@ -93,7 +93,7 @@ export function OperatorCompaniesPage() {
         code: '',
         adminEmail: '',
         error: false,
-        message: `회사를 등록했습니다. id=${row.id} operation_id=${operationId} (${local.status}). 사람·재고는 그 회사 지정 PC에서만 보입니다.`,
+        message: companyCreatedNotice(),
       })
     } catch (error) {
       setForm((prev) => ({
@@ -121,7 +121,7 @@ export function OperatorCompaniesPage() {
   if (!user) {
     return (
       <p className="text-sm">
-        회사 등록은 로그인한 운영 관리자만 할 수 있습니다.{' '}
+        {opsLoginHint()}{' '}
         <Link className="text-accent underline" to="/login">
           로그인
         </Link>
@@ -158,11 +158,7 @@ export function OperatorCompaniesPage() {
   if (!operator) {
     return (
       <div className="max-w-xl space-y-3 text-sm">
-        <p>이 계정에는 운영 관리자 권한이 없습니다.</p>
-        <p className="text-muted">
-          일반 사용자는 스스로 승격할 수 없습니다. 최초 운영자는 Supabase에서
-          app_metadata.platform_operator 를 지정합니다.
-        </p>
+        <p>{opsDeniedLead()}</p>
       </div>
     )
   }

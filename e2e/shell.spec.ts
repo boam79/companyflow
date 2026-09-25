@@ -13,6 +13,11 @@ test('로그아웃 홈은 둘러보기와 로그인만 둔다', async ({ page })
   await expect(page.getByText('운영 권한')).toHaveCount(0)
   await expect(page.getByText('접혀 있습니다')).toHaveCount(0)
   await expect(page.getByText('책상·컴퓨터는 직원에게 배정하지 않습니다')).toHaveCount(0)
+  await page.getByRole('heading', { name: /클라우드에 업무를/ }).scrollIntoViewIfNeeded()
+  await expect(page.getByRole('heading', { name: /클라우드에 업무를/ })).toBeVisible()
+  const stockStory = page.getByText('발주·검수는 더 보기에서 엽니다')
+  await stockStory.scrollIntoViewIfNeeded()
+  await expect(stockStory).toBeVisible()
 })
 
 test('로그아웃 회사 설정은 로그인 안내만 두고 초대를 두지 않는다', async ({ page }) => {
@@ -147,4 +152,43 @@ test('게스트 계약은 본사 김담당을 두지 않는다', async ({ page }
   await expect(page.getByRole('heading', { name: '계약' }).first()).toBeVisible({ timeout: 20000 })
   await expect(page.getByText('김담당')).toHaveCount(0)
   await expect(page.getByText('백업')).toHaveCount(0)
+})
+
+test('로그아웃 회사 관리는 로그인 안내만 두고 운영 필드 이름을 두지 않는다', async ({ page }) => {
+  await page.goto('/ops/companies')
+  await expect(page.getByText('회사 등록은 로그인한 운영 관리자만')).toBeVisible()
+  await expect(page.getByRole('heading', { name: '회사 관리' })).toHaveCount(0)
+  await expect(page.getByText(/app_metadata/)).toHaveCount(0)
+})
+
+test('없는 주소와 게스트에 없는 화면은 한글만 둔다', async ({ page }) => {
+  await page.goto('/reports')
+  await expect(page.getByText('이 주소는 없습니다.')).toBeVisible()
+  await expect(page.getByRole('link', { name: '홈으로' })).toBeVisible()
+  await page.goto('/guest/settings')
+  await expect(page.getByText('샘플에는 이 화면이 없습니다.')).toBeVisible()
+  await expect(page.getByRole('heading', { name: '회사 설정' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '초대 남기기' })).toHaveCount(0)
+})
+
+test('로그인 다음 주소는 바깥으로 새지 않는다', async ({ page }) => {
+  await page.goto('/login?next=https://evil.example')
+  await expect(page.getByRole('heading', { name: '로그인' }).first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: '회원가입' })).toBeVisible()
+  await expect(page.getByText('https://evil.example')).toHaveCount(0)
+  await expect(page.getByRole('link', { name: '이어서' })).toHaveCount(0)
+})
+
+test('게스트 잘못된 QR은 샘플 안내만 둔다', async ({ page }) => {
+  await page.goto('/guest/q/not-a-token')
+  await expect(page.getByText('이 QR은 샘플에서 만든 빈 QR이 아닙니다.')).toBeVisible()
+})
+
+test('배포 헤더는 클릭재킹과 혼합 콘텐츠를 막는다', async ({ page }) => {
+  const response = await page.goto('/')
+  const headers = response?.headers() ?? {}
+  expect(headers['x-frame-options']?.toLowerCase()).toBe('deny')
+  expect(headers['content-security-policy'] ?? '').toContain("default-src 'self'")
+  expect(headers['content-security-policy'] ?? '').toContain('upgrade-insecure-requests')
+  expect(headers['cross-origin-opener-policy']).toBe('same-origin')
 })

@@ -34,6 +34,18 @@ export function opsPageLead() {
   return '새 회사와 그 회사 관리자를 만듭니다. 한 회사에 관리자 한 명입니다.'
 }
 
+export function opsLoginHint() {
+  return '회사 등록은 로그인한 운영 관리자만 할 수 있습니다.'
+}
+
+export function opsDeniedLead() {
+  return '이 계정에는 운영 관리자 권한이 없습니다. 일반 사용자는 스스로 승격할 수 없습니다.'
+}
+
+export function companyCreatedNotice() {
+  return '회사를 등록했습니다. 사람·재고는 그 회사 지정 PC에서만 보입니다.'
+}
+
 export function afterInviteAcceptHref(role?: string) {
   return role === 'company_admin' ? '/setup' : '/'
 }
