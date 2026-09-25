@@ -31,6 +31,7 @@ import {
   openedCompanyOnly,
   settingsMembersLead,
   settingsPageLead,
+  settingsShowsAdminModuleNote,
   settingsShowsCompanyPicker,
 } from '../lib/company/settings'
 import { getCompanySqlite } from '../lib/sqlite/instance'
@@ -482,9 +483,9 @@ export function CompanySettingsPage() {
                 <h3 className="text-sm font-semibold">모듈</h3>
                 {moduleFields(company.id)}
               </div>
-            ) : canEdit ? (
+            ) : canEdit && settingsShowsAdminModuleNote() ? (
               <p className="text-sm text-muted">모듈은 운영 계정만 바꿉니다.</p>
-            ) : (
+            ) : canEdit ? null : (
               <p className="text-sm text-muted">표시 변경은 이 회사 관리자만 할 수 있습니다.</p>
             )}
             </div>

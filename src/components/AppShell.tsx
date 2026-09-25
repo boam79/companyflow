@@ -2,7 +2,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../lib/AuthContext'
 import { isQrScanPath } from '../lib/asset/qr'
-import { APP_MENUS, hasWorkCompany, visibleShellMenus } from '../lib/company/nav'
+import { APP_MENUS, hasWorkCompany, showsSetupMenu, visibleShellMenus } from '../lib/company/nav'
 import { readCompanyModules } from '../lib/company/moduleAccess'
 import { allowedOpenedCompanyId, useCompanySession } from '../lib/companySession'
 import { GUEST_MENUS, isGuestPath } from '../lib/guest/ids'
@@ -30,6 +30,7 @@ export function AppShell() {
         operator,
         hasCompany,
         moduleFlags,
+        needsSetup: showsSetupMenu(companies.find((row) => row.id === companyId)?.registration_status),
       })
 
   useEffect(() => {

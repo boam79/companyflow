@@ -6,7 +6,10 @@ import {
   homeCoverKind,
   openedCompanyCaption,
   peopleEmptyLead,
+  peoplePageLead,
+  showsBadgeTemplate,
   showsCompanyPicker,
+  showsSetupMenu,
   visibleShellMenus,
 } from './nav'
 
@@ -39,9 +42,10 @@ describe('업무 메뉴', () => {
           operator: false,
           hasCompany: true,
           moduleFlags: { stock: false },
+          needsSetup: false,
         }),
       ),
-    ).toEqual(['홈', '초기 설정', '기준정보', '자산', '입퇴사', '계약', '회사 설정', '데이터 관리'])
+    ).toEqual(['홈', '기준정보', '자산', '입퇴사', '계약', '회사 설정', '데이터 관리'])
     expect(
       labels(
         visibleShellMenus(APP_MENUS, {
@@ -52,6 +56,17 @@ describe('업무 메뉴', () => {
         }),
       ),
     ).toContain('회사 관리')
+    expect(
+      labels(
+        visibleShellMenus(APP_MENUS, {
+          signedIn: true,
+          operator: false,
+          hasCompany: true,
+          moduleFlags: {},
+          needsSetup: true,
+        }),
+      ),
+    ).toContain('초기 설정')
   })
 
   it('멤버십을 읽기 전에는 이전 PC 세션 회사를 업무로 쓰지 않는다', () => {
@@ -89,5 +104,12 @@ describe('업무 메뉴', () => {
     expect(showsCompanyPicker(2)).toBe(true)
     expect(openedCompanyCaption({ display_name: '재민', company_code: 'boam' })).toBe('재민 (boam)')
     expect(peopleEmptyLead()).toContain('기준정보')
+    expect(peoplePageLead(false)).toContain('기준정보에서 직원을 추가')
+    expect(peoplePageLead(true)).toContain('입사 중')
+    expect(peoplePageLead(true)).toContain('직원에게 배정하지 않습니다')
+    expect(showsBadgeTemplate(0)).toBe(false)
+    expect(showsBadgeTemplate(1)).toBe(true)
+    expect(showsSetupMenu('admin_linked')).toBe(true)
+    expect(showsSetupMenu('ready')).toBe(false)
   })
 })

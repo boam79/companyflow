@@ -8,6 +8,7 @@ import {
   openedCompanyOnly,
   settingsMembersLead,
   settingsPageLead,
+  settingsShowsAdminModuleNote,
   settingsShowsCompanyPicker,
   settingsShowsExtraUserInvite,
   workCompaniesForUser,
@@ -59,6 +60,7 @@ describe('회사 설정 표시', () => {
     expect(settingsShowsCompanyPicker(2)).toBe(true)
     expect(settingsShowsExtraUserInvite()).toBe(false)
     expect(settingsMembersLead()).toContain('관리자 한 명')
+    expect(settingsShowsAdminModuleNote()).toBe(false)
   })
 
   it('연결된 역할만 한글로 보여 준다', () => {

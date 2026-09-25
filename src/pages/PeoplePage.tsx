@@ -4,7 +4,7 @@ import { WorkGateNotice } from '../components/WorkGateNotice'
 import { WorkCompanyControl } from '../components/WorkCompanyControl'
 import { formatCompanyDate, loadDisplayTimezone } from '../lib/company/displayCurrency'
 import { writeDefaultMaster } from '../lib/master/book'
-import { peopleEmptyLead } from '../lib/company/nav'
+import { peopleEmptyLead, peoplePageLead, showsBadgeTemplate } from '../lib/company/nav'
 import { showModuleLink } from '../lib/company/modules'
 import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
@@ -615,9 +615,7 @@ export function PeoplePage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold">직원·입퇴사</h1>
-          <p className="mt-1 max-w-3xl text-sm text-muted">
-            왼쪽 탭에서 입사 중·재직·퇴사를 고릅니다. 입사 서류(근로계약·보안·개인정보·통장·신분증)와 담당자·기한·첨부를 둡니다. 가구·컴퓨터는 자산 메뉴에서 QR로 등록하며, 직원에게 배정하지 않습니다.
-          </p>
+          <p className="mt-1 max-w-3xl text-sm text-muted">{peoplePageLead(employees.length > 0)}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {guest ? (
@@ -645,7 +643,13 @@ export function PeoplePage() {
       </div>
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
-      <section className="grid min-h-0 gap-4 xl:grid-cols-[15rem_minmax(0,1fr)_18rem] xl:items-start">
+      <section
+        className={
+          employees.length
+            ? 'grid min-h-0 gap-4 xl:grid-cols-[15rem_minmax(0,1fr)_18rem] xl:items-start'
+            : 'grid min-h-0 gap-4'
+        }
+      >
         {employees.length ? (
           <>
             <nav className="flex max-h-[calc(100svh-9rem)] min-h-0 flex-col overflow-hidden rounded-lg border border-line bg-card">
@@ -1049,10 +1053,16 @@ export function PeoplePage() {
             )}
           </>
         ) : (
-          <p className="text-sm text-muted xl:col-span-2">
-            {ready ? '기준정보에서 직원을 먼저 등록하세요.' : '회사 DB를 여는 중입니다.'}
-          </p>
+          <div className="rounded-lg border border-line bg-card p-5">
+            <p className="text-sm text-muted">{ready ? peopleEmptyLead() : '회사 DB를 여는 중입니다.'}</p>
+            {ready ? (
+              <Link className="mt-3 inline-flex rounded bg-accent px-4 py-2 text-sm font-semibold text-white" to={href('/master')}>
+                기준정보에서 추가
+              </Link>
+            ) : null}
+          </div>
         )}
+        {showsBadgeTemplate(employees.length) ? (
         <aside className="max-h-[calc(100svh-9rem)] overflow-auto rounded-lg border border-line bg-card p-4">
           <h2 className="text-base font-semibold">명찰 템플릿</h2>
           <p className="mt-1 text-sm text-muted">
@@ -1218,6 +1228,7 @@ export function PeoplePage() {
             </p>
           ) : null}
         </aside>
+        ) : null}
       </section>
     </div>
   )

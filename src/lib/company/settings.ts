@@ -48,6 +48,10 @@ export function settingsMembersLead() {
   return '한 회사는 회사 관리자 한 명입니다.'
 }
 
+export function settingsShowsAdminModuleNote() {
+  return false
+}
+
 export function workCompaniesForUser<T extends { id: string }>(
   companies: T[],
   membershipIds: string[],
