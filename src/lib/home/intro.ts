@@ -35,7 +35,7 @@ export const HOME_STORY: HomeStoryBeat[] = [
     body: '구매·재고의 앞면은 오늘 쓰는 입고·반출·재고현황입니다.\n발주 두 단계는 접혀 있습니다.',
     tone: 'navy',
     image: '/home/stock.jpg',
-    imageAlt: '복사용지와 입고 선반',
+    imageAlt: '입고 선반',
   },
   {
     kicker: '자산',

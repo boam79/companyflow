@@ -26,7 +26,7 @@ import { assertGuestOpensMemory } from '../lib/guest/seed'
 import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
 import { displayCurrencyName, formatCompanyDate, loadCompanyDisplay } from '../lib/company/displayCurrency'
-import { showsEmptyPickHint } from '../lib/company/nav'
+import { countLabel, showsEmptyPickHint } from '../lib/company/nav'
 
 function emptyForm(today: string) {
   return {
@@ -373,7 +373,9 @@ export function ContractsPage() {
                   }}
                 >
                   <span className="block whitespace-nowrap">{section.label}</span>
-                  <span className="mt-0.5 block font-medium">{section.contracts.length}</span>
+                  {countLabel(section.contracts.length) ? (
+                    <span className="mt-0.5 block font-medium">{section.contracts.length}</span>
+                  ) : null}
                 </button>
               )
             })}

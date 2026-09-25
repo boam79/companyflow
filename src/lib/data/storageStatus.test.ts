@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   canConfirmOriginalDevice,
+  dataPageLead,
   deviceSavedLabel,
   savedOnThisDevice,
   showsWorkDbReopen,
@@ -36,13 +37,17 @@ describe('데이터 관리 저장 상태', () => {
     expect(showsWorkDbReopen(true)).toBe(true)
   })
 
-  it('수신 대기는 처리 확인이고 전송·백업 줄은 두지 않는다', () => {
-    const lines = storageLines({ savedHere: true, deviceStatus: 'reserved', pendingReceive: 2 })
-    expect(lines).toEqual([
+  it('수신 대기는 있을 때만 처리 확인이고 전송·백업 줄은 두지 않는다', () => {
+    const waiting = storageLines({ savedHere: true, deviceStatus: 'reserved', pendingReceive: 2 })
+    expect(waiting).toEqual([
       { label: '이 기기에 저장됨', value: '예' },
       { label: '관리자 PC 저장 완료', value: '예약만 됨' },
       { label: '처리 확인 필요', value: '2건' },
     ])
-    expect(lines.map((line) => line.label).join(' ')).not.toMatch(/전송 대기|최근 백업/)
+    const idle = storageLines({ savedHere: true, deviceStatus: 'confirmed', pendingReceive: 0 })
+    expect(idle.map((line) => line.label)).toEqual(['이 기기에 저장됨', '관리자 PC 저장 완료'])
+    expect(waiting.map((line) => line.label).join(' ')).not.toMatch(/전송 대기|최근 백업/)
+    expect(dataPageLead('재민')).toBe('재민의 이 브라우저 저장 상태입니다.')
+    expect(dataPageLead()).not.toMatch(/백업|복원/)
   })
 })

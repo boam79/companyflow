@@ -12,7 +12,7 @@ import { migrateProcessAssetsToChecks } from '../lib/people/onboarding'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { executeStockCommand, ensureDefaultStockMaster, loadOrderOriginal, loadStockState, orderAttachment } from '../lib/stock/persist'
 import { toArrayBuffer } from '../lib/contracts/book'
-import { companyOnHand, onHand, orderNetReceived, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
+import { onHand, orderNetReceived, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, resolveOrderPartnerId, stockDraftOrderId, stockEmptyItemsLead, stockIssuePersonName, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
@@ -496,7 +496,6 @@ export function StockPage() {
   const orderableItems = items.filter((item) => isSupplyItem(item) || isCompanyAssetItem(item))
   const formItems =
     action === 'draft_order' || action === 'confirm_order' || action === 'post_receipt' ? orderableItems : stockItems
-  const paperQty = state ? companyOnHand(state, itemId) : 0
   const inventory =
     state && stockItems.length && warehouses.length ? buildSupplyInventory(stockItems, warehouses, state) : []
   const selectedInventory = inventory.find((row) => row.itemId === itemId) ?? inventory[0]
@@ -549,18 +548,12 @@ export function StockPage() {
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <h2 className="text-base font-semibold">재고현황</h2>
-            <p className="mt-1 text-sm text-muted">
-              {selectedInventory ? (
-                <>
-                  {selectedInventory.itemName}{' '}
-                  <strong className="text-ink tabular-nums">{selectedInventory.total}</strong>
-                </>
-              ) : (
-                <>
-                  비품 수량 <strong className="text-ink tabular-nums">{paperQty}</strong>
-                </>
-              )}
-            </p>
+            {selectedInventory ? (
+              <p className="mt-1 text-sm text-muted">
+                {selectedInventory.itemName}{' '}
+                <strong className="text-ink tabular-nums">{selectedInventory.total}</strong>
+              </p>
+            ) : null}
           </div>
           {assetsLink ? (
             <Link className="text-sm text-accent underline" to={href('/assets')}>

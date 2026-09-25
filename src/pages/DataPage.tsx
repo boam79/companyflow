@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { useCompanySession } from '../lib/companySession'
-import { canConfirmOriginalDevice, savedOnThisDevice, storageLines } from '../lib/data/storageStatus'
+import { canConfirmOriginalDevice, dataPageLead, savedOnThisDevice, storageLines } from '../lib/data/storageStatus'
 import { localDeviceFingerprint } from '../lib/deviceFingerprint'
 import { fetchPendingQrInbox } from '../lib/asset/relay'
 import { getCompanySqlite } from '../lib/sqlite/instance'
@@ -128,9 +128,7 @@ export function DataPage() {
     <div className="max-w-xl space-y-6">
       <div>
         <h1 className="text-3xl font-semibold">데이터 관리</h1>
-        <p className="mt-2 text-sm text-muted">
-          {company ? `${company.display_name}의 ` : ''}이 브라우저 저장 상태입니다. 백업과 복원은 열지 않습니다.
-        </p>
+        <p className="mt-2 text-sm text-muted">{dataPageLead(company?.display_name)}</p>
       </div>
       {message ? <p className="text-sm text-danger">{message}</p> : null}
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
