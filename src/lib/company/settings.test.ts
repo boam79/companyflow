@@ -6,10 +6,10 @@ import {
   controlsOtherCompanies,
   memberRoleLabel,
   openedCompanyOnly,
-  settingsInviteDoneMessage,
-  settingsInviteLead,
+  settingsMembersLead,
   settingsPageLead,
   settingsShowsCompanyPicker,
+  settingsShowsExtraUserInvite,
   workCompaniesForUser,
 } from './settings'
 
@@ -50,14 +50,15 @@ describe('회사 설정 표시', () => {
     expect(workCompaniesForUser(companies, [])).toEqual([])
   })
 
-  it('회사 관리자 설정은 이 회사 사람 초대만 안내한다', () => {
+  it('회사 설정은 추가 사람 초대를 두지 않는다', () => {
     expect(settingsPageLead(true)).toContain('다른 회사 모듈')
-    expect(settingsPageLead(false)).toContain('추가 사람')
+    expect(settingsPageLead(false)).toContain('연결된 사람')
+    expect(settingsPageLead(false)).toContain('추가 사람은 붙이지 않습니다')
     expect(settingsPageLead(false)).not.toMatch(/운영 계정은 다른 회사/)
     expect(settingsShowsCompanyPicker(1)).toBe(false)
     expect(settingsShowsCompanyPicker(2)).toBe(true)
-    expect(settingsInviteLead()).toContain('홈에서 수락')
-    expect(settingsInviteDoneMessage()).toContain('가입한 뒤')
+    expect(settingsShowsExtraUserInvite()).toBe(false)
+    expect(settingsMembersLead()).toContain('관리자 한 명')
   })
 
   it('연결된 역할만 한글로 보여 준다', () => {

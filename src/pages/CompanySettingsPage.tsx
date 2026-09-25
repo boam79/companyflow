@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import {
@@ -29,13 +29,10 @@ import {
   controlsOtherCompanies,
   memberRoleLabel,
   openedCompanyOnly,
-  settingsInviteDoneMessage,
-  settingsInviteLead,
+  settingsMembersLead,
   settingsPageLead,
   settingsShowsCompanyPicker,
 } from '../lib/company/settings'
-import { assertInviteRole, assertCustomerAdminEmail, type InviteRole } from '../lib/invite'
-import { publicErrorMessage } from '../lib/publicError'
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { ORDER_CURRENCIES } from '../lib/stock/inventoryView'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
@@ -44,14 +41,6 @@ type MemberRow = {
   email: string
   role: string
   status: string
-}
-
-type OpenInvite = {
-  id: string
-  email: string
-  role: string
-  expires_at: string
-  accepted_at: string | null
 }
 
 type CompanySettings = CompanyRow & {
@@ -74,9 +63,6 @@ export function CompanySettingsPage() {
   const [timeZone, setTimeZone] = useState('Asia/Seoul')
   const [timeZoneDraft, setTimeZoneDraft] = useState('Asia/Seoul')
   const [modules, setModules] = useState<Record<string, Record<CompanyModuleId, boolean>>>({})
-  const [invites, setInvites] = useState<OpenInvite[]>([])
-  const [inviteEmail, setInviteEmail] = useState('')
-  const [inviteRole, setInviteRole] = useState<InviteRole>('member')
   const [message, setMessage] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
@@ -106,7 +92,6 @@ export function CompanySettingsPage() {
       if (mine.length === 0) {
         setRows([])
         setTenants([])
-        setInvites([])
         setReady(true)
         return
       }
@@ -127,7 +112,6 @@ export function CompanySettingsPage() {
       if (source.length === 0) {
         setRows([])
         setTenants([])
-        setInvites([])
         setReady(true)
         return
       }
@@ -145,7 +129,6 @@ export function CompanySettingsPage() {
         if (cancelled) return
         setRows(listed)
         setTenants([])
-        setInvites([])
         setReady(true)
         return
       }
@@ -154,14 +137,6 @@ export function CompanySettingsPage() {
       if (cancelled) return
       open.members = (memberRows ?? []) as MemberRow[]
       setRows(listed)
-      if (canEditCompanySettings(open.role, operator)) {
-        const listedInvites = await client.rpc('list_company_invitations', { p_company_id: open.id })
-        if (listedInvites.error) throw listedInvites.error
-        if (cancelled) return
-        setInvites((listedInvites.data ?? []) as OpenInvite[])
-      } else {
-        setInvites([])
-      }
       await sqlite.open(open.id)
       if (cancelled || sqlite.companyId !== open.id) return
       const current = await loadCompanyDisplay(sqlite)
@@ -314,35 +289,6 @@ export function CompanySettingsPage() {
     }
   }
 
-  async function onInvite(event: FormEvent) {
-    event.preventDefault()
-    const client = getSupabase()
-    const open = rows.find((row) => row.id === companyId)
-    if (!client || !open || !canEditCompanySettings(open.role, operator)) return
-    setBusy(true)
-    setNotice('')
-    setMessage('')
-    try {
-      const email = assertCustomerAdminEmail(inviteEmail, user?.email)
-      const role = assertInviteRole(inviteRole)
-      const { error } = await client.rpc('invite_company_user', {
-        p_company_id: open.id,
-        p_email: email,
-        p_role: role,
-      })
-      if (error) throw error
-      setInviteEmail('')
-      setNotice(settingsInviteDoneMessage())
-      const listed = await client.rpc('list_company_invitations', { p_company_id: open.id })
-      if (listed.error) throw listed.error
-      setInvites((listed.data ?? []) as OpenInvite[])
-    } catch (error) {
-      setMessage(publicErrorMessage(error))
-    } finally {
-      setBusy(false)
-    }
-  }
-
   function moduleFields(targetId: string) {
     const flags = modules[targetId]
     return (
@@ -426,6 +372,7 @@ export function CompanySettingsPage() {
             <div className="grid gap-6">
             <div>
               <h3 className="text-sm font-semibold">연결된 사람</h3>
+              <p className="mt-1 text-sm text-muted">{settingsMembersLead()}</p>
               <ul className="mt-2 space-y-1 text-sm">
                 {company.members.map((member) => (
                   <li key={member.email}>
@@ -433,51 +380,6 @@ export function CompanySettingsPage() {
                   </li>
                 ))}
               </ul>
-              {canEdit ? (
-                <form className="mt-3 space-y-2" onSubmit={(event) => void onInvite(event)}>
-                  <p className="text-sm text-muted">{settingsInviteLead()}</p>
-                  <div className="flex flex-wrap items-end gap-2">
-                    <label className="text-sm">
-                      이메일
-                      <input
-                        required
-                        type="email"
-                        className="mt-1 block rounded border border-line px-3 py-2"
-                        value={inviteEmail}
-                        onChange={(event) => setInviteEmail(event.target.value)}
-                      />
-                    </label>
-                    <label className="text-sm">
-                      역할
-                      <select
-                        className="mt-1 block rounded border border-line px-3 py-2"
-                        value={inviteRole}
-                        onChange={(event) => setInviteRole(assertInviteRole(event.target.value))}
-                      >
-                        <option value="member">사용자</option>
-                        <option value="company_admin">회사 관리자</option>
-                      </select>
-                    </label>
-                    <button
-                      type="submit"
-                      disabled={busy}
-                      className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                    >
-                      초대 남기기
-                    </button>
-                  </div>
-                  {invites.length > 0 ? (
-                    <ul className="space-y-1 text-sm text-muted">
-                      {invites.map((invite) => (
-                        <li key={invite.id}>
-                          {invite.email} · {invite.role === 'company_admin' ? '회사 관리자' : '사용자'} ·{' '}
-                          {invite.accepted_at ? '수락함' : '수락 전'}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </form>
-              ) : null}
             </div>
             <div>
               <h3 className="text-sm font-semibold">표시</h3>

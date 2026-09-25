@@ -29,7 +29,7 @@ export function opsCreateLead() {
 }
 
 export function opsPageLead() {
-  return '새 회사와 그 회사 관리자를 만듭니다. 추가 사람은 그 회사 지정 PC의 회사 설정에서 붙입니다.'
+  return '새 회사와 그 회사 관리자를 만듭니다. 한 회사에 관리자 한 명입니다.'
 }
 
 export function afterInviteAcceptHref(role?: string) {

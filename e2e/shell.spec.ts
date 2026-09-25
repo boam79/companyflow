@@ -12,6 +12,13 @@ test('로그아웃 홈은 둘러보기와 로그인만 둔다', async ({ page })
   await expect(page.getByRole('button', { name: '계정 삭제' })).toHaveCount(0)
 })
 
+test('로그아웃 회사 설정은 로그인 안내만 두고 초대를 두지 않는다', async ({ page }) => {
+  await page.goto('/settings')
+  await expect(page.getByText('회사 설정은 로그인한 뒤 봅니다.')).toBeVisible()
+  await expect(page.getByRole('button', { name: '초대 남기기' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: '회사 설정' })).toHaveCount(0)
+})
+
 test('로그아웃 초기 설정 주소는 로그인 안내만 둔다', async ({ page }) => {
   await page.goto('/setup')
   await expect(page.getByText('지정 PC 설정은 로그인 후')).toBeVisible()
