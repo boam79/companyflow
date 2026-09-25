@@ -54,6 +54,8 @@ test('게스트 둘러보기는 샘플 구매부터 연다', async ({ page }) =>
   await page.getByLabel('명령').selectOption('adjust_stock')
   await expect(page.getByLabel('실사 사유')).toHaveValue('')
   await expect(page.getByText('실사 차이')).toHaveCount(0)
+  await page.getByLabel('명령').selectOption('post_supplier_return')
+  await expect(page.getByText(/아직입니다/)).toHaveCount(0)
 })
 
 test('게스트 입퇴사는 샘플 직원이 있으면 명찰을 둔다', async ({ page }) => {
@@ -61,6 +63,7 @@ test('게스트 입퇴사는 샘플 직원이 있으면 명찰을 둔다', async
   await expect(page.getByRole('heading', { name: '직원·입퇴사' })).toBeVisible({ timeout: 20000 })
   await expect(page.getByRole('heading', { name: '명찰 템플릿' })).toBeVisible()
   await expect(page.getByText('모듈은 운영 계정만 바꿉니다.')).toHaveCount(0)
+  await expect(page.getByText('올린 명찰 템플릿이 없습니다.')).toHaveCount(0)
 })
 
 test('게스트 기준정보는 VFS 안내와 다시 열기를 두지 않는다', async ({ page }) => {
@@ -69,6 +72,8 @@ test('게스트 기준정보는 VFS 안내와 다시 열기를 두지 않는다'
   await expect(page.getByRole('button', { name: '이 회사 DB 다시 열기' })).toHaveCount(0)
   await expect(page.getByText(/VFS/)).toHaveCount(0)
   await expect(page.getByPlaceholder('PAPER')).toHaveCount(0)
+  await page.getByRole('button', { name: '필드' }).click()
+  await expect(page.getByPlaceholder('필드 키')).toHaveValue('')
 })
 
 test('게스트 자산은 본사 복사용지 안내를 두지 않는다', async ({ page }) => {
@@ -91,4 +96,12 @@ test('로그아웃 데이터 관리는 로그인 안내만 두고 백업 줄을 
   await expect(page.getByText('전송 대기')).toHaveCount(0)
   await expect(page.getByText('백업과 복원')).toHaveCount(0)
   await expect(page.getByText('처리 확인 필요')).toHaveCount(0)
+})
+
+test('로그인은 운영 권한 용어를 두지 않는다', async ({ page }) => {
+  await page.goto('/login')
+  await expect(page.getByRole('heading', { name: '로그인' }).first()).toBeVisible()
+  await expect(page.getByText('계정이 없으면 아래 회원가입에서 만듭니다.')).toBeVisible()
+  await expect(page.getByText(/app_metadata/)).toHaveCount(0)
+  await expect(page.getByText(/운영 권한/)).toHaveCount(0)
 })

@@ -5,7 +5,9 @@ import {
   hasWorkCompany,
   homeCoverKind,
   openedCompanyCaption,
+  peopleBadgeEmptyLead,
   peopleEmptyLead,
+  peopleHistoryEmptyLead,
   peoplePageLead,
   showsBadgeTemplate,
   showsCompanyPicker,
@@ -113,6 +115,8 @@ describe('업무 메뉴', () => {
     expect(countHeading('이력', 2)).toBe('이력 2')
     expect(openedCompanyCaption({ display_name: '재민', company_code: 'boam' })).toBe('재민 (boam)')
     expect(peopleEmptyLead()).toContain('기준정보')
+    expect(peopleHistoryEmptyLead()).toBe('완료 이력이 없습니다.')
+    expect(peopleBadgeEmptyLead()).toBe('올린 명찰 템플릿이 없습니다.')
     expect(peoplePageLead(false)).toContain('기준정보에서 직원을 추가')
     expect(peoplePageLead(true)).toContain('입사 중')
     expect(peoplePageLead(true)).toContain('직원에게 배정하지 않습니다')

@@ -5,7 +5,15 @@ export function signupEmailRedirectTo() {
 }
 
 export function signupDoneMessage() {
-  return '계정을 만들었습니다. 초대받은 이메일이면 메일을 기다리지 말고 위 로그인으로 들어오세요. 확인 메일은 네이버에서 막힐 수 있습니다.'
+  return '계정을 만들었습니다. 초대받은 이메일이면 메일을 기다리지 말고 위 로그인으로 들어오세요. 확인 메일이 안 오면 스팸함을 보세요.'
+}
+
+export function loginPageLead() {
+  return '계정이 없으면 아래 회원가입에서 만듭니다.'
+}
+
+export function loginContinueLabel(next: string) {
+  return next === '/' ? '홈으로' : '이어서'
 }
 
 export function afterSignOutHref() {

@@ -3,7 +3,7 @@ import {
   applyStockCommand,
   createStockState,
 } from './engine'
-import { buildLedgerView, buildSupplyLedgerView, filterLedgerView, formatLedgerLink, rowsAreRelated } from './ledgerView'
+import { buildLedgerView, buildSupplyLedgerView, filterLedgerView, formatLedgerLink, rowsAreRelated, stockEmptyLedgerFilterLead, stockEmptyLedgerLead } from './ledgerView'
 
 const ITEM = 'item-paper'
 const MAIN = 'wh-main'
@@ -181,5 +181,7 @@ describe('입출고 수불부', () => {
       ['반출', null, 4, 2],
     ])
     expect(rows.some((row) => /자산화|본사창고|부속창고/.test(`${row.label}${row.link}`))).toBe(false)
+    expect(stockEmptyLedgerLead()).not.toMatch(/아직/)
+    expect(stockEmptyLedgerFilterLead()).toContain('이 구분의 입출고가 없습니다')
   })
 })

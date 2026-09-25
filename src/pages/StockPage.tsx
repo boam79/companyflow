@@ -13,7 +13,7 @@ import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { executeStockCommand, ensureDefaultStockMaster, loadOrderOriginal, loadStockState, orderAttachment } from '../lib/stock/persist'
 import { toArrayBuffer } from '../lib/contracts/book'
 import { onHand, orderNetReceived, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
-import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, resolveOrderPartnerId, stockAdjustReason, stockDraftOrderId, stockEmptyItemsLead, stockIssuePersonName, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, resolveOrderPartnerId, stockAdjustReason, stockDraftOrderId, stockEmptyItemsLead, stockIssuePersonName, stockSupplierReturnLead, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -69,9 +69,8 @@ export function StockPage() {
   const [operationId, setOperationId] = useState('')
   const [orderId, setOrderId] = useState(stockDraftOrderId)
   const [itemId, setItemId] = useState('')
-  const [warehouseId, setWarehouseId] = useState('wh-main')
-  const fromWarehouseId = 'wh-main'
-  const toWarehouseId = 'wh-sub'
+  const [warehouseId, setWarehouseId] = useState('')
+  const { fromWarehouseId, toWarehouseId } = transferWarehouseIds(warehouses)
   const [qty, setQty] = useState('1')
   const [defectQty, setDefectQty] = useState('0')
   const [personName, setPersonName] = useState(stockIssuePersonName)
@@ -1019,7 +1018,7 @@ export function StockPage() {
           </>
         ) : null}
         {action === 'post_supplier_return' ? (
-          <p className="text-sm text-muted">검수 통과분만 공급사에 돌려 보냅니다. 현재고가 줄고 발주 잔량이 늘어납니다. 불량 거절품 반환은 아직입니다.</p>
+          <p className="text-sm text-muted">{stockSupplierReturnLead()}</p>
         ) : null}
         {action === 'post_return' ? (
           <p className="text-sm text-muted">

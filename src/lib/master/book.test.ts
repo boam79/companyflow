@@ -13,6 +13,8 @@ import {
   seedDefaultMaster,
   seedsDemoSample,
   stripUnusedDemoCatalog,
+  masterEmptyListLead,
+  fieldKeyPlaceholder,
 } from './book'
 
 describe('회사별 기준정보 격리', () => {
@@ -88,6 +90,8 @@ describe('회사별 기준정보 격리', () => {
     expect(seedsDemoSample('boam')).toBe(false)
     expect(seedsDemoSample(undefined)).toBe(true)
     expect(itemCodePlaceholder()).toBe('')
+    expect(masterEmptyListLead()).not.toMatch(/아직/)
+    expect(fieldKeyPlaceholder()).toBe('')
     expect(qrAssetItemChoices([PAPER_ITEM, ...COMPANY_ASSET_ITEMS]).map((item) => item.id)).toEqual(
       COMPANY_ASSET_ITEMS.map((item) => item.id),
     )

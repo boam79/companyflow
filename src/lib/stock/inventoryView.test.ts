@@ -11,6 +11,9 @@ import {
   stockDraftOrderId,
   stockIssuePersonName,
   stockAdjustReason,
+  stockSupplierReturnLead,
+  transferWarehouseIds,
+  defaultWarehouseId,
   supplyItems,
   supplyOrderCsv,
   todayYmd,
@@ -46,6 +49,16 @@ describe('비품 현재고', () => {
     expect(stockIssuePersonName()).toBe('')
     expect(stockDraftOrderId()).toBe('')
     expect(stockAdjustReason()).toBe('')
+    expect(defaultWarehouseId(WAREHOUSES)).toBe('wh-main')
+    expect(transferWarehouseIds(WAREHOUSES)).toEqual({
+      fromWarehouseId: 'wh-main',
+      toWarehouseId: 'wh-sub',
+    })
+    expect(transferWarehouseIds([{ id: 'wh-a' }])).toEqual({
+      fromWarehouseId: 'wh-a',
+      toWarehouseId: '',
+    })
+    expect(stockSupplierReturnLead()).not.toMatch(/아직/)
     expect(buildSupplyInventory(items, WAREHOUSES, state)).toEqual([
       {
         itemId: 'item-paper',

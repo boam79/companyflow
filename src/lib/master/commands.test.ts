@@ -160,6 +160,15 @@ describe('기준정보 SQL 명령', () => {
       deactivateIds: ['item-dup'],
       minStockUpdates: [{ id: 'item-paper', minStock: 4 }],
     })
+    expect(
+      duplicateItemRepairs([
+        { id: 'item-paper', name: '복사용지', minStock: 4 },
+        { id: 'item-keep', name: '복사용지', code: 'COPY', minStock: 0 },
+      ]),
+    ).toEqual({
+      deactivateIds: ['item-paper'],
+      minStockUpdates: [{ id: 'item-keep', minStock: 4 }],
+    })
   })
 
   it('거래처는 이름·연락처·메모·첨부를 함께 둔다', () => {

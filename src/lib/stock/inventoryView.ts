@@ -30,6 +30,20 @@ export function stockAdjustReason() {
   return ''
 }
 
+export function defaultWarehouseId(rows: { id: string }[]) {
+  return rows[0]?.id ?? ''
+}
+
+export function transferWarehouseIds(rows: { id: string }[]) {
+  const fromWarehouseId = defaultWarehouseId(rows)
+  const toWarehouseId = rows.find((row) => row.id !== fromWarehouseId)?.id ?? ''
+  return { fromWarehouseId, toWarehouseId }
+}
+
+export function stockSupplierReturnLead() {
+  return '검수 통과분만 공급사에 돌려 보냅니다. 현재고가 줄고 발주 잔량이 늘어납니다. 불량 거절품 반환은 이 화면에서 다루지 않습니다.'
+}
+
 export function buildSupplyInventory(
   items: ItemRecord[],
   warehouses: NamedWarehouse[],

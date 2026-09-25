@@ -22,7 +22,7 @@ export const DISABLED_OCR: OcrAdapter = {
     return {
       status: 'disabled',
       candidates: [],
-      message: 'OCR은 아직 꺼져 있습니다. 직접 입력으로 계약 초안을 만드세요.',
+      message: 'OCR이 꺼져 있습니다. 직접 입력으로 계약 초안을 만드세요.',
     }
   },
 }

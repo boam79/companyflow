@@ -78,6 +78,14 @@ export function itemCodePlaceholder() {
   return ''
 }
 
+export function masterEmptyListLead() {
+  return '항목이 없습니다. 왼쪽에서 추가하세요.'
+}
+
+export function fieldKeyPlaceholder() {
+  return ''
+}
+
 export function heldCompanyAssets(
   assets: AssetRecord[],
   employeeId: string,

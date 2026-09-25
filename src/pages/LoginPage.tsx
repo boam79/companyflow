@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
-import { safeLoginNext, signupDoneMessage, signupEmailRedirectTo } from '../lib/loginNext'
+import { loginContinueLabel, loginPageLead, safeLoginNext, signupDoneMessage, signupEmailRedirectTo } from '../lib/loginNext'
 import { getSupabase } from '../lib/supabase'
 
 export function LoginPage() {
@@ -78,15 +78,13 @@ export function LoginPage() {
     <div className="max-w-md space-y-6">
       <div>
         <h1 className="text-3xl font-semibold">로그인</h1>
-        <p className="mt-2 text-sm text-muted">
-          계정이 없으면 아래 회원가입에서 만듭니다. 운영 권한은 서버의 app_metadata로만 부여됩니다.
-        </p>
+        <p className="mt-2 text-sm text-muted">{loginPageLead()}</p>
       </div>
       {user ? (
         <p className="text-sm">
           이미 {user.email} 으로 로그인되어 있습니다.{' '}
           <Link className="text-accent underline" to={safeLoginNext(searchParams.get('next'))}>
-            {safeLoginNext(searchParams.get('next')) === '/' ? '홈으로' : '자산 입력으로'}
+            {loginContinueLabel(safeLoginNext(searchParams.get('next')))}
           </Link>
         </p>
       ) : null}

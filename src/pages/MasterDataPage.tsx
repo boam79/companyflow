@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { WorkGateNotice } from '../components/WorkGateNotice'
 import { WorkCompanyControl } from '../components/WorkCompanyControl'
-import { writeDefaultMaster, loadPartnerOriginal, itemCodePlaceholder } from '../lib/master/book'
+import { writeDefaultMaster, loadPartnerOriginal, itemCodePlaceholder, masterEmptyListLead, fieldKeyPlaceholder } from '../lib/master/book'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
 import {
@@ -160,7 +160,7 @@ export function MasterDataPage() {
   const partnerFileInput = useRef<HTMLInputElement>(null)
   const [departmentId, setDepartmentId] = useState('')
   const [fieldEntity, setFieldEntity] = useState<MasterFieldEntity>('employee')
-  const [fieldKey, setFieldKey] = useState('employee_no')
+  const [fieldKey, setFieldKey] = useState(fieldKeyPlaceholder)
   const [message, setMessage] = useState('')
   const [notice, setNotice] = useState('')
   const [ready, setReady] = useState(() => sqlite.isOpen(sqlite.companyId))
@@ -1055,7 +1055,7 @@ export function MasterDataPage() {
             ? '회사 DB를 여는 중입니다.'
             : tab !== listTab
               ? '목록을 불러오는 중입니다.'
-              : '아직 항목이 없습니다. 왼쪽에서 추가하세요.'}
+              : masterEmptyListLead()}
         </p>
       )}
       </section>

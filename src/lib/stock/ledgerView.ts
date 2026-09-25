@@ -150,3 +150,11 @@ export function filterLedgerView(rows: LedgerViewRow[], filter: LedgerFilter): L
   if (filter === 'out') return rows.filter((row) => row.outbound != null)
   return rows
 }
+
+export function stockEmptyLedgerLead() {
+  return '입출고 원장이 없습니다. 오른쪽에서 입고·반출을 확정하면 이 표에 이어집니다.'
+}
+
+export function stockEmptyLedgerFilterLead() {
+  return '이 구분의 입출고가 없습니다. 전체에서 입고·출고가 한 줄씩 이어집니다.'
+}

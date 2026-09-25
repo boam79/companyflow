@@ -187,7 +187,6 @@ export function duplicateItemRepairs(rows: ItemCollapseRow[]): {
   for (const list of groups.values()) {
     if (list.length < 2) continue
     const keeper =
-      list.find((row) => row.id === 'item-paper') ??
       list.find((row) => Boolean(normalizeHangulField(row.code ?? ''))) ??
       [...list].sort((a, b) => a.id.localeCompare(b.id))[0]
     const extras = list.filter((row) => row.id !== keeper.id)

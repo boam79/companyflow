@@ -4,7 +4,7 @@ import { WorkGateNotice } from '../components/WorkGateNotice'
 import { WorkCompanyControl } from '../components/WorkCompanyControl'
 import { formatCompanyDate, loadDisplayTimezone } from '../lib/company/displayCurrency'
 import { writeDefaultMaster } from '../lib/master/book'
-import { peopleEmptyLead, peoplePageLead, showsBadgeTemplate } from '../lib/company/nav'
+import { peopleBadgeEmptyLead, peopleEmptyLead, peopleHistoryEmptyLead, peoplePageLead, showsBadgeTemplate } from '../lib/company/nav'
 import { showModuleLink } from '../lib/company/modules'
 import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
@@ -1042,7 +1042,7 @@ export function PeoplePage() {
                           ))}
                         </ul>
                       ) : (
-                        <p className="mt-2 text-xs text-muted">완료 이력이 아직 없습니다.</p>
+                        <p className="mt-2 text-xs text-muted">{peopleHistoryEmptyLead()}</p>
                       )}
                     </div>
                   </div>
@@ -1126,7 +1126,7 @@ export function PeoplePage() {
               ) : null}
             </div>
           ) : (
-            <p className="mt-3 text-sm text-muted">아직 올린 명찰 템플릿이 없습니다.</p>
+            <p className="mt-3 text-sm text-muted">{peopleBadgeEmptyLead()}</p>
           )}
           {previewStatus === 'loading' ? (
             <p className="mt-3 text-sm text-muted">템플릿 미리보기를 그리는 중입니다.</p>

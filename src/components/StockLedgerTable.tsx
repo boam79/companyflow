@@ -4,6 +4,8 @@ import {
   buildSupplyLedgerView,
   filterLedgerView,
   rowsAreRelated,
+  stockEmptyLedgerFilterLead,
+  stockEmptyLedgerLead,
   type LedgerFilter,
 } from '../lib/stock/ledgerView'
 
@@ -43,11 +45,11 @@ export function StockLedgerTable(props: {
   const supply = props.variant === 'supply'
 
   if (!props.ledger.length) {
-    return <p className="mt-3 text-sm text-muted">아직 입출고 원장이 없습니다. 오른쪽에서 입고·반출을 확정하면 이 표에 이어집니다.</p>
+    return <p className="mt-3 text-sm text-muted">{stockEmptyLedgerLead()}</p>
   }
 
   if (!rows.length) {
-    return <p className="mt-4 text-sm text-muted">이 구분의 입출고가 없습니다. 전체에서 입고·출고가 한 줄씩 이어집니다.</p>
+    return <p className="mt-4 text-sm text-muted">{stockEmptyLedgerFilterLead()}</p>
   }
 
   return (
