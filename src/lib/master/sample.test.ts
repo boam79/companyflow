@@ -81,6 +81,24 @@ describe('회사 샘플 데이터', () => {
     expect(sqls.some((sql) => sql.includes('delete from items') && sql.includes('stock_ledger'))).toBe(true)
   })
 
+  it('회사 코드가 없으면 본사 샘플을 넣지 않는다', async () => {
+    const names: string[] = []
+    const sqls: string[] = []
+    await writeDefaultMaster({
+      exec: async (sql, params) => {
+        sqls.push(sql)
+        for (const value of params ?? []) {
+          if (typeof value === 'string') names.push(value)
+        }
+      },
+    })
+    expect(names).toContain('총무')
+    expect(names).not.toContain('복사용지')
+    expect(names).not.toContain('김담당')
+    expect(names).not.toContain('책상')
+    expect(sqls.some((sql) => sql.includes('delete from employees'))).toBe(false)
+  })
+
   it('같은 이름 정리 때 sqlite query의 this를 잃지 않는다', async () => {
     class FakeSqlite {
       sendCount = 0

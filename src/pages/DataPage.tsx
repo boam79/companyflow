@@ -5,7 +5,9 @@ import { useCompanySession } from '../lib/companySession'
 import { canConfirmOriginalDevice, dataPageLead, savedOnThisDevice, storageLines } from '../lib/data/storageStatus'
 import { localDeviceFingerprint } from '../lib/deviceFingerprint'
 import { fetchPendingQrInbox } from '../lib/asset/relay'
+import { publicErrorMessage } from '../lib/publicError'
 import { getCompanySqlite } from '../lib/sqlite/instance'
+import { explainSqliteOpenError } from '../lib/sqlite/openError'
 import { getSupabase } from '../lib/supabase'
 
 const sqlite = getCompanySqlite()
@@ -39,7 +41,7 @@ export function DataPage() {
         savedHere = savedOnThisDevice(sqlite.persistOk, sqlite.vfsName)
         if (!savedHere) openError = '이 브라우저에는 원본이 없습니다. 지정 PC의 Chrome에서 초기 설정을 하세요.'
       } catch (error) {
-        openError = error instanceof Error ? error.message : String(error)
+        openError = explainSqliteOpenError(error)
       }
       const [{ data: device, error: deviceError }, { data: membership, error: membershipError }, inbox] =
         await Promise.all([
@@ -72,7 +74,7 @@ export function DataPage() {
       setReady(true)
     })().catch((error: unknown) => {
       if (cancelled) return
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
       setReady(true)
     })
     return () => {
@@ -99,7 +101,7 @@ export function DataPage() {
       )
       setNotice('이 PC를 원본으로 확정했습니다.')
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       setBusy(false)
     }

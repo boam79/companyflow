@@ -14,6 +14,7 @@ import {
   seedDefaultMaster,
   seedsDemoSample,
   stripUnusedDemoCatalog,
+  stripsSoldDemoCatalog,
   masterEmptyListLead,
   fieldKeyPlaceholder,
   partnerPhonePlaceholder,
@@ -94,7 +95,11 @@ describe('회사별 기준정보 격리', () => {
   it('본사만 샘플 사람과 복사용지 품목을 넣는다', async () => {
     expect(seedsDemoSample('HQ01')).toBe(true)
     expect(seedsDemoSample('boam')).toBe(false)
-    expect(seedsDemoSample(undefined)).toBe(true)
+    expect(seedsDemoSample(undefined)).toBe(false)
+    expect(stripsSoldDemoCatalog('boam')).toBe(true)
+    expect(stripsSoldDemoCatalog('HQ01')).toBe(false)
+    expect(stripsSoldDemoCatalog('DEMO')).toBe(false)
+    expect(stripsSoldDemoCatalog(undefined)).toBe(false)
     expect(itemCodePlaceholder()).toBe('')
     expect(masterEmptyListLead()).not.toMatch(/아직/)
     expect(fieldKeyPlaceholder()).toBe('')

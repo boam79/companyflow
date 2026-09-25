@@ -77,6 +77,7 @@ import { canWriteOpenedCompany, mayOpenCompanyWork, workSessionKind } from '../l
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
 import { escapeHtml } from '../lib/htmlEscape'
+import { publicErrorMessage } from '../lib/publicError'
 
 type NamedRow = { id: string; name: string }
 
@@ -206,7 +207,7 @@ export function PeoplePage() {
       )
     } catch (error) {
       setReady(false)
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       opening.current = false
     }
@@ -247,7 +248,7 @@ export function PeoplePage() {
       setNotify(saved)
       setNotice('슬랙 보낼 곳을 저장했습니다.')
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     }
   }
 
@@ -264,7 +265,7 @@ export function PeoplePage() {
       await sendSlackWebhook(notify.slackWebhook, text)
       setNotice('슬랙으로 채워진 명찰 정보를 보냈습니다.')
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     }
   }
 
@@ -290,7 +291,7 @@ export function PeoplePage() {
         `${file.fileName}을 받았습니다. ${ptsToMm(file.widthPt).toFixed(1)}×${ptsToMm(file.heightPt).toFixed(1)}mm · 인쇄는 배율 100%(실제 크기)로 한 뒤 잘라 붙이세요.`,
       )
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     }
   }
 
@@ -345,7 +346,7 @@ export function PeoplePage() {
       if (hireFileInput.current) hireFileInput.current.value = ''
       await refreshPeople()
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       setSaving(false)
     }
@@ -363,7 +364,7 @@ export function PeoplePage() {
       URL.revokeObjectURL(url)
       setNotice(`${original.fileName}을 이 PC에서 받았습니다.`)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     }
   }
 
@@ -404,7 +405,7 @@ export function PeoplePage() {
               : '명찰 템플릿 원본은 보존했습니다. 이름·부서·직위 칸 글자를 찾지 못했습니다.',
       )
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     }
   }
 
@@ -420,7 +421,7 @@ export function PeoplePage() {
       URL.revokeObjectURL(url)
       setNotice(`원본 ${original.fileName}을 이 PC에서 받았습니다.`)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     }
   }
 
@@ -465,7 +466,7 @@ export function PeoplePage() {
         }
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       setSaving(false)
     }
@@ -493,7 +494,7 @@ export function PeoplePage() {
       const next = await refreshPeople()
       followEmployee(employeeId, next.employeeRows, next.checkRows)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       setSaving(false)
     }
@@ -521,7 +522,7 @@ export function PeoplePage() {
       const next = await refreshPeople()
       followEmployee(employeeId, next.employeeRows, next.checkRows)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       setSaving(false)
     }
@@ -547,7 +548,7 @@ export function PeoplePage() {
       const next = await refreshPeople()
       followEmployee(employeeId, next.employeeRows, next.checkRows)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       setSaving(false)
     }

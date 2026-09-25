@@ -31,8 +31,9 @@ export function canConfirmOriginalDevice(input: {
 }
 
 export function dataPageLead(companyName?: string) {
-  const who = companyName?.trim() ? `${companyName.trim()}의 ` : ''
-  return `${who}이 브라우저 저장 상태입니다.`
+  const name = companyName?.trim()
+  if (name) return `이 브라우저에 저장된 ${name} 원본 상태입니다.`
+  return '이 브라우저 저장 상태입니다.'
 }
 
 export function storageLines(facts: StorageFacts) {

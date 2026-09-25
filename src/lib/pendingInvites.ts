@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { afterInviteAcceptHref } from './invite'
+import { publicErrorMessage } from './publicError'
 import { getSupabase } from './supabase'
 
 export type PendingInvite = {
@@ -35,7 +36,7 @@ export function usePendingInvites(enabled: boolean) {
     const row = rows.find((item) => item.id === id)
     const { error } = await client.rpc('accept_company_invitation', { p_invitation_id: id })
     if (error) {
-      setMessage(error.message)
+      setMessage(publicErrorMessage(error))
       return
     }
     setRows((prev) => prev.filter((item) => item.id !== id))

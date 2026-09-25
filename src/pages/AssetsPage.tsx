@@ -30,6 +30,7 @@ import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
 import { assetsEmptyLead, assetsInboxHeading, assetsListHeading, assetsMissingQrHint, assetsPageLead, assetsPrintedQrLead } from '../lib/asset/empty'
 import { countHeading, showsEmptyPickHint } from '../lib/company/nav'
+import { publicErrorMessage } from '../lib/publicError'
 
 type NamedRow = { id: string; name: string }
 type PrintedQr = { id: string; url: string; dataUrl: string }
@@ -182,7 +183,7 @@ export function AssetsPage() {
       }
     } catch (error) {
       setReady(false)
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       opening.current = false
     }
@@ -229,7 +230,7 @@ export function AssetsPage() {
       setPrinted((prev) => (guest ? [...prev, ...urls] : urls))
       setNotice(assetsPrintedQrLead(count, guest))
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       setBusy(false)
     }
@@ -260,7 +261,7 @@ export function AssetsPage() {
           : `${result.assetNumber ?? '자산'}을 원본에 반영했습니다.`,
       )
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       setBusy(false)
     }
@@ -289,7 +290,7 @@ export function AssetsPage() {
           : `${assetLifeLabel(fields.kind)} 이력을 남겼습니다. 직원에게 배정하지 않았습니다.`,
       )
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       setBusy(false)
     }

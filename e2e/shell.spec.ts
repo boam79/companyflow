@@ -118,3 +118,33 @@ test('로그인은 운영 권한 용어를 두지 않는다', async ({ page }) =
   await expect(page.getByText(/app_metadata/)).toHaveCount(0)
   await expect(page.getByText(/운영 권한/)).toHaveCount(0)
 })
+
+test('로그아웃 업무 메뉴 주소는 로그인 안내만 둔다', async ({ page }) => {
+  const rows = [
+    ['/master', '기준정보는 로그인 후', '기준정보'],
+    ['/assets', '자산은 로그인 후', '자산'],
+    ['/people', '입퇴사는 로그인 후', '직원·입퇴사'],
+    ['/contracts', '계약은 로그인 후', '계약'],
+  ] as const
+  for (const [path, hint, heading] of rows) {
+    await page.goto(path)
+    await expect(page.getByText(hint)).toBeVisible()
+    await expect(page.getByRole('heading', { name: heading, exact: true })).toHaveCount(0)
+  }
+})
+
+test('게스트 홈은 샘플만 두고 지정 PC 원본을 열지 않는다', async ({ page }) => {
+  await page.goto('/guest')
+  await expect(page.getByRole('heading', { name: '샘플 회사' })).toBeVisible()
+  await expect(page.getByText('이 PC에 남지 않습니다')).toBeVisible()
+  await expect(page.getByRole('navigation').getByRole('link', { name: '회사 관리' })).toHaveCount(0)
+  await expect(page.getByText('김담당')).toHaveCount(0)
+  await expect(page.getByText('책상·컴퓨터와 빈 QR')).toHaveCount(0)
+})
+
+test('게스트 계약은 본사 김담당을 두지 않는다', async ({ page }) => {
+  await page.goto('/guest/contracts')
+  await expect(page.getByRole('heading', { name: '계약' }).first()).toBeVisible({ timeout: 20000 })
+  await expect(page.getByText('김담당')).toHaveCount(0)
+  await expect(page.getByText('백업')).toHaveCount(0)
+})

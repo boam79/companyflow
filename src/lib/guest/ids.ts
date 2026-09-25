@@ -22,7 +22,7 @@ export const GUEST_MENUS = [
 
 export const GUEST_START_CARDS = [
   { to: '/guest/stock', label: '구매·재고', hint: '입고·반출·재고현황' },
-  { to: '/guest/assets', label: '자산', hint: '책상·컴퓨터와 빈 QR' },
+  { to: '/guest/assets', label: '자산', hint: '빈 QR과 자리의 물건' },
   { to: '/guest/people', label: '입퇴사', hint: '견본 김대리' },
   { to: '/guest/contracts', label: '계약', hint: '샘플 사무실 임대' },
   { to: '/guest/master', label: '기준정보', hint: '부서·품목·창고' },

@@ -243,7 +243,11 @@ export function seedDefaultMaster(book: CompanyMasterBook): void {
 }
 
 export function seedsDemoSample(companyCode?: string | null) {
-  return !companyCode || companyCode === 'HQ01'
+  return companyCode === 'HQ01'
+}
+
+export function stripsSoldDemoCatalog(companyCode?: string | null) {
+  return Boolean(companyCode) && companyCode !== 'HQ01' && companyCode !== 'DEMO'
 }
 
 export async function writeDefaultMaster(
@@ -255,6 +259,7 @@ export async function writeDefaultMaster(
 ): Promise<void> {
   const now = new Date().toISOString()
   const demo = seedsDemoSample(options?.companyCode)
+  const sold = stripsSoldDemoCatalog(options?.companyCode)
   await db.exec('insert or ignore into departments(id, name, created_at) values(?, ?, ?)', [
     'dept-admin',
     '총무',
@@ -315,7 +320,7 @@ export async function writeDefaultMaster(
         now,
       ],
     )
-  } else {
+  } else if (sold) {
     await db.exec("update warehouses set name = '기본창고' where id = 'wh-main'")
     await db.exec("update warehouses set name = '보조창고' where id = 'wh-sub'")
     await stripDemoSample(db)

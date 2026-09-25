@@ -36,6 +36,7 @@ describe('홈 인트로', () => {
     expect(HOME_STORY_CLOSE).not.toMatch(/샘플/)
     expect(HOME_STORY.every((beat) => beat.image.startsWith('/home/'))).toBe(true)
     expect(HOME_STORY.every((beat) => !/복사용지/.test(beat.imageAlt))).toBe(true)
+    expect(HOME_STORY.every((beat) => !/책상/.test(beat.imageAlt))).toBe(true)
     expect(HOME_STORY.every((beat) => !/운영 권한/.test(beat.body))).toBe(true)
     expect(HOME_STORY.every((beat) => !/접혀/.test(beat.body))).toBe(true)
     expect(HOME_STORY.every((beat) => !/책상·컴퓨터는 직원/.test(beat.body))).toBe(true)

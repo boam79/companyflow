@@ -34,6 +34,7 @@ import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
 import { countHeading } from '../lib/company/nav'
 import { showsWorkDbReopen, workOpenedNotice } from '../lib/data/storageStatus'
+import { publicErrorMessage } from '../lib/publicError'
 
 type NamedRow = {
   id: string
@@ -199,7 +200,7 @@ export function MasterDataPage() {
     } catch (error) {
       setReady(false)
       setOpenFailed(true)
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       opening.current = false
     }
@@ -324,7 +325,7 @@ export function MasterDataPage() {
       resetPartnerForm()
       await reload()
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     }
   }
 
@@ -353,7 +354,7 @@ export function MasterDataPage() {
       setNotice(`품목 저장 (${result.status})`)
       await reload()
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     }
   }
 
@@ -375,7 +376,7 @@ export function MasterDataPage() {
       setPendingPartnerFile(attached)
       setPartnerFileName(attached.fileName)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
       if (partnerFileInput.current) partnerFileInput.current.value = ''
     }
   }
@@ -405,7 +406,7 @@ export function MasterDataPage() {
       if (partnerFileInput.current) partnerFileInput.current.value = ''
       await reload()
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     }
   }
 
@@ -421,7 +422,7 @@ export function MasterDataPage() {
       link.click()
       URL.revokeObjectURL(url)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     }
   }
 
@@ -449,7 +450,7 @@ export function MasterDataPage() {
       setName('')
       await reload()
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     }
   }
 
@@ -482,7 +483,7 @@ export function MasterDataPage() {
       setNotice(`구매 구분 추가 (${result.status})`)
       await reload()
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     }
   }
 
@@ -500,7 +501,7 @@ export function MasterDataPage() {
       setNotice(`구매 구분 저장 (${result.status})`)
       await reload()
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     }
   }
 
@@ -519,7 +520,7 @@ export function MasterDataPage() {
       setNotice(`구매 구분 사용 안 함 (${result.status})`)
       await reload()
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     }
   }
 

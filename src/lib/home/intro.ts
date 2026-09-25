@@ -7,7 +7,7 @@ export const HOME_COVER_GUEST = '둘러보기'
 export const HOME_COVER_WAIT = '연결된 회사가 없습니다'
 export const HOME_COVER_WAIT_LEAD = waitingCoverLead(0)
 export const HOME_COVER_IMAGE = '/home/origin.jpg'
-export const HOME_COVER_IMAGE_ALT = '지정 PC 모니터와 책상'
+export const HOME_COVER_IMAGE_ALT = '지정 PC 모니터와 자리'
 
 export type HomeStoryTone = 'paper' | 'navy' | 'white'
 
@@ -27,7 +27,7 @@ export const HOME_STORY: HomeStoryBeat[] = [
     body: '지정한 이 PC 브라우저에 원본이 남습니다.\n중앙은 로그인과 회사 등록만 맡습니다.',
     tone: 'paper',
     image: '/home/origin.jpg',
-    imageAlt: '지정 PC 모니터와 책상',
+    imageAlt: '지정 PC 모니터와 자리',
   },
   {
     kicker: '매일',
@@ -43,7 +43,7 @@ export const HOME_STORY: HomeStoryBeat[] = [
     body: '자리의 물건은 직원에게 배정하지 않습니다.\n빈 QR로 위치를 넣고, 이 PC가 원본에 반영합니다.',
     tone: 'paper',
     image: '/home/assets.jpg',
-    imageAlt: '책상에 붙인 빈 QR',
+    imageAlt: '빈 QR을 붙인 자리',
   },
   {
     kicker: '사람',
@@ -59,7 +59,7 @@ export const HOME_STORY: HomeStoryBeat[] = [
     body: '원본 PDF·PNG·JPEG를 붙이면, 글자 후보는 이 PC에서만 읽습니다.\n체결 전 초안입니다.',
     tone: 'navy',
     image: '/home/contracts.jpg',
-    imageAlt: '책상 위의 계약서',
+    imageAlt: '자리 위의 계약서',
   },
   {
     kicker: '회사',

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { loginContinueLabel, loginPageLead, safeLoginNext, signupDoneMessage, signupEmailRedirectTo } from '../lib/loginNext'
+import { publicErrorMessage } from '../lib/publicError'
 import { getSupabase } from '../lib/supabase'
 
 export function LoginPage() {
@@ -32,7 +33,7 @@ export function LoginPage() {
       if (error) throw error
       navigate(safeLoginNext(searchParams.get('next')))
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       setBusy(false)
     }
@@ -60,7 +61,7 @@ export function LoginPage() {
       }
       setMessage(signupDoneMessage())
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       setBusy(false)
     }

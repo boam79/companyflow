@@ -27,6 +27,7 @@ import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
 import { displayCurrencyName, formatCompanyDate, loadCompanyDisplay } from '../lib/company/displayCurrency'
 import { countLabel, showsEmptyPickHint } from '../lib/company/nav'
+import { publicErrorMessage } from '../lib/publicError'
 
 function emptyForm(today: string) {
   return {
@@ -134,7 +135,7 @@ export function ContractsPage() {
     } catch (error) {
       if (ticket !== openTicket.current) return
       setReady(false)
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       if (ticket === openTicket.current) opening.current = false
     }
@@ -184,7 +185,7 @@ export function ContractsPage() {
     } catch (error) {
       setFile(null)
       setFileKey((key) => key + 1)
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
       setOcrMessage('')
       ocrPanel.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     } finally {
@@ -240,7 +241,7 @@ export function ContractsPage() {
       setSelectedId(id)
       resetForm()
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     }
   }
 
@@ -256,7 +257,7 @@ export function ContractsPage() {
       URL.revokeObjectURL(url)
       setNotice(`원본 ${original.fileName}을 이 PC에서 받았습니다.`)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     }
   }
 

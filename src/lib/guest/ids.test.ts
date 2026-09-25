@@ -44,5 +44,6 @@ describe('게스트 경로', () => {
       '계약',
     ])
     expect(GUEST_MENUS.some((item) => item.to.includes('setup') || item.to.includes('ops'))).toBe(false)
+    expect(GUEST_START_CARDS.every((item) => !/책상|김담당/.test(item.hint))).toBe(true)
   })
 })

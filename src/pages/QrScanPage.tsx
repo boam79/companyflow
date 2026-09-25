@@ -11,6 +11,7 @@ import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
 import { countHeading } from '../lib/company/nav'
 import { qrEmptyCatalogLead, qrLoggedOutLead } from '../lib/asset/empty'
+import { publicErrorMessage } from '../lib/publicError'
 import { GUEST_COMPANY_ID } from '../lib/guest/ids'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { getSupabase } from '../lib/supabase'
@@ -134,7 +135,7 @@ export function QrScanPage() {
           return
         }
         if (/영속|OPFS|지정 Chrome|초기 설정/i.test(text)) return
-        setMessage((prev) => prev || text)
+        setMessage((prev) => prev || publicErrorMessage(error))
       }
     })()
     return () => {
@@ -181,7 +182,7 @@ export function QrScanPage() {
       setNotice('저장했습니다. 지정 PC 자산 화면에서 원본에 반영됩니다.')
       setFormTick((tick) => tick + 1)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       setBusy(false)
     }

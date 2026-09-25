@@ -37,6 +37,7 @@ import {
 import { getCompanySqlite } from '../lib/sqlite/instance'
 import { ORDER_CURRENCIES } from '../lib/stock/inventoryView'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
+import { publicErrorMessage } from '../lib/publicError'
 
 type MemberRow = {
   email: string
@@ -171,7 +172,7 @@ export function CompanySettingsPage() {
       setReady(true)
     })().catch((error: unknown) => {
       if (cancelled) return
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
       setReady(true)
     })
     return () => {
@@ -210,7 +211,7 @@ export function CompanySettingsPage() {
       setDraft(saved)
       setNotice('이 회사 원본에 통화를 저장했습니다.')
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       setBusy(false)
     }
@@ -228,7 +229,7 @@ export function CompanySettingsPage() {
       setGroupingDraft(saved)
       setNotice('이 회사 원본에 자리 구분을 저장했습니다.')
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       setBusy(false)
     }
@@ -246,7 +247,7 @@ export function CompanySettingsPage() {
       setTimeZoneDraft(saved)
       setNotice('이 회사 원본에 시간대를 저장했습니다.')
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       setBusy(false)
     }
@@ -277,13 +278,13 @@ export function CompanySettingsPage() {
         '회사'
       setNotice(on ? `${name}의 ${label}을 켰습니다.` : `${name}의 ${label}을 껐습니다.`)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       if (companyId && sqlite.companyId !== companyId) {
         try {
           await sqlite.open(companyId)
         } catch (error) {
-          setMessage(error instanceof Error ? error.message : String(error))
+          setMessage(publicErrorMessage(error))
         }
       }
       setBusy(false)

@@ -11,6 +11,7 @@ describe('자산 빈 화면 안내', () => {
     expect(qrLoggedOutLead()).toContain('로그인')
     expect(qrLoggedOutLead()).not.toMatch(/가구·컴퓨터|책상/)
     expect(assetsPageLead(true)).toContain('샘플')
+    expect(assetsPageLead(true)).not.toMatch(/가구·컴퓨터|책상/)
     expect(assetsEmptyLead()).toContain('빈 QR')
     expect(assetsInboxHeading(false, 0)).toBe('스마트폰에서 저장')
     expect(assetsInboxHeading(false, 3)).toBe('스마트폰에서 저장 3')

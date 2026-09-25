@@ -25,6 +25,7 @@ import { canWriteOpenedCompany, mayOpenCompanyWork, workSessionKind } from '../l
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
 import { showsWorkDbReopen, workOpenedNotice } from '../lib/data/storageStatus'
+import { publicErrorMessage } from '../lib/publicError'
 
 type NamedRow = { id: string; name: string }
 type ActionType = StockCommand['type']
@@ -130,7 +131,7 @@ export function StockPage() {
     } catch (error) {
       setReady(false)
       setOpenFailed(true)
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       opening.current = false
     }
@@ -212,7 +213,7 @@ export function StockPage() {
       setPendingOrderFile(attached)
       setOrderFileName(attached.fileName)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
       if (orderFileInput.current) orderFileInput.current.value = ''
     }
   }
@@ -228,7 +229,7 @@ export function StockPage() {
       link.click()
       URL.revokeObjectURL(url)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     }
   }
 
@@ -452,7 +453,7 @@ export function StockPage() {
       }
       await reload()
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error))
+      setMessage(publicErrorMessage(error))
     } finally {
       setSaving(false)
     }

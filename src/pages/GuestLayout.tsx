@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom'
 import { isQrScanPath } from '../lib/asset/qr'
 import { GUEST_COMPANY_ID } from '../lib/guest/ids'
 import { assertGuestOpensMemory, seedGuestCompany } from '../lib/guest/seed'
+import { publicErrorMessage } from '../lib/publicError'
 import { getGuestSqlite } from '../lib/sqlite/instance'
 
 export function GuestLayout() {
@@ -23,7 +24,7 @@ export function GuestLayout() {
           setReady(true)
         }
       } catch (error) {
-        if (!cancelled) setMessage(error instanceof Error ? error.message : String(error))
+        if (!cancelled) setMessage(publicErrorMessage(error))
       }
     })()
     return () => {
