@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { canConfirmOriginalDevice, deviceSavedLabel, savedOnThisDevice, storageLines } from './storageStatus'
+import {
+  canConfirmOriginalDevice,
+  deviceSavedLabel,
+  savedOnThisDevice,
+  showsWorkDbReopen,
+  storageLines,
+  workOpenedNotice,
+} from './storageStatus'
 
 describe('데이터 관리 저장 상태', () => {
   it('OPFS가 열린 브라우저만 이 기기에 저장된 것으로 본다', () => {
@@ -20,6 +27,13 @@ describe('데이터 관리 저장 상태', () => {
     expect(canConfirmOriginalDevice({ savedHere: true, deviceStatus: 'reserved', isAdmin: false })).toBe(false)
     expect(canConfirmOriginalDevice({ savedHere: false, deviceStatus: 'reserved', isAdmin: true })).toBe(false)
     expect(canConfirmOriginalDevice({ savedHere: true, deviceStatus: 'confirmed', isAdmin: true })).toBe(false)
+  })
+
+  it('업무 화면은 원본이 열린 뒤 VFS 이름과 다시 열기를 두지 않는다', () => {
+    expect(workOpenedNotice(true)).toContain('샘플')
+    expect(workOpenedNotice(false)).toBe('')
+    expect(showsWorkDbReopen(false)).toBe(false)
+    expect(showsWorkDbReopen(true)).toBe(true)
   })
 
   it('수신 대기는 처리 확인이고 전송·백업은 열지 않는다', () => {

@@ -31,6 +31,7 @@ import { toArrayBuffer } from '../lib/contracts/book'
 import { canWriteOpenedCompany, mayOpenCompanyWork, workSessionKind } from '../lib/company/workGate'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
+import { showsWorkDbReopen, workOpenedNotice } from '../lib/data/storageStatus'
 
 type NamedRow = {
   id: string
@@ -191,7 +192,7 @@ export function MasterDataPage() {
         await writeDefaultMaster(sqlite, { companyCode: companies.find((row) => row.id === nextId)?.company_code })
         await retireSupplyAssets(sqlite)
       }
-      setNotice(guest ? '샘플이 열렸습니다. 저장되지 않습니다.' : `로컬 원본이 열렸습니다. VFS ${sqlite.vfsName}`)
+      setNotice(workOpenedNotice(guest))
       await reload(tab)
     } catch (error) {
       setReady(false)
@@ -651,18 +652,20 @@ export function MasterDataPage() {
                   void openCompany(id, true)
                 }}
               />
-              <button
-                type="button"
-                className="rounded border border-line px-3 py-2 text-sm"
-                disabled={!companyId}
-                onClick={() => {
-                  setReady(false)
-                  setOpenFailed(false)
-                  void openCompany(companyId, true)
-                }}
-              >
-                이 회사 DB 다시 열기
-              </button>
+              {showsWorkDbReopen(openFailed) ? (
+                <button
+                  type="button"
+                  className="rounded border border-line px-3 py-2 text-sm"
+                  disabled={!companyId}
+                  onClick={() => {
+                    setReady(false)
+                    setOpenFailed(false)
+                    void openCompany(companyId, true)
+                  }}
+                >
+                  이 회사 DB 다시 열기
+                </button>
+              ) : null}
             </>
           )}
         </div>

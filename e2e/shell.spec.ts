@@ -41,6 +41,8 @@ test('게스트 둘러보기는 샘플 구매부터 연다', async ({ page }) =>
   await page.goto('/guest/stock')
   await expect(page.getByRole('heading', { name: '구매·재고' })).toBeVisible({ timeout: 20000 })
   await expect(page.getByText('회사 선택')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '이 회사 DB 다시 열기' })).toHaveCount(0)
+  await expect(page.getByText(/VFS/)).toHaveCount(0)
 })
 
 test('게스트 입퇴사는 샘플 직원이 있으면 명찰을 둔다', async ({ page }) => {
@@ -48,4 +50,11 @@ test('게스트 입퇴사는 샘플 직원이 있으면 명찰을 둔다', async
   await expect(page.getByRole('heading', { name: '직원·입퇴사' })).toBeVisible({ timeout: 20000 })
   await expect(page.getByRole('heading', { name: '명찰 템플릿' })).toBeVisible()
   await expect(page.getByText('모듈은 운영 계정만 바꿉니다.')).toHaveCount(0)
+})
+
+test('게스트 기준정보는 VFS 안내와 다시 열기를 두지 않는다', async ({ page }) => {
+  await page.goto('/guest/master')
+  await expect(page.getByRole('heading', { name: '기준정보' })).toBeVisible({ timeout: 20000 })
+  await expect(page.getByRole('button', { name: '이 회사 DB 다시 열기' })).toHaveCount(0)
+  await expect(page.getByText(/VFS/)).toHaveCount(0)
 })

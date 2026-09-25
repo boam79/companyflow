@@ -8,6 +8,14 @@ export function savedOnThisDevice(persistOk: boolean, vfsName: string) {
   return persistOk && (vfsName === 'opfs-sahpool' || vfsName === 'opfs')
 }
 
+export function showsWorkDbReopen(openFailed: boolean) {
+  return openFailed
+}
+
+export function workOpenedNotice(guest: boolean) {
+  return guest ? '샘플이 열렸습니다. 저장되지 않습니다.' : ''
+}
+
 export function deviceSavedLabel(status: string | null) {
   if (status === 'confirmed') return '예'
   if (status === 'reserved') return '예약만 됨'
