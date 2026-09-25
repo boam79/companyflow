@@ -31,5 +31,7 @@ describe('업무 원본 가드', () => {
     expect(workSessionKind({ guest: false, signedIn: true, ready: true, companyId: '' })).toBe('no-company')
     expect(workSessionKind({ guest: false, signedIn: true, ready: true, companyId: HQ.id })).toBe('ok')
     expect(workSessionKind({ guest: true, signedIn: false, ready: true, companyId: 'guest-demo' })).toBe('ok')
+    expect(workSessionKind({ guest: true, signedIn: true, ready: false, companyId: '' })).toBe('ok')
+    expect(workSessionKind({ guest: false, signedIn: false, ready: false, companyId: HQ.id })).toBe('login')
   })
 })

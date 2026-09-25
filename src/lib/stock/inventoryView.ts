@@ -56,6 +56,23 @@ export function stockSupplierReturnLead() {
   return '검수 통과분만 공급사에 돌려 보냅니다. 현재고가 줄고 발주 잔량이 늘어납니다. 불량 거절품 반환은 이 화면에서 다루지 않습니다.'
 }
 
+export function stockSavedNotice(input: {
+  duplicate: boolean
+  actionLabel: string
+  createdItemName?: string
+  assetCount: number
+  itemName?: string
+}) {
+  if (input.duplicate) return '같은 거래는 한 번만 반영됩니다.'
+  if (input.assetCount) {
+    return `${input.itemName} ${input.assetCount}건을 자산으로 등록했습니다. 자산 화면에서 위치를 이관하세요.`
+  }
+  if (input.createdItemName) {
+    return `비품 ${input.createdItemName}을 등록하고 저장했습니다. (${input.actionLabel})`
+  }
+  return `저장했습니다. (${input.actionLabel})`
+}
+
 export function buildSupplyInventory(
   items: ItemRecord[],
   warehouses: NamedWarehouse[],

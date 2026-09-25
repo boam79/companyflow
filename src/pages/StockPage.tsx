@@ -13,7 +13,7 @@ import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { executeStockCommand, ensureDefaultStockMaster, loadOrderOriginal, loadStockState, orderAttachment } from '../lib/stock/persist'
 import { toArrayBuffer } from '../lib/contracts/book'
 import { onHand, orderNetReceived, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
-import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, resolveOrderPartnerId, stockAdjustReason, stockAssetsLinkLabel, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssuePersonName, stockPageLead, stockSupplierReturnLead, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, resolveOrderPartnerId, stockAdjustReason, stockAssetsLinkLabel, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssuePersonName, stockPageLead, stockSavedNotice, stockSupplierReturnLead, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -436,13 +436,13 @@ export function StockPage() {
           ? allocateReceiptQty(receiptItem, Number(qty)).assetQty
           : 0
       setNotice(
-        result.status === 'duplicate'
-          ? `같은 operation_id 는 한 번만 반영됩니다. (${nextOperationId})`
-          : assetCount
-            ? `${receiptItem.name} ${assetCount}건을 자산으로 등록했습니다. 자산 화면에서 위치를 이관하세요.`
-            : resolved.created
-              ? `비품 ${receiptItem.name}을 등록하고 저장했습니다. (${ACTIONS.find((item) => item.id === action)?.label} · ${nextOperationId})`
-              : `저장했습니다. (${ACTIONS.find((item) => item.id === action)?.label} · ${nextOperationId})`,
+        stockSavedNotice({
+          duplicate: result.status === 'duplicate',
+          actionLabel: ACTIONS.find((item) => item.id === action)?.label ?? '확정',
+          createdItemName: resolved.created ? receiptItem.name : undefined,
+          assetCount,
+          itemName: receiptItem.name,
+        }),
       )
       if (result.status === 'applied') {
         if (action === 'draft_order' || action === 'confirm_order') {

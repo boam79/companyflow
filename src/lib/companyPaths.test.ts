@@ -13,5 +13,7 @@ describe('회사 저장 경로', () => {
     expect(() => companyDbFileName('a/b')).toThrow(/표식/)
     expect(() => companyDbFileName('a\\b')).toThrow(/표식/)
     expect(() => companyDbFileName('')).toThrow(/표식/)
+    expect(() => assertCompanyStorageId('..')).toThrow(/표식/)
+    expect(() => assertCompanyStorageId('co-1/../co-2')).toThrow(/표식/)
   })
 })

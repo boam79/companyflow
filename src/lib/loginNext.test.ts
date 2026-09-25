@@ -15,6 +15,22 @@ describe('로그인 다음 주소', () => {
     expect(qrLoginHref(token)).toBe(`/login?next=${encodeURIComponent(`/q/${token}`)}`)
     expect(qrLoginHref('not-a-token')).toBe('/login?next=%2F')
     expect(qrLoginHref('../ops/companies')).toBe('/login?next=%2F')
+    const blocked = [
+      '/ops/companies',
+      '/settings',
+      '/data',
+      '/guest',
+      '/guest/q/11111111-1111-4111-8111-111111111111',
+      '/%2e%2e/ops',
+      '/q/11111111-1111-4111-8111-111111111111?',
+      '/Q/11111111-1111-4111-8111-111111111111',
+      ' /q/11111111-1111-4111-8111-111111111111/ ',
+      'javascript:alert(1)',
+      'https://companyflow-opal.vercel.app/q/11111111-1111-4111-8111-111111111111',
+    ]
+    for (const value of blocked) {
+      expect(safeLoginNext(value)).toBe('/')
+    }
   })
 
   it('가입 확인 메일은 배포 로그인으로 돌아온다', () => {

@@ -22,7 +22,7 @@ export function afterSignOutHref() {
 
 export function safeLoginNext(value: string | null | undefined) {
   const raw = (value ?? '').trim()
-  if (/^\/q\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw)) {
+  if (/^\/q\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(raw)) {
     return raw
   }
   return '/'

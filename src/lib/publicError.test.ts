@@ -28,5 +28,18 @@ describe('공개 오류 문구', () => {
     )
     expect(publicErrorMessage(new Error('column foo does not exist'))).toBe('요청을 처리하지 못했습니다.')
     expect(publicErrorMessage(new Error('JWT expired'))).toBe('요청을 처리하지 못했습니다.')
+    const rows: Array<[unknown, string]> = [
+      [{ message: 'Password should be at least 8 characters' }, '더 긴 비밀번호를 쓰세요.'],
+      [{ message: 'Too many requests' }, '잠시 후 다시 시도하세요.'],
+      [{ code: 'over_request_rate_limit', message: 'rate limit' }, '잠시 후 다시 시도하세요.'],
+      [{ message: 'Signup is disabled' }, '지금은 회원가입을 받지 않습니다.'],
+      [{ message: 'User already registered' }, '이미 있는 계정입니다. 위 로그인으로 들어오세요.'],
+      [{ message: 'This password is known to be weak' }, '더 긴 비밀번호를 쓰세요.'],
+      [null, '요청을 처리하지 못했습니다.'],
+      ['boom', '요청을 처리하지 못했습니다.'],
+    ]
+    for (const [error, expected] of rows) {
+      expect(publicErrorMessage(error)).toBe(expected)
+    }
   })
 })

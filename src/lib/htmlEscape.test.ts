@@ -7,5 +7,7 @@ describe('HTML 이스케이프', () => {
       '&lt;img src=&quot;x&quot; onerror=&quot;alert(1)&quot;&gt;',
     )
     expect(escapeHtml(`a&b`)).toBe('a&amp;b')
+    expect(escapeHtml(`<script>alert(1)</script>`)).toBe('&lt;script&gt;alert(1)&lt;/script&gt;')
+    expect(escapeHtml(`it's`)).toBe('it&#39;s')
   })
 })

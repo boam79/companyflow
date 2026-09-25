@@ -11,6 +11,7 @@ import {
   stockInboundItemHint,
   stockAssetsLinkLabel,
   stockPageLead,
+  stockSavedNotice,
   stockDraftOrderId,
   stockIssuePersonName,
   stockAdjustReason,
@@ -68,6 +69,14 @@ describe('비품 현재고', () => {
       toWarehouseId: '',
     })
     expect(stockSupplierReturnLead()).not.toMatch(/아직/)
+    expect(stockSavedNotice({ duplicate: true, actionLabel: '입고', assetCount: 0 })).toBe(
+      '같은 거래는 한 번만 반영됩니다.',
+    )
+    expect(stockSavedNotice({ duplicate: true, actionLabel: '입고', assetCount: 0 })).not.toMatch(/operation_id/)
+    expect(stockSavedNotice({ duplicate: false, actionLabel: '입고', assetCount: 0 })).toBe('저장했습니다. (입고)')
+    expect(
+      stockSavedNotice({ duplicate: false, actionLabel: '입고', assetCount: 0, createdItemName: '클립' }),
+    ).toContain('클립')
     expect(buildSupplyInventory(items, WAREHOUSES, state)).toEqual([
       {
         itemId: 'item-paper',
