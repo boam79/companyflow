@@ -28,7 +28,8 @@ import { formatCompanyDate, loadDisplayTimezone } from '../lib/company/displayCu
 import { showModuleLink } from '../lib/company/modules'
 import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
-import { assetsEmptyLead, assetsMissingQrHint, assetsPageLead } from '../lib/asset/empty'
+import { assetsEmptyLead, assetsInboxHeading, assetsListHeading, assetsMissingQrHint, assetsPageLead } from '../lib/asset/empty'
+import { showsEmptyPickHint } from '../lib/company/nav'
 
 type NamedRow = { id: string; name: string }
 type PrintedQr = { id: string; url: string; dataUrl: string }
@@ -461,9 +462,7 @@ export function AssetsPage() {
       </section>
 
       <section className="rounded-lg border border-line bg-card p-4">
-        <h2 className="text-base font-semibold">
-          {guest ? '샘플 입력' : `스마트폰에서 저장 ${inbox.length}`}
-        </h2>
+        <h2 className="text-base font-semibold">{assetsInboxHeading(guest, inbox.length)}</h2>
         {guest ? (
           <p className="mt-2 text-sm text-muted">
             입력 열기에서 저장하면 바로 샘플 자산에 들어갑니다. 지정 PC 원본과 중앙 QR은 쓰지 않습니다.
@@ -498,10 +497,16 @@ export function AssetsPage() {
       </section>
       </div>
 
-      <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.9fr)] lg:items-start">
+      <div
+        className={
+          selected || showsEmptyPickHint(companyAssets.length)
+            ? 'grid min-h-0 gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.9fr)] lg:items-start'
+            : 'grid min-h-0 gap-4'
+        }
+      >
       <div className="flex min-h-0 flex-col gap-3">
       <section className="rounded-lg border border-line bg-card p-4">
-        <h2 className="text-base font-semibold">회사 자산 {companyAssets.length}</h2>
+        <h2 className="text-base font-semibold">{assetsListHeading(companyAssets.length)}</h2>
         {companyAssets.length ? (
           <div className="mt-2 max-h-[calc(100svh-18rem)] overflow-auto">
             <table className="w-full text-left text-sm">
@@ -718,11 +723,11 @@ export function AssetsPage() {
             <p className="mt-2 text-sm text-muted">이력이 없습니다.</p>
           )}
         </section>
-      ) : (
+      ) : showsEmptyPickHint(companyAssets.length) ? (
         <section className="rounded-lg border border-dashed border-line bg-card p-4 text-sm text-muted">
           왼쪽 목록에서 회사 자산을 고르면 이관·수리·폐기를 남깁니다.
         </section>
-      )}
+      ) : null}
       </div>
     </div>
   )

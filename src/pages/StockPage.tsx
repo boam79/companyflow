@@ -13,7 +13,7 @@ import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { executeStockCommand, ensureDefaultStockMaster, loadOrderOriginal, loadStockState, orderAttachment } from '../lib/stock/persist'
 import { toArrayBuffer } from '../lib/contracts/book'
 import { companyOnHand, onHand, orderNetReceived, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
-import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, resolveOrderPartnerId, stockEmptyItemsLead, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, resolveOrderPartnerId, stockDraftOrderId, stockEmptyItemsLead, stockIssuePersonName, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -67,14 +67,14 @@ export function StockPage() {
   const [action, setAction] = useState<ActionType>('post_direct_in')
   const [showMoreActions, setShowMoreActions] = useState(false)
   const [operationId, setOperationId] = useState('')
-  const [orderId, setOrderId] = useState('ord-paper')
+  const [orderId, setOrderId] = useState(stockDraftOrderId)
   const [itemId, setItemId] = useState('')
   const [warehouseId, setWarehouseId] = useState('wh-main')
   const fromWarehouseId = 'wh-main'
   const toWarehouseId = 'wh-sub'
   const [qty, setQty] = useState('1')
   const [defectQty, setDefectQty] = useState('0')
-  const [personName, setPersonName] = useState('김담당')
+  const [personName, setPersonName] = useState(stockIssuePersonName)
   const [departmentId, setDepartmentId] = useState('')
   const [sourceOperationId, setSourceOperationId] = useState('')
   const [reason, setReason] = useState('실사 차이')

@@ -8,6 +8,8 @@ import {
   orderRemainingCaption,
   resolveOrderPartnerId,
   stockEmptyItemsLead,
+  stockDraftOrderId,
+  stockIssuePersonName,
   supplyItems,
   supplyOrderCsv,
   todayYmd,
@@ -40,6 +42,8 @@ describe('비품 현재고', () => {
     expect(supplyItems(items).map((item) => item.id)).toEqual(['item-paper'])
     expect(stockEmptyItemsLead()).toContain('기준정보에서 품목을 등록')
     expect(stockEmptyItemsLead()).not.toMatch(/복사용지/)
+    expect(stockIssuePersonName()).toBe('')
+    expect(stockDraftOrderId()).toBe('')
     expect(buildSupplyInventory(items, WAREHOUSES, state)).toEqual([
       {
         itemId: 'item-paper',

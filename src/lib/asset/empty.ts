@@ -5,6 +5,15 @@ export function assetsPageLead(guest: boolean) {
   return '빈 QR을 가구·컴퓨터에 붙인 뒤 스마트폰으로 위치와 품목을 넣습니다. 이 PC가 원본에 반영합니다. 직원에게 배정하지 않습니다.'
 }
 
+export function assetsInboxHeading(guest: boolean, count: number) {
+  if (guest) return '샘플 입력'
+  return count ? `스마트폰에서 저장 ${count}` : '스마트폰에서 저장'
+}
+
+export function assetsListHeading(count: number) {
+  return count ? `회사 자산 ${count}` : '회사 자산'
+}
+
 export function assetsEmptyLead() {
   return '회사 자산이 없습니다. 빈 QR을 붙인 뒤 스마트폰에서 정보를 넣으세요.'
 }

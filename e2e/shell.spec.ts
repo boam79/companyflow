@@ -44,6 +44,10 @@ test('게스트 둘러보기는 샘플 구매부터 연다', async ({ page }) =>
   await expect(page.getByRole('button', { name: '이 회사 DB 다시 열기' })).toHaveCount(0)
   await expect(page.getByText(/VFS/)).toHaveCount(0)
   await expect(page.getByRole('cell', { name: '샘플 복사용지' }).first()).toBeVisible()
+  await page.getByLabel('명령').selectOption('post_issue')
+  await expect(page.getByLabel('반출 성명')).toHaveValue('')
+  await expect(page.getByDisplayValue('김담당')).toHaveCount(0)
+  await expect(page.getByDisplayValue('ord-paper')).toHaveCount(0)
 })
 
 test('게스트 입퇴사는 샘플 직원이 있으면 명찰을 둔다', async ({ page }) => {
@@ -67,6 +71,8 @@ test('게스트 자산은 본사 복사용지 안내를 두지 않는다', async
   await expect(page.getByText(/VFS/)).toHaveCount(0)
   await expect(page.getByText('복사용지 같은 비품')).toHaveCount(0)
   await expect(page.getByText('샘플로 넣은 책상')).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: '스마트폰에서 저장 0' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: '회사 자산 0' })).toHaveCount(0)
 })
 
 test('로그아웃 데이터 관리는 로그인 안내만 두고 백업 줄을 두지 않는다', async ({ page }) => {

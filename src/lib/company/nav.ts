@@ -23,6 +23,10 @@ export function showsCompanyPicker(companyCount: number) {
   return companyCount > 1
 }
 
+export function showsEmptyPickHint(rowCount: number) {
+  return rowCount > 0
+}
+
 export function openedCompanyCaption(company?: { display_name: string; company_code: string } | null) {
   if (!company) return ''
   return `${company.display_name} (${company.company_code})`

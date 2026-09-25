@@ -26,6 +26,7 @@ import { assertGuestOpensMemory } from '../lib/guest/seed'
 import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
 import { displayCurrencyName, formatCompanyDate, loadCompanyDisplay } from '../lib/company/displayCurrency'
+import { showsEmptyPickHint } from '../lib/company/nav'
 
 function emptyForm(today: string) {
   return {
@@ -345,7 +346,13 @@ export function ContractsPage() {
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
 
-      <div className="grid min-h-0 gap-4 xl:grid-cols-[16rem_minmax(0,1fr)_minmax(22rem,1fr)] xl:items-start">
+      <div
+        className={
+          selected || showsEmptyPickHint(rows.length)
+            ? 'grid min-h-0 gap-4 xl:grid-cols-[16rem_minmax(0,1fr)_minmax(22rem,1fr)] xl:items-start'
+            : 'grid min-h-0 gap-4 xl:grid-cols-[16rem_minmax(22rem,1fr)] xl:items-start'
+        }
+      >
         <nav className="flex max-h-[calc(100svh-10rem)] min-h-0 flex-col overflow-hidden rounded-lg border border-line bg-card">
           <div className="grid shrink-0 grid-cols-2 border-b border-line">
             {groups.map((section) => {
@@ -466,11 +473,11 @@ export function ContractsPage() {
                 <p className="mt-4 text-muted">이 초안에는 원본 파일이 없습니다.</p>
               )}
             </section>
-          ) : (
+          ) : showsEmptyPickHint(rows.length) ? (
             <section className="rounded-lg border border-dashed border-line bg-card p-4 text-sm text-muted">
               왼쪽에서 초안을 고르거나 오른쪽 칸으로 새 초안을 만드세요.
             </section>
-          )}
+          ) : null}
 
           <form className="grid max-h-[calc(100svh-10rem)] gap-3 overflow-auto rounded-lg border border-line bg-card p-4 sm:grid-cols-2" onSubmit={onSubmit}>
             <h2 className="text-lg font-semibold sm:col-span-2">새 초안</h2>
