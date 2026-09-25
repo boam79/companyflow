@@ -62,7 +62,7 @@ test('게스트 기준정보는 VFS 안내와 다시 열기를 두지 않는다'
 
 test('게스트 자산은 본사 복사용지 안내를 두지 않는다', async ({ page }) => {
   await page.goto('/guest/assets')
-  await expect(page.getByRole('heading', { name: '자산' })).toBeVisible({ timeout: 20000 })
+  await expect(page.getByRole('heading', { name: '자산', exact: true })).toBeVisible({ timeout: 20000 })
   await expect(page.getByRole('button', { name: '이 회사 DB 다시 열기' })).toHaveCount(0)
   await expect(page.getByText(/VFS/)).toHaveCount(0)
   await expect(page.getByText('복사용지 같은 비품')).toHaveCount(0)
