@@ -46,8 +46,9 @@ test('게스트 둘러보기는 샘플 구매부터 연다', async ({ page }) =>
   await expect(page.getByRole('cell', { name: '샘플 복사용지' }).first()).toBeVisible()
   await page.getByLabel('명령').selectOption('post_issue')
   await expect(page.getByLabel('반출 성명')).toHaveValue('')
-  await expect(page.getByDisplayValue('김담당')).toHaveCount(0)
-  await expect(page.getByDisplayValue('ord-paper')).toHaveCount(0)
+  await page.getByRole('button', { name: '발주·검수 더 보기' }).click()
+  await page.getByLabel('명령').selectOption('draft_order')
+  await expect(page.getByLabel('발주 번호')).toHaveValue('')
 })
 
 test('게스트 입퇴사는 샘플 직원이 있으면 명찰을 둔다', async ({ page }) => {
