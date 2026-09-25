@@ -75,7 +75,10 @@ describe('회사 샘플 데이터', () => {
     expect(names).not.toContain('본사창고')
     expect(names).not.toContain('박재민')
     expect(names).not.toContain('CON-2024-001')
+    expect(names).not.toContain('복사용지')
+    expect(names).not.toContain('책상')
     expect(sqls.some((sql) => sql.includes('delete from employees'))).toBe(true)
+    expect(sqls.some((sql) => sql.includes('delete from items') && sql.includes('stock_ledger'))).toBe(true)
   })
 
   it('같은 이름 정리 때 sqlite query의 this를 잃지 않는다', async () => {

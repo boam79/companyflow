@@ -119,6 +119,8 @@ export const DEFAULT_ITEM_CODES: Record<string, string> = {
   'item-printer': 'MFP',
 }
 
+export const DEMO_CATALOG_ITEM_IDS = [PAPER_ITEM.id, ...COMPANY_ASSET_ITEMS.map((item) => item.id)]
+
 export class CompanyMasterBook {
   readonly departments = new Map<string, NamedRecord>()
   readonly employees = new Map<string, NamedRecord>()
@@ -246,24 +248,26 @@ export async function writeDefaultMaster(
       now,
     ])
   }
-  await db.exec(
-    'insert or ignore into items(id, name, stock_managed, asset_managed, created_at) values(?, ?, ?, ?, ?)',
-    [PAPER_ITEM.id, PAPER_ITEM.name, 1, 0, now],
-  )
-  await db.exec('update items set stock_managed = 1, asset_managed = 0 where id = ?', [PAPER_ITEM.id])
-  for (const item of COMPANY_ASSET_ITEMS) {
+  if (demo) {
     await db.exec(
       'insert or ignore into items(id, name, stock_managed, asset_managed, created_at) values(?, ?, ?, ?, ?)',
-      [item.id, item.name, item.stockManaged ? 1 : 0, 1, now],
+      [PAPER_ITEM.id, PAPER_ITEM.name, 1, 0, now],
     )
-    await db.exec('update items set stock_managed = ?, asset_managed = 1, name = ? where id = ?', [
-      item.stockManaged ? 1 : 0,
-      item.name,
-      item.id,
-    ])
-  }
-  for (const [id, code] of Object.entries(DEFAULT_ITEM_CODES)) {
-    await db.exec("update items set code = ? where id = ? and (code is null or code = '')", [code, id])
+    await db.exec('update items set stock_managed = 1, asset_managed = 0 where id = ?', [PAPER_ITEM.id])
+    for (const item of COMPANY_ASSET_ITEMS) {
+      await db.exec(
+        'insert or ignore into items(id, name, stock_managed, asset_managed, created_at) values(?, ?, ?, ?, ?)',
+        [item.id, item.name, item.stockManaged ? 1 : 0, 1, now],
+      )
+      await db.exec('update items set stock_managed = ?, asset_managed = 1, name = ? where id = ?', [
+        item.stockManaged ? 1 : 0,
+        item.name,
+        item.id,
+      ])
+    }
+    for (const [id, code] of Object.entries(DEFAULT_ITEM_CODES)) {
+      await db.exec("update items set code = ? where id = ? and (code is null or code = '')", [code, id])
+    }
   }
   await db.exec(`delete from items where id in ('item-badge', 'item-uniform', 'item-laptop')`)
   const { stripDemoSample, writeSampleCompanyData } = await import('./sample')
@@ -286,12 +290,27 @@ export async function writeDefaultMaster(
     await db.exec("update warehouses set name = '기본창고' where id = 'wh-main'")
     await db.exec("update warehouses set name = '보조창고' where id = 'wh-sub'")
     await stripDemoSample(db)
+    await stripUnusedDemoCatalog(db)
   }
   if (db.query) {
     await retireDuplicateItems({
       exec: (sql, params) => db.exec(sql, params),
       query: (sql, params) => db.query!(sql, params),
     })
+  }
+}
+
+export async function stripUnusedDemoCatalog(db: {
+  exec: (sql: string, params?: unknown[]) => Promise<void>
+}): Promise<void> {
+  for (const id of DEMO_CATALOG_ITEM_IDS) {
+    await db.exec(
+      `delete from items where id = ?
+        and not exists (select 1 from stock_ledger where item_id = ?)
+        and not exists (select 1 from stock_order_lines where item_id = ?)
+        and not exists (select 1 from assets where item_id = ?)`,
+      [id, id, id, id],
+    )
   }
 }
 

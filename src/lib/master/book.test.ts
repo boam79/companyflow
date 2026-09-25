@@ -10,6 +10,7 @@ import {
   isSupplyItem,
   seedDefaultMaster,
   seedsDemoSample,
+  stripUnusedDemoCatalog,
 } from './book'
 
 describe('회사별 기준정보 격리', () => {
@@ -80,9 +81,20 @@ describe('회사별 기준정보 격리', () => {
     expect(() => assertCompanyAssetsReturned(held, 'emp-1', COMPANY_ASSET_ITEMS)).not.toThrow()
   })
 
-  it('본사만 샘플 사람을 넣는다', () => {
+  it('본사만 샘플 사람과 복사용지 품목을 넣는다', () => {
     expect(seedsDemoSample('HQ01')).toBe(true)
     expect(seedsDemoSample('boam')).toBe(false)
     expect(seedsDemoSample(undefined)).toBe(true)
+  })
+
+  it('쓰이지 않은 본사 품목만 팔 회사에서 지운다', async () => {
+    const sqls: string[] = []
+    await stripUnusedDemoCatalog({
+      exec: async (sql, params) => {
+        sqls.push(`${sql} ${JSON.stringify(params ?? [])}`)
+      },
+    })
+    expect(sqls.some((sql) => sql.includes('item-paper') && sql.includes('stock_ledger'))).toBe(true)
+    expect(sqls.some((sql) => sql.includes('item-desk'))).toBe(true)
   })
 })

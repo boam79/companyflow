@@ -14,6 +14,10 @@ export function supplyItems(items: ItemRecord[]): ItemRecord[] {
   return items.filter(isSupplyItem)
 }
 
+export function stockEmptyItemsLead() {
+  return '비품이 없습니다. 오른쪽에서 이름을 적고 입고하거나, 기준정보에서 품목을 등록하세요.'
+}
+
 export function buildSupplyInventory(
   items: ItemRecord[],
   warehouses: NamedWarehouse[],

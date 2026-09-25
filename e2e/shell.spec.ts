@@ -43,6 +43,7 @@ test('게스트 둘러보기는 샘플 구매부터 연다', async ({ page }) =>
   await expect(page.getByText('회사 선택')).toHaveCount(0)
   await expect(page.getByRole('button', { name: '이 회사 DB 다시 열기' })).toHaveCount(0)
   await expect(page.getByText(/VFS/)).toHaveCount(0)
+  await expect(page.getByText('샘플 복사용지')).toBeVisible()
 })
 
 test('게스트 입퇴사는 샘플 직원이 있으면 명찰을 둔다', async ({ page }) => {

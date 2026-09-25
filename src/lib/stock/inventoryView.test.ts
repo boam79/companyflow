@@ -7,6 +7,7 @@ import {
   buildSupplyOrderList,
   orderRemainingCaption,
   resolveOrderPartnerId,
+  stockEmptyItemsLead,
   supplyItems,
   supplyOrderCsv,
   todayYmd,
@@ -37,6 +38,8 @@ describe('비품 현재고', () => {
 
     const items = [PAPER_ITEM, ...COMPANY_ASSET_ITEMS]
     expect(supplyItems(items).map((item) => item.id)).toEqual(['item-paper'])
+    expect(stockEmptyItemsLead()).toContain('기준정보에서 품목을 등록')
+    expect(stockEmptyItemsLead()).not.toMatch(/복사용지/)
     expect(buildSupplyInventory(items, WAREHOUSES, state)).toEqual([
       {
         itemId: 'item-paper',

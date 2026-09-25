@@ -13,7 +13,7 @@ import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { executeStockCommand, ensureDefaultStockMaster, loadOrderOriginal, loadStockState, orderAttachment } from '../lib/stock/persist'
 import { toArrayBuffer } from '../lib/contracts/book'
 import { companyOnHand, onHand, orderNetReceived, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
-import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, resolveOrderPartnerId, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, resolveOrderPartnerId, stockEmptyItemsLead, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -68,7 +68,7 @@ export function StockPage() {
   const [showMoreActions, setShowMoreActions] = useState(false)
   const [operationId, setOperationId] = useState('')
   const [orderId, setOrderId] = useState('ord-paper')
-  const [itemId, setItemId] = useState('item-paper')
+  const [itemId, setItemId] = useState('')
   const [warehouseId, setWarehouseId] = useState('wh-main')
   const fromWarehouseId = 'wh-main'
   const toWarehouseId = 'wh-sub'
@@ -162,7 +162,7 @@ export function StockPage() {
     const nextStockItems = supplyItems(itemRows)
     const keepItem = itemRows.find((row) => row.id === itemId)
     if (!keepItem || !(isSupplyItem(keepItem) || isCompanyAssetItem(keepItem))) {
-      if (nextStockItems[0]) setItemId(nextStockItems[0].id)
+      setItemId(nextStockItems[0]?.id ?? '')
     }
     const selectedItem =
       keepItem && (isSupplyItem(keepItem) || isCompanyAssetItem(keepItem))
@@ -598,7 +598,7 @@ export function StockPage() {
           </div>
         ) : (
           <p className="mt-2 text-sm text-muted">
-            {ready ? '비품 품목이 없습니다. 기준정보에서 복사용지처럼 재고 품목을 등록하세요.' : '회사 DB를 여는 중입니다.'}
+            {ready ? stockEmptyItemsLead() : '회사 DB를 여는 중입니다.'}
           </p>
         )}
       </section>
