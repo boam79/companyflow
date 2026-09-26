@@ -42,6 +42,16 @@ test('로그인 next 공격 값은 화면에 남지 않는다', async ({ page })
   await expect(page.getByRole('link', { name: '이어서' })).toHaveCount(0)
 })
 
+test('로그인은 키 이름과 운영 권한 용어를 두지 않는다', async ({ page }) => {
+  await page.goto('/login')
+  await expect(page.getByRole('heading', { name: '로그인' }).first()).toBeVisible()
+  await expect(page.getByText(/anon/i)).toHaveCount(0)
+  await expect(page.getByText(/service_role/i)).toHaveCount(0)
+  await expect(page.getByText(/VITE_/)).toHaveCount(0)
+  await expect(page.getByText('운영 권한')).toHaveCount(0)
+  await expect(page.getByText('app_metadata')).toHaveCount(0)
+})
+
 test('빈 QR 로그인 주소는 허용된 next만 붙인다', async ({ page }) => {
   await page.goto(`/q/${GUEST_BLANK_QR_ID}`)
   const href = await page.getByRole('main').getByRole('link', { name: '로그인' }).getAttribute('href')

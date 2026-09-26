@@ -187,8 +187,11 @@ test('게스트 잘못된 QR은 샘플 안내만 둔다', async ({ page }) => {
 test('배포 헤더는 클릭재킹과 혼합 콘텐츠를 막는다', async ({ page }) => {
   const response = await page.goto('/')
   const headers = response?.headers() ?? {}
+  const csp = headers['content-security-policy'] ?? ''
   expect(headers['x-frame-options']?.toLowerCase()).toBe('deny')
-  expect(headers['content-security-policy'] ?? '').toContain("default-src 'self'")
-  expect(headers['content-security-policy'] ?? '').toContain('upgrade-insecure-requests')
+  expect(csp).toContain("default-src 'self'")
+  expect(csp).toContain('upgrade-insecure-requests')
+  expect(csp).toContain("script-src-attr 'none'")
+  expect(csp).not.toContain('*.supabase.co')
   expect(headers['cross-origin-opener-policy']).toBe('same-origin')
 })

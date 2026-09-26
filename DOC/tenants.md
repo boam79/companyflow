@@ -96,6 +96,7 @@
 27. 없는 주소에 영어 404를 두거나, 회사 관리 화면에 `app_metadata`·생성 UUID를 보여 준다.
 28. 익명 역할에 public 테이블을 주거나, `is_platform_operator_email`을 Data API에서 호출하게 둔다. 기준정보 저장 안내에 `applied`·`custom_field`를 두거나, 재고·자산 화면에 거래 UUID·`guest:` 발주 번호를 보여 준다.
 29. 빈 QR 창고를 이름순 첫 칸으로 고르거나, 필드 키를 비운 채 `custom_field`로 저장한다.
+30. 운영 JWT만으로 다른 회사 QR 수신함·원본 장치·수신 키를 열거나, 회사 사용자가 빈 QR을 만들거나 수신함을 비우게 둔다.
 
 ## 확인 시나리오
 

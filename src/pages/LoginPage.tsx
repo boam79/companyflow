@@ -69,9 +69,7 @@ export function LoginPage() {
 
   if (!configured) {
     return (
-      <p className="text-sm text-muted">
-        Vercel에 Supabase URL/anon 키가 없습니다. 중앙 로그인을 쓸 수 없습니다.
-      </p>
+        중앙 로그인을 쓸 수 없습니다.
     )
   }
 
@@ -108,6 +106,7 @@ export function LoginPage() {
           <input
             required
             minLength={8}
+            maxLength={72}
             type="password"
             name="loginPassword"
             autoComplete="current-password"
@@ -144,6 +143,7 @@ export function LoginPage() {
           <input
             required
             minLength={8}
+            maxLength={72}
             type="password"
             name="signupPassword"
             autoComplete="new-password"

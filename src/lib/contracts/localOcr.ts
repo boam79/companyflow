@@ -4,6 +4,7 @@ import { createWorker } from 'tesseract.js'
 import { mimeFromName, sniffContractFileMime, toArrayBuffer } from './book'
 import { describeOcrResult, type OcrExtractResult } from './ocr'
 import { parseContractText } from './parseFields'
+import { PDFJS_SAFE_OPTIONS } from './pdfjsSafe'
 
 GlobalWorkerOptions.workerSrc = workerSrc
 
@@ -16,9 +17,7 @@ let tessLoading: Promise<Awaited<ReturnType<typeof createWorker>>> | null = null
 export async function textFromPdf(bytes: Uint8Array): Promise<{ text: string; pages: number }> {
   const task = getDocument({
     data: toArrayBuffer(bytes),
-    useWasm: false,
-    useWorkerFetch: false,
-    disableAutoFetch: true,
+    ...PDFJS_SAFE_OPTIONS,
   })
   try {
     const pdf = await task.promise
@@ -43,9 +42,7 @@ async function rasterPdfPages(bytes: Uint8Array): Promise<Blob[]> {
   if (typeof document === 'undefined') return []
   const task = getDocument({
     data: toArrayBuffer(bytes),
-    useWasm: false,
-    useWorkerFetch: false,
-    disableAutoFetch: true,
+    ...PDFJS_SAFE_OPTIONS,
   })
   try {
     const pdf = await task.promise

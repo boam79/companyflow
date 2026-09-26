@@ -7,7 +7,7 @@
 
 ## 지금 하는 일
 
-T8·T9 완료. PUR-02 결재, P3, `/reports`는 사용자가 켜기 전에는 두지 않는다.
+T8·T9 완료. 2026-09-26 보안: 운영 JWT로 다른 회사 QR·원본 장치를 열지 않음. PUR-02 결재, P3, `/reports`는 사용자가 켜기 전에는 두지 않는다.
 
 ## 보드
 
@@ -83,6 +83,7 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 - Supabase 활성: `companyflow`, `boardroom`. 정지: `boam79_patient_data`, `qr-asset-manager`, `policyfund-ai-v2`.
 - `confirm_company_device` RPC 추가. 초기 설정 성공 후 원본 장치를 confirmed 로 올린다.
 
+- 2026-09-26: 보안. 운영 JWT는 멤버십 없는 회사 QR 수신함·원본 장치·수신 키를 열지 않는다. 빈 QR 만들기·수신함 반영은 회사 관리자만. 계약 PDF `enableScripting`/`isEvalSupported` 끔(CVE-2026-16633 방어). CSP는 `script-src-attr 'none'`과 전용 `vswvkypdjizldieenapx.supabase.co`만. Vite 8.3.1. 로그인 화면에 anon 키 이름을 두지 않음. HTTPS E2E로 로그인 next·헤더·게스트 XSS를 확인한다.
 - 2026-09-26: T8·T9 완료. 지정 Chrome 본사 HQ01(`pjm7908@hanmail.net`). `/contracts` CON-SAMPLE-04 OCR 확인·초안, 원본 받기, 같은 파일 한 번만, OCR만으로 체결하지 않음. `/data` 스마트폰 수신 키를 이 PC에 만듦, 암호화한 원본 묶음 받음, 최근 백업 26. 9. 26. 오후 12:21, 틀린 암호·다른 회사는 현재 원본을 바꾸지 않음. 수신함 평문 없음. 메뉴에 통계 없음. 배포 READY `dpl_faoaiLGVsUsH5ZPRKjpyk1X8xLX1` `8dbbf06` 번들 `index-BhO9i94K.js`. HTTPS E2E 44. PUR-02·P3·`/reports`는 되돌리지 않음.
 - 2026-09-26: T7 완료. 지정 Chrome 본사 HQ01(`pjm7908@hanmail.net`). 박재민 재직·지급품 미회수 3. 최민호 명찰·유니폼·노트북 회수 후 퇴사 2026-09-26. 서랍장 본사 3층 문서실 이관. 빈 QR 장수 4. QR `/q/b9f54e6d-8aeb-4341-8740-de8b633ce76e` 책상 AST-B9F54E6D-1. 발주 기록 비품 2(ord-inspect·ord-paper 복사용지)와 자산 발주 PO-T7-0926 책상 1 잔량 0. 수령 자산 AST-A2A65FF6-1. 회사 자산 12. 복사용지는 현재고 13이고 자산 목록에 없음. 반출 박재민 후 반납 현재고 13. 메뉴에 통계 없음. AC-14·`/reports`는 되돌리지 않음. HTTPS E2E 44.
 - 2026-09-26: A32 필드 키를 비우면 저장하지 않는다. 자산 발주·수불부 원거래에 `guest:`·UUID를 보여 주지 않는다. 빈 QR 창고는 자산이 많은 곳을 고른다. 퇴사 회수 중에는 재직에 남긴다. HTTPS에서 명찰·서류·퇴사·이관·빈 QR·반납·창고·거래처 44건을 확인한다.

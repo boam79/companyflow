@@ -43,14 +43,18 @@ export function trackSupabaseMutations(page: Page) {
 export async function expectSecureHeaders(page: Page, path: string) {
   const response = await page.goto(path)
   const headers = response?.headers() ?? {}
+  const csp = headers['content-security-policy'] ?? ''
   expect(headers['x-frame-options']?.toLowerCase()).toBe('deny')
-  expect(headers['content-security-policy'] ?? '').toContain("default-src 'self'")
-  expect(headers['content-security-policy'] ?? '').toContain('upgrade-insecure-requests')
-  expect((headers['content-security-policy'] ?? '').replaceAll('wasm-unsafe-eval', '')).not.toContain('unsafe-eval')
+  expect(csp).toContain("default-src 'self'")
+  expect(csp).toContain('upgrade-insecure-requests')
+  expect(csp.replaceAll('wasm-unsafe-eval', '')).not.toContain('unsafe-eval')
   expect(headers['cross-origin-opener-policy']).toBe('same-origin')
   expect(headers['cross-origin-embedder-policy']).toBe('require-corp')
   expect(headers['x-content-type-options']).toBe('nosniff')
   expect(headers['strict-transport-security'] ?? '').toContain('max-age=31536000')
   expect(headers['referrer-policy']).toBe('strict-origin-when-cross-origin')
   expect(headers['permissions-policy'] ?? '').toContain('camera=()')
+  expect(csp).toContain("script-src-attr 'none'")
+  expect(csp).toContain('vswvkypdjizldieenapx.supabase.co')
+  expect(csp).not.toContain('*.supabase.co')
 }
