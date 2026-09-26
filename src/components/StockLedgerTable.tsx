@@ -3,6 +3,7 @@ import {
   buildLedgerView,
   buildSupplyLedgerView,
   filterLedgerView,
+  publicItemLabel,
   rowsAreRelated,
   stockEmptyLedgerFilterLead,
   stockEmptyLedgerLead,
@@ -82,7 +83,10 @@ export function StockLedgerTable(props: {
                 <td className="whitespace-nowrap py-2 pr-3 text-muted">{formatWhen(row.line.createdAt)}</td>
                 <td className="py-2 pr-3 font-medium">{row.label}</td>
                 <td className="py-2 pr-3">
-                  {props.items.find((item) => item.id === row.line.itemId)?.name ?? row.line.itemId}
+                  {publicItemLabel(
+                    props.items.find((item) => item.id === row.line.itemId)?.name,
+                    row.line.itemId,
+                  )}
                 </td>
                 {supply ? null : (
                   <td className="py-2 pr-3">

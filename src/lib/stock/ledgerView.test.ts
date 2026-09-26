@@ -3,7 +3,7 @@ import {
   applyStockCommand,
   createStockState,
 } from './engine'
-import { buildLedgerView, buildSupplyLedgerView, filterLedgerView, formatLedgerLink, rowsAreRelated, stockEmptyLedgerFilterLead, stockEmptyLedgerLead } from './ledgerView'
+import { buildLedgerView, buildSupplyLedgerView, filterLedgerView, formatLedgerLink, publicItemLabel, rowsAreRelated, stockEmptyLedgerFilterLead, stockEmptyLedgerLead } from './ledgerView'
 
 const ITEM = 'item-paper'
 const MAIN = 'wh-main'
@@ -106,6 +106,9 @@ describe('입출고 수불부', () => {
         sourceOperationId: 'guest:paper-in',
       }),
     ).not.toMatch(/guest:desk|guest:paper|원거래/)
+    expect(publicItemLabel('복사용지', 'item-paper')).toBe('복사용지')
+    expect(publicItemLabel('item-d2361da5-1d84-4f31-b43b-9e8ad4cc4bc2')).toBe('비품')
+    expect(publicItemLabel('', 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee')).toBe('비품')
   })
 
   it('창고 이동은 회사잔량을 바꾸지 않고 출고 다음에 입고를 둔다', () => {

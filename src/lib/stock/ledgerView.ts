@@ -60,6 +60,13 @@ export function publicOrderRef(value?: string | null) {
   return text
 }
 
+export function publicItemLabel(name?: string | null, id?: string | null) {
+  const text = (name ?? '').trim() || (id ?? '').trim()
+  if (!text || isOpaqueLedgerRef(text)) return '비품'
+  if (/^(guest:|item-[0-9a-f]{8}-)/i.test(text)) return '비품'
+  return (name ?? '').trim() || '비품'
+}
+
 export function formatLedgerLink(
   line: LedgerLine,
   names?: LedgerNameMaps,
