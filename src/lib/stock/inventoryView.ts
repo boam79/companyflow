@@ -42,7 +42,19 @@ export function stockAdjustReason() {
   return ''
 }
 
-export function defaultWarehouseId(rows: { id: string }[]) {
+export function defaultWarehouseId(
+  rows: { id: string }[],
+  state?: StockState,
+  itemId?: string,
+) {
+  if (state && itemId) {
+    let best: { id: string; qty: number } | null = null
+    for (const row of rows) {
+      const qty = onHand(state, itemId, row.id)
+      if (!best || qty > best.qty) best = { id: row.id, qty }
+    }
+    if (best && best.qty > 0) return best.id
+  }
   return rows[0]?.id ?? ''
 }
 

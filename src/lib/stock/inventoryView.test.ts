@@ -62,6 +62,16 @@ describe('비품 현재고', () => {
     expect(stockDraftOrderId()).toBe('')
     expect(stockAdjustReason()).toBe('')
     expect(defaultWarehouseId(WAREHOUSES)).toBe('wh-main')
+    expect(
+      defaultWarehouseId(
+        [
+          { id: 'wh-sub' },
+          { id: 'wh-main' },
+        ],
+        state,
+        PAPER_ITEM.id,
+      ),
+    ).toBe('wh-main')
     expect(transferWarehouseIds(WAREHOUSES)).toEqual({
       fromWarehouseId: 'wh-main',
       toWarehouseId: 'wh-sub',

@@ -13,7 +13,7 @@ import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { executeStockCommand, ensureDefaultStockMaster, loadOrderOriginal, loadStockState, orderAttachment } from '../lib/stock/persist'
 import { toArrayBuffer } from '../lib/contracts/book'
 import { onHand, orderNetReceived, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
-import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, resolveOrderPartnerId, stockAdjustReason, stockAssetsLinkLabel, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssuePersonName, stockLastSaveLead, stockPageLead, stockReturnSourceLead, stockSavedNotice, stockSupplierReturnLead, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, resolveOrderPartnerId, stockAdjustReason, stockAssetsLinkLabel, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssuePersonName, stockLastSaveLead, stockPageLead, stockReturnSourceLead, stockSavedNotice, stockSupplierReturnLead, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -171,9 +171,12 @@ export function StockPage() {
     if (selectedItem?.partnerId) {
       setOrderPartnerId((prev) => prev || selectedItem.partnerId || '')
     }
-    if (!warehouseRows.some((row) => row.id === warehouseId) && warehouseRows[0]) {
-      setWarehouseId(warehouseRows[0].id)
-    }
+    setWarehouseId((prev) => {
+      if (warehouseRows.some((row) => row.id === prev) && onHand(nextState, selectedItem?.id ?? '', prev) > 0) {
+        return prev
+      }
+      return defaultWarehouseId(warehouseRows, nextState, selectedItem?.id)
+    })
   }
 
   function chooseItem(nextItemId: string) {
@@ -277,7 +280,9 @@ export function StockPage() {
       const supplyId = stockActionItemId(nextAction, itemId, items)
       if (supplyId && supplyId !== itemId) chooseItem(supplyId)
       const useItem = supplyId && supplyId !== itemId ? supplyId : itemId
-      const onHandQty = onHand(state, useItem, warehouseId)
+      const useWh = defaultWarehouseId(warehouses, state, useItem)
+      if (useWh && useWh !== warehouseId) setWarehouseId(useWh)
+      const onHandQty = onHand(state, useItem, useWh || warehouseId)
       const returnable =
         nextAction === 'post_supplier_return' ? Math.min(onHandQty, orderNetReceived(state, orderId, useItem)) : onHandQty
       setQty(String(returnable > 0 ? Math.min(1, returnable) : 1))
