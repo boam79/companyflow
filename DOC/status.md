@@ -2,12 +2,12 @@
 
 마지막 갱신: 2026-09-26  
 현재 역할: Executor  
-회사는 서로 독립이다. 규칙은 [`tenants.md`](tenants.md). 운영 계정은 다른 회사 모듈만 켠다. 사람·재고 원본은 멤버십 회사(본사)만 연다. T7 완료. T8·T9 진행 중. 통계 메뉴는 두지 않음.  
+회사는 서로 독립이다. 규칙은 [`tenants.md`](tenants.md). 운영 계정은 다른 회사 모듈만 켠다. 사람·재고 원본은 멤버십 회사(본사)만 연다. T7·T8·T9 완료. 통계 메뉴는 두지 않음.  
 원격: https://github.com/boam79/companyflow.git
 
 ## 지금 하는 일
 
-T8·T9 구현. 지정 Chrome 본사에서 계약 OCR·암호화 묶음·수신 키를 확인한 뒤 완료 선언한다.
+T8·T9 완료. PUR-02 결재, P3, `/reports`는 사용자가 켜기 전에는 두지 않는다.
 
 ## 보드
 
@@ -25,7 +25,8 @@ T8·T9 구현. 지정 Chrome 본사에서 계약 OCR·암호화 묶음·수신 �
 - [x] T6 구매·재고 수불부 (반출 4 → 회사 합계 7, 본사 5, 부속 2)
 - [x] `/people` 입사 중·재직·퇴사 탭. 사용자 확인.
 - [x] T7 입퇴사 프로세스·회사 자산. 지정 Chrome 본사 원본 확인. 통계 메뉴는 두지 않음(AC-14).
-- [x] T8 계약 직접 등록 초안 (`/contracts`). 로컬 OCR·사용자 확인 후 초안. 샘플은 다운로드 폴더.
+- [x] T8 계약 직접 등록·로컬 OCR 초안 (`/contracts`). CON-03 신뢰도 0.5 미만은 칸을 채우지 않음. OCR만으로 체결하지 않음. 지정 Chrome 본사 확인.
+- [x] T9 암호화 Relay·원본 묶음·실권한 (AC-20~22, AC-34). 지정 Chrome 본사에서 수신 키·암호화 묶음 확인. 게스트 백업 잔재는 HTTPS E2E.
 - [x] 명찰 템플릿 미리보기·PDF 받기 (지정 Chrome에서 명찰-김담당.pdf 확인)
 - [x] 회사 자산은 책상·컴퓨터. 복사용지 AST 해제 후 `/assets` 확인.
 - [x] 빈 QR → 스마트폰 입력 → 지정 PC 원본 반영. 지정 Chrome 확인.
@@ -82,6 +83,7 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 - Supabase 활성: `companyflow`, `boardroom`. 정지: `boam79_patient_data`, `qr-asset-manager`, `policyfund-ai-v2`.
 - `confirm_company_device` RPC 추가. 초기 설정 성공 후 원본 장치를 confirmed 로 올린다.
 
+- 2026-09-26: T8·T9 완료. 지정 Chrome 본사 HQ01(`pjm7908@hanmail.net`). `/contracts` CON-SAMPLE-04 OCR 확인·초안, 원본 받기, 같은 파일 한 번만, OCR만으로 체결하지 않음. `/data` 스마트폰 수신 키를 이 PC에 만듦, 암호화한 원본 묶음 받음, 최근 백업 26. 9. 26. 오후 12:21, 틀린 암호·다른 회사는 현재 원본을 바꾸지 않음. 수신함 평문 없음. 메뉴에 통계 없음. 배포 READY `dpl_faoaiLGVsUsH5ZPRKjpyk1X8xLX1` `8dbbf06` 번들 `index-BhO9i94K.js`. HTTPS E2E 44. PUR-02·P3·`/reports`는 되돌리지 않음.
 - 2026-09-26: T7 완료. 지정 Chrome 본사 HQ01(`pjm7908@hanmail.net`). 박재민 재직·지급품 미회수 3. 최민호 명찰·유니폼·노트북 회수 후 퇴사 2026-09-26. 서랍장 본사 3층 문서실 이관. 빈 QR 장수 4. QR `/q/b9f54e6d-8aeb-4341-8740-de8b633ce76e` 책상 AST-B9F54E6D-1. 발주 기록 비품 2(ord-inspect·ord-paper 복사용지)와 자산 발주 PO-T7-0926 책상 1 잔량 0. 수령 자산 AST-A2A65FF6-1. 회사 자산 12. 복사용지는 현재고 13이고 자산 목록에 없음. 반출 박재민 후 반납 현재고 13. 메뉴에 통계 없음. AC-14·`/reports`는 되돌리지 않음. HTTPS E2E 44.
 - 2026-09-26: A32 필드 키를 비우면 저장하지 않는다. 자산 발주·수불부 원거래에 `guest:`·UUID를 보여 주지 않는다. 빈 QR 창고는 자산이 많은 곳을 고른다. 퇴사 회수 중에는 재직에 남긴다. HTTPS에서 명찰·서류·퇴사·이관·빈 QR·반납·창고·거래처 44건을 확인한다.
 - 2026-09-26: A31 기준정보 저장 안내는 한글만 둔다. 재고 수불부·정정 칸에 거래 UUID를 보여 주지 않는다. 익명은 public 테이블을 못 읽고, 운영 이메일 조회 RPC는 Data API에서 뺀다. HTTPS에서 게스트 부서·품목·직원·반출·계약 XSS·빈 QR을 확인한다.
@@ -167,7 +169,21 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 
 ## 문서 대조 — 빠진 것 (2026-09-18 Planner)
 
-PRD 11.1·기능 ID·AC와 코드를 맞춰 본 결과다. T7은 2026-09-26 Planner 완료다. AC-14 통계 메뉴는 사용자 요청으로 완료 조건에서 빼 두었다.
+PRD 11.1·기능 ID·AC와 코드를 맞춰 본 결과다. T7·T8·T9는 2026-09-26 완료다. AC-14 통계 메뉴는 사용자 요청으로 완료 조건에서 빼 두었다.
+
+### T8 완료 (2026-09-26)
+
+- AC-15·16: `/contracts` 원본 PDF·PNG·JPEG를 이 PC에서 읽고 확인 후 초안만 저장. 같은 파일은 한 번만
+- CON-03: 신뢰도 0.5 미만 후보는 칸을 채우지 않음. OCR만으로 체결하지 않음
+- 지정 Chrome 본사 CON-SAMPLE-04 OCR 확인·초안, 원본 받기
+
+### T9 완료 (2026-09-26)
+
+- AC-20: Relay ECDH-ES+A256GCM. 중앙은 암호문만. 지정 Chrome에서 스마트폰 수신 키를 원본에 만듦
+- AC-21: 암호문 72시간. 만료 후 스마트폰에서 다시 저장
+- AC-22: PBKDF2 210000·AES-GCM `.cfbak`. 지정 Chrome에서 암호화 묶음 받음. 틀린 암호·다른 회사는 현재 원본 유지
+- AC-34: 원본 장치가 confirmed인데 로컬이 비면 빈 DB를 만들지 않고 `/data` 묶음 되돌리기
+- 로그인 전·게스트 `/data`에는 최근 백업·백업과 복원·전송 대기 잔재 없음(HTTPS E2E)
 
 ### T7 완료 (2026-09-26)
 
@@ -191,7 +207,6 @@ PRD 11.1·기능 ID·AC와 코드를 맞춰 본 결과다. T7은 2026-09-26 Plan
 
 ### 켜면 안 되는 것 (문서 게이트)
 
-- T9 Relay 암호·키, 백업 복원, 휴대폰 최신 조회. 빈 QR 수신함은 반영 전 평문 임시
-- CON-03 OCR 자동추출
+- PUR-02 결재, P3, `/reports` 복구
 - 다중 PC 공동 편집, 회계·급여, 전자서명, 재고 원가, lot (제품 범위 밖)
 
