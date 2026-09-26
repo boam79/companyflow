@@ -68,9 +68,7 @@ export function LoginPage() {
   }
 
   if (!configured) {
-    return (
-        중앙 로그인을 쓸 수 없습니다.
-    )
+    return <p className="text-sm text-muted">중앙 로그인을 쓸 수 없습니다.</p>
   }
 
   return (
