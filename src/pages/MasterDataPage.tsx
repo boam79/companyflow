@@ -273,7 +273,8 @@ export function MasterDataPage() {
     try {
       if (tab === 'fields') {
         const entity = fieldEntity
-        const key = fieldKey.trim() || 'custom_field'
+        const key = fieldKey.trim()
+        if (!key) throw new Error('필드 키를 입력하세요.')
         const result = await sqlite.runOnce(operationId, async () => {
           await sqlite.exec(
             'insert or replace into custom_field_defs(entity, key, label) values(?, ?, ?)',

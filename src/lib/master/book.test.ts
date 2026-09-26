@@ -106,9 +106,20 @@ describe('회사별 기준정보 격리', () => {
     expect(partnerPhonePlaceholder()).toBe('')
     await expect(
       loadFirstWarehouseId({
-        query: async <T>() => [{ id: 'wh-a' }] as T[],
+        query: async <T>(sql = '') => {
+          if (/from assets/i.test(sql)) return [] as T[]
+          return [{ id: 'wh-a' }] as T[]
+        },
       }),
     ).resolves.toBe('wh-a')
+    await expect(
+      loadFirstWarehouseId({
+        query: async <T>(sql = '') => {
+          if (/from assets/i.test(sql)) return [{ id: 'wh-main' }] as T[]
+          return [{ id: 'wh-sub' }] as T[]
+        },
+      }),
+    ).resolves.toBe('wh-main')
     await expect(
       loadFirstWarehouseId({
         query: async <T>() => [] as T[],

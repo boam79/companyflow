@@ -14,6 +14,7 @@ export const HQ_LEFTOVERS = [
   'Invalid login',
   'UNIQUE constraint',
   'JWT expired',
+  'custom_field',
 ] as const
 
 export async function expectNoHqLeftovers(page: Page) {
@@ -23,6 +24,7 @@ export async function expectNoHqLeftovers(page: Page) {
   await expect(page.getByText(/operation_id/)).toHaveCount(0)
   await expect(page.getByText(/\bapplied\b/)).toHaveCount(0)
   await expect(page.getByText(/직전 거래:/)).toHaveCount(0)
+  await expect(page.getByText(/guest:/)).toHaveCount(0)
 }
 
 export function trackSupabaseMutations(page: Page) {

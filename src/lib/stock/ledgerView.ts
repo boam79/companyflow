@@ -53,21 +53,32 @@ export function isOpaqueLedgerRef(value?: string | null) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text)
 }
 
+export function publicOrderRef(value?: string | null) {
+  const text = value?.trim() ?? ''
+  if (!text || isOpaqueLedgerRef(text)) return ''
+  if (/^(guest:|sample:|op-|item-|emp-|wh-|dept-)/i.test(text)) return ''
+  return text
+}
+
 export function formatLedgerLink(
   line: LedgerLine,
   names?: LedgerNameMaps,
   warehouseName?: string,
 ): string {
   const parts: string[] = []
-  if (line.orderId && !isOpaqueLedgerRef(line.orderId)) parts.push(`발주 ${line.orderId}`)
-  if (line.sourceOperationId && !isOpaqueLedgerRef(line.sourceOperationId)) parts.push(`원거래 ${line.sourceOperationId}`)
+  const orderRef = publicOrderRef(line.orderId)
+  if (orderRef) parts.push(`발주 ${orderRef}`)
+  const sourceRef = publicOrderRef(line.sourceOperationId)
+  if (sourceRef) parts.push(`원거래 ${sourceRef}`)
   if (line.personName) parts.push(line.personName)
   if (line.departmentId) {
     const department = names?.departments?.find((row) => row.id === line.departmentId)
-    parts.push(department?.name ?? line.departmentId)
+    const departmentName = department?.name ?? publicOrderRef(line.departmentId)
+    if (departmentName) parts.push(departmentName)
   }
   if (line.txnType === 'transfer_in' || line.txnType === 'transfer_out') {
-    parts.push(warehouseName ?? line.warehouseId)
+    const warehouse = warehouseName ?? publicOrderRef(line.warehouseId)
+    if (warehouse) parts.push(warehouse)
   }
   if (line.reason && !/자산화|자산이 아니라 재고/.test(line.reason)) parts.push(line.reason)
   return parts.join(' · ')

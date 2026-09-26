@@ -94,6 +94,18 @@ describe('입출고 수불부', () => {
         sourceOperationId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
       }),
     ).not.toMatch(/aaaaaaaa|원거래 aaaaaaaa/)
+    expect(
+      formatLedgerLink({
+        id: 'l3',
+        operationId: 'op-recv',
+        txnType: 'receipt',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qtyDelta: 1,
+        orderId: 'guest:desk-1',
+        sourceOperationId: 'guest:paper-in',
+      }),
+    ).not.toMatch(/guest:desk|guest:paper|원거래/)
   })
 
   it('창고 이동은 회사잔량을 바꾸지 않고 출고 다음에 입고를 둔다', () => {

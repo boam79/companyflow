@@ -93,7 +93,13 @@ export function partnerPhonePlaceholder() {
 export async function loadFirstWarehouseId(db: {
   query: <T>(sql: string, params?: unknown[]) => Promise<T[]>
 }) {
-  const rows = await db.query<{ id: string }>(`select id from warehouses where ${ACTIVE_MASTER_WHERE} order by name`)
+  const used = await db.query<{ id: string }>(
+    `select warehouse_id as id from assets where coalesce(warehouse_id, '') != '' group by warehouse_id order by count(*) desc, warehouse_id limit 1`,
+  )
+  if (used[0]?.id) return used[0].id
+  const rows = await db.query<{ id: string }>(
+    `select id from warehouses where ${ACTIVE_MASTER_WHERE} order by created_at, id`,
+  )
   const id = rows[0]?.id ?? ''
   if (!id) throw new Error('창고가 없습니다. 기준정보에서 창고를 추가하세요.')
   return id
