@@ -83,6 +83,17 @@ describe('입출고 수불부', () => {
         { departments: [{ id: 'dept-admin', name: '총무' }] },
       ),
     ).toBe('김담당 · 총무')
+    expect(
+      formatLedgerLink({
+        id: 'l2',
+        operationId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+        txnType: 'return',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qtyDelta: 1,
+        sourceOperationId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      }),
+    ).not.toMatch(/aaaaaaaa|원거래 aaaaaaaa/)
   })
 
   it('창고 이동은 회사잔량을 바꾸지 않고 출고 다음에 입고를 둔다', () => {

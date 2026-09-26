@@ -47,14 +47,20 @@ export type LedgerNameMaps = {
   warehouses?: { id: string; name: string }[]
 }
 
+export function isOpaqueLedgerRef(value?: string | null) {
+  const text = value?.trim() ?? ''
+  if (!text) return true
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text)
+}
+
 export function formatLedgerLink(
   line: LedgerLine,
   names?: LedgerNameMaps,
   warehouseName?: string,
 ): string {
   const parts: string[] = []
-  if (line.orderId) parts.push(`발주 ${line.orderId}`)
-  if (line.sourceOperationId) parts.push(`원거래 ${line.sourceOperationId.slice(0, 8)}`)
+  if (line.orderId && !isOpaqueLedgerRef(line.orderId)) parts.push(`발주 ${line.orderId}`)
+  if (line.sourceOperationId && !isOpaqueLedgerRef(line.sourceOperationId)) parts.push(`원거래 ${line.sourceOperationId}`)
   if (line.personName) parts.push(line.personName)
   if (line.departmentId) {
     const department = names?.departments?.find((row) => row.id === line.departmentId)

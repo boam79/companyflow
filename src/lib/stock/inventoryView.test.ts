@@ -11,6 +11,8 @@ import {
   stockInboundItemHint,
   stockAssetsLinkLabel,
   stockPageLead,
+  stockLastSaveLead,
+  stockReturnSourceLead,
   stockSavedNotice,
   stockDraftOrderId,
   stockIssuePersonName,
@@ -77,6 +79,10 @@ describe('비품 현재고', () => {
     expect(
       stockSavedNotice({ duplicate: false, actionLabel: '입고', assetCount: 0, createdItemName: '클립' }),
     ).toContain('클립')
+    expect(stockLastSaveLead()).not.toMatch(/operation_id|[0-9a-f]{8}-/)
+    expect(stockReturnSourceLead('견본 김대리')).toBe('견본 김대리 반출')
+    expect(stockReturnSourceLead('')).toBe('수불부에서 반출 줄을 고르세요.')
+    expect(stockReturnSourceLead('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee')).toBe('수불부에서 반출 줄을 고르세요.')
     expect(buildSupplyInventory(items, WAREHOUSES, state)).toEqual([
       {
         itemId: 'item-paper',

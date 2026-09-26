@@ -86,7 +86,7 @@ export function CompanySettingsPage() {
         .eq('status', 'active')
       if (cancelled) return
       if (membershipError) {
-        setMessage(membershipError.message)
+        setMessage(publicErrorMessage(membershipError))
         setReady(true)
         return
       }
@@ -105,7 +105,7 @@ export function CompanySettingsPage() {
           mine.map((row) => row.company_id as string),
         )
       if (companyError) {
-        setMessage(companyError.message)
+        setMessage(publicErrorMessage(companyError))
         setReady(true)
         return
       }

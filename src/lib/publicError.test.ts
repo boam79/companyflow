@@ -27,7 +27,8 @@ describe('공개 오류 문구', () => {
       '이미 있는 계정입니다. 위 로그인으로 들어오세요.',
     )
     expect(publicErrorMessage(new Error('column foo does not exist'))).toBe('요청을 처리하지 못했습니다.')
-    expect(publicErrorMessage(new Error('JWT expired'))).toBe('요청을 처리하지 못했습니다.')
+    expect(publicErrorMessage(new Error('JWT expired'))).toBe('로그인이 만료되었습니다. 다시 로그인하세요.')
+    expect(publicErrorMessage(new Error('permission denied for table companies'))).toBe('이 작업 권한이 없습니다.')
     const rows: Array<[unknown, string]> = [
       [{ message: 'Password should be at least 8 characters' }, '더 긴 비밀번호를 쓰세요.'],
       [{ message: 'Too many requests' }, '잠시 후 다시 시도하세요.'],

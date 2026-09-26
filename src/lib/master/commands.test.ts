@@ -21,6 +21,8 @@ import {
   duplicateItemRepairs,
   assertItemSupplier,
   masterDeactivateStatement,
+  masterSavedNotice,
+  masterDisabledNotice,
 } from './commands'
 
 describe('기준정보 SQL 명령', () => {
@@ -251,5 +253,12 @@ describe('기준정보 SQL 명령', () => {
   it('직원 화면의 기본 추가 필드는 employee 엔티티다', () => {
     expect(fieldEntityFromTable('employees')).toBe('employee')
     expect(fieldEntityFromTable('items')).toBe('item')
+  })
+
+  it('저장 안내는 영어 상태를 두지 않는다', () => {
+    expect(masterSavedNotice('부서', 'applied')).toBe('저장했습니다. (부서)')
+    expect(masterSavedNotice('부서', 'duplicate')).toBe('같은 내용은 한 번만 반영됩니다.')
+    expect(masterDisabledNotice('창고', 'applied')).toBe('사용 안 함으로 바꿨습니다. (창고)')
+    expect(masterSavedNotice('품목', 'applied')).not.toMatch(/applied|duplicate/)
   })
 })

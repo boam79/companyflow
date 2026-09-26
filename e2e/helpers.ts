@@ -21,6 +21,21 @@ export async function expectNoHqLeftovers(page: Page) {
     await expect(page.getByText(text)).toHaveCount(0)
   }
   await expect(page.getByText(/operation_id/)).toHaveCount(0)
+  await expect(page.getByText(/\bapplied\b/)).toHaveCount(0)
+  await expect(page.getByText(/직전 거래:/)).toHaveCount(0)
+}
+
+export function trackSupabaseMutations(page: Page) {
+  const hits: string[] = []
+  page.on('request', (req) => {
+    const method = req.method()
+    if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) return
+    const url = req.url()
+    if (!url.includes('supabase.co')) return
+    if (url.includes('/auth/v1/')) return
+    hits.push(`${method} ${url}`)
+  })
+  return hits
 }
 
 export async function expectSecureHeaders(page: Page, path: string) {
@@ -33,4 +48,7 @@ export async function expectSecureHeaders(page: Page, path: string) {
   expect(headers['cross-origin-opener-policy']).toBe('same-origin')
   expect(headers['cross-origin-embedder-policy']).toBe('require-corp')
   expect(headers['x-content-type-options']).toBe('nosniff')
+  expect(headers['strict-transport-security'] ?? '').toContain('max-age=31536000')
+  expect(headers['referrer-policy']).toBe('strict-origin-when-cross-origin')
+  expect(headers['permissions-policy'] ?? '').toContain('camera=()')
 }

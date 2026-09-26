@@ -24,6 +24,8 @@ import {
   assertUniquePurchaseKindName,
   assertPurchaseKind,
   ACTIVE_MASTER_WHERE,
+  masterSavedNotice,
+  masterDisabledNotice,
   type MasterFieldEntity,
   type MasterTable,
   type PurchaseKindRow,
@@ -279,7 +281,7 @@ export function MasterDataPage() {
           )
           return { entity, key, label: name.trim() }
         })
-        setNotice(`필드 저장 (${result.status})`)
+        setNotice(masterSavedNotice('필드', result.status))
       } else {
         assertMasterTable(tab)
         if (tab === 'items') {
@@ -312,7 +314,7 @@ export function MasterDataPage() {
           await sqlite.exec(stmt.sql, stmt.params)
           return row
         })
-        setNotice(`${TABS.find((item) => item.id === tab)?.label} 저장 (${result.status})`)
+        setNotice(masterSavedNotice(TABS.find((item) => item.id === tab)?.label ?? '기준정보', result.status))
       }
       setName('')
       setMinStock('0')
@@ -351,7 +353,7 @@ export function MasterDataPage() {
         await sqlite.exec(stmt.sql, stmt.params)
         return { itemId: selectedItemId, name: stmt.params[0], code: stmt.params[1] }
       })
-      setNotice(`품목 저장 (${result.status})`)
+      setNotice(masterSavedNotice('품목', result.status))
       await reload()
     } catch (error) {
       setMessage(publicErrorMessage(error))
@@ -400,7 +402,7 @@ export function MasterDataPage() {
         await sqlite.exec(stmt.sql, stmt.params)
         return { partnerId: selectedPartnerId, name: stmt.params[0] }
       })
-      setNotice(`거래처 저장 (${result.status})`)
+      setNotice(masterSavedNotice('거래처', result.status))
       if (pendingPartnerFile) setPartnerHasFile(true)
       setPendingPartnerFile(null)
       if (partnerFileInput.current) partnerFileInput.current.value = ''
@@ -443,7 +445,7 @@ export function MasterDataPage() {
         await sqlite.exec(stmt.sql, stmt.params)
         return { id: stmt.params[0] }
       })
-      setNotice(`${TABS.find((item) => item.id === tab)?.label} 사용 안 함 (${result.status})`)
+      setNotice(masterDisabledNotice(TABS.find((item) => item.id === tab)?.label ?? '기준정보', result.status))
       setSelectedItemId('')
       setSelectedPartnerId('')
       setSelectedNamedId('')
@@ -480,7 +482,7 @@ export function MasterDataPage() {
         return row
       })
       setPurchaseKind(row.id)
-      setNotice(`구매 구분 추가 (${result.status})`)
+      setNotice(masterSavedNotice('구매 구분', result.status))
       await reload()
     } catch (error) {
       setMessage(publicErrorMessage(error))
@@ -498,7 +500,7 @@ export function MasterDataPage() {
         await sqlite.exec(stmt.sql, stmt.params)
         return { id: purchaseKind }
       })
-      setNotice(`구매 구분 저장 (${result.status})`)
+      setNotice(masterSavedNotice('구매 구분', result.status))
       await reload()
     } catch (error) {
       setMessage(publicErrorMessage(error))
@@ -517,7 +519,7 @@ export function MasterDataPage() {
         return { id: purchaseKind }
       })
       selectPurchaseKind(remaining[0].id)
-      setNotice(`구매 구분 사용 안 함 (${result.status})`)
+      setNotice(masterDisabledNotice('구매 구분', result.status))
       await reload()
     } catch (error) {
       setMessage(publicErrorMessage(error))

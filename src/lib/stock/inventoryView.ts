@@ -73,6 +73,18 @@ export function stockSavedNotice(input: {
   return `저장했습니다. (${input.actionLabel})`
 }
 
+export function stockLastSaveLead() {
+  return '직전 저장을 정정할 수 있습니다.'
+}
+
+export function stockReturnSourceLead(personName?: string) {
+  const name = personName?.trim()
+  if (name && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(name)) {
+    return `${name} 반출`
+  }
+  return '수불부에서 반출 줄을 고르세요.'
+}
+
 export function buildSupplyInventory(
   items: ItemRecord[],
   warehouses: NamedWarehouse[],

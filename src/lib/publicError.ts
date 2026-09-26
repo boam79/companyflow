@@ -50,6 +50,12 @@ export function publicErrorMessage(error: unknown): string {
   if (/signup is disabled/i.test(blob)) {
     return '지금은 회원가입을 받지 않습니다.'
   }
+  if (/permission denied|not authorized|row-level security|rls/i.test(blob)) {
+    return '이 작업 권한이 없습니다.'
+  }
+  if (/jwt expired|invalid jwt|invalid claim/i.test(blob)) {
+    return '로그인이 만료되었습니다. 다시 로그인하세요.'
+  }
   if (!raw) return FALLBACK
   if (/[가-힣]/.test(raw)) return raw
   return FALLBACK

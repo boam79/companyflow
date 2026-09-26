@@ -367,6 +367,16 @@ export function partnerUpdateStatement(row: {
   }
 }
 
+export function masterSavedNotice(label: string, status: 'applied' | 'duplicate') {
+  if (status === 'duplicate') return '같은 내용은 한 번만 반영됩니다.'
+  return `저장했습니다. (${label})`
+}
+
+export function masterDisabledNotice(label: string, status: 'applied' | 'duplicate') {
+  if (status === 'duplicate') return '같은 내용은 한 번만 반영됩니다.'
+  return `사용 안 함으로 바꿨습니다. (${label})`
+}
+
 function partnerProfileValues(row: { name: string; phone?: string; memo?: string }) {
   const name = normalizeHangulField(row.name)
   if (!name) throw new Error('거래처 이름을 입력하세요.')

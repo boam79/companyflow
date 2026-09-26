@@ -7,7 +7,7 @@
 
 ## 지금 하는 일
 
-A30 전 경로·게스트 흐름·로그인 실패를 HTTPS에서 깊게 확인한다.
+A31 실제 유저스토리·보안을 폭넓게 대입해 고치고 배포한다.
 
 ## 보드
 
@@ -50,6 +50,7 @@ A30 전 경로·게스트 흐름·로그인 실패를 HTTPS에서 깊게 확인�
 - [x] A26 입퇴사 빈 탭 0·슬랙 Incoming Webhook·홈 발주 접힘·재고 책상·컴퓨터 안내를 뺀다. 빈 QR은 자산 품목이 없으면 기준정보를 안내한다. 퇴사 칸 지급 전 문구를 입사 지급 없음으로 바꾼다.
 - [x] A27 업무 안내·오류는 본사 책상·컴퓨터를 전제하지 않는다. 기준정보 구매 구분 칸에 일반 비품을 미리 넣지 않는다.
 - [x] A28 회사 코드가 없을 때 본사 데모를 넣지 않는다. 로그인·업무 화면은 영어 오류를 한글만 보여 준다. 데이터 안내 문법을 고친다.
+- [x] A31 기준정보 안내·재고 UUID·익명 테이블·운영 이메일 조회를 막고 HTTPS에서 실제 스토리를 대입한다.
 - [x] A30 로그아웃·게스트·없는 주소·로그인 실패·헤더·QR을 HTTPS에서 깊게 확인한다. 재고 저장 안내에 operation_id를 두지 않는다.
 - [x] A15 팔 회사 시드는 본사 샘플을 넣지 않는다. 추가 사람 RPC 거절.
 - [x] A14 회사 설정 추가 사람 초대 제거. 한 회사는 최초 관리자 한 명.
@@ -76,10 +77,11 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 
 ## MCP에서 확인한 것
 
-- Vercel: `prj_KXGPhwGOtB8IQ2pAsnuTOZ0l3isR` / team `team_U7AuO5lMD3rtoAwkrj410jpx`. 도메인 `companyflow-opal.vercel.app`. A30 READY `dpl_9mXLaJhY6Ywq7pxAH1vAxEVAz5z6` 번들 `index-BFbb7K4G.js`. HTTPS E2E 37.
+- Vercel: `prj_KXGPhwGOtB8IQ2pAsnuTOZ0l3isR` / team `team_U7AuO5lMD3rtoAwkrj410jpx`. 도메인 `companyflow-opal.vercel.app`. A31 번들 `index-CyFpw5h8.js`.
 - Supabase 활성: `companyflow`, `boardroom`. 정지: `boam79_patient_data`, `qr-asset-manager`, `policyfund-ai-v2`.
 - `confirm_company_device` RPC 추가. 초기 설정 성공 후 원본 장치를 confirmed 로 올린다.
 
+- 2026-09-26: A31 기준정보 저장 안내는 한글만 둔다. 재고 수불부·정정 칸에 거래 UUID를 보여 주지 않는다. 익명은 public 테이블을 못 읽고, 운영 이메일 조회 RPC는 Data API에서 뺀다. HTTPS에서 게스트 부서·품목·직원·반출·계약 XSS·빈 QR을 확인한다.
 - 2026-09-25: A30 로그아웃 업무 주소·게스트 없는 화면·로그인 실패·헤더·샘플 QR·입고·계약을 HTTPS에서 표로 확인한다. 재고 저장 안내에 operation_id를 두지 않는다.
 - 2026-09-25: A29 없는 주소·게스트에 없는 화면은 한글만 둔다. 회사 관리에 app_metadata와 생성 UUID를 보여 주지 않는다. 빈 QR 로그인은 허용된 next만 붙인다. HTTPS에서 메뉴·홈 인트로·게스트를 확인한다.
 - 2026-09-25: A28 회사 코드가 없으면 본사 샘플을 넣지도 팔 회사 카탈로그를 지우지도 않는다. 로그인·업무 화면의 영어 오류와 SQL 문구는 한글로만 돌린다. 데이터 안내는 「의 이 브라우저」가 아니다. 게스트 자산 안내는 본사 책상을 전제하지 않는다.

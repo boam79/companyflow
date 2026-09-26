@@ -13,7 +13,7 @@ import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { executeStockCommand, ensureDefaultStockMaster, loadOrderOriginal, loadStockState, orderAttachment } from '../lib/stock/persist'
 import { toArrayBuffer } from '../lib/contracts/book'
 import { onHand, orderNetReceived, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
-import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, resolveOrderPartnerId, stockAdjustReason, stockAssetsLinkLabel, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssuePersonName, stockPageLead, stockSavedNotice, stockSupplierReturnLead, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, resolveOrderPartnerId, stockAdjustReason, stockAssetsLinkLabel, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssuePersonName, stockLastSaveLead, stockPageLead, stockReturnSourceLead, stockSavedNotice, stockSupplierReturnLead, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -285,6 +285,9 @@ export function StockPage() {
     }
     if (nextAction === 'post_return') setQty('1')
     if (nextAction === 'transfer_stock') setQty('2')
+    if (nextAction === 'reverse_transaction' && lastOperationId) {
+      setSourceOperationId((prev) => prev || lastOperationId)
+    }
   }
 
   function buildCommand(
@@ -376,7 +379,7 @@ export function StockPage() {
           reason,
         }
       case 'reverse_transaction':
-        return { type: action, operationId: nextOperationId, sourceOperationId }
+        return { type: action, operationId: nextOperationId, sourceOperationId: sourceOperationId || lastOperationId }
     }
   }
 
@@ -1024,20 +1027,24 @@ export function StockPage() {
         {action === 'post_return' ? (
           <p className="text-sm text-muted">
             원거래:{' '}
-            {state?.ledger.find((line) => line.operationId === sourceOperationId)?.personName
-              ? `${state.ledger.find((line) => line.operationId === sourceOperationId)?.personName} 반출`
-              : sourceOperationId || '수불부에서 반출 줄을 고르세요.'}
+            {stockReturnSourceLead(
+              state?.ledger.find((line) => line.operationId === sourceOperationId)?.personName,
+            )}
           </p>
         ) : action === 'reverse_transaction' ? (
+          guest ? (
+            <p className="text-sm text-muted">{stockLastSaveLead()}</p>
+          ) : (
           <label className="text-sm">
             원거래
             <input
               className="mt-1 w-full rounded border border-line px-3 py-2"
               value={sourceOperationId}
               onChange={(e) => setSourceOperationId(e.target.value)}
-              placeholder={lastOperationId}
+              placeholder="직전 저장"
             />
           </label>
+          )
         ) : null}
         {action === 'adjust_stock' ? (
           <label className="text-sm">
@@ -1049,16 +1056,18 @@ export function StockPage() {
             />
           </label>
         ) : null}
+        {guest ? null : (
         <details className="text-sm text-muted">
-          <summary className="cursor-pointer">거래 번호 (비워 두면 새로 발급)</summary>
+          <summary className="cursor-pointer">같은 저장을 한 번만 반영합니다</summary>
           <input
             className="mt-2 w-full rounded border border-line px-3 py-2 text-ink"
             value={operationId}
             onChange={(e) => setOperationId(e.target.value)}
-            placeholder="새로 발급"
+            placeholder="비워 두면 새로 저장"
           />
-          {lastOperationId ? <p className="mt-1 text-xs">직전 거래: {lastOperationId}</p> : null}
+          {lastOperationId ? <p className="mt-1 text-xs">{stockLastSaveLead()}</p> : null}
         </details>
+        )}
       </form>
       </div>
       </div>
