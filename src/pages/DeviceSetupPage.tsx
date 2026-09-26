@@ -22,6 +22,10 @@ import { CompanyMasterBook, seedDefaultMaster, writeDefaultMaster } from '../lib
 import { canStartRealData } from '../lib/sqlite/durableStore'
 import { useCompanySession } from '../lib/companySession'
 import { openedCompanyCaption, showsCompanyPicker } from '../lib/company/nav'
+import { generateRelayKeyPair } from '../lib/crypto/ecdh'
+import { writeRelayPrivateJwk } from '../lib/backup/snapshot'
+import { publishRelayPublicKey } from '../lib/asset/relay'
+import { lostOriginLead } from '../lib/data/storageStatus'
 import { publicErrorMessage } from '../lib/publicError'
 import { getSupabase } from '../lib/supabase'
 
@@ -37,6 +41,7 @@ export function DeviceSetupPage() {
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
   const [hydrated, setHydrated] = useState(false)
+  const [restoreLead, setRestoreLead] = useState('')
 
   useEffect(() => {
     if (!companyId) return
@@ -49,6 +54,19 @@ export function DeviceSetupPage() {
       const rows = await sqlite.query<{ value: string }>('select value from setup_state where key = ?', ['phase'])
       if (cancelled) return
       const stored = setupFromStoredPhase(rows[0]?.value)
+      const client = getSupabase()
+      let deviceStatus: string | null = null
+      if (client) {
+        const { data: device } = await client
+          .from('company_devices')
+          .select('status')
+          .eq('company_id', companyId)
+          .maybeSingle()
+        deviceStatus = (device?.status as string | undefined) ?? null
+      }
+      if (cancelled) return
+      const originReady = canMarkUsable(stored)
+      setRestoreLead(lostOriginLead(deviceStatus, originReady))
       if (canMarkUsable(stored)) {
         setState(stored)
         setNotice('')
@@ -63,6 +81,7 @@ export function DeviceSetupPage() {
   }, [companyId])
 
   async function runSetup() {
+    if (restoreLead) return
     setBusy(true)
     setNotice('')
     try {
@@ -127,6 +146,15 @@ export function DeviceSetupPage() {
       }
       next = reduceSetup(next, { type: 'persist_ok' })
       setState(next)
+      if (client && companyId) {
+        try {
+          const keys = await generateRelayKeyPair()
+          await writeRelayPrivateJwk(sqlite, keys.privateJwk)
+          await publishRelayPublicKey(client, companyId, keys.publicJwk)
+        } catch {
+          // 수신 키는 데이터 관리에서 다시 만들 수 있다
+        }
+      }
       setNotice(canMarkUsable(next) ? '' : '검증이 부족합니다. 다시 눌러 주세요.')
     } catch (error) {
       const reason = publicErrorMessage(error)
@@ -199,7 +227,15 @@ export function DeviceSetupPage() {
             회사 <strong>{company.display_name}</strong> ({company.company_code})
           </p>
         ) : null}
-        {hydrated && setupRunButtonVisible(usable) ? (
+        {restoreLead ? (
+          <>
+            <p className="text-sm text-danger">{restoreLead}</p>
+            <Link to="/data" className="inline-flex rounded bg-accent px-4 py-2 text-sm font-semibold text-white">
+              데이터 관리에서 묶음 되돌리기
+            </Link>
+          </>
+        ) : null}
+        {hydrated && !restoreLead && setupRunButtonVisible(usable) ? (
           <button
             type="button"
             disabled={busy || !companyId}

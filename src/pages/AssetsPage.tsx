@@ -13,7 +13,8 @@ import {
   type AssetLifeKind,
 } from '../lib/asset/life'
 import { assertQrAssetPayload, executeQrRegistration, loadQrLabels, type QrAssetPayload } from '../lib/asset/register'
-import { fetchPendingQrInbox, importAssetQr, insertBlankQrLabels, type AssetQrInboxRow } from '../lib/asset/relay'
+import { fetchPendingQrInbox, importAssetQr, insertBlankQrLabels, previewInboxRow, type AssetQrInboxRow } from '../lib/asset/relay'
+import { readRelayPrivateJwk } from '../lib/backup/snapshot'
 import { assertBlankQrCount, assertPngDataUrl, blankQrDataUrl, blankQrFileName, blankQrScanUrl } from '../lib/asset/qr'
 import { escapeHtml } from '../lib/htmlEscape'
 import { isCompanyAssetItem, loadItems, writeDefaultMaster, type ItemRecord } from '../lib/master/book'
@@ -109,11 +110,13 @@ export function AssetsPage() {
     }
   }, [assets, selectedId, guest])
 
-  async function refreshInbox(nextId: string) {
+  async function refreshInbox(nextId: string, catalog: ItemRecord[] = items) {
     if (guest) return
     const client = getSupabase()
     if (!client) return
-    setInbox(await fetchPendingQrInbox(client, nextId))
+    const rows = await fetchPendingQrInbox(client, nextId)
+    const key = await readRelayPrivateJwk(sqlite)
+    setInbox(await Promise.all(rows.map((row) => previewInboxRow(row, key, catalog))))
   }
 
   async function openCompany(nextId: string, force = false) {
@@ -180,7 +183,7 @@ export function AssetsPage() {
           ),
         )
       } else {
-        await refreshInbox(nextId)
+        await refreshInbox(nextId, itemRows)
       }
     } catch (error) {
       setReady(false)
@@ -243,6 +246,10 @@ export function AssetsPage() {
     setBusy(true)
     setMessage('')
     try {
+      if (row.expired) {
+        setMessage('보관 시간이 지나 다시 보내야 합니다.')
+        return
+      }
       const payload = payloadFromUnknown(row.payload, items)
       const result = await executeQrRegistration(sqlite, { labelId: row.label_id, payload })
       await importAssetQr(client, row.label_id)
@@ -470,25 +477,21 @@ export function AssetsPage() {
           </p>
         ) : inbox.length ? (
           <ul className="mt-2 max-h-36 space-y-1 overflow-auto text-sm">
-            {inbox.map((row) => {
-              const payload = row.payload as Partial<QrAssetPayload>
-              return (
+            {inbox.map((row) => (
                 <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-line/70 py-1.5">
-                  <span>
-                    {String(payload.itemName ?? '자산')} · {String(payload.location ?? '위치 없음')} ·{' '}
-                    {String(payload.ownerName || payload.departmentName || '담당 없음')}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    className="rounded bg-accent px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
-                    onClick={() => void importOne(row)}
-                  >
-                    원본에 반영
-                  </button>
+                  <span>{row.preview ?? '수신 대기'}</span>
+                  {row.expired ? null : (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className="rounded bg-accent px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                      onClick={() => void importOne(row)}
+                    >
+                      원본에 반영
+                    </button>
+                  )}
                 </li>
-              )
-            })}
+              ))}
           </ul>
         ) : (
           <p className="mt-2 text-sm text-muted">

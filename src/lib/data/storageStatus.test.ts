@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   canConfirmOriginalDevice,
+  canManageBackup,
   dataPageLead,
   deviceSavedLabel,
+  lostOriginLead,
   savedOnThisDevice,
   showsWorkDbReopen,
   storageLines,
@@ -46,7 +48,16 @@ describe('데이터 관리 저장 상태', () => {
     ])
     const idle = storageLines({ savedHere: true, deviceStatus: 'confirmed', pendingReceive: 0 })
     expect(idle.map((line) => line.label)).toEqual(['이 기기에 저장됨', '관리자 PC 저장 완료'])
-    expect(waiting.map((line) => line.label).join(' ')).not.toMatch(/전송 대기|최근 백업/)
+    expect(storageLines({ savedHere: true, deviceStatus: 'confirmed', pendingReceive: 0, lastBackupAt: '2026-09-26 12:00' })).toEqual([
+      { label: '이 기기에 저장됨', value: '예' },
+      { label: '관리자 PC 저장 완료', value: '예' },
+      { label: '최근 백업', value: '2026-09-26 12:00' },
+    ])
+    expect(waiting.map((line) => line.label).join(' ')).not.toMatch(/전송 대기/)
+    expect(canManageBackup({ savedHere: true, isAdmin: true })).toBe(true)
+    expect(canManageBackup({ savedHere: false, isAdmin: true })).toBe(false)
+    expect(lostOriginLead('confirmed', false)).toMatch(/빈 DB를 만들지/)
+    expect(lostOriginLead('confirmed', true)).toBe('')
     expect(dataPageLead('재민')).toBe('이 브라우저에 저장된 재민 원본 상태입니다.')
     expect(dataPageLead()).toBe('이 브라우저 저장 상태입니다.')
     expect(dataPageLead()).not.toMatch(/백업|복원/)

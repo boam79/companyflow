@@ -96,4 +96,21 @@ describe('계약 OCR 필드 추출', () => {
     expect(filled.endAt).toBe('2026-12-31')
     expect(filled.amount).toBe('12000000')
   })
+
+  it('신뢰가 낮은 후보는 칸을 비워 직접 확인하게 한다', () => {
+    const filled = applyOcrCandidates(
+      {
+        title: '',
+        contractNo: '',
+        counterparty: '',
+        signedAt: '',
+        startAt: '',
+        endAt: '',
+        amount: '',
+        ownerName: '',
+      },
+      [{ field: 'title', value: '불명', confidence: 0.2 }],
+    )
+    expect(filled.title).toBe('')
+  })
 })

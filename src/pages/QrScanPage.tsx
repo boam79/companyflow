@@ -6,6 +6,7 @@ import { loadQrAssetDetail, phoneQrSavedMessage, type QrAssetDetail } from '../l
 import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
 import { executeQrRegistration, readQrAssetForm } from '../lib/asset/register'
 import { fetchQrLabel, submitAssetQr, type AssetQrLabelRow } from '../lib/asset/relay'
+import { sealQrPayload } from '../lib/relay/cipher'
 import { isQrLabelId, sqliteIdForQrLabel } from '../lib/asset/qr'
 import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
@@ -178,7 +179,11 @@ export function QrScanPage() {
         setModuleOff(true)
         return
       }
-      await submitAssetQr(client, token, payload)
+      if (!label?.relayPublicJwk) {
+        setMessage('지정 PC 데이터 관리에서 수신 키를 만든 뒤 다시 저장하세요.')
+        return
+      }
+      await submitAssetQr(client, token, await sealQrPayload(label.relayPublicJwk, payload))
       setLabel((prev) => (prev ? { ...prev, status: 'submitted' } : prev))
       setNotice('저장했습니다. 지정 PC 자산 화면에서 원본에 반영됩니다.')
       setFormTick((tick) => tick + 1)
@@ -272,7 +277,7 @@ export function QrScanPage() {
     )
   }
 
-  const canSave = label?.status === 'blank' && !notice
+  const canSave = (label?.status === 'blank' || label?.submittedExpired) && !notice
 
   return (
     <div className="max-w-md space-y-6">
@@ -286,8 +291,11 @@ export function QrScanPage() {
       </div>
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
-      {!canSave && label && label.status !== 'blank' ? (
+      {!canSave && label && label.status !== 'blank' && !label.submittedExpired ? (
         <p className="text-sm text-muted">{phoneQrSavedMessage(guest)}</p>
+      ) : null}
+      {label?.submittedExpired && !notice ? (
+        <p className="text-sm text-muted">보관 시간이 지나 다시 보내야 합니다.</p>
       ) : null}
       {canSave ? (
         <form

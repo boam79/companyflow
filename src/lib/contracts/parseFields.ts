@@ -138,9 +138,12 @@ export function parseContractText(text: string): OcrCandidate[] {
   return candidates
 }
 
+export const OCR_AUTOFILL_MIN = 0.5
+
 export function applyOcrCandidates(form: ContractFormDraft, candidates: OcrCandidate[]): ContractFormDraft {
   const next = { ...form }
   for (const row of candidates) {
+    if (row.confidence < OCR_AUTOFILL_MIN) continue
     if (row.field === 'title') next.title = row.value
     if (row.field === 'contractNo') next.contractNo = row.value
     if (row.field === 'counterparty') next.counterparty = row.value

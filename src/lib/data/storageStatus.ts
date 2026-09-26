@@ -2,6 +2,7 @@ export type StorageFacts = {
   savedHere: boolean
   deviceStatus: string | null
   pendingReceive: number
+  lastBackupAt?: string
 }
 
 export function savedOnThisDevice(persistOk: boolean, vfsName: string) {
@@ -44,5 +45,19 @@ export function storageLines(facts: StorageFacts) {
   if (facts.pendingReceive > 0) {
     lines.push({ label: '처리 확인 필요', value: `${facts.pendingReceive}건` })
   }
+  if (facts.lastBackupAt) {
+    lines.push({ label: '최근 백업', value: facts.lastBackupAt })
+  }
   return lines
+}
+
+export function lostOriginLead(deviceStatus: string | null, originReady: boolean) {
+  if (deviceStatus === 'confirmed' && !originReady) {
+    return '이 브라우저에 원본이 없습니다. 빈 DB를 만들지 않습니다. 데이터 관리에서 백업을 되돌리거나 지정 Chrome을 쓰세요.'
+  }
+  return ''
+}
+
+export function canManageBackup(input: { savedHere: boolean; isAdmin: boolean }) {
+  return input.savedHere && input.isAdmin
 }
