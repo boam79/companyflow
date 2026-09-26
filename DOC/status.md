@@ -2,12 +2,12 @@
 
 마지막 갱신: 2026-09-26  
 현재 역할: Executor  
-회사는 서로 독립이다. 규칙은 [`tenants.md`](tenants.md). 운영 계정은 다른 회사 모듈만 켠다. 사람·재고 원본은 멤버십 회사(본사)만 연다. 백업·복원은 열지 않음. T7 완료 아님.  
+회사는 서로 독립이다. 규칙은 [`tenants.md`](tenants.md). 운영 계정은 다른 회사 모듈만 켠다. 사람·재고 원본은 멤버십 회사(본사)만 연다. 백업·복원은 열지 않음. T7 완료. 통계 메뉴는 두지 않음.  
 원격: https://github.com/boam79/companyflow.git
 
 ## 지금 하는 일
 
-A32 입퇴사·자산·반납 잔재를 고치고 HTTPS에서 실제 스토리 44건을 확인했다.
+T7 완료. 지정 Chrome 본사(HQ01) 원본에서 입퇴사·자산·발주 구분·수령 자산화를 확인했다. AC-14 통계 메뉴와 T9·PUR-02·P3는 켜기 전 두지 않는다.
 
 ## 보드
 
@@ -24,7 +24,7 @@ A32 입퇴사·자산·반납 잔재를 고치고 HTTPS에서 실제 스토리 4
 - [x] 사용자: `/master` 에서 본사 `총무` 확인
 - [x] T6 구매·재고 수불부 (반출 4 → 회사 합계 7, 본사 5, 부속 2)
 - [x] `/people` 입사 중·재직·퇴사 탭. 사용자 확인.
-- [ ] T7 입퇴사 프로세스·회사 자산 사용자 확인. Planner 완료 선언 전.
+- [x] T7 입퇴사 프로세스·회사 자산. 지정 Chrome 본사 원본 확인. 통계 메뉴는 두지 않음(AC-14).
 - [x] T8 계약 직접 등록 초안 (`/contracts`). 로컬 OCR·사용자 확인 후 초안. 샘플은 다운로드 폴더.
 - [x] 명찰 템플릿 미리보기·PDF 받기 (지정 Chrome에서 명찰-김담당.pdf 확인)
 - [x] 회사 자산은 책상·컴퓨터. 복사용지 AST 해제 후 `/assets` 확인.
@@ -78,10 +78,11 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 
 ## MCP에서 확인한 것
 
-- Vercel: `prj_KXGPhwGOtB8IQ2pAsnuTOZ0l3isR` / team `team_U7AuO5lMD3rtoAwkrj410jpx`. 도메인 `companyflow-opal.vercel.app`. A32 READY `dpl_AifF4MpVGXi4w7RRSpwUYyesgczp` 번들 `index-DiorRLLe.js`. HTTPS E2E 44.
+- Vercel: `prj_KXGPhwGOtB8IQ2pAsnuTOZ0l3isR` / team `team_U7AuO5lMD3rtoAwkrj410jpx`. 도메인 `companyflow-opal.vercel.app`. 수불부 품목 표시 READY `dpl_6q8EPw4X8hAoFNkCm2NzJraNV5mW` 번들 `index-BBcvG6-4.js`.
 - Supabase 활성: `companyflow`, `boardroom`. 정지: `boam79_patient_data`, `qr-asset-manager`, `policyfund-ai-v2`.
 - `confirm_company_device` RPC 추가. 초기 설정 성공 후 원본 장치를 confirmed 로 올린다.
 
+- 2026-09-26: T7 완료. 지정 Chrome 본사 HQ01(`pjm7908@hanmail.net`). 박재민 재직·지급품 미회수 3. 최민호 명찰·유니폼·노트북 회수 후 퇴사 2026-09-26. 서랍장 본사 3층 문서실 이관. 빈 QR 장수 4. QR `/q/b9f54e6d-8aeb-4341-8740-de8b633ce76e` 책상 AST-B9F54E6D-1. 발주 기록 비품 2(ord-inspect·ord-paper 복사용지)와 자산 발주 PO-T7-0926 책상 1 잔량 0. 수령 자산 AST-A2A65FF6-1. 회사 자산 12. 복사용지는 현재고 13이고 자산 목록에 없음. 반출 박재민 후 반납 현재고 13. 메뉴에 통계 없음. AC-14·`/reports`는 되돌리지 않음. HTTPS E2E 44.
 - 2026-09-26: A32 필드 키를 비우면 저장하지 않는다. 자산 발주·수불부 원거래에 `guest:`·UUID를 보여 주지 않는다. 빈 QR 창고는 자산이 많은 곳을 고른다. 퇴사 회수 중에는 재직에 남긴다. HTTPS에서 명찰·서류·퇴사·이관·빈 QR·반납·창고·거래처 44건을 확인한다.
 - 2026-09-26: A31 기준정보 저장 안내는 한글만 둔다. 재고 수불부·정정 칸에 거래 UUID를 보여 주지 않는다. 익명은 public 테이블을 못 읽고, 운영 이메일 조회 RPC는 Data API에서 뺀다. HTTPS에서 게스트 부서·품목·직원·반출·계약 XSS·빈 QR을 확인한다.
 - 2026-09-25: A30 로그아웃 업무 주소·게스트 없는 화면·로그인 실패·헤더·샘플 QR·입고·계약을 HTTPS에서 표로 확인한다. 재고 저장 안내에 operation_id를 두지 않는다.
@@ -166,19 +167,16 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 
 ## 문서 대조 — 빠진 것 (2026-09-18 Planner)
 
-PRD 11.1·기능 ID·AC와 코드를 맞춰 본 결과다. T7은 Planner 완료가 아니다.
+PRD 11.1·기능 ID·AC와 코드를 맞춰 본 결과다. T7은 2026-09-26 Planner 완료다. AC-14 통계 메뉴는 사용자 요청으로 완료 조건에서 빼 두었다.
 
-### 코딩됐지만 사용자 확인 전
+### T7 완료 (2026-09-26)
 
-- 메뉴 QA(회사 세션·잘못된 QR 한글 안내). 배포 `e8c46ca`. 지정 Chrome 강력 새로고침 전.
+- AC-04: `/stock` 발주 기록에서 비품 발주와 자산 발주를 나눈다. 전용 통계 메뉴는 두지 않음
+- AC-13: 책상 수령은 자산 한 건으로 등록하고 잔량 0. 복사용지는 비품 현재고만
+- AC-23: 입사 지급·퇴사 회수·명찰. 자리 자산은 직원 배정이 아님(D-30)
+- AST-05·06·빈 QR·이관은 지정 Chrome 본사 원본에서 확인
 
-### T7에서 비어 있는 것 (지금 단계)
-
-- AST-05·06·입퇴사 탭·명찰·수령 자산화·빈 QR은 지정 Chrome 확인. 직원 배정 UI는 쓰지 않음(D-30)
-- AC-04 발주 목록은 `/stock` 발주 기록(접힘). 통계 메뉴는 두지 않음(사용자 요청, AC-14는 T7 완료 조건에서 빼 둠)
-- T7 완료는 Planner 선언 전
-
-### 이전 단계에 얇게 남은 것 (T7 완료 선언과는 별개)
+### 이전 단계에 얇게 남은 것 (T7 완료와 별개)
 
 - P1 홈 앞칸 재고 부족·입사 중·계약 기한, 발주 수령 대기 접음. 지정 Chrome 확인
 - PUR-01·02 구매요청·결재 없음. 결재는 계속 생략. 거절품 반환·INV-02·INV-11·PUR-07/08은 실행 순서에서 삭제(사용자 요청)
