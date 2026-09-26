@@ -34,7 +34,7 @@ test('게스트 반출은 견본 이름으로 저장하고 중앙 쓰기를 하�
   await page.getByLabel('반출 성명').fill('견본 김대리')
   await page.getByRole('button', { name: '반출', exact: true }).click()
   await expect(page.getByText('저장했습니다. (반출)')).toBeVisible()
-  await expect(page.getByText('견본 김대리')).toBeVisible()
+  await expect(page.getByRole('cell', { name: '견본 김대리' })).toBeVisible()
   await expect(page.getByText('거래 번호')).toHaveCount(0)
   await expect(page.getByText(/직전 거래:/)).toHaveCount(0)
   await expectNoHqLeftovers(page)
