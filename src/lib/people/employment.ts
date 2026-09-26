@@ -36,8 +36,10 @@ export function hireIssuedCount(checks: OnboardingCheck[]): number {
 
 export function rosterPhase(employee: EmployeeRecord, checks: OnboardingCheck[]): RosterPhase {
   if (employee.leftAt) return 'left'
-  if (!employee.hiredAt || hireIssuedCount(checks) < checks.length) return 'joining'
-  return 'employed'
+  if (!employee.hiredAt) return 'joining'
+  if (hireIssuedCount(checks) === checks.length) return 'employed'
+  if (checks.some((row) => Boolean(row.returnedAt))) return 'employed'
+  return 'joining'
 }
 
 export function visiblePeoplePanels(phase: RosterPhase) {

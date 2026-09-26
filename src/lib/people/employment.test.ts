@@ -16,7 +16,7 @@ import {
   rosterPhase,
   visiblePeoplePanels,
 } from './employment'
-import { applyIssueCheck, assertOffboardingClear, onboardingView } from './onboarding'
+import { applyIssueCheck, applyReturnCheck, assertOffboardingClear, onboardingView } from './onboarding'
 
 describe('입퇴사', () => {
   it('입사하면 명찰 이름과 입사일이 생긴다', () => {
@@ -120,6 +120,7 @@ describe('입퇴사', () => {
     expect(hireProcessSummary(employee, checks)).toBe('입사 중 · 2/4')
     const complete = applyIssueCheck(applyIssueCheck(checks, 'badge', '2026-09-16'), 'uniform', '2026-09-16')
     expect(rosterPhase(employee, complete)).toBe('employed')
+    expect(rosterPhase(employee, applyReturnCheck(complete, 'badge', '2026-09-20'))).toBe('employed')
     expect(hireProcessSummary(employee, complete)).toBe('입사 완료 · 3/3 지급')
     expect(hireProcessSummary({ id: 'emp-new', name: '신입' }, onboardingView('emp-new', []))).toBe('입사 중 · 0/4')
   })
