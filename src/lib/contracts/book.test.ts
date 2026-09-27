@@ -11,6 +11,9 @@ import {
   filterContracts,
   groupContracts,
   sniffContractFileMime,
+  similarDraftNotice,
+  similarDrafts,
+  emptyContractTabCopy,
 } from './book'
 import { DISABLED_OCR, assertOcrCannotConfirm } from './ocr'
 
@@ -115,19 +118,32 @@ describe('계약 초안', () => {
     expect(contractLife('2026-12-31', '2026-09-19')).toBe('진행')
   })
 
-  it('목록은 계약중과 만료로 나눈다', () => {
+  it('목록은 계약중·만료 예정·만료로 나눈다', () => {
     const rows = [
       applyDraftContract([], { ...BASE, endAt: '2026-12-31' }),
       applyDraftContract([], { ...BASE, id: 'con-2', title: '복합기 유지보수', endAt: '2026-02-28' }),
       applyDraftContract([], { ...BASE, id: 'con-3', title: '인터넷 전용회선' }),
+      applyDraftContract([], { ...BASE, id: 'con-4', title: '영업배상 책임보험', endAt: '2026-10-15' }),
     ]
     const groups = groupContracts(rows, '2026-09-20')
     expect(groups.map((section) => [section.label, section.contracts.map((row) => row.title)])).toEqual([
       ['계약중', ['본사 임대', '인터넷 전용회선']],
+      ['만료 예정', ['영업배상 책임보험']],
       ['만료', ['복합기 유지보수']],
     ])
     expect(defaultContractTab(groups)).toBe('active')
     expect(defaultContractTab(groupContracts([rows[1]], '2026-09-20'))).toBe('expired')
+    expect(defaultContractTab(groupContracts([rows[3]], '2026-09-20'))).toBe('due')
+  })
+
+  it('같은 이름·상대 초안은 새 저장 안내만 한다', () => {
+    const rows = [applyDraftContract([], BASE)]
+    expect(similarDrafts(rows, { title: '본사 임대', counterparty: '한국임대' })).toHaveLength(1)
+    expect(similarDrafts(rows, { title: '본사 임대', counterparty: '한국임대', id: 'con-1' })).toHaveLength(0)
+    expect(similarDraftNotice(1)).toContain('같은 이름·상대')
+    expect(similarDraftNotice(0)).toBe('')
+    expect(emptyContractTabCopy('due', '')).toBe('만료 예정 계약이 없습니다.')
+    expect(emptyContractTabCopy('active', '임대')).toBe('검색 결과가 없습니다.')
   })
 
   it('OCR 후보를 확인한 뒤에만 원본 첨부 초안을 만든다', () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { HOME_FRONT_PANEL_TITLES, contractRecent, contractWatchLabel, lowStock, peopleRecent, recentWork, stockRecent, waitingReceipts, watchContracts } from './work'
+import { contractDueNotice } from '../contracts/watch'
 
 describe('홈 업무', () => {
   it('홈 앞칸은 재고 부족·입사 중·계약 기한이다', () => {
@@ -37,6 +38,8 @@ describe('홈 업무', () => {
     expect(contractWatchLabel('2026-11-19', '2026-09-20')).toBe('만료 예정')
     expect(contractWatchLabel('2026-12-31', '2026-09-20')).toBe(null)
     expect(contractWatchLabel(undefined, '2026-09-20')).toBe(null)
+    expect(contractDueNotice(2)).toBe('기한 알림 2건이 60일 안에 끝납니다.')
+    expect(contractDueNotice(0)).toBe('')
   })
 
   it('홈 계약 기한은 종료일 빠른 순이다', () => {

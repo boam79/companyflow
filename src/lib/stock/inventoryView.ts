@@ -3,6 +3,20 @@ import { companyOnHand, onHand, orderReceived, orderRejected, orderRemaining, or
 
 export type NamedWarehouse = { id: string; name: string }
 
+export type LowStock = {
+  itemId: string
+  itemName: string
+  onHand: number
+  minStock: number
+  managed?: boolean
+}
+
+export function lowStock(rows: LowStock[]): LowStock[] {
+  return rows
+    .filter((row) => row.managed !== false && row.minStock > 0 && row.onHand < row.minStock)
+    .sort((a, b) => a.onHand - a.minStock - (b.onHand - b.minStock) || a.itemName.localeCompare(b.itemName, 'ko'))
+}
+
 export type SupplyInventoryRow = {
   itemId: string
   itemName: string
@@ -108,6 +122,22 @@ export function buildSupplyInventory(
     quantities: warehouses.map((warehouse) => onHand(state, item.id, warehouse.id)),
     total: companyOnHand(state, item.id),
   }))
+}
+
+export function supplyLowStock(items: ItemRecord[], state: StockState): LowStock[] {
+  return lowStock(
+    supplyItems(items).map((item) => ({
+      itemId: item.id,
+      itemName: item.name,
+      onHand: companyOnHand(state, item.id),
+      minStock: item.minStock ?? 0,
+      managed: item.stockManaged,
+    })),
+  )
+}
+
+export function lowStockLine(row: Pick<LowStock, 'itemName' | 'onHand' | 'minStock'>) {
+  return `${row.itemName} ${row.onHand} / 최소 ${row.minStock}`
 }
 
 export function orderRemainingCaption(

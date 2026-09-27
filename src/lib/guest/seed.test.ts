@@ -6,6 +6,7 @@ import {
   GUEST_BLANK_QR_ID,
   GUEST_DESK_QR_ID,
   GUEST_PAPER_IN_OP,
+  GUEST_PAPER_MIN_STOCK,
   GUEST_PAPER_QTY,
   GUEST_PC_QR_ID,
   seedGuestCompany,
@@ -40,6 +41,8 @@ describe('게스트 샘플 시드', () => {
         '견본문구',
         '샘플 책상',
         '샘플 사무실 임대',
+        '샘플 보험',
+        '견본보험',
       ]),
     )
     expect(names).not.toContain('김담당')
@@ -62,6 +65,8 @@ describe('게스트 샘플 시드', () => {
     expect(isQrLabelId(GUEST_PC_QR_ID)).toBe(true)
     expect(execSql.some((sql) => sql.includes('insert or ignore into qr_labels'))).toBe(true)
     expect(GUEST_PAPER_QTY).toBe(7)
+    expect(GUEST_PAPER_MIN_STOCK).toBe(10)
+    expect(GUEST_PAPER_MIN_STOCK).toBeGreaterThan(GUEST_PAPER_QTY)
   })
 
   it('게스트가 메모리 아닌 VFS를 열면 막는다', () => {

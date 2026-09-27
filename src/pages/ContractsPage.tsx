@@ -7,17 +7,22 @@ import {
   contractAmountText,
   contractPeriod,
   contractPhase,
+  contractPhaseCaption,
   defaultContractTab,
+  emptyContractTabCopy,
   executeDraftContract,
   filterContracts,
   groupContracts,
   hashFileBytes,
   loadContractOriginal,
   loadContracts,
+  similarDraftNotice,
+  similarDrafts,
   toArrayBuffer,
   type ContractDraft,
   type ContractPhase,
 } from '../lib/contracts/book'
+import { contractDueNotice } from '../lib/contracts/watch'
 import { applyOcrCandidates } from '../lib/contracts/parseFields'
 import { writeDefaultMaster } from '../lib/master/book'
 import { canWriteOpenedCompany, mayOpenCompanyWork, workSessionKind } from '../lib/company/workGate'
@@ -229,11 +234,16 @@ export function ContractsPage() {
         ocrReviewed: Boolean(fileBytes) && ocrReviewed,
       })
       setNotice(
-        result.status === 'duplicate'
-          ? '같은 초안은 한 번만 반영됩니다.'
-          : fileBytes
-            ? '확인한 값으로 초안과 원본을 저장했습니다. OCR만으로 체결하지 않았습니다.'
-            : '계약 초안을 저장했습니다. OCR로 체결하지 않았습니다.',
+        [
+          result.status === 'duplicate'
+            ? '같은 초안은 한 번만 반영됩니다.'
+            : fileBytes
+              ? '확인한 값으로 초안과 원본을 저장했습니다. OCR만으로 체결하지 않았습니다.'
+              : '계약 초안을 저장했습니다. OCR로 체결하지 않았습니다.',
+          similarDraftNotice(similarDrafts(rows, { title: form.title, counterparty: form.counterparty }).length),
+        ]
+          .filter(Boolean)
+          .join(' '),
       )
       const nextRows = await loadContracts(sqlite)
       setRows(nextRows)
@@ -267,6 +277,8 @@ export function ContractsPage() {
     [groups, lifeTab, query],
   )
   const selected = rows.find((row) => row.id === selectedId)
+  const dueLead = contractDueNotice(groups.find((section) => section.phase === 'due')?.contracts.length ?? 0)
+  const similarHint = similarDraftNotice(similarDrafts(rows, form).length)
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
   if (!guest && !configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
@@ -344,6 +356,7 @@ export function ContractsPage() {
         </div>
       </div>
       {ocrMessage ? <p className="text-sm text-accent">{ocrMessage}</p> : null}
+      {dueLead ? <p className="text-sm text-accent">{dueLead}</p> : null}
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
 
@@ -355,7 +368,7 @@ export function ContractsPage() {
         }
       >
         <nav className="flex max-h-[calc(100svh-10rem)] min-h-0 flex-col overflow-hidden rounded-lg border border-line bg-card">
-          <div className="grid shrink-0 grid-cols-2 border-b border-line">
+          <div className="grid shrink-0 grid-cols-3 border-b border-line">
             {groups.map((section) => {
               const active = section.phase === lifeTab
               return (
@@ -417,13 +430,7 @@ export function ContractsPage() {
             ))
           ) : (
             <p className="p-3 text-sm text-muted">
-              {ready
-                ? query.trim()
-                  ? '검색 결과가 없습니다.'
-                  : lifeTab === 'expired'
-                    ? '만료된 계약이 없습니다.'
-                    : '진행 중인 계약이 없습니다.'
-                : '회사 DB를 여는 중입니다.'}
+              {ready ? emptyContractTabCopy(lifeTab, query) : '회사 DB를 여는 중입니다.'}
             </p>
           )}
           </div>
@@ -452,7 +459,7 @@ export function ContractsPage() {
                 <div>
                   <dt className="text-muted">기간</dt>
                   <dd>
-                    {contractPeriod(selected)} · {contractPhase(selected.endAt, today) === 'expired' ? '만료' : '계약중'}
+                    {contractPeriod(selected)} · {contractPhaseCaption(contractPhase(selected.endAt, today))}
                   </dd>
                 </div>
                 <div>
@@ -484,6 +491,7 @@ export function ContractsPage() {
 
           <form className="grid max-h-[calc(100svh-10rem)] gap-3 overflow-auto rounded-lg border border-line bg-card p-4 sm:grid-cols-2" onSubmit={onSubmit}>
             <h2 className="text-lg font-semibold sm:col-span-2">새 초안</h2>
+            {similarHint ? <p className="text-sm text-muted sm:col-span-2">{similarHint}</p> : null}
             <label className="text-sm">
               계약명
               <input

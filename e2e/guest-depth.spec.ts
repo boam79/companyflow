@@ -78,12 +78,23 @@ test('게스트 계약 초안은 본사 김담당 없이 저장한다', async ({
   await page.goto('/guest/contracts')
   await expect(page.getByRole('heading', { name: '계약' }).first()).toBeVisible({ timeout: 20000 })
   await expect(page.getByRole('heading', { name: '샘플 사무실 임대' })).toBeVisible()
+  await expect(page.getByText(/기한 알림/)).toBeVisible()
+  await page.getByRole('button', { name: /^만료 예정/ }).click()
+  await expect(page.getByRole('heading', { name: '샘플 보험' })).toBeVisible()
   await page.getByRole('button', { name: '새 초안' }).click()
   await page.getByLabel('계약명').fill('샘플 청소 계약')
   await page.getByLabel('상대방').fill('견본청소')
   await page.getByRole('button', { name: '초안 저장' }).click()
   await expect(page.getByText('계약 초안을 저장했습니다.')).toBeVisible()
   await expect(page.getByText('김담당')).toHaveCount(0)
+})
+
+test('게스트 재고 부족은 최소보다 적은 비품만 보여 준다', async ({ page }) => {
+  await page.goto('/guest/stock')
+  await expect(page.getByRole('heading', { name: '구매·재고' })).toBeVisible({ timeout: 20000 })
+  await expect(page.getByRole('heading', { name: /재고 부족/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /샘플 복사용지 7 \/ 최소 10/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '재고 부족 0' })).toHaveCount(0)
 })
 
 test('게스트 빈 QR은 샘플 품목만 넣고 지정 PC를 건드리지 않는다', async ({ page }) => {

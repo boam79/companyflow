@@ -5,6 +5,7 @@ import {
   buildAssetOrderList,
   buildSupplyInventory,
   buildSupplyOrderList,
+  lowStockLine,
   orderRemainingCaption,
   resolveOrderPartnerId,
   stockEmptyItemsLead,
@@ -18,6 +19,7 @@ import {
   stockIssuePersonName,
   stockAdjustReason,
   stockSupplierReturnLead,
+  supplyLowStock,
   transferWarehouseIds,
   defaultWarehouseId,
   supplyItems,
@@ -101,6 +103,13 @@ describe('비품 현재고', () => {
         total: 7,
       },
     ])
+    expect(lowStockLine({ itemName: '복사용지', onHand: 7, minStock: 10 })).toBe('복사용지 7 / 최소 10')
+    expect(
+      supplyLowStock([{ ...PAPER_ITEM, minStock: 10 }, ...COMPANY_ASSET_ITEMS.map((item) => ({ ...item, minStock: 2 }))], state).map(
+        (row) => [row.itemName, row.onHand, row.minStock],
+      ),
+    ).toEqual([['복사용지', 7, 10]])
+    expect(supplyLowStock([{ ...PAPER_ITEM, minStock: 0 }], state)).toEqual([])
   })
 
   it('현재고 안내는 고른 품목 발주만 붙인다', () => {

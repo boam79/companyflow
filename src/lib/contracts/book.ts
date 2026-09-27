@@ -1,5 +1,6 @@
 import { formatCompanyMoney } from '../company/displayCurrency'
 import { DISABLED_OCR, type OcrAdapter } from './ocr'
+import { contractWatchLabel } from './watch'
 
 export type ContractStatus = 'draft'
 
@@ -84,15 +85,47 @@ export function filterContracts(rows: ContractDraft[], query: string) {
   )
 }
 
-export type ContractPhase = 'active' | 'expired'
+export type ContractPhase = 'active' | 'due' | 'expired'
 
 export const CONTRACT_SECTIONS: { phase: ContractPhase; label: string }[] = [
   { phase: 'active', label: '계약중' },
+  { phase: 'due', label: '만료 예정' },
   { phase: 'expired', label: '만료' },
 ]
 
 export function contractPhase(endAt?: string, today?: string): ContractPhase {
-  return contractLife(endAt, today) === '종료' ? 'expired' : 'active'
+  const stamp = today ?? new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date())
+  const watch = contractWatchLabel(endAt, stamp)
+  if (watch === '만료') return 'expired'
+  if (watch === '만료 예정') return 'due'
+  return 'active'
+}
+
+export function contractPhaseCaption(phase: ContractPhase) {
+  return CONTRACT_SECTIONS.find((section) => section.phase === phase)?.label ?? '계약중'
+}
+
+export function emptyContractTabCopy(phase: ContractPhase, query: string) {
+  if (query.trim()) return '검색 결과가 없습니다.'
+  if (phase === 'expired') return '만료된 계약이 없습니다.'
+  if (phase === 'due') return '만료 예정 계약이 없습니다.'
+  return '진행 중인 계약이 없습니다.'
+}
+
+export function similarDrafts(
+  rows: Pick<ContractDraft, 'id' | 'title' | 'counterparty'>[],
+  input: { title: string; counterparty: string; id?: string },
+) {
+  const title = input.title.trim()
+  const counterparty = input.counterparty.trim()
+  if (!title || !counterparty) return []
+  return rows.filter(
+    (row) => row.id !== input.id && row.title === title && row.counterparty === counterparty,
+  )
+}
+
+export function similarDraftNotice(count: number) {
+  return count ? `같은 이름·상대 초안이 ${count}건 있습니다. 이 저장은 새 초안입니다.` : ''
 }
 
 export function groupContracts(rows: ContractDraft[], today?: string) {

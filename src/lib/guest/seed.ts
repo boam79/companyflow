@@ -2,8 +2,10 @@ import { PURCHASE_KINDS } from '../master/commands'
 import { executeStockCommand } from '../stock/persist'
 import { MEMORY_VFS } from '../sqlite/openPlan'
 import type { CompanySqlite } from '../sqlite/client'
+import { shiftYmd } from '../contracts/watch'
 
 export const GUEST_PAPER_QTY = 7
+export const GUEST_PAPER_MIN_STOCK = 10
 export const GUEST_PAPER_IN_OP = 'guest:paper-in'
 export const GUEST_PAPER_ITEM_ID = 'item-paper'
 export const GUEST_BLANK_QR_ID = 'c0ffee00-0000-4000-8000-000000000001'
@@ -48,8 +50,8 @@ export async function seedGuestCompany(
     ])
   }
   await db.exec(
-    'insert or ignore into items(id, name, stock_managed, asset_managed, unit, code, created_at) values(?, ?, 1, 0, ?, ?, ?)',
-    [GUEST_PAPER_ITEM_ID, '샘플 복사용지', '박스', 'DEMO-PAPER', now],
+    'insert or ignore into items(id, name, stock_managed, asset_managed, unit, code, min_stock, created_at) values(?, ?, 1, 0, ?, ?, ?, ?)',
+    [GUEST_PAPER_ITEM_ID, '샘플 복사용지', '박스', 'DEMO-PAPER', GUEST_PAPER_MIN_STOCK, now],
   )
   const assets = [
     { id: 'item-desk', name: '샘플 책상', code: 'DEMO-DESK' },
@@ -189,6 +191,24 @@ export async function seedGuestCompany(
       '2026-01-01',
       '2026-12-31',
       1_000_000,
+      '견본 김대리',
+      now,
+    ],
+  )
+  await db.exec(
+    `insert or ignore into contracts(
+      id, title, contract_no, counterparty, signed_at, start_at, end_at, amount, currency,
+      owner_name, status, ocr_status, created_at
+    ) values(?, ?, ?, ?, ?, ?, ?, ?, 'KRW', ?, 'draft', 'off', ?)`,
+    [
+      'guest:con-due',
+      '샘플 보험',
+      'CON-DEMO-02',
+      '견본보험',
+      now.slice(0, 10),
+      now.slice(0, 10),
+      shiftYmd(now.slice(0, 10), 30),
+      500_000,
       '견본 김대리',
       now,
     ],

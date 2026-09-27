@@ -112,6 +112,11 @@ export function applyHireWorkflow(
   }
 }
 
+export function overdueHireNotice(rows: { dueAt?: string }[], today: string) {
+  const count = rows.filter((row) => row.dueAt?.trim() && row.dueAt.trim() < today).length
+  return count ? `기한 지남 ${count}건` : ''
+}
+
 export function hireWorkflowCaption(
   row: { ownerName?: string; dueAt?: string },
   today: string,

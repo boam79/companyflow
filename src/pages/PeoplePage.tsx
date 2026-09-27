@@ -67,6 +67,7 @@ import {
   hireDocumentView,
   hireHistory,
   hireWorkflowCaption,
+  overdueHireNotice,
   loadHireEvents,
   loadHireWorkflowFile,
   loadHireWorkflows,
@@ -557,6 +558,11 @@ export function PeoplePage() {
   const roster = groupRoster(employees, checks)
   const filledRoster = filledRosterSections(roster)
   const visibleEmployees = roster.find((section) => section.phase === rosterTab)?.employees ?? []
+  const joiningIds = new Set((roster.find((section) => section.phase === 'joining')?.employees ?? []).map((row) => row.id))
+  const hireDueLead = overdueHireNotice(
+    hireWorkflows.filter((row) => joiningIds.has(row.employeeId)),
+    today,
+  )
   const selectedEmployee =
     visibleEmployees.find((row) => row.id === badgeEmployeeId) ?? visibleEmployees[0]
   const selectedDraft = selectedEmployee
@@ -646,6 +652,7 @@ export function PeoplePage() {
           ) : null}
         </div>
       </div>
+      {hireDueLead ? <p className="text-sm text-accent">{hireDueLead}</p> : null}
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
       <section
