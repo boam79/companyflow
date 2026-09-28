@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   DISABLED_OCR,
   describeOcrResult,
+  ocrCancelLabel,
+  ocrConfirmLabel,
   ocrEvidenceLine,
   ocrFailedMessage,
   ocrJobCaption,
@@ -48,11 +50,22 @@ describe('OCR 안내 문구', () => {
       }),
     ).toBe('계약명 · 인식 60% · 1쪽 · 계약명 본사 임대 · 확인 본사 3층 임대')
     expect(ocrRetryLabel()).toBe('다시 읽기')
+    expect(ocrConfirmLabel()).toBe('원본과 칸을 확인했습니다')
+    expect(ocrCancelLabel()).toBe('그만 읽기')
     expect(ocrJobCaption(ocrJobStatus({ busy: true, failed: false, candidateCount: 0, reviewed: false }))).toBe(
       '처리 중',
     )
     expect(ocrJobCaption(ocrJobStatus({ busy: false, failed: true, candidateCount: 0, reviewed: true }))).toBe('실패')
+    expect(
+      ocrJobCaption(
+        ocrJobStatus({ busy: false, failed: false, candidateCount: 2, reviewed: true, waitingConfirm: false }),
+      ),
+    ).toBe('완료')
     expect(ocrFailedMessage('OCR을 끝내지 못했습니다. 다시 읽거나 직접 입력하세요.')).toBe(true)
+    expect(ocrFailedMessage('읽기를 멈췄습니다. 다시 읽거나 직접 입력하세요.')).toBe(true)
+    expect(describeOcrResult({ text: '임대', candidateCount: 1, source: 'pdf-text', truncatedPages: 2 })).toMatch(
+      /앞 2쪽만/,
+    )
     expect(ocrJobCaption('idle')).toBe('')
   })
 

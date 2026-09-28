@@ -91,6 +91,7 @@ describe('계약 초안', () => {
       fileMime: 'application/pdf',
       fileHash: 'abc',
       fileBytes: bytes,
+      ocrReviewed: true,
     })
     expect(draft.hasOriginal).toBe(true)
     expect(draft.fileMime).toBe('application/pdf')
@@ -174,12 +175,11 @@ describe('계약 초안', () => {
     expect(emptyContractTabCopy('active', '임대')).toBe('검색 결과가 없습니다.')
   })
 
-  it('OCR 후보를 확인한 뒤에만 원본 첨부 초안을 만든다', () => {
-    const enabled = { ...DISABLED_OCR, enabled: true }
+  it('원본을 붙이면 확인한 뒤에만 초안을 만든다', () => {
     const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d])
     expect(() =>
-      applyDraftContract([], { ...BASE, fileBytes: pdfBytes, fileMime: 'application/pdf', fileName: 'a.pdf' }, enabled),
-    ).toThrow(/OCR 후보/)
+      applyDraftContract([], { ...BASE, fileBytes: pdfBytes, fileMime: 'application/pdf', fileName: 'a.pdf' }),
+    ).toThrow(/확인한 뒤에만/)
     const draft = applyDraftContract(
       [],
       {
@@ -189,7 +189,6 @@ describe('계약 초안', () => {
         fileName: 'a.pdf',
         ocrReviewed: true,
       },
-      enabled,
     )
     expect(draft.ocrStatus).toBe('reviewed')
     const withEvidence = applyDraftContract(
@@ -205,7 +204,6 @@ describe('계약 초안', () => {
           { field: 'title', value: '본사 임대', confidence: 0.6, page: 1, reviewedValue: '본사 임대' },
         ],
       },
-      enabled,
     )
     expect(withEvidence.ocrText).toBe('계약명 본사 임대')
     expect(withEvidence.ocrFields?.[0]).toMatchObject({ field: 'title', page: 1, confidence: 0.6 })

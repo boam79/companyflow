@@ -38,6 +38,14 @@ import { getCompanySqlite } from '../lib/sqlite/instance'
 import { ORDER_CURRENCIES } from '../lib/stock/inventoryView'
 import { getSupabase, type CompanyRow } from '../lib/supabase'
 import { publicErrorMessage } from '../lib/publicError'
+import {
+  CONTRACT_MAX_MB_CHOICES,
+  CONTRACT_MAX_PAGES_CHOICES,
+  contractLimitCaption,
+  loadContractLimits,
+  saveContractLimits,
+  type ContractLimits,
+} from '../lib/contracts/limits'
 
 type MemberRow = {
   email: string
@@ -64,6 +72,8 @@ export function CompanySettingsPage() {
   const [groupingDraft, setGroupingDraft] = useState(true)
   const [timeZone, setTimeZone] = useState('Asia/Seoul')
   const [timeZoneDraft, setTimeZoneDraft] = useState('Asia/Seoul')
+  const [contractLimits, setContractLimits] = useState<ContractLimits>({ maxMb: 8, maxPages: 2 })
+  const [contractLimitsDraft, setContractLimitsDraft] = useState<ContractLimits>({ maxMb: 8, maxPages: 2 })
   const [modules, setModules] = useState<Record<string, Record<CompanyModuleId, boolean>>>({})
   const [message, setMessage] = useState('')
   const [notice, setNotice] = useState('')
@@ -142,12 +152,15 @@ export function CompanySettingsPage() {
       await sqlite.open(open.id)
       if (cancelled || sqlite.companyId !== open.id) return
       const current = await loadCompanyDisplay(sqlite)
+      const ocrLimits = await loadContractLimits(sqlite)
       setCurrency(current.currency)
       setDraft(current.currency)
       setGrouping(current.grouping)
       setGroupingDraft(current.grouping)
       setTimeZone(current.timeZone)
       setTimeZoneDraft(current.timeZone)
+      setContractLimits(ocrLimits)
+      setContractLimitsDraft(ocrLimits)
       const others: CompanyRow[] = []
       if (operator && controlsOtherCompanies(open)) {
         const { data: allCompanies, error: allError } = await client
@@ -246,6 +259,24 @@ export function CompanySettingsPage() {
       setTimeZone(saved)
       setTimeZoneDraft(saved)
       setNotice('이 회사 원본에 시간대를 저장했습니다.')
+    } catch (error) {
+      setMessage(publicErrorMessage(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function saveOcrLimits() {
+    if (!companyId || !canSaveOpenCompany()) return
+    setBusy(true)
+    setNotice('')
+    setMessage('')
+    try {
+      if (!(await openSelectedFile())) return
+      const saved = await saveContractLimits(sqlite, contractLimitsDraft)
+      setContractLimits(saved)
+      setContractLimitsDraft(saved)
+      setNotice('이 회사 원본에 계약 원본 한도를 저장했습니다.')
     } catch (error) {
       setMessage(publicErrorMessage(error))
     } finally {
@@ -388,7 +419,7 @@ export function CompanySettingsPage() {
               <p className="mt-2 text-sm text-muted">
                 {COMPANY_DISPLAY.language} ·{' '}
                 {formatCompanyClock(new Date(), shown.timeZone)} · {displayCurrencyName(shown.currency)} ·{' '}
-                {formatCompanyNumber(GROUPING_SAMPLE, shown.grouping)}
+                {formatCompanyNumber(GROUPING_SAMPLE, shown.grouping)} · {contractLimitCaption(contractLimits)}
               </p>
               {canEdit ? (
                 <div className="mt-3 flex flex-wrap items-end gap-3">
@@ -476,6 +507,58 @@ export function CompanySettingsPage() {
                     이 회사에 저장
                   </button>
                 </form>
+                <form
+                  className="flex flex-wrap items-end gap-2"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    void saveOcrLimits()
+                  }}
+                >
+                  <label className="text-sm">
+                    원본 용량
+                    <select
+                      className="mt-1 block rounded border border-line px-3 py-2"
+                      value={contractLimitsDraft.maxMb}
+                      onChange={(event) =>
+                        setContractLimitsDraft((prev) => ({ ...prev, maxMb: Number(event.target.value) }))
+                      }
+                    >
+                      {CONTRACT_MAX_MB_CHOICES.map((mb) => (
+                        <option key={mb} value={mb}>
+                          {mb}MB
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-sm">
+                    OCR 쪽 수
+                    <select
+                      className="mt-1 block rounded border border-line px-3 py-2"
+                      value={contractLimitsDraft.maxPages}
+                      onChange={(event) =>
+                        setContractLimitsDraft((prev) => ({ ...prev, maxPages: Number(event.target.value) }))
+                      }
+                    >
+                      {CONTRACT_MAX_PAGES_CHOICES.map((pages) => (
+                        <option key={pages} value={pages}>
+                          {pages}쪽
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={
+                      busy ||
+                      contractLimitsDraft.maxMb === contractLimits.maxMb &&
+                        contractLimitsDraft.maxPages === contractLimits.maxPages
+                    }
+                    className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    이 회사에 저장
+                  </button>
+                </form>
+                <p className="basis-full text-xs text-muted">{contractLimitCaption(contractLimits)}</p>
                 </div>
               ) : null}
             </div>

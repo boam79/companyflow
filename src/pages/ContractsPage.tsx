@@ -33,6 +33,9 @@ import { contractDueNotice } from '../lib/contracts/watch'
 import { applyOcrCandidates, formValueForOcrField, reviewedOcrFields } from '../lib/contracts/parseFields'
 import {
   describeOcrResult,
+  ocrCancelLabel,
+  ocrConfirmHint,
+  ocrConfirmLabel,
   ocrEvidenceLine,
   ocrFailedMessage,
   ocrJobCaption,
@@ -40,6 +43,12 @@ import {
   ocrRetryLabel,
   type OcrCandidate,
 } from '../lib/contracts/ocr'
+import {
+  contractFileLimitBytes,
+  contractLimitCaption,
+  loadContractLimits,
+  type ContractLimits,
+} from '../lib/contracts/limits'
 import { writeDefaultMaster } from '../lib/master/book'
 import { canWriteOpenedCompany, mayOpenCompanyWork, workSessionKind } from '../lib/company/workGate'
 import { useWorkAccess } from '../lib/guest/workAccess'
@@ -78,6 +87,7 @@ export function ContractsPage() {
   const [today, setToday] = useState(() => formatCompanyDate(new Date(), 'Asia/Seoul'))
   const [currency, setCurrency] = useState('KRW')
   const [grouping, setGrouping] = useState(true)
+  const [limits, setLimits] = useState<ContractLimits>({ maxMb: 8, maxPages: 2 })
   const [form, setForm] = useState(() => emptyForm(formatCompanyDate(new Date(), 'Asia/Seoul')))
   const [file, setFile] = useState<File | null>(null)
   const [fileKey, setFileKey] = useState(0)
@@ -95,6 +105,7 @@ export function ContractsPage() {
   const openTicket = useRef(0)
   const fileInput = useRef<HTMLInputElement>(null)
   const ocrPanel = useRef<HTMLDivElement>(null)
+  const ocrRun = useRef(0)
 
   useEffect(() => {
     if (!companyId || opening.current) return
@@ -126,11 +137,13 @@ export function ContractsPage() {
       const display = guest
         ? { currency: 'KRW', grouping: true, timeZone: 'Asia/Seoul' }
         : await loadCompanyDisplay(sqlite)
+      const nextLimits = await loadContractLimits(sqlite)
       const stamp = formatCompanyDate(new Date(), display.timeZone)
       if (ticket !== openTicket.current) return
       setToday(stamp)
       setCurrency(display.currency)
       setGrouping(display.grouping)
+      setLimits(nextLimits)
       setForm(emptyForm(stamp))
       if (!guest && !(await readCompanyModule(sqlite, nextId, 'contracts'))) {
         if (ticket !== openTicket.current || sqlite.companyId !== nextId) return
@@ -218,13 +231,16 @@ export function ContractsPage() {
     setOcrReviewed(false)
     if (!next) {
       setFile(null)
+      ocrRun.current += 1
+      setOcrBusy(false)
       return
     }
+    const maxBytes = contractFileLimitBytes(limits.maxMb)
     let bytes: Uint8Array
     try {
-      assertContractFile(next.size, next.type, next.name)
+      assertContractFile(next.size, next.type, next.name, undefined, maxBytes)
       bytes = new Uint8Array(await next.arrayBuffer())
-      assertContractFile(bytes.byteLength, next.type, next.name, bytes)
+      assertContractFile(bytes.byteLength, next.type, next.name, bytes, maxBytes)
       const hash = await hashFileBytes(bytes)
       if (rows.some((row) => row.fileHash === hash)) {
         throw new Error('같은 원본 파일은 계약을 한 번만 만듭니다.')
@@ -237,6 +253,7 @@ export function ContractsPage() {
       ocrPanel.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       return
     }
+    const run = ++ocrRun.current
     setFile(next)
     setOcrBusy(true)
     setOcrMessage('원본에서 글자를 읽는 중입니다. 처음이면 1분 정도 걸릴 수 있습니다.')
@@ -247,8 +264,12 @@ export function ContractsPage() {
         bytes,
         fileName: next.name,
         fileMime: next.type,
-        onProgress: setOcrMessage,
+        maxPages: limits.maxPages,
+        onProgress: (message) => {
+          if (run === ocrRun.current) setOcrMessage(message)
+        },
       })
+      if (run !== ocrRun.current) return
       setForm((prev) => {
         const filled = applyOcrCandidates(prev, result.candidates)
         return {
@@ -259,10 +280,11 @@ export function ContractsPage() {
       })
       setOcrText(result.text ?? '')
       setOcrFields(result.candidates)
-      setOcrReviewed(true)
+      setOcrReviewed(false)
       setOcrMessage(result.message)
     } catch (error) {
-      setOcrReviewed(true)
+      if (run !== ocrRun.current) return
+      setOcrReviewed(false)
       setOcrMessage(
         describeOcrResult({
           error: error instanceof Error ? error.message : String(error),
@@ -272,8 +294,15 @@ export function ContractsPage() {
       )
       ocrPanel.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     } finally {
-      setOcrBusy(false)
+      if (run === ocrRun.current) setOcrBusy(false)
     }
+  }
+
+  function stopOcr() {
+    ocrRun.current += 1
+    setOcrBusy(false)
+    setOcrReviewed(false)
+    setOcrMessage('읽기를 멈췄습니다. 다시 읽거나 직접 입력하세요. 원본은 그대로 둡니다.')
   }
 
   async function saveDraft(similarChoice?: SimilarChoice) {
@@ -283,6 +312,10 @@ export function ContractsPage() {
     const similar = similarDrafts(rows, form)
     if (similar.length && !similarChoice) {
       setMessage(similarChoiceLead(similar.length))
+      return
+    }
+    if (file && !ocrReviewed) {
+      setMessage('원본과 칸을 확인한 뒤에만 초안을 저장하세요.')
       return
     }
     try {
@@ -318,6 +351,7 @@ export function ContractsPage() {
         ocrReviewed: Boolean(fileBytes) && ocrReviewed,
         ocrText: fileBytes ? ocrText : undefined,
         ocrFields: fileBytes ? reviewedOcrFields(ocrFields, form) : undefined,
+        maxFileBytes: contractFileLimitBytes(limits.maxMb),
         similarChoice,
         reviseId: similar[0]?.id,
       })
@@ -374,8 +408,10 @@ export function ContractsPage() {
       failed: ocrFailedMessage(ocrMessage),
       candidateCount: ocrFields.length,
       reviewed: ocrReviewed,
+      waitingConfirm: Boolean(file && ocrMessage && !ocrBusy && !ocrReviewed),
     }),
   )
+  const saveBlocked = !ready || ocrBusy || Boolean(file && !ocrReviewed)
   const orderChoices = orders.map((row) => ({
     id: row.id,
     partnerName: partners.find((partner) => partner.id === row.partnerId)?.name,
@@ -794,7 +830,18 @@ export function ContractsPage() {
                   {ocrRetryLabel()}
                 </button>
               ) : null}
-              <span className="text-sm text-muted">{file ? file.name : '선택된 파일 없음 · PDF·PNG·JPEG 8MB'}</span>
+              {ocrBusy ? (
+                <button
+                  type="button"
+                  className="rounded border border-line px-4 py-2 text-sm font-semibold"
+                  onClick={stopOcr}
+                >
+                  {ocrCancelLabel()}
+                </button>
+              ) : null}
+              <span className="text-sm text-muted">
+                {file ? file.name : `선택된 파일 없음 · ${contractLimitCaption(limits)}`}
+              </span>
             </div>
             <div ref={ocrPanel} className="space-y-2 sm:col-span-2">
               {message ? <p className="text-sm text-danger">{message}</p> : null}
@@ -832,13 +879,27 @@ export function ContractsPage() {
                   />
                 </label>
               ) : null}
+              {file && !ocrBusy ? (
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={ocrReviewed}
+                    onChange={(e) => setOcrReviewed(e.target.checked)}
+                  />
+                  <span>
+                    {ocrConfirmLabel()}
+                    <span className="mt-0.5 block text-xs text-muted">{ocrConfirmHint()}</span>
+                  </span>
+                </label>
+              ) : null}
             </div>
             <div className="flex flex-wrap gap-2 sm:col-span-2">
               {similar.length ? (
                 <>
                   <button
                     type="button"
-                    disabled={!ready || ocrBusy}
+                    disabled={saveBlocked}
                     className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
                     onClick={() => void saveDraft('new')}
                   >
@@ -846,7 +907,7 @@ export function ContractsPage() {
                   </button>
                   <button
                     type="button"
-                    disabled={!ready || ocrBusy}
+                    disabled={saveBlocked}
                     className="rounded border border-line px-4 py-2 text-sm font-semibold disabled:opacity-50"
                     onClick={() => void saveDraft('revise')}
                   >
@@ -854,7 +915,7 @@ export function ContractsPage() {
                   </button>
                 </>
               ) : (
-                <button type="submit" disabled={!ready || ocrBusy} className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                <button type="submit" disabled={saveBlocked} className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
                   초안 저장
                 </button>
               )}

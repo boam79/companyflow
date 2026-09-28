@@ -1,10 +1,11 @@
 import { formatCompanyMoney } from '../company/displayCurrency'
-import { DISABLED_OCR, parseOcrFieldsJson, type OcrAdapter, type OcrFieldRecord } from './ocr'
+import { contractFileLimitBytes, DEFAULT_CONTRACT_MAX_MB } from './limits'
+import { parseOcrFieldsJson, type OcrFieldRecord } from './ocr'
 import { contractWatchLabel } from './watch'
 
 export type ContractStatus = 'draft'
 
-export const MAX_CONTRACT_FILE_BYTES = 8 * 1024 * 1024
+export const MAX_CONTRACT_FILE_BYTES = contractFileLimitBytes(DEFAULT_CONTRACT_MAX_MB)
 
 const MIME_BY_EXT: Record<string, string> = {
   pdf: 'application/pdf',
@@ -60,6 +61,7 @@ export type DraftContractInput = {
   ocrReviewed?: boolean
   ocrText?: string
   ocrFields?: OcrFieldRecord[]
+  maxFileBytes?: number
   similarChoice?: SimilarChoice
   reviseId?: string
 }
@@ -240,8 +242,16 @@ export function sniffContractFileMime(bytes: Uint8Array): string | undefined {
   return undefined
 }
 
-export function assertContractFile(size: number, mime?: string, fileName?: string, bytes?: Uint8Array): string {
-  if (size > MAX_CONTRACT_FILE_BYTES) throw new Error('원본 파일은 8MB까지입니다.')
+export function assertContractFile(
+  size: number,
+  mime?: string,
+  fileName?: string,
+  bytes?: Uint8Array,
+  maxBytes = MAX_CONTRACT_FILE_BYTES,
+): string {
+  const limit = maxBytes > 0 ? maxBytes : MAX_CONTRACT_FILE_BYTES
+  const mb = Math.max(1, Math.round(limit / (1024 * 1024)))
+  if (size > limit) throw new Error(`원본 파일은 ${mb}MB까지입니다.`)
   const declared =
     (mime && mime !== 'application/octet-stream' ? mime : undefined) || mimeFromName(fileName) || mime || ''
   if (!['application/pdf', 'image/png', 'image/jpeg'].includes(declared)) {
@@ -279,7 +289,6 @@ export function base64ToBytes(text: string): Uint8Array {
 export function applyDraftContract(
   existing: ContractDraft[],
   input: DraftContractInput,
-  ocr: OcrAdapter = DISABLED_OCR,
 ): ContractDraft {
   const title = input.title.trim()
   const counterparty = input.counterparty.trim()
@@ -290,14 +299,20 @@ export function applyDraftContract(
   }
   if (input.amount != null && input.amount < 0) throw new Error('금액은 0 이상이어야 합니다.')
   if (input.fileBytes) {
-    assertContractFile(input.fileBytes.byteLength, input.fileMime, input.fileName, input.fileBytes)
+    assertContractFile(
+      input.fileBytes.byteLength,
+      input.fileMime,
+      input.fileName,
+      input.fileBytes,
+      input.maxFileBytes,
+    )
   }
   if (input.fileHash) {
     const dup = existing.find((row) => row.fileHash === input.fileHash && row.id !== input.id)
     if (dup) throw new Error('같은 원본 파일은 계약을 한 번만 만듭니다.')
   }
-  if (ocr.enabled && input.fileBytes && !input.ocrReviewed) {
-    throw new Error('OCR 후보를 확인한 뒤에만 초안을 저장하세요.')
+  if (input.fileBytes && !input.ocrReviewed) {
+    throw new Error('원본과 칸을 확인한 뒤에만 초안을 저장하세요.')
   }
   return {
     id: input.id,
@@ -315,7 +330,13 @@ export function applyDraftContract(
     fileName: input.fileName?.trim() || undefined,
     fileHash: input.fileHash || undefined,
     fileMime: input.fileBytes
-      ? assertContractFile(input.fileBytes.byteLength, input.fileMime, input.fileName, input.fileBytes)
+      ? assertContractFile(
+          input.fileBytes.byteLength,
+          input.fileMime,
+          input.fileName,
+          input.fileBytes,
+          input.maxFileBytes,
+        )
       : input.fileMime,
     hasOriginal: Boolean(input.fileBytes?.byteLength),
     status: 'draft',

@@ -51,6 +51,7 @@ export function describeOcrResult(input: {
   text: string
   candidateCount: number
   source?: 'pdf-text' | 'ocr'
+  truncatedPages?: number
 }): string {
   if (input.error) {
     const friendly = /attempting to read image|could not decode|unable to decode|EncodingError/i.test(input.error)
@@ -58,19 +59,34 @@ export function describeOcrResult(input: {
       : input.error
     return `OCR을 끝내지 못했습니다. 다시 읽거나 직접 입력하세요. (${friendly})`
   }
+  const truncated = input.truncatedPages ? ` 앞 ${input.truncatedPages}쪽만 읽었습니다.` : ''
   if (!input.text.trim()) {
-    return '이 그림에서 글자를 찾지 못했습니다. 다시 읽거나, 계약 문구가 보이는 PDF나 스캔을 올리거나, 위 칸을 직접 입력하세요. 원본은 그대로 둡니다.'
+    return `이 그림에서 글자를 찾지 못했습니다. 다시 읽거나, 계약 문구가 보이는 PDF나 스캔을 올리거나, 위 칸을 직접 입력하세요. 원본은 그대로 둡니다.${truncated}`
   }
   if (!input.candidateCount) {
-    return '글자는 읽었지만 칸에 넣을 값을 못 찾았습니다. 아래를 보고 직접 입력하세요. 원본은 그대로 둡니다.'
+    return `글자는 읽었지만 칸에 넣을 값을 못 찾았습니다. 아래를 보고 직접 입력하세요. 원본은 그대로 둡니다.${truncated}`
   }
-  return input.source === 'pdf-text'
-    ? 'PDF 글자로 후보를 채웠습니다. 인식 근거를 보고 고친 뒤 초안을 저장하세요. OCR만으로 체결하지 않습니다.'
-    : '이 PC에서 OCR로 후보를 채웠습니다. 인식 근거를 보고 고친 뒤 초안을 저장하세요. OCR만으로 체결하지 않습니다.'
+  const lead =
+    input.source === 'pdf-text'
+      ? 'PDF 글자로 후보를 채웠습니다. 인식 근거를 보고 고친 뒤 초안을 저장하세요. OCR만으로 체결하지 않습니다.'
+      : '이 PC에서 OCR로 후보를 채웠습니다. 인식 근거를 보고 고친 뒤 초안을 저장하세요. OCR만으로 체결하지 않습니다.'
+  return `${lead}${truncated}`
 }
 
 export function ocrRetryLabel() {
   return '다시 읽기'
+}
+
+export function ocrCancelLabel() {
+  return '그만 읽기'
+}
+
+export function ocrConfirmLabel() {
+  return '원본과 칸을 확인했습니다'
+}
+
+export function ocrConfirmHint() {
+  return '확인하고 고친 값으로 초안만 저장합니다. OCR만으로 체결하지 않습니다.'
 }
 
 export function ocrJobCaption(status: OcrJobStatus) {
@@ -86,16 +102,17 @@ export function ocrJobStatus(input: {
   failed: boolean
   candidateCount: number
   reviewed: boolean
+  waitingConfirm?: boolean
 }): OcrJobStatus {
   if (input.busy) return 'running'
   if (input.failed) return 'failed'
-  if (input.candidateCount) return 'review'
   if (input.reviewed) return 'done'
+  if (input.candidateCount || input.waitingConfirm) return 'review'
   return 'idle'
 }
 
 export function ocrFailedMessage(message: string) {
-  return /끝내지 못했|글자를 찾지 못했/.test(message)
+  return /끝내지 못했|글자를 찾지 못했|읽기를 멈췄/.test(message)
 }
 
 export function ocrEvidenceLine(row: OcrFieldRecord) {
