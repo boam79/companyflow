@@ -24,6 +24,9 @@ export type ContractDraft = {
   amount?: number
   currency: string
   ownerName?: string
+  partnerId?: string
+  partnerName?: string
+  orderId?: string
   fileName?: string
   fileHash?: string
   fileMime?: string
@@ -32,6 +35,8 @@ export type ContractDraft = {
   ocrStatus: 'off' | 'reviewed'
   createdAt?: string
 }
+
+export type SimilarChoice = 'new' | 'revise'
 
 export type DraftContractInput = {
   id: string
@@ -44,11 +49,31 @@ export type DraftContractInput = {
   amount?: number
   currency?: string
   ownerName?: string
+  partnerId?: string
+  orderId?: string
   fileName?: string
   fileHash?: string
   fileMime?: string
   fileBytes?: Uint8Array
   ocrReviewed?: boolean
+  similarChoice?: SimilarChoice
+  reviseId?: string
+}
+
+export type ContractRevision = {
+  id: string
+  contractId: string
+  title: string
+  contractNo?: string
+  counterparty: string
+  signedAt?: string
+  startAt?: string
+  endAt?: string
+  amount?: number
+  currency: string
+  ownerName?: string
+  fileName?: string
+  createdAt: string
 }
 
 export type ContractOriginal = {
@@ -79,7 +104,7 @@ export function filterContracts(rows: ContractDraft[], query: string) {
   const needle = query.trim().toLowerCase()
   if (!needle) return rows
   return rows.filter((row) =>
-    [row.title, row.contractNo, row.counterparty, row.ownerName, row.fileName]
+    [row.title, row.contractNo, row.counterparty, row.ownerName, row.fileName, row.partnerName, row.orderId]
       .filter(Boolean)
       .some((value) => value!.toLowerCase().includes(needle)),
   )
@@ -124,8 +149,46 @@ export function similarDrafts(
   )
 }
 
+export function similarChoiceLead(count: number) {
+  return count ? '같은 이름·상대 초안이 있습니다. 새 초안인지 개정인지 고르세요.' : ''
+}
+
 export function similarDraftNotice(count: number) {
-  return count ? `같은 이름·상대 초안이 ${count}건 있습니다. 이 저장은 새 초안입니다.` : ''
+  return similarChoiceLead(count)
+}
+
+export function resolveDraftId(
+  similar: { id: string }[],
+  input: { id: string; similarChoice?: SimilarChoice; reviseId?: string },
+) {
+  if (!similar.length) {
+    if (input.similarChoice === 'revise') throw new Error('개정할 초안이 없습니다.')
+    return input.id
+  }
+  if (!input.similarChoice) throw new Error(similarChoiceLead(similar.length))
+  if (input.similarChoice === 'new') return input.id
+  if (input.reviseId && similar.some((row) => row.id === input.reviseId)) return input.reviseId
+  return similar[0].id
+}
+
+export function matchPartnerId(partners: { id: string; name: string }[], counterparty: string) {
+  const name = counterparty.trim()
+  return partners.find((row) => row.name === name)?.id
+}
+
+export function contractOrderLabel(row: { id: string; partnerName?: string; orderDate?: string }) {
+  return [row.id, row.partnerName, row.orderDate].filter(Boolean).join(' · ')
+}
+
+export function revisionCaption(row: ContractRevision, grouping = true) {
+  return `${row.createdAt.slice(0, 10)} · ${contractPeriod(row)} · ${contractAmountText(row.amount, grouping, row.currency)}`
+}
+
+export function draftSavedNotice(input: { duplicate: boolean; revised: boolean; hasFile: boolean }) {
+  if (input.duplicate) return '같은 초안은 한 번만 반영됩니다.'
+  if (input.revised) return '기존 초안을 개정했습니다. OCR로 체결하지 않았습니다.'
+  if (input.hasFile) return '확인한 값으로 초안과 원본을 저장했습니다. OCR만으로 체결하지 않았습니다.'
+  return '계약 초안을 저장했습니다. OCR로 체결하지 않았습니다.'
 }
 
 export function groupContracts(rows: ContractDraft[], today?: string) {
@@ -226,7 +289,7 @@ export function applyDraftContract(
     assertContractFile(input.fileBytes.byteLength, input.fileMime, input.fileName, input.fileBytes)
   }
   if (input.fileHash) {
-    const dup = existing.find((row) => row.fileHash === input.fileHash)
+    const dup = existing.find((row) => row.fileHash === input.fileHash && row.id !== input.id)
     if (dup) throw new Error('같은 원본 파일은 계약을 한 번만 만듭니다.')
   }
   if (ocr.enabled && input.fileBytes && !input.ocrReviewed) {
@@ -243,6 +306,8 @@ export function applyDraftContract(
     amount: input.amount,
     currency: input.currency?.trim() || 'KRW',
     ownerName: input.ownerName?.trim() || undefined,
+    partnerId: input.partnerId?.trim() || undefined,
+    orderId: input.orderId?.trim() || undefined,
     fileName: input.fileName?.trim() || undefined,
     fileHash: input.fileHash || undefined,
     fileMime: input.fileBytes
@@ -270,11 +335,28 @@ export const CONTRACT_TABLE_SQL = [
     file_hash text,
     file_mime text,
     file_base64 text,
+    partner_id text,
+    order_id text,
     status text not null,
     ocr_status text not null,
     created_at text not null
   );`,
   `create unique index if not exists contracts_file_hash on contracts(file_hash) where file_hash is not null`,
+  `create table if not exists contract_revisions (
+    id text primary key,
+    contract_id text not null,
+    title text not null,
+    contract_no text,
+    counterparty text not null,
+    signed_at text,
+    start_at text,
+    end_at text,
+    amount integer,
+    currency text not null,
+    owner_name text,
+    file_name text,
+    created_at text not null
+  );`,
 ]
 
 export async function loadContracts(
@@ -291,6 +373,9 @@ export async function loadContracts(
     amount?: number | null
     currency: string
     owner_name?: string | null
+    partner_id?: string | null
+    partner_name?: string | null
+    order_id?: string | null
     file_name?: string | null
     file_hash?: string | null
     file_mime?: string | null
@@ -299,11 +384,13 @@ export async function loadContracts(
     ocr_status: 'off' | 'reviewed'
     created_at?: string | null
   }>(
-    `select id, title, contract_no, counterparty, signed_at, start_at, end_at, amount, currency,
-      owner_name, file_name, file_hash, file_mime,
-      case when file_base64 is not null and length(file_base64) > 0 then 1 else 0 end as has_original,
-      status, ocr_status, created_at
-      from contracts order by created_at desc, title`,
+    `select c.id, c.title, c.contract_no, c.counterparty, c.signed_at, c.start_at, c.end_at, c.amount, c.currency,
+      c.owner_name, c.partner_id, p.name as partner_name, c.order_id, c.file_name, c.file_hash, c.file_mime,
+      case when c.file_base64 is not null and length(c.file_base64) > 0 then 1 else 0 end as has_original,
+      c.status, c.ocr_status, c.created_at
+      from contracts c
+      left join partners p on p.id = c.partner_id
+      order by c.created_at desc, c.title`,
   )
   return rows.map((row) => ({
     id: row.id,
@@ -316,6 +403,9 @@ export async function loadContracts(
     amount: row.amount ?? undefined,
     currency: row.currency,
     ownerName: row.owner_name ?? undefined,
+    partnerId: row.partner_id ?? undefined,
+    partnerName: row.partner_name ?? undefined,
+    orderId: row.order_id ?? undefined,
     fileName: row.file_name ?? undefined,
     fileHash: row.file_hash ?? undefined,
     fileMime: row.file_mime ?? undefined,
@@ -346,6 +436,47 @@ export async function loadContractOriginal(
   }
 }
 
+export async function loadContractRevisions(
+  db: { query: <T>(sql: string, params?: unknown[]) => Promise<T[]> },
+  contractId: string,
+): Promise<ContractRevision[]> {
+  const rows = await db.query<{
+    id: string
+    contract_id: string
+    title: string
+    contract_no?: string | null
+    counterparty: string
+    signed_at?: string | null
+    start_at?: string | null
+    end_at?: string | null
+    amount?: number | null
+    currency: string
+    owner_name?: string | null
+    file_name?: string | null
+    created_at: string
+  }>(
+    `select id, contract_id, title, contract_no, counterparty, signed_at, start_at, end_at, amount, currency,
+      owner_name, file_name, created_at
+      from contract_revisions where contract_id = ? order by created_at desc, id desc`,
+    [contractId],
+  )
+  return rows.map((row) => ({
+    id: row.id,
+    contractId: row.contract_id,
+    title: row.title,
+    contractNo: row.contract_no ?? undefined,
+    counterparty: row.counterparty,
+    signedAt: row.signed_at ?? undefined,
+    startAt: row.start_at ?? undefined,
+    endAt: row.end_at ?? undefined,
+    amount: row.amount ?? undefined,
+    currency: row.currency,
+    ownerName: row.owner_name ?? undefined,
+    fileName: row.file_name ?? undefined,
+    createdAt: row.created_at,
+  }))
+}
+
 export async function executeDraftContract(
   db: {
     query: <T>(sql: string, params?: unknown[]) => Promise<T[]>
@@ -353,56 +484,121 @@ export async function executeDraftContract(
   },
   command: { operationId: string } & DraftContractInput,
   createdAt = new Date().toISOString(),
-): Promise<{ status: 'applied' | 'duplicate' }> {
+): Promise<{ status: 'applied' | 'duplicate'; id: string; revised: boolean }> {
   const existingOps = await db.query<{ operation_id: string }>(
     'select operation_id from processed_operations where operation_id = ?',
     [command.operationId],
   )
-  if (existingOps.length) return { status: 'duplicate' }
-  const draft = applyDraftContract(await loadContracts(db), command)
+  if (existingOps.length) return { status: 'duplicate', id: command.id, revised: false }
+  const existing = await loadContracts(db)
+  const similar = similarDrafts(existing, command)
+  const id = resolveDraftId(similar, command)
+  const previous = command.similarChoice === 'revise' ? existing.find((row) => row.id === id) : undefined
+  const draft = applyDraftContract(existing, {
+    ...command,
+    id,
+    partnerId: command.partnerId || previous?.partnerId,
+    orderId: command.orderId || previous?.orderId,
+  })
   const fileBase64 = command.fileBytes ? bytesToBase64(command.fileBytes) : null
+  const revised = Boolean(previous)
+  const statements: { sql: string; params?: unknown[] }[] = [
+    {
+      sql: 'insert into processed_operations(operation_id, result_json, created_at) values(?, ?, ?)',
+      params: [command.operationId, JSON.stringify({ type: revised ? 'revise_contract' : 'draft_contract' }), createdAt],
+    },
+  ]
+  if (previous) {
+    statements.push({
+      sql: `insert into contract_revisions(
+        id, contract_id, title, contract_no, counterparty, signed_at, start_at, end_at, amount, currency,
+        owner_name, file_name, created_at
+      ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      params: [
+        `${command.operationId}:rev`,
+        previous.id,
+        previous.title,
+        previous.contractNo ?? null,
+        previous.counterparty,
+        previous.signedAt ?? null,
+        previous.startAt ?? null,
+        previous.endAt ?? null,
+        previous.amount ?? null,
+        previous.currency,
+        previous.ownerName ?? null,
+        previous.fileName ?? null,
+        createdAt,
+      ],
+    })
+    statements.push({
+      sql: `update contracts set
+        title = ?, contract_no = ?, counterparty = ?, signed_at = ?, start_at = ?, end_at = ?, amount = ?,
+        currency = ?, owner_name = ?, partner_id = ?, order_id = ?,
+        file_name = coalesce(?, file_name), file_hash = coalesce(?, file_hash),
+        file_mime = coalesce(?, file_mime), file_base64 = coalesce(?, file_base64),
+        ocr_status = ?
+        where id = ?`,
+      params: [
+        draft.title,
+        draft.contractNo ?? null,
+        draft.counterparty,
+        draft.signedAt ?? null,
+        draft.startAt ?? null,
+        draft.endAt ?? null,
+        draft.amount ?? null,
+        draft.currency,
+        draft.ownerName ?? null,
+        draft.partnerId ?? null,
+        draft.orderId ?? null,
+        draft.fileName ?? null,
+        draft.fileHash ?? null,
+        draft.fileMime ?? null,
+        fileBase64,
+        command.fileBytes ? draft.ocrStatus : previous.ocrStatus,
+        previous.id,
+      ],
+    })
+  } else {
+    statements.push({
+      sql: `insert into contracts(
+        id, title, contract_no, counterparty, signed_at, start_at, end_at, amount, currency,
+        owner_name, partner_id, order_id, file_name, file_hash, file_mime, file_base64, status, ocr_status, created_at
+      ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      params: [
+        draft.id,
+        draft.title,
+        draft.contractNo ?? null,
+        draft.counterparty,
+        draft.signedAt ?? null,
+        draft.startAt ?? null,
+        draft.endAt ?? null,
+        draft.amount ?? null,
+        draft.currency,
+        draft.ownerName ?? null,
+        draft.partnerId ?? null,
+        draft.orderId ?? null,
+        draft.fileName ?? null,
+        draft.fileHash ?? null,
+        draft.fileMime ?? null,
+        fileBase64,
+        draft.status,
+        draft.ocrStatus,
+        createdAt,
+      ],
+    })
+  }
+  statements.push({
+    sql: 'insert into audit_events(id, action, detail_json, created_at) values(?, ?, ?, ?)',
+    params: [
+      `${command.operationId}:audit`,
+      revised ? 'revise_contract' : 'draft_contract',
+      JSON.stringify({ id: draft.id, title: draft.title, hasOriginal: draft.hasOriginal, revised }),
+      createdAt,
+    ],
+  })
   try {
-    await db.batch([
-      {
-        sql: 'insert into processed_operations(operation_id, result_json, created_at) values(?, ?, ?)',
-        params: [command.operationId, JSON.stringify({ type: 'draft_contract' }), createdAt],
-      },
-      {
-        sql: `insert into contracts(
-          id, title, contract_no, counterparty, signed_at, start_at, end_at, amount, currency,
-          owner_name, file_name, file_hash, file_mime, file_base64, status, ocr_status, created_at
-        ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        params: [
-          draft.id,
-          draft.title,
-          draft.contractNo ?? null,
-          draft.counterparty,
-          draft.signedAt ?? null,
-          draft.startAt ?? null,
-          draft.endAt ?? null,
-          draft.amount ?? null,
-          draft.currency,
-          draft.ownerName ?? null,
-          draft.fileName ?? null,
-          draft.fileHash ?? null,
-          draft.fileMime ?? null,
-          fileBase64,
-          draft.status,
-          draft.ocrStatus,
-          createdAt,
-        ],
-      },
-      {
-        sql: 'insert into audit_events(id, action, detail_json, created_at) values(?, ?, ?, ?)',
-        params: [
-          `${command.operationId}:audit`,
-          'draft_contract',
-          JSON.stringify({ id: draft.id, title: draft.title, hasOriginal: draft.hasOriginal }),
-          createdAt,
-        ],
-      },
-    ])
-    return { status: 'applied' }
+    await db.batch(statements)
+    return { status: 'applied', id: draft.id, revised }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     if (/UNIQUE constraint failed/i.test(message)) {

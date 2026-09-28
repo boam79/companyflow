@@ -9,6 +9,8 @@ export type ContractFormDraft = {
   endAt: string
   amount: string
   ownerName: string
+  partnerId?: string
+  orderId?: string
 }
 
 const FIELD_CONFIDENCE: Record<string, number> = {

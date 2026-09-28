@@ -8,6 +8,9 @@ export const GUEST_PAPER_QTY = 7
 export const GUEST_PAPER_MIN_STOCK = 10
 export const GUEST_PAPER_IN_OP = 'guest:paper-in'
 export const GUEST_PAPER_ITEM_ID = 'item-paper'
+export const GUEST_LEASE_PARTNER_ID = 'partner-guest-lease'
+export const GUEST_ORDER_ID = 'ORD-DEMO-01'
+export const GUEST_ORDER_OP = 'guest:ord-demo'
 export const GUEST_BLANK_QR_ID = 'c0ffee00-0000-4000-8000-000000000001'
 export const GUEST_DESK_QR_ID = 'c0ffee00-0000-4000-8000-000000000011'
 export const GUEST_PC_QR_ID = 'c0ffee00-0000-4000-8000-000000000012'
@@ -66,6 +69,11 @@ export async function seedGuestCompany(
   await db.exec('insert or ignore into partners(id, name, created_at) values(?, ?, ?)', [
     'partner-guest',
     '견본문구',
+    now,
+  ])
+  await db.exec('insert or ignore into partners(id, name, created_at) values(?, ?, ?)', [
+    GUEST_LEASE_PARTNER_ID,
+    '견본임대',
     now,
   ])
   await db.exec(`update partners set phone = ?, memo = ? where id = ?`, [
@@ -220,4 +228,18 @@ export async function seedGuestCompany(
     warehouseId: 'wh-main',
     qty: GUEST_PAPER_QTY,
   })
+  await executeStockCommand(db, {
+    type: 'confirm_order',
+    operationId: GUEST_ORDER_OP,
+    orderId: GUEST_ORDER_ID,
+    itemId: GUEST_PAPER_ITEM_ID,
+    qty: 2,
+    partnerId: GUEST_LEASE_PARTNER_ID,
+    orderDate: '2026-09-01',
+  })
+  await db.exec('update contracts set partner_id = ?, order_id = ? where id = ?', [
+    GUEST_LEASE_PARTNER_ID,
+    GUEST_ORDER_ID,
+    'guest:con-1',
+  ])
 }

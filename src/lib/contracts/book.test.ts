@@ -13,6 +13,12 @@ import {
   sniffContractFileMime,
   similarDraftNotice,
   similarDrafts,
+  similarChoiceLead,
+  resolveDraftId,
+  matchPartnerId,
+  contractOrderLabel,
+  revisionCaption,
+  draftSavedNotice,
   emptyContractTabCopy,
 } from './book'
 import { DISABLED_OCR, assertOcrCannotConfirm } from './ocr'
@@ -136,12 +142,34 @@ describe('계약 초안', () => {
     expect(defaultContractTab(groupContracts([rows[3]], '2026-09-20'))).toBe('due')
   })
 
-  it('같은 이름·상대 초안은 새 저장 안내만 한다', () => {
+  it('같은 이름·상대 초안은 신규인지 개정인지 고른다', () => {
     const rows = [applyDraftContract([], BASE)]
     expect(similarDrafts(rows, { title: '본사 임대', counterparty: '한국임대' })).toHaveLength(1)
     expect(similarDrafts(rows, { title: '본사 임대', counterparty: '한국임대', id: 'con-1' })).toHaveLength(0)
-    expect(similarDraftNotice(1)).toContain('같은 이름·상대')
+    expect(similarChoiceLead(1)).toContain('새 초안인지 개정인지')
     expect(similarDraftNotice(0)).toBe('')
+    expect(() => resolveDraftId(rows, { id: 'con-2' })).toThrow(/개정인지/)
+    expect(resolveDraftId(rows, { id: 'con-2', similarChoice: 'new' })).toBe('con-2')
+    expect(resolveDraftId(rows, { id: 'con-2', similarChoice: 'revise' })).toBe('con-1')
+    expect(() => resolveDraftId([], { id: 'con-2', similarChoice: 'revise' })).toThrow(/개정할 초안/)
+    expect(matchPartnerId([{ id: 'p1', name: '한국임대' }], '한국임대')).toBe('p1')
+    expect(contractOrderLabel({ id: 'ORD-DEMO-01', partnerName: '견본임대', orderDate: '2026-09-01' })).toBe(
+      'ORD-DEMO-01 · 견본임대 · 2026-09-01',
+    )
+    expect(
+      revisionCaption({
+        id: 'rev-1',
+        contractId: 'con-1',
+        title: '본사 임대',
+        counterparty: '한국임대',
+        startAt: '2024-01-01',
+        endAt: '2026-02-28',
+        amount: 12_000_000,
+        currency: 'KRW',
+        createdAt: '2026-09-29T00:00:00.000Z',
+      }),
+    ).toContain('2026-09-29')
+    expect(draftSavedNotice({ duplicate: false, revised: true, hasFile: false })).toContain('개정')
     expect(emptyContractTabCopy('due', '')).toBe('만료 예정 계약이 없습니다.')
     expect(emptyContractTabCopy('active', '임대')).toBe('검색 결과가 없습니다.')
   })

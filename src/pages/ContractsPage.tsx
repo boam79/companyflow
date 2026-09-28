@@ -5,22 +5,29 @@ import { WorkCompanyControl } from '../components/WorkCompanyControl'
 import {
   assertContractFile,
   contractAmountText,
+  contractOrderLabel,
   contractPeriod,
   contractPhase,
   contractPhaseCaption,
   defaultContractTab,
+  draftSavedNotice,
   emptyContractTabCopy,
   executeDraftContract,
   filterContracts,
   groupContracts,
   hashFileBytes,
   loadContractOriginal,
+  loadContractRevisions,
   loadContracts,
-  similarDraftNotice,
+  matchPartnerId,
+  revisionCaption,
+  similarChoiceLead,
   similarDrafts,
   toArrayBuffer,
   type ContractDraft,
   type ContractPhase,
+  type ContractRevision,
+  type SimilarChoice,
 } from '../lib/contracts/book'
 import { contractDueNotice } from '../lib/contracts/watch'
 import { applyOcrCandidates } from '../lib/contracts/parseFields'
@@ -31,8 +38,9 @@ import { assertGuestOpensMemory } from '../lib/guest/seed'
 import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
 import { displayCurrencyName, formatCompanyDate, loadCompanyDisplay } from '../lib/company/displayCurrency'
-import { countLabel, showsEmptyPickHint } from '../lib/company/nav'
+import { countHeading, countLabel, showsEmptyPickHint } from '../lib/company/nav'
 import { publicErrorMessage } from '../lib/publicError'
+import { ACTIVE_MASTER_WHERE } from '../lib/master/commands'
 
 function emptyForm(today: string) {
   return {
@@ -44,6 +52,8 @@ function emptyForm(today: string) {
     endAt: '',
     amount: '',
     ownerName: '',
+    partnerId: '',
+    orderId: '',
   }
 }
 
@@ -51,6 +61,9 @@ export function ContractsPage() {
   const { guest, sqlite, loading, configured, user, companies, companyId, sessionReady, setCompanyId, href } =
     useWorkAccess()
   const [rows, setRows] = useState<ContractDraft[]>([])
+  const [partners, setPartners] = useState<{ id: string; name: string }[]>([])
+  const [orders, setOrders] = useState<{ id: string; partnerId?: string; orderDate?: string }[]>([])
+  const [revisions, setRevisions] = useState<ContractRevision[]>([])
   const [query, setQuery] = useState('')
   const [lifeTab, setLifeTab] = useState<ContractPhase>('active')
   const [today, setToday] = useState(() => formatCompanyDate(new Date(), 'Asia/Seoul'))
@@ -125,8 +138,23 @@ export function ContractsPage() {
       }
       const nextRows = await loadContracts(sqlite)
       if (ticket !== openTicket.current || sqlite.companyId !== nextId) return
+      const [partnerRows, orderRows] = await Promise.all([
+        sqlite.query<{ id: string; name: string }>(`select id, name from partners where ${ACTIVE_MASTER_WHERE} order by name`),
+        sqlite.query<{ id: string; partner_id?: string | null; order_date?: string | null }>(
+          'select id, partner_id, order_date from stock_orders order by created_at desc, id',
+        ),
+      ])
+      if (ticket !== openTicket.current || sqlite.companyId !== nextId) return
       const groups = groupContracts(nextRows, stamp)
       setRows(nextRows)
+      setPartners(partnerRows)
+      setOrders(
+        orderRows.map((row) => ({
+          id: row.id,
+          partnerId: row.partner_id ?? undefined,
+          orderDate: row.order_date ?? undefined,
+        })),
+      )
       setSelectedId((prev) => {
         const existing = nextRows.find((row) => row.id === prev)
         if (existing) {
@@ -150,10 +178,26 @@ export function ContractsPage() {
     setForm(emptyForm(today))
     setFile(null)
     setFileKey((key) => key + 1)
-    setOcrText('')
     setOcrReviewed(false)
+    setOcrText('')
     setOcrMessage('')
   }
+
+  useEffect(() => {
+    if (!ready || !selectedId) {
+      setRevisions([])
+      return
+    }
+    let cancelled = false
+    void loadContractRevisions(sqlite, selectedId).then((next) => {
+      if (!cancelled) setRevisions(next)
+    }).catch(() => {
+      if (!cancelled) setRevisions([])
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [ready, selectedId, sqlite])
 
   async function pickFile(next: File | null) {
     setMessage('')
@@ -183,7 +227,14 @@ export function ContractsPage() {
         fileMime: next.type,
         onProgress: setOcrMessage,
       })
-      setForm((prev) => applyOcrCandidates(prev, result.candidates))
+      setForm((prev) => {
+        const next = applyOcrCandidates(prev, result.candidates)
+        return {
+          ...next,
+          partnerId: matchPartnerId(partners, next.counterparty) ?? next.partnerId ?? '',
+          orderId: next.orderId ?? prev.orderId,
+        }
+      })
       setOcrText(result.text ?? '')
       setOcrReviewed(true)
       setOcrMessage(result.message)
@@ -198,11 +249,15 @@ export function ContractsPage() {
     }
   }
 
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault()
+  async function saveDraft(similarChoice?: SimilarChoice) {
     if (!ready || !canWriteOpenedCompany(guest, companyId, sqlite.companyId)) return
     setMessage('')
     setNotice('')
+    const similar = similarDrafts(rows, form)
+    if (similar.length && !similarChoice) {
+      setMessage(similarChoiceLead(similar.length))
+      return
+    }
     try {
       let fileName: string | undefined
       let fileHash: string | undefined
@@ -227,32 +282,36 @@ export function ContractsPage() {
         endAt: form.endAt || undefined,
         amount: form.amount ? Number(form.amount) : undefined,
         ownerName: form.ownerName,
+        partnerId: form.partnerId || matchPartnerId(partners, form.counterparty),
+        orderId: form.orderId || undefined,
         fileName,
         fileHash,
         fileMime,
         fileBytes,
         ocrReviewed: Boolean(fileBytes) && ocrReviewed,
+        similarChoice,
+        reviseId: similar[0]?.id,
       })
-      setNotice(
-        [
-          result.status === 'duplicate'
-            ? '같은 초안은 한 번만 반영됩니다.'
-            : fileBytes
-              ? '확인한 값으로 초안과 원본을 저장했습니다. OCR만으로 체결하지 않았습니다.'
-              : '계약 초안을 저장했습니다. OCR로 체결하지 않았습니다.',
-          similarDraftNotice(similarDrafts(rows, { title: form.title, counterparty: form.counterparty }).length),
-        ]
-          .filter(Boolean)
-          .join(' '),
-      )
+      setNotice(draftSavedNotice({ duplicate: result.status === 'duplicate', revised: result.revised, hasFile: Boolean(fileBytes) }))
       const nextRows = await loadContracts(sqlite)
       setRows(nextRows)
       setLifeTab(contractPhase(form.endAt || undefined, today))
-      setSelectedId(id)
+      setSelectedId(result.id)
+      setRevisions(result.revised ? await loadContractRevisions(sqlite, result.id) : [])
       resetForm()
     } catch (error) {
       setMessage(publicErrorMessage(error))
     }
+  }
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault()
+    const similar = similarDrafts(rows, form)
+    if (similar.length) {
+      setMessage(similarChoiceLead(similar.length))
+      return
+    }
+    await saveDraft()
   }
 
   async function downloadOriginal(id: string) {
@@ -278,7 +337,13 @@ export function ContractsPage() {
   )
   const selected = rows.find((row) => row.id === selectedId)
   const dueLead = contractDueNotice(groups.find((section) => section.phase === 'due')?.contracts.length ?? 0)
-  const similarHint = similarDraftNotice(similarDrafts(rows, form).length)
+  const similar = similarDrafts(rows, form)
+  const similarHint = similarChoiceLead(similar.length)
+  const orderChoices = orders.map((row) => ({
+    id: row.id,
+    partnerName: partners.find((partner) => partner.id === row.partnerId)?.name,
+    orderDate: row.orderDate,
+  }))
 
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
   if (!guest && !configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
@@ -449,6 +514,30 @@ export function ContractsPage() {
                   <dd>{selected.counterparty}</dd>
                 </div>
                 <div>
+                  <dt className="text-muted">거래처</dt>
+                  <dd>
+                    {selected.partnerName ? (
+                      <Link className="text-accent underline" to={href('/master')}>
+                        {selected.partnerName}
+                      </Link>
+                    ) : (
+                      '없음'
+                    )}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted">연결 발주</dt>
+                  <dd>
+                    {selected.orderId ? (
+                      <Link className="text-accent underline" to={href('/stock')}>
+                        {selected.orderId}
+                      </Link>
+                    ) : (
+                      '없음'
+                    )}
+                  </dd>
+                </div>
+                <div>
                   <dt className="text-muted">담당자</dt>
                   <dd>{selected.ownerName || '없음'}</dd>
                 </div>
@@ -482,6 +571,16 @@ export function ContractsPage() {
               ) : (
                 <p className="mt-4 text-muted">이 초안에는 원본 파일이 없습니다.</p>
               )}
+              {revisions.length ? (
+                <div className="mt-4">
+                  <h3 className="text-sm font-semibold">{countHeading('개정 이력', revisions.length)}</h3>
+                  <ol className="mt-2 grid gap-1 text-xs text-muted">
+                    {revisions.map((row) => (
+                      <li key={row.id}>{revisionCaption(row, grouping)}</li>
+                    ))}
+                  </ol>
+                </div>
+              ) : null}
             </section>
           ) : showsEmptyPickHint(rows.length) ? (
             <section className="rounded-lg border border-dashed border-line bg-card p-4 text-sm text-muted">
@@ -515,9 +614,58 @@ export function ContractsPage() {
                 required
                 className="mt-1 w-full rounded border border-line px-3 py-2"
                 value={form.counterparty}
-                onChange={(e) => setForm((prev) => ({ ...prev, counterparty: e.target.value }))}
+                onChange={(e) => {
+                  const counterparty = e.target.value
+                  setForm((prev) => ({
+                    ...prev,
+                    counterparty,
+                    partnerId: matchPartnerId(partners, counterparty) ?? '',
+                  }))
+                }}
               />
             </label>
+            {partners.length ? (
+              <label className="text-sm">
+                거래처
+                <select
+                  className="mt-1 w-full rounded border border-line px-3 py-2"
+                  value={form.partnerId}
+                  onChange={(e) => {
+                    const partnerId = e.target.value
+                    const name = partners.find((row) => row.id === partnerId)?.name
+                    setForm((prev) => ({
+                      ...prev,
+                      partnerId,
+                      counterparty: name || prev.counterparty,
+                    }))
+                  }}
+                >
+                  <option value="">직접 입력</option>
+                  {partners.map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {row.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            {orderChoices.length ? (
+              <label className="text-sm">
+                연결 발주
+                <select
+                  className="mt-1 w-full rounded border border-line px-3 py-2"
+                  value={form.orderId}
+                  onChange={(e) => setForm((prev) => ({ ...prev, orderId: e.target.value }))}
+                >
+                  <option value="">없음</option>
+                  {orderChoices.map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {contractOrderLabel(row)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
             <label className="text-sm">
               담당자
               <input
@@ -602,10 +750,31 @@ export function ContractsPage() {
                 </label>
               ) : null}
             </div>
-            <div className="sm:col-span-2">
-              <button type="submit" disabled={!ready || ocrBusy} className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-                초안 저장
-              </button>
+            <div className="flex flex-wrap gap-2 sm:col-span-2">
+              {similar.length ? (
+                <>
+                  <button
+                    type="button"
+                    disabled={!ready || ocrBusy}
+                    className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                    onClick={() => void saveDraft('new')}
+                  >
+                    새 초안으로 저장
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!ready || ocrBusy}
+                    className="rounded border border-line px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                    onClick={() => void saveDraft('revise')}
+                  >
+                    기존을 개정
+                  </button>
+                </>
+              ) : (
+                <button type="submit" disabled={!ready || ocrBusy} className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                  초안 저장
+                </button>
+              )}
             </div>
           </form>
       </div>
