@@ -1,5 +1,5 @@
 import { formatCompanyMoney } from '../company/displayCurrency'
-import { DISABLED_OCR, type OcrAdapter } from './ocr'
+import { DISABLED_OCR, parseOcrFieldsJson, type OcrAdapter, type OcrFieldRecord } from './ocr'
 import { contractWatchLabel } from './watch'
 
 export type ContractStatus = 'draft'
@@ -33,6 +33,8 @@ export type ContractDraft = {
   hasOriginal: boolean
   status: ContractStatus
   ocrStatus: 'off' | 'reviewed'
+  ocrText?: string
+  ocrFields?: OcrFieldRecord[]
   createdAt?: string
 }
 
@@ -56,6 +58,8 @@ export type DraftContractInput = {
   fileMime?: string
   fileBytes?: Uint8Array
   ocrReviewed?: boolean
+  ocrText?: string
+  ocrFields?: OcrFieldRecord[]
   similarChoice?: SimilarChoice
   reviseId?: string
 }
@@ -316,7 +320,18 @@ export function applyDraftContract(
     hasOriginal: Boolean(input.fileBytes?.byteLength),
     status: 'draft',
     ocrStatus: input.ocrReviewed ? 'reviewed' : 'off',
+    ocrText: input.ocrText?.trim() || undefined,
+    ocrFields: input.ocrFields?.length ? input.ocrFields : undefined,
   }
+}
+
+function persistOcrText(text?: string | null) {
+  const next = text?.trim()
+  return next || null
+}
+
+function persistOcrFieldsJson(fields?: OcrFieldRecord[] | null) {
+  return fields?.length ? JSON.stringify(fields) : null
 }
 
 export const CONTRACT_TABLE_SQL = [
@@ -339,6 +354,8 @@ export const CONTRACT_TABLE_SQL = [
     order_id text,
     status text not null,
     ocr_status text not null,
+    ocr_text text,
+    ocr_fields_json text,
     created_at text not null
   );`,
   `create unique index if not exists contracts_file_hash on contracts(file_hash) where file_hash is not null`,
@@ -382,12 +399,14 @@ export async function loadContracts(
     has_original?: number | null
     status: ContractStatus
     ocr_status: 'off' | 'reviewed'
+    ocr_text?: string | null
+    ocr_fields_json?: string | null
     created_at?: string | null
   }>(
     `select c.id, c.title, c.contract_no, c.counterparty, c.signed_at, c.start_at, c.end_at, c.amount, c.currency,
       c.owner_name, c.partner_id, p.name as partner_name, c.order_id, c.file_name, c.file_hash, c.file_mime,
       case when c.file_base64 is not null and length(c.file_base64) > 0 then 1 else 0 end as has_original,
-      c.status, c.ocr_status, c.created_at
+      c.status, c.ocr_status, c.ocr_text, c.ocr_fields_json, c.created_at
       from contracts c
       left join partners p on p.id = c.partner_id
       order by c.created_at desc, c.title`,
@@ -412,6 +431,8 @@ export async function loadContracts(
     hasOriginal: row.has_original === 1,
     status: row.status,
     ocrStatus: row.ocr_status,
+    ocrText: row.ocr_text?.trim() || undefined,
+    ocrFields: parseOcrFieldsJson(row.ocr_fields_json),
     createdAt: row.created_at ?? undefined,
   }))
 }
@@ -502,6 +523,9 @@ export async function executeDraftContract(
   })
   const fileBase64 = command.fileBytes ? bytesToBase64(command.fileBytes) : null
   const revised = Boolean(previous)
+  const ocrText = command.ocrText !== undefined ? persistOcrText(command.ocrText) : persistOcrText(previous?.ocrText)
+  const ocrFieldsJson =
+    command.ocrFields !== undefined ? persistOcrFieldsJson(command.ocrFields) : persistOcrFieldsJson(previous?.ocrFields)
   const statements: { sql: string; params?: unknown[] }[] = [
     {
       sql: 'insert into processed_operations(operation_id, result_json, created_at) values(?, ?, ?)',
@@ -536,7 +560,7 @@ export async function executeDraftContract(
         currency = ?, owner_name = ?, partner_id = ?, order_id = ?,
         file_name = coalesce(?, file_name), file_hash = coalesce(?, file_hash),
         file_mime = coalesce(?, file_mime), file_base64 = coalesce(?, file_base64),
-        ocr_status = ?
+        ocr_status = ?, ocr_text = coalesce(?, ocr_text), ocr_fields_json = coalesce(?, ocr_fields_json)
         where id = ?`,
       params: [
         draft.title,
@@ -555,6 +579,8 @@ export async function executeDraftContract(
         draft.fileMime ?? null,
         fileBase64,
         command.fileBytes ? draft.ocrStatus : previous.ocrStatus,
+        ocrText,
+        ocrFieldsJson,
         previous.id,
       ],
     })
@@ -562,8 +588,9 @@ export async function executeDraftContract(
     statements.push({
       sql: `insert into contracts(
         id, title, contract_no, counterparty, signed_at, start_at, end_at, amount, currency,
-        owner_name, partner_id, order_id, file_name, file_hash, file_mime, file_base64, status, ocr_status, created_at
-      ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        owner_name, partner_id, order_id, file_name, file_hash, file_mime, file_base64, status, ocr_status,
+        ocr_text, ocr_fields_json, created_at
+      ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       params: [
         draft.id,
         draft.title,
@@ -583,6 +610,8 @@ export async function executeDraftContract(
         fileBase64,
         draft.status,
         draft.ocrStatus,
+        ocrText,
+        ocrFieldsJson,
         createdAt,
       ],
     })

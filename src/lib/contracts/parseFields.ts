@@ -66,27 +66,47 @@ function labeledValue(text: string, labels: string): string | undefined {
   return value || undefined
 }
 
-function add(candidates: OcrCandidate[], field: string, value: string | undefined, confidence = FIELD_CONFIDENCE[field] ?? 0.5) {
+type AddMeta = { confidence?: number; page?: number; sourceText?: string }
+
+function add(
+  candidates: OcrCandidate[],
+  field: string,
+  value: string | undefined,
+  extra?: number | AddMeta,
+) {
+  const meta: AddMeta = typeof extra === 'number' ? { confidence: extra } : extra ?? {}
   let next = value ? tidyOcrValue(value) : ''
   if (field === 'title') next = next.replace(/^[A-Za-z]{1,4}\s+(?=[\uAC00-\uD7A3])/, '')
   if (!next) return
   if (candidates.some((row) => row.field === field)) return
-  candidates.push({ field, value: next, confidence })
+  const sourceText = tidyOcrValue(meta.sourceText ?? next).slice(0, 80)
+  candidates.push({
+    field,
+    value: next,
+    confidence: meta.confidence ?? FIELD_CONFIDENCE[field] ?? 0.5,
+    page: meta.page,
+    sourceText: sourceText || undefined,
+  })
 }
 
-export function parseContractText(text: string): OcrCandidate[] {
+export type OcrPageText = { page: number; text: string }
+
+export function parseContractText(text: string, page?: number): OcrCandidate[] {
   const source = text.replace(/\r/g, '\n')
   const candidates: OcrCandidate[] = []
+  const at = (confidence?: number, sourceText?: string): AddMeta => ({
+    confidence,
+    page,
+    sourceText,
+  })
 
-  add(
-    candidates,
-    'contractNo',
-    (labeledValue(source, '계약번호|계약\\s*No\\.?|Contract\\s*No\\.?') || source).match(
-      /CON-?[A-Z0-9]+(?:-[A-Z0-9]+)*/i,
-    )?.[0],
-  )
+  const contractNo = (labeledValue(source, '계약번호|계약\\s*No\\.?|Contract\\s*No\\.?') || source).match(
+    /CON-?[A-Z0-9]+(?:-[A-Z0-9]+)*/i,
+  )?.[0]
+  add(candidates, 'contractNo', contractNo, at(undefined, contractNo))
 
-  add(candidates, 'title', labeledValue(source, '계약명|건명|계약\\s*명칭|Contract\\s*title|Title'))
+  const title = labeledValue(source, '계약명|건명|계약\\s*명칭|Contract\\s*title|Title')
+  add(candidates, 'title', title, at(undefined, title))
   if (!candidates.some((row) => row.field === 'title')) {
     const line = source
       .split('\n')
@@ -98,46 +118,79 @@ export function parseContractText(text: string): OcrCandidate[] {
           !/계약서$/.test(row) &&
           !/계약번호|계약금액|계약일|체결일|시작일|종료일|담당자|상대방|Contract\\s*No/i.test(row),
       )
-    add(candidates, 'title', line, 0.45)
+    add(candidates, 'title', line, at(0.45, line))
   }
 
-  add(
-    candidates,
-    'counterparty',
-    labeledValue(source, '상대방|거래처|임대인|수급인|공급자|발주처|Counterparty'),
-  )
+  const counterparty = labeledValue(source, '상대방|거래처|임대인|수급인|공급자|발주처|Counterparty')
+  add(candidates, 'counterparty', counterparty, at(undefined, counterparty))
 
-  add(candidates, 'ownerName', labeledValue(source, '담당자|관리자'))
+  const ownerName = labeledValue(source, '담당자|관리자')
+  add(candidates, 'ownerName', ownerName, at(undefined, ownerName))
 
   const signed = labeledValue(source, '체결일|계약일')
   const start = labeledValue(source, '시작일|개시일|임대시작')
   const end = labeledValue(source, '종료일|만료일|임대종료')
-  add(candidates, 'signedAt', signed ? toIsoDate(signed) : undefined)
-  add(candidates, 'startAt', start ? toIsoDate(start) : undefined)
-  add(candidates, 'endAt', end ? toIsoDate(end) : undefined)
+  add(candidates, 'signedAt', signed ? toIsoDate(signed) : undefined, at(undefined, signed))
+  add(candidates, 'startAt', start ? toIsoDate(start) : undefined, at(undefined, start))
+  add(candidates, 'endAt', end ? toIsoDate(end) : undefined, at(undefined, end))
 
   if (!candidates.some((row) => row.field === 'startAt' || row.field === 'endAt' || row.field === 'signedAt')) {
     const dates = [...source.matchAll(/(\d{4})\s*[년.\-/]\s*(\d{1,2})\s*[월.\-/]\s*(\d{1,2})\s*일?/g)]
-      .map((match) => toIsoDate(match[0]))
-      .filter((value): value is string => Boolean(value))
-    add(candidates, 'signedAt', dates[0], 0.5)
-    add(candidates, 'startAt', dates[0], 0.5)
-    add(candidates, 'endAt', dates[1], 0.5)
+      .map((match) => ({ iso: toIsoDate(match[0]), raw: match[0] }))
+      .filter((row): row is { iso: string; raw: string } => Boolean(row.iso))
+    add(candidates, 'signedAt', dates[0]?.iso, at(0.5, dates[0]?.raw))
+    add(candidates, 'startAt', dates[0]?.iso, at(0.5, dates[0]?.raw))
+    add(candidates, 'endAt', dates[1]?.iso, at(0.5, dates[1]?.raw))
   }
 
   const amounts = [...source.matchAll(/([0-9]{1,3}(?:,[0-9]{3})+|[0-9]{4,})\s*원/g)]
-    .map((match) => Number(match[1].replace(/,/g, '')))
-    .filter((value) => Number.isFinite(value) && value > 0)
+    .map((match) => ({ value: Number(match[1].replace(/,/g, '')), raw: match[0] }))
+    .filter((row) => Number.isFinite(row.value) && row.value > 0)
   if (!amounts.length) {
     const labeledAmount = labeledValue(source, '계약금액|금액|Amount')
     const numeric = labeledAmount?.replace(/[^0-9]/g, '')
-    if (numeric) amounts.push(Number(numeric))
+    if (numeric) amounts.push({ value: Number(numeric), raw: labeledAmount ?? numeric })
   }
   if (amounts.length) {
-    add(candidates, 'amount', String(Math.max(...amounts)))
+    const max = amounts.reduce((best, row) => (row.value > best.value ? row : best))
+    add(candidates, 'amount', String(max.value), at(undefined, max.raw))
   }
 
   return candidates
+}
+
+export function parseContractDocument(pages: OcrPageText[]): OcrCandidate[] {
+  const candidates: OcrCandidate[] = []
+  for (const chunk of pages) {
+    for (const row of parseContractText(chunk.text, chunk.page)) {
+      if (!candidates.some((item) => item.field === row.field)) candidates.push(row)
+    }
+  }
+  if (pages.length > 1) {
+    for (const row of parseContractText(pages.map((chunk) => chunk.text).join('\n'))) {
+      if (!candidates.some((item) => item.field === row.field)) candidates.push(row)
+    }
+  }
+  return candidates
+}
+
+export function formValueForOcrField(form: ContractFormDraft, field: string): string {
+  if (field === 'title') return form.title
+  if (field === 'contractNo') return form.contractNo
+  if (field === 'counterparty') return form.counterparty
+  if (field === 'ownerName') return form.ownerName
+  if (field === 'signedAt') return form.signedAt
+  if (field === 'startAt') return form.startAt
+  if (field === 'endAt') return form.endAt
+  if (field === 'amount') return form.amount
+  return ''
+}
+
+export function reviewedOcrFields(candidates: OcrCandidate[], form: ContractFormDraft) {
+  return candidates.map((row) => ({
+    ...row,
+    reviewedValue: formValueForOcrField(form, row.field),
+  }))
 }
 
 export const OCR_AUTOFILL_MIN = 0.5

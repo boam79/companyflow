@@ -192,6 +192,23 @@ describe('계약 초안', () => {
       enabled,
     )
     expect(draft.ocrStatus).toBe('reviewed')
+    const withEvidence = applyDraftContract(
+      [],
+      {
+        ...BASE,
+        fileBytes: pdfBytes,
+        fileMime: 'application/pdf',
+        fileName: 'a.pdf',
+        ocrReviewed: true,
+        ocrText: '계약명 본사 임대',
+        ocrFields: [
+          { field: 'title', value: '본사 임대', confidence: 0.6, page: 1, reviewedValue: '본사 임대' },
+        ],
+      },
+      enabled,
+    )
+    expect(withEvidence.ocrText).toBe('계약명 본사 임대')
+    expect(withEvidence.ocrFields?.[0]).toMatchObject({ field: 'title', page: 1, confidence: 0.6 })
   })
 
   it('OCR이 꺼져 있으면 후보 없이 직접 입력한다', async () => {

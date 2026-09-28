@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyOcrCandidates, parseContractText, toIsoDate } from './parseFields'
+import { applyOcrCandidates, parseContractDocument, parseContractText, toIsoDate } from './parseFields'
 
 const SAMPLE = `임대차 계약서
 계약명 본사 3층 임대
@@ -112,5 +112,17 @@ describe('계약 OCR 필드 추출', () => {
       [{ field: 'title', value: '불명', confidence: 0.2 }],
     )
     expect(filled.title).toBe('')
+  })
+
+  it('페이지별 원문과 인식 값을 남긴다', () => {
+    const found = parseContractDocument([
+      { page: 1, text: '계약명 본사 3층 임대\n계약번호 CON-2024-001' },
+      { page: 2, text: '상대방 한국임대\n계약금액 12,000,000원' },
+    ])
+    const byField = Object.fromEntries(found.map((row) => [row.field, row]))
+    expect(byField.title).toMatchObject({ value: '본사 3층 임대', page: 1, sourceText: '본사 3층 임대' })
+    expect(byField.contractNo.page).toBe(1)
+    expect(byField.counterparty.page).toBe(2)
+    expect(byField.amount).toMatchObject({ value: '12000000', page: 2, sourceText: '12,000,000원' })
   })
 })

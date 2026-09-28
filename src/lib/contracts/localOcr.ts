@@ -3,7 +3,7 @@ import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { createWorker } from 'tesseract.js'
 import { mimeFromName, sniffContractFileMime, toArrayBuffer } from './book'
 import { describeOcrResult, type OcrExtractResult } from './ocr'
-import { parseContractText } from './parseFields'
+import { parseContractDocument, type OcrPageText } from './parseFields'
 import { PDFJS_SAFE_OPTIONS } from './pdfjsSafe'
 
 GlobalWorkerOptions.workerSrc = workerSrc
@@ -14,7 +14,9 @@ const MAX_PAGES = 2
 let tessWorker: Awaited<ReturnType<typeof createWorker>> | null = null
 let tessLoading: Promise<Awaited<ReturnType<typeof createWorker>>> | null = null
 
-export async function textFromPdf(bytes: Uint8Array): Promise<{ text: string; pages: number }> {
+export async function textFromPdf(
+  bytes: Uint8Array,
+): Promise<{ text: string; pages: number; pageTexts: OcrPageText[] }> {
   const task = getDocument({
     data: toArrayBuffer(bytes),
     ...PDFJS_SAFE_OPTIONS,
@@ -32,7 +34,11 @@ export async function textFromPdf(bytes: Uint8Array): Promise<{ text: string; pa
           .join(' '),
       )
     }
-    return { text: chunks.join('\n'), pages: pageCount }
+    return {
+      text: chunks.join('\n'),
+      pages: pageCount,
+      pageTexts: chunks.map((text, index) => ({ page: index + 1, text })),
+    }
   } finally {
     await task.destroy()
   }
@@ -157,7 +163,7 @@ async function recognizeImages(images: Array<Blob | File>, onProgress?: (message
     const result = await worker.recognize(image)
     texts.push(result.data.text)
   }
-  return texts.join('\n')
+  return texts
 }
 
 export async function extractLocalContract(input: {
@@ -175,38 +181,47 @@ export async function extractLocalContract(input: {
   try {
     let text = ''
     let source: 'pdf-text' | 'ocr' = 'ocr'
+    let pageTexts: OcrPageText[] = []
     if (mime === 'application/pdf') {
       input.onProgress?.('PDF 글자를 읽는 중입니다.')
       const extracted = await textFromPdf(input.bytes)
       text = extracted.text.trim()
       if (text.replace(/\s/g, '').length >= MIN_PDF_TEXT) {
         source = 'pdf-text'
+        pageTexts = extracted.pageTexts
       } else {
         input.onProgress?.('스캔 페이지를 OCR하는 중입니다.')
         const images = await rasterPdfPages(input.bytes)
-        text = images.length ? await recognizeImages(images, input.onProgress) : text
+        const texts = images.length ? await recognizeImages(images, input.onProgress) : []
+        text = texts.join('\n') || text
+        pageTexts = texts.map((pageText, index) => ({ page: index + 1, text: pageText }))
         source = 'ocr'
       }
     } else {
       input.onProgress?.('이미지에서 글자를 읽는 중입니다.')
       const original = imageBlob(input.bytes, mime === 'image/webp' ? 'image/webp' : mime || 'image/png')
       let usedRaster = false
+      let texts: string[] = []
       try {
-        text = await recognizeImages([original], input.onProgress)
+        texts = await recognizeImages([original], input.onProgress)
       } catch (error) {
         const failed = error instanceof Error ? error.message : String(error)
         if (!/attempting to read image|read image/i.test(failed)) throw error
         input.onProgress?.('그림을 바꿔서 다시 읽는 중입니다.')
-        text = await recognizeImages([await rasterizeForOcr(input.bytes, mime || 'image/png')], input.onProgress)
+        texts = await recognizeImages([await rasterizeForOcr(input.bytes, mime || 'image/png')], input.onProgress)
         usedRaster = true
       }
+      text = texts.join('\n')
       if (!text.trim() && !usedRaster) {
         input.onProgress?.('그림을 키워서 다시 읽는 중입니다.')
-        text = await recognizeImages([await rasterizeForOcr(input.bytes, mime || 'image/png')], input.onProgress)
+        texts = await recognizeImages([await rasterizeForOcr(input.bytes, mime || 'image/png')], input.onProgress)
+        text = texts.join('\n')
       }
+      pageTexts = texts.map((pageText, index) => ({ page: index + 1, text: pageText }))
       source = 'ocr'
     }
-    const candidates = parseContractText(text)
+    if (!pageTexts.length) pageTexts = [{ page: 1, text }]
+    const candidates = parseContractDocument(pageTexts)
     return {
       status: text.trim() && candidates.length ? 'ready' : 'empty',
       candidates,

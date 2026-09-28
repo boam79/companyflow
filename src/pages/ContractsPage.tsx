@@ -30,7 +30,16 @@ import {
   type SimilarChoice,
 } from '../lib/contracts/book'
 import { contractDueNotice } from '../lib/contracts/watch'
-import { applyOcrCandidates } from '../lib/contracts/parseFields'
+import { applyOcrCandidates, formValueForOcrField, reviewedOcrFields } from '../lib/contracts/parseFields'
+import {
+  describeOcrResult,
+  ocrEvidenceLine,
+  ocrFailedMessage,
+  ocrJobCaption,
+  ocrJobStatus,
+  ocrRetryLabel,
+  type OcrCandidate,
+} from '../lib/contracts/ocr'
 import { writeDefaultMaster } from '../lib/master/book'
 import { canWriteOpenedCompany, mayOpenCompanyWork, workSessionKind } from '../lib/company/workGate'
 import { useWorkAccess } from '../lib/guest/workAccess'
@@ -75,6 +84,7 @@ export function ContractsPage() {
   const [selectedId, setSelectedId] = useState('')
   const [ocrMessage, setOcrMessage] = useState('')
   const [ocrText, setOcrText] = useState('')
+  const [ocrFields, setOcrFields] = useState<OcrCandidate[]>([])
   const [ocrReviewed, setOcrReviewed] = useState(false)
   const [ocrBusy, setOcrBusy] = useState(false)
   const [notice, setNotice] = useState('')
@@ -180,6 +190,7 @@ export function ContractsPage() {
     setFileKey((key) => key + 1)
     setOcrReviewed(false)
     setOcrText('')
+    setOcrFields([])
     setOcrMessage('')
   }
 
@@ -203,23 +214,34 @@ export function ContractsPage() {
     setMessage('')
     setNotice('')
     setOcrText('')
+    setOcrFields([])
     setOcrReviewed(false)
     if (!next) {
       setFile(null)
       return
     }
+    let bytes: Uint8Array
     try {
       assertContractFile(next.size, next.type, next.name)
-      const bytes = new Uint8Array(await next.arrayBuffer())
+      bytes = new Uint8Array(await next.arrayBuffer())
       assertContractFile(bytes.byteLength, next.type, next.name, bytes)
       const hash = await hashFileBytes(bytes)
       if (rows.some((row) => row.fileHash === hash)) {
         throw new Error('같은 원본 파일은 계약을 한 번만 만듭니다.')
       }
-      setFile(next)
-      setOcrBusy(true)
-      setOcrMessage('원본에서 글자를 읽는 중입니다. 처음이면 1분 정도 걸릴 수 있습니다.')
+    } catch (error) {
+      setFile(null)
+      setFileKey((key) => key + 1)
+      setMessage(publicErrorMessage(error))
+      setOcrMessage('')
       ocrPanel.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+    setFile(next)
+    setOcrBusy(true)
+    setOcrMessage('원본에서 글자를 읽는 중입니다. 처음이면 1분 정도 걸릴 수 있습니다.')
+    ocrPanel.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    try {
       const { extractLocalContract } = await import('../lib/contracts/localOcr')
       const result = await extractLocalContract({
         bytes,
@@ -228,21 +250,26 @@ export function ContractsPage() {
         onProgress: setOcrMessage,
       })
       setForm((prev) => {
-        const next = applyOcrCandidates(prev, result.candidates)
+        const filled = applyOcrCandidates(prev, result.candidates)
         return {
-          ...next,
-          partnerId: matchPartnerId(partners, next.counterparty) ?? next.partnerId ?? '',
-          orderId: next.orderId ?? prev.orderId,
+          ...filled,
+          partnerId: matchPartnerId(partners, filled.counterparty) ?? filled.partnerId ?? '',
+          orderId: filled.orderId ?? prev.orderId,
         }
       })
       setOcrText(result.text ?? '')
+      setOcrFields(result.candidates)
       setOcrReviewed(true)
       setOcrMessage(result.message)
     } catch (error) {
-      setFile(null)
-      setFileKey((key) => key + 1)
-      setMessage(publicErrorMessage(error))
-      setOcrMessage('')
+      setOcrReviewed(true)
+      setOcrMessage(
+        describeOcrResult({
+          error: error instanceof Error ? error.message : String(error),
+          text: '',
+          candidateCount: 0,
+        }),
+      )
       ocrPanel.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
     } finally {
       setOcrBusy(false)
@@ -289,6 +316,8 @@ export function ContractsPage() {
         fileMime,
         fileBytes,
         ocrReviewed: Boolean(fileBytes) && ocrReviewed,
+        ocrText: fileBytes ? ocrText : undefined,
+        ocrFields: fileBytes ? reviewedOcrFields(ocrFields, form) : undefined,
         similarChoice,
         reviseId: similar[0]?.id,
       })
@@ -339,6 +368,14 @@ export function ContractsPage() {
   const dueLead = contractDueNotice(groups.find((section) => section.phase === 'due')?.contracts.length ?? 0)
   const similar = similarDrafts(rows, form)
   const similarHint = similarChoiceLead(similar.length)
+  const ocrJob = ocrJobCaption(
+    ocrJobStatus({
+      busy: ocrBusy,
+      failed: ocrFailedMessage(ocrMessage),
+      candidateCount: ocrFields.length,
+      reviewed: ocrReviewed,
+    }),
+  )
   const orderChoices = orders.map((row) => ({
     id: row.id,
     partnerName: partners.find((partner) => partner.id === row.partnerId)?.name,
@@ -581,6 +618,27 @@ export function ContractsPage() {
                   </ol>
                 </div>
               ) : null}
+              {selected.ocrFields?.length ? (
+                <div className="mt-4">
+                  <h3 className="text-sm font-semibold">{countHeading('인식 근거', selected.ocrFields.length)}</h3>
+                  <ul className="mt-2 grid gap-1 text-xs text-muted">
+                    {selected.ocrFields.map((row) => (
+                      <li key={row.field}>{ocrEvidenceLine(row)}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+              {selected.ocrText ? (
+                <label className="mt-4 block text-sm">
+                  읽은 글자
+                  <textarea
+                    readOnly
+                    rows={4}
+                    className="mt-1 w-full rounded border border-line px-3 py-2 font-mono text-xs"
+                    value={selected.ocrText}
+                  />
+                </label>
+              ) : null}
             </section>
           ) : showsEmptyPickHint(rows.length) ? (
             <section className="rounded-lg border border-dashed border-line bg-card p-4 text-sm text-muted">
@@ -727,16 +785,41 @@ export function ContractsPage() {
               >
                 첨부파일
               </button>
+              {file && !ocrBusy ? (
+                <button
+                  type="button"
+                  className="rounded border border-line px-4 py-2 text-sm font-semibold"
+                  onClick={() => void pickFile(file)}
+                >
+                  {ocrRetryLabel()}
+                </button>
+              ) : null}
               <span className="text-sm text-muted">{file ? file.name : '선택된 파일 없음 · PDF·PNG·JPEG 8MB'}</span>
             </div>
             <div ref={ocrPanel} className="space-y-2 sm:col-span-2">
               {message ? <p className="text-sm text-danger">{message}</p> : null}
+              {ocrJob ? <p className="text-sm text-muted">{ocrJob}</p> : null}
               {ocrBusy ? (
                 <p className="text-sm text-muted">
                   {ocrMessage || '원본을 읽는 중입니다. 처음이면 1분 정도 걸릴 수 있습니다.'} 초안 저장은 글자를 읽은 뒤에 하세요.
                 </p>
               ) : ocrMessage ? (
                 <p className="text-sm text-accent">{ocrMessage}</p>
+              ) : null}
+              {ocrFields.length ? (
+                <div>
+                  <h3 className="text-sm font-semibold">{countHeading('인식 근거', ocrFields.length)}</h3>
+                  <ul className="mt-1 grid gap-1 text-xs text-muted">
+                    {ocrFields.map((row) => (
+                      <li key={row.field}>
+                        {ocrEvidenceLine({
+                          ...row,
+                          reviewedValue: formValueForOcrField(form, row.field),
+                        })}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ) : null}
               {ocrText ? (
                 <label className="text-sm">

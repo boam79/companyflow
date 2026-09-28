@@ -118,6 +118,8 @@ export const SCHEMA_PATCHES = [
   'alter table contracts add column file_base64 text',
   'alter table contracts add column partner_id text',
   'alter table contracts add column order_id text',
+  'alter table contracts add column ocr_text text',
+  'alter table contracts add column ocr_fields_json text',
   `create table if not exists contract_revisions (
     id text primary key,
     contract_id text not null,
