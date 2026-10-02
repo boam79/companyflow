@@ -7,7 +7,7 @@
 
 ## 지금 하는 일
 
-직접 입고 입고일을 원장에 남긴다. 기본은 오늘이다. 가짜 발주·단가는 두지 않는다. PUR-02 결재, P3, `/reports`는 사용자가 켜기 전에는 두지 않는다.
+직접 입고 입고일이 원장에 남는다. PUR-02 결재, P3, `/reports`는 사용자가 켜기 전에는 두지 않는다.
 
 ## 보드
 
@@ -47,7 +47,7 @@
 - [x] PUR-01 요청 진행 미발주·부분발주·발주완료. `잔량 0`·`미발주 0`은 숨김.
 - [x] 직접 입고 공급사·사유는 선택. 발주·요청을 만들지 않음.
 - [x] 반출 목적·반납 예정일은 선택. 성명 또는 부서는 그대로.
-- [ ] 직접 입고 입고일. 기본 오늘. 단가·가짜 발주는 두지 않음.
+- [x] 직접 입고 입고일. 기본 오늘. 단가·가짜 발주는 두지 않음.
 - [x] 명찰 템플릿 미리보기·PDF 받기 (지정 Chrome에서 명찰-김담당.pdf 확인)
 - [x] 회사 자산은 책상·컴퓨터. 복사용지 AST 해제 후 `/assets` 확인.
 - [x] 빈 QR → 스마트폰 입력 → 지정 PC 원본 반영. 지정 Chrome 확인.
@@ -100,10 +100,11 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 
 ## MCP에서 확인한 것
 
-- Vercel: `prj_KXGPhwGOtB8IQ2pAsnuTOZ0l3isR` / team `team_U7AuO5lMD3rtoAwkrj410jpx`. 도메인 `companyflow-opal.vercel.app`. 공급사·반출 목적 READY `dpl_BzXzG4WCqT8JEBLQv6sUoUK3M6QZ` 번들 `index-CcAA3hap.js`. 단위 312. HTTPS E2E 56.
+- Vercel: `prj_KXGPhwGOtB8IQ2pAsnuTOZ0l3isR` / team `team_U7AuO5lMD3rtoAwkrj410jpx`. 도메인 `companyflow-opal.vercel.app`. 입고일 READY `dpl_EQJD9FSS4Q5FZ75oKEE9eHt8gyCs` 번들 `index-D789U6Lq.js`. 단위 312. HTTPS E2E 56.
 - Supabase 활성: `companyflow`, `boardroom`. 정지: `boam79_patient_data`, `qr-asset-manager`, `policyfund-ai-v2`.
 - `confirm_company_device` RPC 추가. 초기 설정 성공 후 원본 장치를 confirmed 로 올린다.
 
+- 2026-10-03: 직접 입고 입고일은 원장에 남기고 칸 기본은 오늘이다. 단위 312. HTTPS E2E 56. READY `dpl_EQJD9FSS4Q5FZ75oKEE9eHt8gyCs` 번들 `index-D789U6Lq.js`. 단가·가짜 발주·`/reports`·PUR-02는 두지 않음.
 - 2026-10-03: 직접 입고는 공급사·사유를 선택으로 남기고 발주를 만들지 않는다. 반출은 목적·반납 예정일을 선택으로 남긴다. 단위 312. HTTPS E2E 56. READY `dpl_BzXzG4WCqT8JEBLQv6sUoUK3M6QZ` 번들 `index-CcAA3hap.js`. `/reports`·PUR-02는 되돌리지 않음.
 - 2026-10-03: AST-01 책상 수령·전환은 QR 표식을 붙인다. PC에서 모델·자리를 저장해도 직원 배정이 아니다. 구매요청은 미발주·부분발주·발주완료. `잔량 0`은 두지 않음. 단위 309. HTTPS E2E 56. `/reports`·PUR-02는 되돌리지 않음.
 - 2026-10-03: PUR-05 발주 항목은 여러 차례 수령하고 미수령·부분수령·수령완료로 보여 준다. 정상·불량·반품·미수령 0은 표에 두지 않음. `/reports`·PUR-02는 되돌리지 않음.
