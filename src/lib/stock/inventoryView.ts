@@ -56,6 +56,27 @@ export function stockAdjustReason() {
   return ''
 }
 
+export function inventoryWarehouseColumns(warehouses: NamedWarehouse[]): NamedWarehouse[] {
+  return warehouses.length > 1 ? warehouses : []
+}
+
+export function inventoryWarehouseQtyLabel(warehouseName: string, qty: number) {
+  return `${warehouseName} ${qty}`
+}
+
+export function inventoryShowsWarehouseField(action: string, warehouseCount: number) {
+  if (warehouseCount < 1) return false
+  return (
+    action === 'post_direct_in' ||
+    action === 'post_issue' ||
+    action === 'post_return' ||
+    action === 'post_receipt' ||
+    action === 'post_outbound' ||
+    action === 'adjust_stock' ||
+    action === 'post_supplier_return'
+  )
+}
+
 export function defaultWarehouseId(
   rows: { id: string }[],
   state?: StockState,

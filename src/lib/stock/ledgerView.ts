@@ -175,6 +175,56 @@ export function filterLedgerView(rows: LedgerViewRow[], filter: LedgerFilter): L
   return rows
 }
 
+export type LedgerJump = {
+  line: LedgerLine
+  button: string
+  caption: string
+}
+
+export function ledgerJumpCaption(line: LedgerLine): string {
+  const parts = [TXN_LABELS[line.txnType]]
+  const person = line.personName?.trim()
+  if (person && !isOpaqueLedgerRef(person) && !/^(guest:)/i.test(person)) parts.push(person)
+  return parts.join(' · ')
+}
+
+export function ledgerFollowButton(line: LedgerLine): string {
+  if (line.txnType === 'reversal') return '정정으로'
+  if (line.txnType === 'return') return '반납으로'
+  return '이 줄로'
+}
+
+export function ledgerSourceLine(ledger: LedgerLine[], line: LedgerLine): LedgerLine | undefined {
+  const source = line.sourceOperationId?.trim()
+  if (!source) return undefined
+  return orderedLedger(ledger.filter(isSupplyLedgerLine)).find((row) => row.operationId === source)
+}
+
+export function ledgerFollowLines(ledger: LedgerLine[], line: LedgerLine): LedgerLine[] {
+  const op = line.operationId?.trim()
+  if (!op) return []
+  return orderedLedger(ledger.filter(isSupplyLedgerLine)).filter(
+    (row) => row.sourceOperationId === op && row.id !== line.id,
+  )
+}
+
+export function ledgerRelatedJumps(ledger: LedgerLine[], selected: LedgerLine | null): LedgerJump[] {
+  if (!selected) return []
+  const jumps: LedgerJump[] = []
+  const source = ledgerSourceLine(ledger, selected)
+  if (source) {
+    jumps.push({ line: source, button: '원거래로', caption: ledgerJumpCaption(source) })
+  }
+  for (const follow of ledgerFollowLines(ledger, selected)) {
+    jumps.push({
+      line: follow,
+      button: ledgerFollowButton(follow),
+      caption: ledgerJumpCaption(follow),
+    })
+  }
+  return jumps
+}
+
 export function stockEmptyLedgerLead() {
   return '입출고 원장이 없습니다. 오른쪽에서 입고·반출을 확정하면 이 표에 이어집니다.'
 }

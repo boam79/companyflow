@@ -22,6 +22,9 @@ import {
   supplyLowStock,
   transferWarehouseIds,
   defaultWarehouseId,
+  inventoryShowsWarehouseField,
+  inventoryWarehouseColumns,
+  inventoryWarehouseQtyLabel,
   supplyItems,
   supplyOrderCsv,
   todayYmd,
@@ -103,6 +106,12 @@ describe('비품 현재고', () => {
         total: 7,
       },
     ])
+    expect(inventoryWarehouseColumns(WAREHOUSES).map((row) => row.name)).toEqual(['본사창고', '부속창고'])
+    expect(inventoryWarehouseColumns([{ id: 'wh-main', name: '본사창고' }])).toEqual([])
+    expect(inventoryWarehouseQtyLabel('견본창고', 0)).toBe('견본창고 0')
+    expect(inventoryShowsWarehouseField('post_direct_in', 2)).toBe(true)
+    expect(inventoryShowsWarehouseField('draft_order', 2)).toBe(false)
+    expect(inventoryShowsWarehouseField('post_issue', 0)).toBe(false)
     expect(lowStockLine({ itemName: '복사용지', onHand: 7, minStock: 10 })).toBe('복사용지 7 / 최소 10')
     expect(
       supplyLowStock([{ ...PAPER_ITEM, minStock: 10 }, ...COMPANY_ASSET_ITEMS.map((item) => ({ ...item, minStock: 2 }))], state).map(

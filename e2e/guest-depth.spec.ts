@@ -120,6 +120,21 @@ test('게스트 재고 부족은 최소보다 적은 비품만 보여 준다', a
   await expect(page.getByRole('heading', { name: '재고 부족 0' })).toHaveCount(0)
 })
 
+test('게스트 현재고는 창고별 수량을 보여 준다', async ({ page }) => {
+  await page.goto('/guest/stock')
+  await expect(page.getByRole('heading', { name: '구매·재고' })).toBeVisible({ timeout: 20000 })
+  await expect(page.getByRole('columnheader', { name: '샘플창고' })).toBeVisible()
+  await expect(page.getByRole('columnheader', { name: '견본창고' })).toBeVisible()
+  await expect(page.getByRole('columnheader', { name: '합계' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '재고현황 0' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '원거래로' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '샘플창고 7' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '견본창고 0' })).toBeVisible()
+  await page.getByRole('button', { name: '견본창고 0' }).click()
+  await expect(page.getByLabel('창고')).toHaveValue('wh-sub')
+  await expectNoHqLeftovers(page)
+})
+
 test('게스트 구매요청은 바로 저장하고 발주 잔량을 지킨다', async ({ page }) => {
   await page.goto('/guest/stock')
   await expect(page.getByRole('heading', { name: '구매·재고' })).toBeVisible({ timeout: 20000 })

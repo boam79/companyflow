@@ -3,7 +3,7 @@ import {
   applyStockCommand,
   createStockState,
 } from './engine'
-import { buildLedgerView, buildSupplyLedgerView, filterLedgerView, formatLedgerLink, publicItemLabel, rowsAreRelated, stockEmptyLedgerFilterLead, stockEmptyLedgerLead } from './ledgerView'
+import { buildLedgerView, buildSupplyLedgerView, filterLedgerView, formatLedgerLink, ledgerRelatedJumps, publicItemLabel, rowsAreRelated, stockEmptyLedgerFilterLead, stockEmptyLedgerLead } from './ledgerView'
 
 const ITEM = 'item-paper'
 const MAIN = 'wh-main'
@@ -65,6 +65,27 @@ describe('입출고 수불부', () => {
     expect(rowsAreRelated(rows[2].line, rows[3].line)).toBe(true)
     expect(filterLedgerView(rows, 'out')).toHaveLength(1)
     expect(filterLedgerView(rows, 'in')).toHaveLength(3)
+    const fromReturn = ledgerRelatedJumps(state.ledger, rows[3].line)
+    expect(fromReturn.map((jump) => [jump.button, jump.caption])).toEqual([['원거래로', '반출 · 김담당']])
+    expect(fromReturn[0].caption).not.toMatch(/op-issue|aaaaaaaa|[0-9a-f]{8}-/)
+    const fromIssue = ledgerRelatedJumps(state.ledger, rows[2].line)
+    expect(fromIssue.map((jump) => jump.button)).toEqual(['반납으로'])
+    expect(ledgerRelatedJumps(state.ledger, rows[0].line)).toEqual([])
+    state = applyStockCommand(state, {
+      type: 'reverse_transaction',
+      operationId: 'op-rev',
+      sourceOperationId: 'op-recv-6',
+    }).state
+    const reversed = state.ledger.find((line) => line.txnType === 'reversal')
+    expect(reversed).toBeTruthy()
+    const fromReversal = ledgerRelatedJumps(state.ledger, reversed ?? null)
+    expect(fromReversal.map((jump) => jump.button)).toEqual(['원거래로'])
+    expect(fromReversal[0].caption).toBe('수령 입고')
+    const fromReceipt = ledgerRelatedJumps(
+      state.ledger,
+      state.ledger.find((line) => line.operationId === 'op-recv-6') ?? null,
+    )
+    expect(fromReceipt.map((jump) => jump.button)).toEqual(['정정으로'])
   })
 
   it('연결란은 부서 id 대신 이름을 쓴다', () => {

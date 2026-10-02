@@ -29,9 +29,9 @@ import {
 import { toArrayBuffer } from '../lib/contracts/book'
 import { onHand, orderNetReceived, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { defaultStockPolicy, loadStockPolicy, showsOverflowReason } from '../lib/stock/policy'
-import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, lowStockLine, resolveOrderPartnerId, stockAdjustReason, stockAssetsLinkLabel, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssuePersonName, stockLastSaveLead, stockPageLead, stockReturnSourceLead, stockSavedNotice, stockSupplierReturnLead, supplyLowStock, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, resolveOrderPartnerId, stockAdjustReason, stockAssetsLinkLabel, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssuePersonName, stockLastSaveLead, stockPageLead, stockReturnSourceLead, stockSavedNotice, stockSupplierReturnLead, supplyLowStock, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
-import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
+import { isSupplyLedgerLine, ledgerRelatedJumps, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
 import { loadDisplayCurrency, formatCompanyDate, loadDisplayTimezone } from '../lib/company/displayCurrency'
 import { showModuleLink } from '../lib/company/modules'
@@ -230,6 +230,22 @@ export function StockPage() {
     setItemId(nextItemId)
     const item = items.find((row) => row.id === nextItemId)
     setOrderPartnerId(item?.partnerId ?? '')
+  }
+
+  function chooseItemAtWarehouse(nextItemId: string, nextWarehouseId: string) {
+    chooseItem(nextItemId)
+    setWarehouseId(nextWarehouseId)
+  }
+
+  function selectLedgerLine(line: LedgerLine) {
+    setSelectedLine(line)
+    chooseItem(line.itemId)
+    setWarehouseId(line.warehouseId)
+    if (line.txnType === 'issue' || line.txnType === 'outbound') {
+      setSourceOperationId(line.operationId)
+    } else if (line.sourceOperationId) {
+      setSourceOperationId(line.sourceOperationId)
+    }
   }
 
   function chooseOrder(row: PurchaseOrderRow) {
@@ -715,6 +731,9 @@ export function StockPage() {
   const inventory =
     state && stockItems.length && warehouses.length ? buildSupplyInventory(stockItems, warehouses, state) : []
   const selectedInventory = inventory.find((row) => row.itemId === itemId) ?? inventory[0]
+  const warehouseColumns = inventoryWarehouseColumns(warehouses)
+  const relatedJumps = ledgerRelatedJumps(state?.ledger ?? [], selectedLine)
+  const showsWarehouse = inventoryShowsWarehouseField(action, warehouses.length)
   const lowRows = state ? supplyLowStock(items, state) : []
   const supplyOrders = state ? buildSupplyOrderList(items, state, partners) : []
   const assetOrders = state ? buildAssetOrderList(items, state, partners) : []
@@ -1037,14 +1056,15 @@ export function StockPage() {
         </form>
       </section>
 
-      <div className="grid min-h-0 gap-4 lg:grid-cols-[12.5rem_minmax(0,1fr)_22rem] lg:items-start">
+      <div className="grid min-h-0 gap-4 lg:grid-cols-[minmax(14rem,22rem)_minmax(0,1fr)_22rem] lg:items-start">
       <section className="rounded-lg border border-line bg-card p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <h2 className="text-base font-semibold">재고현황</h2>
             {selectedInventory ? (
               <p className="mt-1 text-sm text-muted">
-                {selectedInventory.itemName}{' '}
+                {selectedInventory.itemName}
+                {warehouseColumns.length ? ' 합계 ' : ' '}
                 <strong className="text-ink tabular-nums">{selectedInventory.total}</strong>
               </p>
             ) : null}
@@ -1061,7 +1081,14 @@ export function StockPage() {
               <thead>
                 <tr className="border-b border-line text-muted">
                   <th className="py-1.5 pr-3 font-medium">비품</th>
-                  <th className="py-1.5 text-right font-medium">수량</th>
+                  {warehouseColumns.map((warehouse) => (
+                    <th key={warehouse.id} className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">
+                      {warehouse.name}
+                    </th>
+                  ))}
+                  <th className="py-1.5 text-right font-medium">
+                    {warehouseColumns.length ? '합계' : '수량'}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -1076,6 +1103,26 @@ export function StockPage() {
                       onClick={() => chooseItem(row.itemId)}
                     >
                       <td className="py-1.5 pr-3 font-medium">{row.itemName}</td>
+                      {warehouseColumns.map((warehouse, index) => {
+                        const qtyAtWarehouse = row.quantities[index] ?? 0
+                        const warehouseActive = active && warehouse.id === warehouseId
+                        return (
+                          <td key={warehouse.id} className="py-1.5 pr-3 text-right">
+                            <button
+                              type="button"
+                              aria-label={inventoryWarehouseQtyLabel(warehouse.name, qtyAtWarehouse)}
+                              aria-pressed={warehouseActive}
+                              className={`tabular-nums ${warehouseActive ? 'font-bold text-accent' : 'font-semibold'}`}
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                chooseItemAtWarehouse(row.itemId, warehouse.id)
+                              }}
+                            >
+                              {qtyAtWarehouse}
+                            </button>
+                          </td>
+                        )
+                      })}
                       <td className="py-1.5 text-right font-semibold tabular-nums">{row.total}</td>
                     </tr>
                   )
@@ -1224,16 +1271,25 @@ export function StockPage() {
           filter={ledgerFilter}
           selected={selectedLine}
           variant="supply"
-          onSelect={(line) => {
-            setSelectedLine(line)
-            if (line.txnType === 'issue' || line.txnType === 'outbound') {
-              setSourceOperationId(line.operationId)
-            } else if (line.sourceOperationId) {
-              setSourceOperationId(line.sourceOperationId)
-            }
-          }}
+          onSelect={selectLedgerLine}
         />
         </div>
+        {relatedJumps.length ? (
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+            {relatedJumps.map((jump) => (
+              <span key={jump.line.id} className="flex items-center gap-1">
+                <button
+                  type="button"
+                  className="font-semibold text-accent"
+                  onClick={() => selectLedgerLine(jump.line)}
+                >
+                  {jump.button}
+                </button>
+                <span className="text-muted">{jump.caption}</span>
+              </span>
+            ))}
+          </div>
+        ) : null}
       </section>
 
       <div className="flex flex-col gap-3">
@@ -1462,6 +1518,22 @@ export function StockPage() {
                   ? stockInboundItemHint()
                   : '있는 비품 이름만 반출·출고할 수 있습니다.'}
               </span>
+            </label>
+          ) : null}
+          {showsWarehouse ? (
+            <label className="text-sm">
+              창고
+              <select
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={warehouseId}
+                onChange={(e) => setWarehouseId(e.target.value)}
+              >
+                {warehouses.map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {row.name}
+                  </option>
+                ))}
+              </select>
             </label>
           ) : null}
           {action === 'draft_order' || action === 'confirm_order' ? (
