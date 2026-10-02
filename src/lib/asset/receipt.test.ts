@@ -15,6 +15,10 @@ describe('구매 수령 배분', () => {
       sourceOrderId: 'ord-desk',
       status: 'in_storage',
     })
+    expect(assets[0].qrToken).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    )
+    expect(assets[1].qrToken).not.toBe(assets[0].qrToken)
     expect(assets[1].id).toBe('op-desk:2')
   })
 

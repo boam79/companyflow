@@ -14,6 +14,7 @@ import {
   type AssetLifeEvent,
   type AssetLifeKind,
 } from '../lib/asset/life'
+import { assetProfileSavedNotice, executeAssetProfile } from '../lib/asset/profile'
 import { assertQrAssetPayload, executeQrRegistration, loadQrLabels, type QrAssetPayload } from '../lib/asset/register'
 import { fetchPendingQrInbox, importAssetQr, insertBlankQrLabels, previewInboxRow, type AssetQrInboxRow } from '../lib/asset/relay'
 import { readRelayPrivateJwk } from '../lib/backup/snapshot'
@@ -278,6 +279,31 @@ export function AssetsPage() {
           ? '이미 원본에 반영된 QR입니다.'
           : `${result.assetNumber ?? '자산'}을 원본에 반영했습니다.`,
       )
+    } catch (error) {
+      setMessage(publicErrorMessage(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function saveProfile(data: FormData) {
+    if (!ready || !selectedId || !canWriteOpenedCompany(guest, companyId, sqlite.companyId)) return
+    setBusy(true)
+    setMessage('')
+    setNotice('')
+    try {
+      await executeAssetProfile(sqlite, selectedId, {
+        model: String(data.get('model') ?? ''),
+        serialNo: String(data.get('serialNo') ?? ''),
+        locationText: String(data.get('locationText') ?? ''),
+        departmentName: String(data.get('departmentName') ?? ''),
+        ownerName: String(data.get('ownerName') ?? ''),
+        acquiredAt: String(data.get('acquiredAt') ?? ''),
+      })
+      const assetRows = await loadAssets(sqlite)
+      setAssets(assetRows)
+      setFormTick((tick) => tick + 1)
+      setNotice(assetProfileSavedNotice())
     } catch (error) {
       setMessage(publicErrorMessage(error))
     } finally {
@@ -670,6 +696,81 @@ export function AssetsPage() {
           ) : (
             <p className="mt-3 text-sm text-muted">{assetsMissingQrHint(guest)}</p>
           )}
+          <form
+            key={`${selected.id}-profile:${formTick}`}
+            className="mt-3 grid gap-3 sm:grid-cols-2"
+            lang="ko"
+            onKeyDown={preventImeEnterSubmit}
+            onSubmit={(event) => {
+              event.preventDefault()
+              void saveProfile(new FormData(event.currentTarget))
+            }}
+          >
+            <p className="sm:col-span-2 text-sm text-muted">자리의 물건 정보입니다. 직원 배정이 아닙니다.</p>
+            <label className="text-sm">
+              모델
+              <input
+                name="model"
+                autoComplete="off"
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                defaultValue={selected.model ?? ''}
+              />
+            </label>
+            <label className="text-sm">
+              일련번호
+              <input
+                name="serialNo"
+                autoComplete="off"
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                defaultValue={selected.serialNo ?? ''}
+              />
+            </label>
+            <label className="text-sm">
+              현재 자리
+              <input
+                name="locationText"
+                autoComplete="off"
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                defaultValue={selected.locationText ?? ''}
+              />
+            </label>
+            <label className="text-sm">
+              현재 부서
+              <input
+                name="departmentName"
+                autoComplete="off"
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                defaultValue={selected.departmentName ?? ''}
+              />
+            </label>
+            <label className="text-sm">
+              현재 담당
+              <input
+                name="ownerName"
+                autoComplete="off"
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                defaultValue={selected.ownerName ?? ''}
+              />
+            </label>
+            <label className="text-sm">
+              취득일
+              <input
+                type="date"
+                name="acquiredAt"
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                defaultValue={selected.acquiredAt ?? ''}
+              />
+            </label>
+            <div className="sm:col-span-2">
+              <button
+                type="submit"
+                disabled={busy || !ready}
+                className="rounded border border-line px-4 py-2 text-sm font-semibold disabled:opacity-50"
+              >
+                자산 정보 저장
+              </button>
+            </div>
+          </form>
           <form
             key={`${selected.id}:${formTick}`}
             className="mt-3 grid gap-3 sm:grid-cols-2"

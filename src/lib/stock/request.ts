@@ -227,18 +227,40 @@ export function requestCaption(
     .join(' · ')
 }
 
+export function requestProgress(
+  row: PurchaseRequest,
+  orders: Pick<StockOrder, 'id' | 'itemId' | 'qty' | 'lines' | 'requestId'>[],
+): '미발주' | '부분발주' | '발주완료' {
+  const lines = row.lines
+  if (!lines.length) return '미발주'
+  const lefts = lines.map((line) => ({ qty: line.qty, left: requestRemainingQty(row, orders, line.itemId) }))
+  if (lefts.every((line) => line.left <= 0)) return '발주완료'
+  if (lefts.every((line) => line.left >= line.qty)) return '미발주'
+  return '부분발주'
+}
+
+export function requestRemainCaption(
+  row: PurchaseRequest,
+  orders: Pick<StockOrder, 'id' | 'itemId' | 'qty' | 'lines' | 'requestId'>[],
+  items: Pick<ItemRecord, 'id' | 'name'>[],
+) {
+  return row.lines
+    .flatMap((line) => {
+      const left = requestRemainingQty(row, orders, line.itemId)
+      if (left <= 0) return []
+      const name = items.find((item) => item.id === line.itemId)?.name ?? line.itemId
+      return [`${name} 미발주 ${left}`]
+    })
+    .join(', ')
+}
+
 export function requestSelectLabel(
   row: PurchaseRequest,
   orders: Pick<StockOrder, 'id' | 'itemId' | 'qty' | 'lines' | 'requestId'>[],
   items: Pick<ItemRecord, 'id' | 'name'>[],
 ) {
-  const remain = row.lines
-    .map((line) => {
-      const name = items.find((item) => item.id === line.itemId)?.name ?? line.itemId
-      return `${name} 잔량 ${requestRemainingQty(row, orders, line.itemId)}`
-    })
-    .join(', ')
-  return `${row.id} · ${row.requesterName} · ${remain}`
+  const remain = requestRemainCaption(row, orders, items)
+  return [row.id, row.requesterName, remain, requestProgress(row, orders)].filter(Boolean).join(' · ')
 }
 
 export function requestSavedNotice(duplicate: boolean) {
@@ -248,9 +270,10 @@ export function requestSavedNotice(duplicate: boolean) {
 
 export function requestListButtonLabel(
   row: PurchaseRequest,
+  orders: Pick<StockOrder, 'id' | 'itemId' | 'qty' | 'lines' | 'requestId'>[],
   items: Pick<ItemRecord, 'id' | 'name'>[],
 ) {
-  return `${row.id} · ${requestCaption(row, items)}`
+  return `${row.id} · ${requestCaption(row, items)} · ${requestProgress(row, orders)}`
 }
 
 export async function loadPurchaseRequests(db: Pick<CompanySqlite, 'query'>): Promise<PurchaseRequest[]> {

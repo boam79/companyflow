@@ -1,4 +1,5 @@
 import { assertAssignableCompanyAsset, loadItems } from '../master/book'
+import { newAssetQrToken } from './qr'
 
 export const ASSET_TABLE_SQL = [
   `create table if not exists assets (
@@ -60,6 +61,7 @@ export function assetsFromConvert(
     status: 'in_storage',
     sourceOperationId: operationId,
     createdAt,
+    qrToken: newAssetQrToken(),
   }))
 }
 

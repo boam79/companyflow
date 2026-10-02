@@ -890,7 +890,7 @@ export function StockPage() {
                   }`}
                   onClick={() => fillOrderFromRequest(row)}
                 >
-                  {requestListButtonLabel(row, items)}
+                  {requestListButtonLabel(row, orderRows, items)}
                 </button>
                 {row.fileName ? (
                   <button

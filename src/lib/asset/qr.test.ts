@@ -9,6 +9,7 @@ import {
   blankQrScanUrl,
   isQrLabelId,
   isQrScanPath,
+  newAssetQrToken,
   qrScanPath,
   sqliteIdForQrLabel,
 } from './qr'
@@ -23,6 +24,9 @@ describe('빈 자산 QR', () => {
     expect(() => blankQrScanUrl(ORIGIN, 'AST-C269B67F-1')).toThrow(/표식/)
     expect(isQrLabelId(LABEL)).toBe(true)
     expect(isQrLabelId('not-a-token')).toBe(false)
+    const minted = newAssetQrToken()
+    expect(isQrLabelId(minted)).toBe(true)
+    expect(newAssetQrToken()).not.toBe(minted)
     expect(() => assertBlankQrUrl('companyflow:asset:AST-C269B67F-1')).toThrow(/자산번호/)
     expect(() => assertBlankQrUrl(`${ORIGIN}/assets/AST-C269B67F-1`)).toThrow(/자산번호/)
     expect(() => assertBlankQrUrl(`${ORIGIN}/assets/${LABEL}`)).toThrow(/주소/)

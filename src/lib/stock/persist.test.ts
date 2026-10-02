@@ -128,6 +128,7 @@ describe('재고 영속 묶음', () => {
     )
     expect(statements.filter((stmt) => stmt.sql.includes('stock_ledger'))).toHaveLength(1)
     expect(statements.filter((stmt) => stmt.sql.includes('insert into assets'))).toHaveLength(2)
+    expect(statements.filter((stmt) => stmt.sql.includes('qr_labels'))).toHaveLength(2)
     expect(companyOnHand(converted.state, ITEM)).toBe(5)
   })
 
@@ -165,6 +166,7 @@ describe('재고 영속 묶음', () => {
     )
     expect(statements.filter((stmt) => stmt.sql.includes('stock_ledger'))).toHaveLength(2)
     expect(statements.filter((stmt) => stmt.sql.includes('insert into assets'))).toHaveLength(2)
+    expect(statements.filter((stmt) => stmt.sql.includes('qr_labels'))).toHaveLength(2)
     expect(companyOnHand(received.state, 'item-desk')).toBe(0)
   })
 

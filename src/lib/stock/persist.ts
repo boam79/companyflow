@@ -154,8 +154,8 @@ export function statementsForCommand(
       createdAt,
     )) {
       statements.push({
-        sql: `insert into assets(id, item_id, warehouse_id, status, employee_id, source_operation_id, created_at)
-          values(?, ?, ?, ?, ?, ?, ?)`,
+        sql: `insert into assets(id, item_id, warehouse_id, status, employee_id, source_operation_id, created_at, qr_token)
+          values(?, ?, ?, ?, ?, ?, ?, ?)`,
         params: [
           asset.id,
           asset.itemId,
@@ -164,8 +164,15 @@ export function statementsForCommand(
           asset.employeeId ?? null,
           asset.sourceOperationId,
           createdAt,
+          asset.qrToken ?? null,
         ],
       })
+      if (asset.qrToken) {
+        statements.push({
+          sql: `insert or ignore into qr_labels(id, status, created_at, asset_id) values(?, 'bound', ?, ?)`,
+          params: [asset.qrToken, createdAt, asset.id],
+        })
+      }
     }
   }
   if (command.type === 'post_receipt' && command.directAsset) {
@@ -180,8 +187,8 @@ export function statementsForCommand(
       statements.push({
         sql: `insert into assets(
             id, item_id, warehouse_id, status, employee_id, source_operation_id, created_at,
-            location_text, acquired_at, source_order_id
-          ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            location_text, acquired_at, source_order_id, qr_token
+          ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         params: [
           asset.id,
           asset.itemId,
@@ -193,8 +200,15 @@ export function statementsForCommand(
           asset.locationText ?? null,
           asset.acquiredAt ?? null,
           asset.sourceOrderId ?? null,
+          asset.qrToken ?? null,
         ],
       })
+      if (asset.qrToken) {
+        statements.push({
+          sql: `insert or ignore into qr_labels(id, status, created_at, asset_id) values(?, 'bound', ?, ?)`,
+          params: [asset.qrToken, createdAt, asset.id],
+        })
+      }
     }
   }
   return statements

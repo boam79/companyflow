@@ -34,6 +34,6 @@ export function qrEmptyCatalogLead() {
 }
 
 export function assetsMissingQrHint(guest: boolean) {
-  if (guest) return '빈 QR로 등록된 자산만 QR 상세를 엽니다. 견본으로 넣은 책상은 표식이 없습니다.'
-  return '빈 QR로 등록된 자산만 QR 상세를 엽니다.'
+  if (guest) return 'QR 표식이 있는 자산만 상세를 엽니다.'
+  return 'QR 표식이 있는 자산만 상세를 엽니다.'
 }

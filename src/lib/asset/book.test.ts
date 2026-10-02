@@ -33,6 +33,11 @@ describe('재고 자산화', () => {
       'in_storage',
       'in_storage',
     ])
+    const converted = assetsFromConvert('op-asset', ITEM, MAIN, 2, 't')
+    expect(converted[0].qrToken).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    )
+    expect(converted[1].qrToken).not.toBe(converted[0].qrToken)
   })
 
   it('보관 자산을 직원에게 배정하면 상태가 배정이 된다', () => {

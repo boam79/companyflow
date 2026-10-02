@@ -2,6 +2,10 @@ import QRCode from 'qrcode'
 
 const LABEL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+export function newAssetQrToken() {
+  return crypto.randomUUID()
+}
+
 export function isQrLabelId(labelId: string) {
   return LABEL_ID.test(labelId.trim())
 }
