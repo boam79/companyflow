@@ -294,7 +294,7 @@ test('게스트 책상 수령은 현재고 없이 자산이 된다', async ({ pa
   await expect(page.getByText('샘플 책상 1건을 자산으로 등록했습니다.')).toBeVisible()
   await expect(page.getByRole('button', { name: '샘플창고 현재고 7' })).toBeVisible()
   await expectNoHqLeftovers(page)
-  await page.goto('/guest/assets')
+  await page.getByRole('link', { name: '자산', exact: true }).click()
   await expect(page.getByRole('heading', { name: '회사 자산 3' })).toBeVisible({ timeout: 20000 })
   await page.getByRole('cell', { name: '수령' }).click()
   await expect(page.getByText('구매 원본 발주 ORD-AST-01')).toBeVisible()
