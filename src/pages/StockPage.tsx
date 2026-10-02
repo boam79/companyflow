@@ -29,7 +29,7 @@ import {
 import { toArrayBuffer } from '../lib/contracts/book'
 import { onHand, orderNetReceived, orderRemaining, returnBalance, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { defaultStockPolicy, loadStockPolicy, showsOverflowReason } from '../lib/stock/policy'
-import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssuePersonName, stockLastSaveLead, stockOutboundLead, stockPageLead, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, supplyLowStock, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderQtyText, orderReceiptProgress, publicStockOrderId, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssuePersonName, stockLastSaveLead, stockOutboundLead, stockPageLead, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, supplyLowStock, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, ledgerRelatedJumps, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -57,7 +57,7 @@ function downloadSupplyOrderCsv(rows: PurchaseOrderRow[]) {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = '비품-발주.csv'
+  link.download = '발주.csv'
   link.click()
   URL.revokeObjectURL(url)
 }
@@ -799,6 +799,9 @@ export function StockPage() {
   const lowRows = state ? supplyLowStock(items, state) : []
   const supplyOrders = state ? buildSupplyOrderList(items, state, partners) : []
   const assetOrders = state ? buildAssetOrderList(items, state, partners) : []
+  const purchaseOrders = [...supplyOrders, ...assetOrders].sort(
+    (a, b) => a.orderId.localeCompare(b.orderId) || a.itemName.localeCompare(b.itemName, 'ko'),
+  )
   const orderRows = state ? [...state.orders.values()] : []
   const overflowReasonNeeded = Boolean(
     state &&
@@ -1227,100 +1230,73 @@ export function StockPage() {
             ))}
           </div>
         </div>
-        {supplyOrders.length || assetOrders.length ? (
+        {purchaseOrders.length ? (
           <details className="mt-3 text-sm">
-            <summary className="cursor-pointer text-muted">발주 기록 {supplyOrders.length + assetOrders.length}</summary>
+            <summary className="cursor-pointer text-muted">발주 기록 {purchaseOrders.length}</summary>
             <div className="mt-2 space-y-3">
-            {supplyOrders.length ? (
-              <div>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-sm font-semibold">비품 발주 {supplyOrders.length}</h3>
-                  <button
-                    type="button"
-                    className="rounded border border-line px-2 py-1 text-xs font-semibold"
-                    onClick={() => downloadSupplyOrderCsv(supplyOrders)}
-                  >
-                    목록 받기
-                  </button>
-                </div>
-                <div className="mt-2 overflow-x-auto">
-                  <table className="min-w-max w-full text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-line text-muted">
-                        <th className="whitespace-nowrap py-1.5 pr-3 font-medium">발주번호</th>
-                        <th className="whitespace-nowrap py-1.5 pr-3 font-medium">품목</th>
-                        <th className="whitespace-nowrap py-1.5 pr-3 font-medium">공급사</th>
-                        <th className="whitespace-nowrap py-1.5 pr-3 font-medium">발주일</th>
-                        <th className="whitespace-nowrap py-1.5 pr-3 font-medium">납기</th>
-                        <th className="whitespace-nowrap py-1.5 pr-3 font-medium">첨부</th>
-                        <th className="whitespace-nowrap py-1.5 pr-3 font-medium">통화</th>
-                        <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">발주</th>
-                        <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">수령</th>
-                        <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">불량</th>
-                        <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">반품</th>
-                        <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">잔량</th>
-                        <th className="whitespace-nowrap py-1.5 font-medium">상태</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {supplyOrders.map((row) => {
-                        const active = row.orderId === orderId && row.itemId === itemId
-                        return (
-                          <tr
-                            key={`${row.orderId}:${row.itemId}`}
-                            className={`cursor-pointer border-b border-line/70 ${
-                              active ? 'bg-accent-soft' : 'hover:bg-paper'
-                            }`}
-                            onClick={() => {
-                              setShowMoreActions(true)
-                              chooseOrder(row)
-                            }}
-                          >
-                            <td className="whitespace-nowrap py-1.5 pr-3 font-medium">{row.orderId}</td>
-                            <td className="whitespace-nowrap py-1.5 pr-3">{row.itemName}</td>
-                            <td className="whitespace-nowrap py-1.5 pr-3">{row.supplierName || '—'}</td>
-                            <td className="whitespace-nowrap py-1.5 pr-3">{row.orderDate || '—'}</td>
-                            <td className="whitespace-nowrap py-1.5 pr-3">{row.dueDate || '—'}</td>
-                            <td className="whitespace-nowrap py-1.5 pr-3">{row.fileName || '—'}</td>
-                            <td className="whitespace-nowrap py-1.5 pr-3">{row.currencyName}</td>
-                            <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{row.orderedQty}</td>
-                            <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{row.receivedQty}</td>
-                            <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{row.rejectedQty}</td>
-                            <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{row.returnedQty}</td>
-                            <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{row.remainingQty}</td>
-                            <td className="whitespace-nowrap py-1.5">{row.status === 'draft' ? '초안' : '확정'}</td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <button
+                  type="button"
+                  className="rounded border border-line px-2 py-1 text-xs font-semibold"
+                  onClick={() => downloadSupplyOrderCsv(purchaseOrders)}
+                >
+                  목록 받기
+                </button>
               </div>
-            ) : null}
-            {assetOrders.length ? (
-              <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
-                {assetOrders.map((row) => (
-                  <li key={`${row.orderId}:${row.itemId}`}>
-                    <button
-                      type="button"
-                      className={`text-left ${row.orderId === orderId ? 'font-semibold text-accent' : 'hover:text-ink'}`}
-                      onClick={() => {
-                        setShowMoreActions(true)
-                        chooseOrder(row)
-                      }}
-                    >
-                      자산 발주 {row.orderId} · {row.itemName} {row.orderedQty}
-                      {row.supplierName ? ` · ${row.supplierName}` : ''}
-                      {row.orderDate ? ` · 발주일 ${row.orderDate}` : ''}
-                      {row.dueDate ? ` · 납기 ${row.dueDate}` : ''}
-                      {row.fileName ? ` · ${row.fileName}` : ''}
-                      {row.currencyName ? ` · ${row.currencyName}` : ''} ·{' '}
-                      {row.status === 'draft' ? '초안' : `잔량 ${row.remainingQty}`}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
+              <div className="overflow-x-auto">
+                <table className="min-w-max w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-line text-muted">
+                      <th className="whitespace-nowrap py-1.5 pr-3 font-medium">발주번호</th>
+                      <th className="whitespace-nowrap py-1.5 pr-3 font-medium">품목</th>
+                      <th className="whitespace-nowrap py-1.5 pr-3 font-medium">공급사</th>
+                      <th className="whitespace-nowrap py-1.5 pr-3 font-medium">발주일</th>
+                      <th className="whitespace-nowrap py-1.5 pr-3 font-medium">납기</th>
+                      <th className="whitespace-nowrap py-1.5 pr-3 font-medium">첨부</th>
+                      <th className="whitespace-nowrap py-1.5 pr-3 font-medium">통화</th>
+                      <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">발주</th>
+                      <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">수령</th>
+                      <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">불량</th>
+                      <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">반품</th>
+                      <th className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">미수령</th>
+                      <th className="whitespace-nowrap py-1.5 font-medium">진행</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {purchaseOrders.map((row) => {
+                      const active = row.orderId === orderId && row.itemId === itemId
+                      return (
+                        <tr
+                          key={`${row.orderId}:${row.itemId}`}
+                          className={`cursor-pointer border-b border-line/70 ${
+                            active ? 'bg-accent-soft' : 'hover:bg-paper'
+                          }`}
+                          onClick={() => {
+                            setShowMoreActions(true)
+                            chooseOrder(row)
+                          }}
+                        >
+                          <td className="whitespace-nowrap py-1.5 pr-3 font-medium">
+                            {publicStockOrderId(row.orderId) || '—'}
+                          </td>
+                          <td className="whitespace-nowrap py-1.5 pr-3">{row.itemName}</td>
+                          <td className="whitespace-nowrap py-1.5 pr-3">{row.supplierName || '—'}</td>
+                          <td className="whitespace-nowrap py-1.5 pr-3">{row.orderDate || '—'}</td>
+                          <td className="whitespace-nowrap py-1.5 pr-3">{row.dueDate || '—'}</td>
+                          <td className="whitespace-nowrap py-1.5 pr-3">{row.fileName || '—'}</td>
+                          <td className="whitespace-nowrap py-1.5 pr-3">{row.currencyName}</td>
+                          <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{row.orderedQty}</td>
+                          <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{orderQtyText(row.receivedQty)}</td>
+                          <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{orderQtyText(row.rejectedQty)}</td>
+                          <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{orderQtyText(row.returnedQty)}</td>
+                          <td className="whitespace-nowrap py-1.5 pr-3 text-right tabular-nums">{orderQtyText(row.remainingQty)}</td>
+                          <td className="whitespace-nowrap py-1.5">{orderReceiptProgress(row)}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </details>
         ) : null}

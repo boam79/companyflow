@@ -26,6 +26,10 @@ import {
   stockConvertLead,
   stockSupplierReturnLead,
   stockTransferLead,
+  orderReceiptProgress,
+  orderQtyText,
+  orderInspectCaption,
+  publicStockOrderId,
   supplyLowStock,
   transferWarehouseIds,
   defaultWarehouseId,
@@ -192,7 +196,8 @@ describe('비품 현재고', () => {
     const paper = { itemId: 'item-paper', itemName: '복사용지', quantities: [8], total: 8 }
     const clip = { itemId: 'item-clip', itemName: '클립', quantities: [2], total: 2 }
     const paperOrder = { id: 'ord-paper', itemId: 'item-paper', qty: 10, status: 'confirmed' as const }
-    expect(orderRemainingCaption(paper, paperOrder, 0)).toBe(' · 발주 ord-paper 잔량 0')
+    expect(orderRemainingCaption(paper, paperOrder, 0)).toBe(' · 발주 ord-paper 다 받았습니다')
+    expect(orderRemainingCaption(paper, paperOrder, 0)).not.toMatch(/잔량 0/)
     expect(orderRemainingCaption(clip, paperOrder, 0)).toBe('')
     expect(orderRemainingCaption(clip, undefined, 0)).toBe('')
   })
@@ -389,8 +394,8 @@ describe('비품 발주 목록', () => {
       ['ord-mix', '책상', 1],
     ])
     const csv = supplyOrderCsv(buildSupplyOrderList(mixedItems, state))
-    expect(csv).toContain('ord-mix,복사용지,,,,,원,10,0,0,0,10,확정')
-    expect(csv).toContain('ord-mix,클립,,,,,원,3,0,0,0,3,확정')
+    expect(csv).toContain('ord-mix,복사용지,,,,,원,10,0,0,0,10,미수령')
+    expect(csv).toContain('ord-mix,클립,,,,,원,3,0,0,0,3,미수령')
   })
 
   it('오늘 날짜는 YYYY-MM-DD다', () => {
@@ -414,8 +419,8 @@ describe('비품 발주 목록', () => {
     }).state
     const csv = supplyOrderCsv(buildSupplyOrderList(items, state))
     expect(csv.startsWith('\uFEFF')).toBe(true)
-    expect(csv).toContain('발주번호,품목,공급사,발주일,납기,첨부,통화,발주,수령,불량,반품,잔량,상태')
-    expect(csv).toContain('ord-paper,복사용지,,,,,원,10,0,0,0,10,확정')
+    expect(csv).toContain('발주번호,품목,공급사,발주일,납기,첨부,통화,발주,수령,불량,반품,미수령,상태')
+    expect(csv).toContain('ord-paper,복사용지,,,,,원,10,0,0,0,10,미수령')
   })
 
   it('발주 목록은 검수 불량을 따로 보여 준다', () => {
@@ -473,5 +478,96 @@ describe('비품 발주 목록', () => {
       returnedQty: 2,
       remainingQty: 6,
     })
+  })
+
+  it('발주 항목은 미수령·부분수령·수령완료로 진행을 보여 준다', () => {
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'draft_order',
+      operationId: 'op-draft',
+      orderId: 'ord-draft',
+      itemId: PAPER_ITEM.id,
+      qty: 4,
+    }).state
+    state = applyStockCommand(state, {
+      type: 'confirm_order',
+      operationId: 'op-open',
+      orderId: 'ord-open',
+      itemId: PAPER_ITEM.id,
+      qty: 4,
+    }).state
+    state = applyStockCommand(state, {
+      type: 'confirm_order',
+      operationId: 'op-part',
+      orderId: 'ord-part',
+      itemId: PAPER_ITEM.id,
+      qty: 4,
+    }).state
+    state = applyStockCommand(state, {
+      type: 'post_receipt',
+      operationId: 'op-part-recv',
+      orderId: 'ord-part',
+      itemId: PAPER_ITEM.id,
+      warehouseId: 'wh-main',
+      qty: 1,
+      defectQty: 1,
+    }).state
+    state = applyStockCommand(state, {
+      type: 'confirm_order',
+      operationId: 'op-done',
+      orderId: 'ord-done',
+      itemId: PAPER_ITEM.id,
+      qty: 2,
+    }).state
+    state = applyStockCommand(state, {
+      type: 'post_receipt',
+      operationId: 'op-done-recv',
+      orderId: 'ord-done',
+      itemId: PAPER_ITEM.id,
+      warehouseId: 'wh-main',
+      qty: 2,
+    }).state
+    const rows = buildSupplyOrderList([PAPER_ITEM], state)
+    const draft = rows.find((row) => row.orderId === 'ord-draft')!
+    const open = rows.find((row) => row.orderId === 'ord-open')!
+    const part = rows.find((row) => row.orderId === 'ord-part')!
+    const done = rows.find((row) => row.orderId === 'ord-done')!
+    expect(orderReceiptProgress(draft)).toBe('초안')
+    expect(orderReceiptProgress(open)).toBe('미수령')
+    expect(orderReceiptProgress(part)).toBe('부분수령')
+    expect(orderReceiptProgress(done)).toBe('수령완료')
+    expect(orderInspectCaption(open)).toBe('미수령 4')
+    expect(orderInspectCaption(part)).toBe('정상 1 · 불량 1 · 미수령 3')
+    expect(orderInspectCaption(done)).toBe('정상 2')
+    expect(orderQtyText(0)).toBe('—')
+    expect(orderQtyText(2)).toBe('2')
+    expect(orderInspectCaption(done)).not.toMatch(/미수령 0|잔량 0|불량 0/)
+    expect(orderReceiptProgress(done)).not.toMatch(/잔량 0/)
+  })
+
+  it('발주 번호 UUID와 guest 접두는 화면에 두지 않는다', () => {
+    expect(publicStockOrderId('ORD-DEMO-01')).toBe('ORD-DEMO-01')
+    expect(publicStockOrderId('3a27aedf-0ec9-4d28-8724-a80135eaadc3')).toBe('')
+    expect(publicStockOrderId('guest:ord-1')).toBe('')
+    const csv = supplyOrderCsv([
+      {
+        orderId: 'guest:ord-1',
+        itemId: PAPER_ITEM.id,
+        itemName: '복사용지',
+        orderedQty: 2,
+        receivedQty: 0,
+        rejectedQty: 0,
+        returnedQty: 0,
+        remainingQty: 2,
+        status: 'confirmed',
+        supplierName: '',
+        dueDate: '',
+        orderDate: '',
+        fileName: '',
+        currency: 'KRW',
+        currencyName: '원',
+      },
+    ])
+    expect(csv).not.toMatch(/guest:/)
   })
 })

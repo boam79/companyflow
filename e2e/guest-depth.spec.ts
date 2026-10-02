@@ -62,6 +62,7 @@ test('게스트 재고 명령 여러 개는 영어와 본사 잔재를 두지 �
     await expect(page.getByText('반납 가능 0')).toHaveCount(0)
     await expect(page.getByText('반품 가능 0')).toHaveCount(0)
     await expect(page.getByText('잔량 0')).toHaveCount(0)
+    await expect(page.getByText('미수령 0')).toHaveCount(0)
     await expect(page.getByRole('heading', { name: '불량 0' })).toHaveCount(0)
   }
 })
@@ -206,13 +207,18 @@ test('게스트 반납은 원반출을 넘지 못한다', async ({ page }) => {
   await expectNoHqLeftovers(page)
 })
 
-test('게스트 수령은 정상만 현재고에 넣고 불량은 뺀다', async ({ page }) => {
+test('게스트 수령은 정상만 현재고에 넣고 여러 차례 진행을 보여 준다', async ({ page }) => {
   await page.goto('/guest/stock')
   await expect(page.getByRole('heading', { name: '구매·재고' })).toBeVisible({ timeout: 20000 })
+  await page.locator('summary').filter({ hasText: '발주 기록' }).click()
+  await expect(page.getByRole('cell', { name: 'ORD-DEMO-01' })).toBeVisible()
+  await expect(page.getByRole('cell', { name: '미수령', exact: true })).toBeVisible()
+  await expect(page.getByRole('columnheader', { name: '미수령' })).toBeVisible()
+  await expect(page.getByText('잔량 0')).toHaveCount(0)
+  await expect(page.getByText('미수령 0')).toHaveCount(0)
   await page.getByRole('button', { name: '발주·검수 더 보기' }).click()
   await page.getByLabel('명령').selectOption('post_receipt')
   await expect(page.getByText('정상만 현재고에 들어갑니다.')).toBeVisible()
-  await expect(page.getByText('잔량 0')).toHaveCount(0)
   await expect(page.getByRole('heading', { name: '불량 0' })).toHaveCount(0)
   await page.getByLabel('발주 번호').fill('ORD-DEMO-01')
   await page.getByPlaceholder('이름을 치세요').fill('샘플 복사용지')
@@ -225,7 +231,23 @@ test('게스트 수령은 정상만 현재고에 넣고 불량은 뺀다', async
   await expect(page.getByRole('button', { name: '샘플창고 현재고 8' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '검수 불량' })).toBeVisible()
   await expect(page.getByText('발주 ORD-DEMO-01 잔량 1.')).toBeVisible()
+  const records = page.locator('summary').filter({ hasText: '발주 기록' })
+  if (!(await page.getByRole('cell', { name: '부분수령' }).isVisible())) {
+    await records.click()
+  }
+  await expect(page.getByRole('cell', { name: '부분수령' })).toBeVisible()
+  await page.getByLabel('정상').fill('1')
+  await page.getByLabel('불량').fill('0')
+  await page.getByRole('button', { name: '수령', exact: true }).click()
+  await expect(page.getByText('저장했습니다. (수령)')).toBeVisible()
+  await expect(page.getByRole('button', { name: '샘플창고 현재고 9' })).toBeVisible()
+  await expect(page.getByText('이 발주는 다 받았습니다.')).toBeVisible()
+  if (!(await page.getByRole('cell', { name: '수령완료' }).isVisible())) {
+    await records.click()
+  }
+  await expect(page.getByRole('cell', { name: '수령완료' })).toBeVisible()
   await expect(page.getByText('잔량 0')).toHaveCount(0)
+  await expect(page.getByText('미수령 0')).toHaveCount(0)
   await expectNoHqLeftovers(page)
 })
 
@@ -256,7 +278,7 @@ test('게스트 책상 수령은 현재고 없이 자산이 된다', async ({ pa
   await page.getByLabel('발주 번호').fill('ORD-AST-01')
   await page.getByPlaceholder('이름을 치세요').first().fill('샘플 책상')
   await page.getByLabel('수량', { exact: true }).first().fill('1')
-  await page.getByRole('button', { name: '품목 줄 추가' }).click()
+  await page.getByRole('button', { name: '품목 줄 추가', exact: true }).click()
   await page.getByPlaceholder('이름을 치세요').nth(1).fill('샘플 복사용지')
   await page.getByRole('button', { name: '발주 초안' }).click()
   await expect(page.getByText('저장했습니다. (발주 초안)')).toBeVisible()

@@ -164,7 +164,7 @@ export function stockReturnLead(personName?: string, issued = 0, left = 0) {
   return `${source} · 반납 가능 ${left}`
 }
 
-function publicStockOrderId(orderId?: string) {
+export function publicStockOrderId(orderId?: string) {
   const text = orderId?.trim() ?? ''
   if (!text) return ''
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text)) return ''
@@ -235,7 +235,10 @@ export function orderRemainingCaption(
   remaining: number,
 ): string {
   if (!selected || !order || !stockOrderLines(order).some((line) => line.itemId === selected.itemId)) return ''
-  return ` · 발주 ${order.id} 잔량 ${remaining}`
+  const orderId = publicStockOrderId(order.id)
+  if (!orderId) return remaining > 0 ? ` · 미수령 ${remaining}` : ' · 다 받았습니다'
+  if (remaining > 0) return ` · 발주 ${orderId} 잔량 ${remaining}`
+  return ` · 발주 ${orderId} 다 받았습니다`
 }
 
 export type NamedPartner = { id: string; name: string }
@@ -257,6 +260,32 @@ export type PurchaseOrderRow = {
   fileName: string
   currency: string
   currencyName: string
+}
+
+export type OrderReceiptProgress = '초안' | '미수령' | '부분수령' | '수령완료'
+
+export function orderReceiptProgress(
+  row: Pick<PurchaseOrderRow, 'status' | 'remainingQty' | 'receivedQty' | 'rejectedQty'>,
+): OrderReceiptProgress {
+  if (row.status === 'draft') return '초안'
+  if (row.remainingQty <= 0) return '수령완료'
+  if (row.receivedQty <= 0 && row.rejectedQty <= 0) return '미수령'
+  return '부분수령'
+}
+
+export function orderQtyText(qty: number) {
+  return qty > 0 ? String(qty) : '—'
+}
+
+export function orderInspectCaption(
+  row: Pick<PurchaseOrderRow, 'receivedQty' | 'rejectedQty' | 'returnedQty' | 'remainingQty'>,
+) {
+  const parts: string[] = []
+  if (row.receivedQty > 0) parts.push(`정상 ${row.receivedQty}`)
+  if (row.rejectedQty > 0) parts.push(`불량 ${row.rejectedQty}`)
+  if (row.returnedQty > 0) parts.push(`반품 ${row.returnedQty}`)
+  if (row.remainingQty > 0) parts.push(`미수령 ${row.remainingQty}`)
+  return parts.join(' · ')
 }
 
 export const ORDER_CURRENCIES = [
@@ -346,10 +375,10 @@ function csvCell(value: string | number) {
 
 export function supplyOrderCsv(rows: PurchaseOrderRow[]): string {
   const lines = [
-    ['발주번호', '품목', '공급사', '발주일', '납기', '첨부', '통화', '발주', '수령', '불량', '반품', '잔량', '상태'].join(','),
+    ['발주번호', '품목', '공급사', '발주일', '납기', '첨부', '통화', '발주', '수령', '불량', '반품', '미수령', '상태'].join(','),
     ...rows.map((row) =>
       [
-        csvCell(row.orderId),
+        csvCell(publicStockOrderId(row.orderId)),
         csvCell(row.itemName),
         csvCell(row.supplierName),
         csvCell(row.orderDate),
@@ -361,7 +390,7 @@ export function supplyOrderCsv(rows: PurchaseOrderRow[]): string {
         row.rejectedQty,
         row.returnedQty,
         row.remainingQty,
-        row.status === 'draft' ? '초안' : '확정',
+        orderReceiptProgress(row),
       ].join(','),
     ),
   ]
