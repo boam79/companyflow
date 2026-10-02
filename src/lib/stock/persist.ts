@@ -33,6 +33,9 @@ export type LedgerRow = {
   source_operation_id?: string | null
   order_id?: string | null
   reason?: string | null
+  partner_id?: string | null
+  purpose?: string | null
+  due_return_at?: string | null
   created_at?: string | null
 }
 
@@ -78,8 +81,9 @@ export function ledgerInsert(line: LedgerLine, createdAt: string): SqlStatement 
   return {
     sql: `insert into stock_ledger(
       id, operation_id, txn_type, item_id, warehouse_id, qty_delta,
-      person_name, department_id, source_operation_id, order_id, reason, created_at
-    ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      person_name, department_id, source_operation_id, order_id, reason,
+      partner_id, purpose, due_return_at, created_at
+    ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     params: [
       line.id,
       line.operationId,
@@ -92,6 +96,9 @@ export function ledgerInsert(line: LedgerLine, createdAt: string): SqlStatement 
       line.sourceOperationId ?? null,
       line.orderId ?? null,
       line.reason ?? null,
+      line.partnerId ?? null,
+      line.purpose ?? null,
+      line.dueReturnAt ?? null,
       createdAt,
     ],
   }
@@ -261,6 +268,9 @@ export function stateFromRows(
       sourceOperationId: row.source_operation_id ?? undefined,
       orderId: row.order_id ?? undefined,
       reason: row.reason ?? undefined,
+      partnerId: row.partner_id ?? undefined,
+      purpose: row.purpose ?? undefined,
+      dueReturnAt: row.due_return_at ?? undefined,
       createdAt: row.created_at ?? undefined,
     }
     state.ledger.push(line)
@@ -277,7 +287,8 @@ export async function loadStockState(db: Pick<CompanySqlite, 'query'>): Promise<
     ),
     db.query<LedgerRow>(
       `select id, operation_id, txn_type, item_id, warehouse_id, qty_delta,
-        person_name, department_id, source_operation_id, order_id, reason, created_at
+        person_name, department_id, source_operation_id, order_id, reason,
+        partner_id, purpose, due_return_at, created_at
        from stock_ledger order by created_at, id`,
     ),
     db.query<{ operation_id: string }>('select operation_id from processed_operations'),

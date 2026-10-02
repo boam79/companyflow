@@ -35,6 +35,8 @@ export type StockCommand =
       itemId: string
       warehouseId: string
       qty: number
+      partnerId?: string
+      purpose?: string
     }
   | {
       type: 'post_issue'
@@ -45,6 +47,8 @@ export type StockCommand =
       personName?: string
       departmentId?: string
       reason?: string
+      purpose?: string
+      dueReturnAt?: string
     }
   | {
       type: 'post_outbound'
@@ -128,6 +132,9 @@ export type LedgerLine = {
   sourceOperationId?: string
   orderId?: string
   reason?: string
+  partnerId?: string
+  purpose?: string
+  dueReturnAt?: string
   createdAt?: string
 }
 
@@ -372,6 +379,8 @@ export function applyStockCommand(
         itemId: command.itemId,
         warehouseId: command.warehouseId,
         qtyDelta: command.qty,
+        partnerId: command.partnerId?.trim() || undefined,
+        purpose: command.purpose?.trim() || undefined,
       })
       break
     case 'post_issue': {
@@ -395,6 +404,8 @@ export function applyStockCommand(
         personName: command.personName,
         departmentId: command.departmentId,
         reason: command.reason?.trim() || undefined,
+        purpose: command.purpose?.trim() || undefined,
+        dueReturnAt: command.dueReturnAt?.trim() || undefined,
       })
       break
     }

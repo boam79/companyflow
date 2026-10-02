@@ -45,6 +45,7 @@ export function rowsAreRelated(a: LedgerLine, b: LedgerLine): boolean {
 export type LedgerNameMaps = {
   departments?: { id: string; name: string }[]
   warehouses?: { id: string; name: string }[]
+  partners?: { id: string; name: string }[]
 }
 
 export function isOpaqueLedgerRef(value?: string | null) {
@@ -83,6 +84,13 @@ export function formatLedgerLink(
     const departmentName = department?.name ?? publicOrderRef(line.departmentId)
     if (departmentName) parts.push(departmentName)
   }
+  if (line.partnerId) {
+    const partner = names?.partners?.find((row) => row.id === line.partnerId)
+    const partnerName = partner?.name ?? publicOrderRef(line.partnerId)
+    if (partnerName) parts.push(partnerName)
+  }
+  if (line.purpose?.trim()) parts.push(line.purpose.trim())
+  if (line.dueReturnAt?.trim()) parts.push(`반납 예정 ${line.dueReturnAt.trim()}`)
   if (line.txnType === 'transfer_in' || line.txnType === 'transfer_out') {
     const warehouse = warehouseName ?? publicOrderRef(line.warehouseId)
     if (warehouse) parts.push(warehouse)

@@ -160,6 +160,9 @@ export const SCHEMA_PATCHES = [
   'alter table asset_events add column file_name text',
   'alter table asset_events add column file_mime text',
   'alter table asset_events add column file_base64 text',
+  'alter table stock_ledger add column partner_id text',
+  'alter table stock_ledger add column purpose text',
+  'alter table stock_ledger add column due_return_at text',
 ]
 
 export const SCHEMA_VERSION = LOCAL_MIGRATIONS.length

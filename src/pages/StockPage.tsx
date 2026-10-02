@@ -29,7 +29,7 @@ import {
 import { toArrayBuffer } from '../lib/contracts/book'
 import { onHand, orderNetReceived, orderRemaining, returnBalance, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { defaultStockPolicy, loadStockPolicy, showsOverflowReason } from '../lib/stock/policy'
-import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderQtyText, orderReceiptProgress, publicStockOrderId, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssuePersonName, stockLastSaveLead, stockOutboundLead, stockPageLead, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, supplyLowStock, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { assertDueReturnAt, buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderQtyText, orderReceiptProgress, publicStockOrderId, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssueNoteLead, stockIssuePersonName, stockLastSaveLead, stockOutboundLead, stockPageLead, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, supplyLowStock, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, ledgerRelatedJumps, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -115,6 +115,10 @@ export function StockPage() {
   const [defectQty, setDefectQty] = useState('0')
   const [personName, setPersonName] = useState(stockIssuePersonName)
   const [departmentId, setDepartmentId] = useState('')
+  const [issuePurpose, setIssuePurpose] = useState('')
+  const [issueDueReturnAt, setIssueDueReturnAt] = useState('')
+  const [inboundPartnerId, setInboundPartnerId] = useState('')
+  const [inboundPurpose, setInboundPurpose] = useState('')
   const [sourceOperationId, setSourceOperationId] = useState('')
   const [reason, setReason] = useState(stockAdjustReason)
   const [overflowReason, setOverflowReason] = useState('')
@@ -521,7 +525,15 @@ export function StockPage() {
           ...overflowReasonField(),
         }
       case 'post_direct_in':
-        return { type: action, operationId: nextOperationId, itemId: nextItemId, warehouseId, qty: quantity }
+        return {
+          type: action,
+          operationId: nextOperationId,
+          itemId: nextItemId,
+          warehouseId,
+          qty: quantity,
+          partnerId: inboundPartnerId || undefined,
+          purpose: inboundPurpose.trim() || undefined,
+        }
       case 'post_outbound':
       case 'convert_to_asset':
         return {
@@ -541,6 +553,8 @@ export function StockPage() {
           qty: quantity,
           personName: personName.trim() || undefined,
           departmentId: departmentId.trim() || undefined,
+          purpose: issuePurpose.trim() || undefined,
+          dueReturnAt: assertDueReturnAt(issueDueReturnAt) || undefined,
           ...overflowReasonField(),
         }
       case 'post_return':
@@ -646,6 +660,14 @@ export function StockPage() {
           if (orderFileInput.current) orderFileInput.current.value = ''
         }
         if (action === 'post_receipt') setDefectQty('0')
+        if (action === 'post_direct_in') {
+          setInboundPurpose('')
+          setInboundPartnerId('')
+        }
+        if (action === 'post_issue') {
+          setIssuePurpose('')
+          setIssueDueReturnAt('')
+        }
         setOverflowReason('')
       }
       await reload()
@@ -1306,6 +1328,7 @@ export function StockPage() {
           items={items}
           warehouses={warehouses}
           departments={departments}
+          partners={partners}
           filter={ledgerFilter}
           selected={selectedLine}
           variant="supply"
@@ -1702,9 +1725,54 @@ export function StockPage() {
                 ))}
               </select>
             </label>
+            <label className="text-sm">
+              반출 목적
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={issuePurpose}
+                onChange={(e) => setIssuePurpose(e.target.value)}
+              />
+            </label>
+            <label className="text-sm">
+              반납 예정일
+              <input
+                type="date"
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={issueDueReturnAt}
+                onChange={(e) => setIssueDueReturnAt(e.target.value)}
+              />
+            </label>
+            <p className="sm:col-span-2 text-sm text-muted">{stockIssueNoteLead()}</p>
           </>
         ) : null}
-        {action === 'post_direct_in' ? <p className="text-sm text-muted">{stockDirectInLead()}</p> : null}
+        {action === 'post_direct_in' ? (
+          <>
+            <p className="sm:col-span-2 text-sm text-muted">{stockDirectInLead()}</p>
+            <label className="text-sm">
+              공급사
+              <select
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={inboundPartnerId}
+                onChange={(e) => setInboundPartnerId(e.target.value)}
+              >
+                <option value="">선택 안 함</option>
+                {partners.map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {row.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm">
+              입고 사유
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={inboundPurpose}
+                onChange={(e) => setInboundPurpose(e.target.value)}
+              />
+            </label>
+          </>
+        ) : null}
         {action === 'post_outbound' ? <p className="text-sm text-muted">{stockOutboundLead()}</p> : null}
         {action === 'post_receipt' ? (
           <p className="text-sm text-muted">

@@ -335,4 +335,23 @@ describe('재고 영속 묶음', () => {
       { itemId: 'item-desk', qty: 2 },
     ])
   })
+
+  it('입고 SQL에 공급사·사유를 넣고 발주 행은 만들지 않는다', () => {
+    const prev = createStockState()
+    const command = {
+      type: 'post_direct_in' as const,
+      operationId: 'op-direct-note',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 1,
+      partnerId: 'partner-guest',
+      purpose: '샘플 보충',
+    }
+    const next = applyStockCommand(prev, command).state
+    const statements = statementsForCommand(command, prev, next, '2026-10-03T00:00:00.000Z')
+    expect(statements.some((stmt) => stmt.sql.includes('stock_orders'))).toBe(false)
+    expect(statements[0]?.sql).toContain('purpose')
+    expect(statements[0]?.params).toContain('partner-guest')
+    expect(statements[0]?.params).toContain('샘플 보충')
+  })
 })

@@ -21,6 +21,8 @@ import {
   stockAdjustReason,
   stockAdjustLead,
   stockDirectInLead,
+  stockIssueNoteLead,
+  assertDueReturnAt,
   stockOutboundLead,
   stockReceiptLead,
   stockConvertLead,
@@ -142,7 +144,13 @@ describe('비품 현재고', () => {
       /aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/,
     )
     expect(stockDirectInLead()).toContain('발주·요청 없이')
-    expect(stockDirectInLead()).not.toMatch(/아직|operation_id|본사창고/)
+    expect(stockDirectInLead()).toContain('선택')
+    expect(stockDirectInLead()).not.toMatch(/아직|operation_id|본사창고|발주 번호/)
+    expect(stockIssueNoteLead()).toContain('선택')
+    expect(stockIssueNoteLead()).not.toMatch(/결재|배정/)
+    expect(assertDueReturnAt('')).toBe('')
+    expect(assertDueReturnAt('2026-10-10')).toBe('2026-10-10')
+    expect(() => assertDueReturnAt('10/10')).toThrow(/날짜/)
     expect(stockOutboundLead()).toContain('현재고가 줄어듭니다')
     expect(stockOutboundLead()).not.toMatch(/김담당|반출 성명/)
     expect(stockReceiptLead('', 0, '0')).toBe('정상만 현재고에 들어갑니다.')

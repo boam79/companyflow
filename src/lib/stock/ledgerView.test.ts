@@ -105,6 +105,35 @@ describe('입출고 수불부', () => {
       ),
     ).toBe('김담당 · 총무')
     expect(
+      formatLedgerLink(
+        {
+          id: 'l-note',
+          operationId: 'op-in-note',
+          txnType: 'direct_in',
+          itemId: ITEM,
+          warehouseId: MAIN,
+          qtyDelta: 1,
+          partnerId: 'partner-guest',
+          purpose: '샘플 보충',
+        },
+        { partners: [{ id: 'partner-guest', name: '견본문구' }] },
+      ),
+    ).toBe('견본문구 · 샘플 보충')
+    expect(
+      formatLedgerLink({
+        id: 'l-issue-note',
+        operationId: 'op-issue-note',
+        txnType: 'issue',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qtyDelta: -1,
+        personName: '견본 김대리',
+        purpose: '샘플 청소',
+        dueReturnAt: '2026-10-10',
+        partnerId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      }),
+    ).toBe('견본 김대리 · 샘플 청소 · 반납 예정 2026-10-10')
+    expect(
       formatLedgerLink({
         id: 'l2',
         operationId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',

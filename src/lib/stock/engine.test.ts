@@ -115,6 +115,52 @@ describe('복사용지 재고 원장', () => {
     expect(onHand(state, ITEM, MAIN)).toBe(3)
   })
 
+  it('직접 입고 공급사·사유는 선택이고 발주는 만들지 않는다', () => {
+    const state = applyStockCommand(createStockState(), {
+      type: 'post_direct_in',
+      operationId: 'op-direct-note',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 2,
+      partnerId: 'partner-guest',
+      purpose: '샘플 보충',
+    }).state
+    expect(state.orders.size).toBe(0)
+    expect(state.ledger[0]).toMatchObject({
+      txnType: 'direct_in',
+      partnerId: 'partner-guest',
+      purpose: '샘플 보충',
+    })
+    expect(onHand(state, ITEM, MAIN)).toBe(2)
+  })
+
+  it('반출 목적과 반납 예정일은 남긴다', () => {
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'post_direct_in',
+      operationId: 'op-in-issue-note',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 2,
+    }).state
+    state = applyStockCommand(state, {
+      type: 'post_issue',
+      operationId: 'op-issue-note',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 1,
+      personName: '견본 김대리',
+      purpose: '샘플 청소',
+      dueReturnAt: '2026-10-10',
+    }).state
+    expect(state.ledger.at(-1)).toMatchObject({
+      txnType: 'issue',
+      personName: '견본 김대리',
+      purpose: '샘플 청소',
+      dueReturnAt: '2026-10-10',
+    })
+  })
+
   it('출고는 현재고를 줄이고 잔량을 넘지 못한다', () => {
     let state = createStockState()
     state = applyStockCommand(state, {

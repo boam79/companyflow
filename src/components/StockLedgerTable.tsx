@@ -29,12 +29,13 @@ export function StockLedgerTable(props: {
   items: NamedRow[]
   warehouses: NamedRow[]
   departments?: NamedRow[]
+  partners?: NamedRow[]
   filter: LedgerFilter
   selected?: LedgerLine | null
   onSelect: (line: LedgerLine) => void
   variant?: 'full' | 'supply'
 }) {
-  const names = { departments: props.departments, warehouses: props.warehouses }
+  const names = { departments: props.departments, warehouses: props.warehouses, partners: props.partners }
   const built =
     props.variant === 'supply'
       ? buildSupplyLedgerView(
