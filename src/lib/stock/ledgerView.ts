@@ -91,6 +91,7 @@ export function formatLedgerLink(
   }
   if (line.purpose?.trim()) parts.push(line.purpose.trim())
   if (line.dueReturnAt?.trim()) parts.push(`반납 예정 ${line.dueReturnAt.trim()}`)
+  if (line.txnType === 'direct_in' && line.businessDate?.trim()) parts.push(`입고 ${line.businessDate.trim()}`)
   if (line.txnType === 'transfer_in' || line.txnType === 'transfer_out') {
     const warehouse = warehouseName ?? publicOrderRef(line.warehouseId)
     if (warehouse) parts.push(warehouse)

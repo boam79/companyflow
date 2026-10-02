@@ -187,6 +187,13 @@ export function assertDueReturnAt(value: string) {
   return text
 }
 
+export function assertInboundAt(value: string) {
+  const text = value.trim()
+  if (!text) throw new Error('입고일을 넣으세요.')
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) throw new Error('입고일은 날짜로 넣으세요.')
+  return text
+}
+
 export function stockOutboundLead() {
   return '출고하면 현재고가 줄어듭니다. 사람 이름은 적지 않습니다.'
 }

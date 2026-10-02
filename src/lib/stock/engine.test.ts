@@ -124,12 +124,14 @@ describe('복사용지 재고 원장', () => {
       qty: 2,
       partnerId: 'partner-guest',
       purpose: '샘플 보충',
+      businessDate: '2026-10-01',
     }).state
     expect(state.orders.size).toBe(0)
     expect(state.ledger[0]).toMatchObject({
       txnType: 'direct_in',
       partnerId: 'partner-guest',
       purpose: '샘플 보충',
+      businessDate: '2026-10-01',
     })
     expect(onHand(state, ITEM, MAIN)).toBe(2)
   })

@@ -115,10 +115,11 @@ describe('입출고 수불부', () => {
           qtyDelta: 1,
           partnerId: 'partner-guest',
           purpose: '샘플 보충',
+          businessDate: '2026-10-01',
         },
         { partners: [{ id: 'partner-guest', name: '견본문구' }] },
       ),
-    ).toBe('견본문구 · 샘플 보충')
+    ).toBe('견본문구 · 샘플 보충 · 입고 2026-10-01')
     expect(
       formatLedgerLink({
         id: 'l-issue-note',

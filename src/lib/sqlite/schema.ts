@@ -163,6 +163,7 @@ export const SCHEMA_PATCHES = [
   'alter table stock_ledger add column partner_id text',
   'alter table stock_ledger add column purpose text',
   'alter table stock_ledger add column due_return_at text',
+  'alter table stock_ledger add column business_date text',
 ]
 
 export const SCHEMA_VERSION = LOCAL_MIGRATIONS.length

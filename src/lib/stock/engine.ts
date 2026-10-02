@@ -37,6 +37,7 @@ export type StockCommand =
       qty: number
       partnerId?: string
       purpose?: string
+      businessDate?: string
     }
   | {
       type: 'post_issue'
@@ -135,6 +136,7 @@ export type LedgerLine = {
   partnerId?: string
   purpose?: string
   dueReturnAt?: string
+  businessDate?: string
   createdAt?: string
 }
 
@@ -381,6 +383,7 @@ export function applyStockCommand(
         qtyDelta: command.qty,
         partnerId: command.partnerId?.trim() || undefined,
         purpose: command.purpose?.trim() || undefined,
+        businessDate: command.businessDate?.trim() || undefined,
       })
       break
     case 'post_issue': {

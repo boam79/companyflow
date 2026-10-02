@@ -23,6 +23,7 @@ import {
   stockDirectInLead,
   stockIssueNoteLead,
   assertDueReturnAt,
+  assertInboundAt,
   stockOutboundLead,
   stockReceiptLead,
   stockConvertLead,
@@ -151,6 +152,9 @@ describe('비품 현재고', () => {
     expect(assertDueReturnAt('')).toBe('')
     expect(assertDueReturnAt('2026-10-10')).toBe('2026-10-10')
     expect(() => assertDueReturnAt('10/10')).toThrow(/날짜/)
+    expect(assertInboundAt('2026-10-01')).toBe('2026-10-01')
+    expect(() => assertInboundAt('')).toThrow(/입고일/)
+    expect(() => assertInboundAt('10/01')).toThrow(/날짜/)
     expect(stockOutboundLead()).toContain('현재고가 줄어듭니다')
     expect(stockOutboundLead()).not.toMatch(/김담당|반출 성명/)
     expect(stockReceiptLead('', 0, '0')).toBe('정상만 현재고에 들어갑니다.')

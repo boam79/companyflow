@@ -29,7 +29,7 @@ import {
 import { toArrayBuffer } from '../lib/contracts/book'
 import { onHand, orderNetReceived, orderRemaining, returnBalance, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { defaultStockPolicy, loadStockPolicy, showsOverflowReason } from '../lib/stock/policy'
-import { assertDueReturnAt, buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderQtyText, orderReceiptProgress, publicStockOrderId, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssueNoteLead, stockIssuePersonName, stockLastSaveLead, stockOutboundLead, stockPageLead, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, supplyLowStock, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { assertDueReturnAt, assertInboundAt, buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderQtyText, orderReceiptProgress, publicStockOrderId, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssueNoteLead, stockIssuePersonName, stockLastSaveLead, stockOutboundLead, stockPageLead, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, supplyLowStock, todayYmd, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, ledgerRelatedJumps, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -119,6 +119,7 @@ export function StockPage() {
   const [issueDueReturnAt, setIssueDueReturnAt] = useState('')
   const [inboundPartnerId, setInboundPartnerId] = useState('')
   const [inboundPurpose, setInboundPurpose] = useState('')
+  const [inboundAt, setInboundAt] = useState(todayYmd)
   const [sourceOperationId, setSourceOperationId] = useState('')
   const [reason, setReason] = useState(stockAdjustReason)
   const [overflowReason, setOverflowReason] = useState('')
@@ -533,6 +534,7 @@ export function StockPage() {
           qty: quantity,
           partnerId: inboundPartnerId || undefined,
           purpose: inboundPurpose.trim() || undefined,
+          businessDate: assertInboundAt(inboundAt),
         }
       case 'post_outbound':
       case 'convert_to_asset':
@@ -663,6 +665,7 @@ export function StockPage() {
         if (action === 'post_direct_in') {
           setInboundPurpose('')
           setInboundPartnerId('')
+          setInboundAt(todayYmd())
         }
         if (action === 'post_issue') {
           setIssuePurpose('')
@@ -1748,6 +1751,15 @@ export function StockPage() {
         {action === 'post_direct_in' ? (
           <>
             <p className="sm:col-span-2 text-sm text-muted">{stockDirectInLead()}</p>
+            <label className="text-sm">
+              입고일
+              <input
+                type="date"
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={inboundAt}
+                onChange={(e) => setInboundAt(e.target.value)}
+              />
+            </label>
             <label className="text-sm">
               공급사
               <select

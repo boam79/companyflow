@@ -346,12 +346,14 @@ describe('재고 영속 묶음', () => {
       qty: 1,
       partnerId: 'partner-guest',
       purpose: '샘플 보충',
+      businessDate: '2026-10-01',
     }
     const next = applyStockCommand(prev, command).state
     const statements = statementsForCommand(command, prev, next, '2026-10-03T00:00:00.000Z')
     expect(statements.some((stmt) => stmt.sql.includes('stock_orders'))).toBe(false)
-    expect(statements[0]?.sql).toContain('purpose')
+    expect(statements[0]?.sql).toContain('business_date')
     expect(statements[0]?.params).toContain('partner-guest')
     expect(statements[0]?.params).toContain('샘플 보충')
+    expect(statements[0]?.params).toContain('2026-10-01')
   })
 })

@@ -36,6 +36,7 @@ export type LedgerRow = {
   partner_id?: string | null
   purpose?: string | null
   due_return_at?: string | null
+  business_date?: string | null
   created_at?: string | null
 }
 
@@ -82,8 +83,8 @@ export function ledgerInsert(line: LedgerLine, createdAt: string): SqlStatement 
     sql: `insert into stock_ledger(
       id, operation_id, txn_type, item_id, warehouse_id, qty_delta,
       person_name, department_id, source_operation_id, order_id, reason,
-      partner_id, purpose, due_return_at, created_at
-    ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      partner_id, purpose, due_return_at, business_date, created_at
+    ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     params: [
       line.id,
       line.operationId,
@@ -99,6 +100,7 @@ export function ledgerInsert(line: LedgerLine, createdAt: string): SqlStatement 
       line.partnerId ?? null,
       line.purpose ?? null,
       line.dueReturnAt ?? null,
+      line.businessDate ?? null,
       createdAt,
     ],
   }
@@ -271,6 +273,7 @@ export function stateFromRows(
       partnerId: row.partner_id ?? undefined,
       purpose: row.purpose ?? undefined,
       dueReturnAt: row.due_return_at ?? undefined,
+      businessDate: row.business_date ?? undefined,
       createdAt: row.created_at ?? undefined,
     }
     state.ledger.push(line)
@@ -288,7 +291,7 @@ export async function loadStockState(db: Pick<CompanySqlite, 'query'>): Promise<
     db.query<LedgerRow>(
       `select id, operation_id, txn_type, item_id, warehouse_id, qty_delta,
         person_name, department_id, source_operation_id, order_id, reason,
-        partner_id, purpose, due_return_at, created_at
+        partner_id, purpose, due_return_at, business_date, created_at
        from stock_ledger order by created_at, id`,
     ),
     db.query<{ operation_id: string }>('select operation_id from processed_operations'),
