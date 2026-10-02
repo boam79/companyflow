@@ -4,9 +4,11 @@ import { assertContractFile, base64ToBytes, bytesToBase64 } from '../contracts/b
 import { assertConvertibleItem, loadItems, writeDefaultMaster, type ItemRecord } from '../master/book'
 import type { CompanySqlite } from '../sqlite/client'
 import { supplyItemInsert } from './typedItem'
+import { assertOrderFitsRequest, loadPurchaseRequests } from './request'
 import {
   applyStockCommand,
   createStockState,
+  resolveOrderLines,
   stockOrderLines,
   type LedgerLine,
   type LedgerTxnType,
@@ -46,6 +48,7 @@ export type OrderRow = {
   file_mime?: string | null
   file_base64?: string | null
   currency?: string | null
+  request_id?: string | null
 }
 
 export type OrderLineRow = {
@@ -106,8 +109,8 @@ export function statementsForCommand(
       statements.push({
         sql: `insert or replace into stock_orders(
             id, item_id, qty, status, partner_id, due_date, order_date, currency,
-            file_name, file_mime, file_base64, operation_id, created_at)
-          values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            file_name, file_mime, file_base64, request_id, operation_id, created_at)
+          values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         params: [
           order.id,
           order.itemId,
@@ -120,6 +123,7 @@ export function statementsForCommand(
           order.fileName ?? null,
           order.fileMime ?? null,
           order.fileBase64 ?? null,
+          order.requestId ?? null,
           command.operationId,
           createdAt,
         ],
@@ -224,6 +228,7 @@ export function stateFromRows(
       fileMime: order.file_mime ?? undefined,
       fileBase64: order.file_base64 ?? undefined,
       currency: order.currency ?? undefined,
+      requestId: order.request_id ?? undefined,
     }
     state.orders.set(order.id, row)
     state.processed.set(order.operation_id, 'applied')
@@ -253,7 +258,7 @@ export async function loadStockState(db: Pick<CompanySqlite, 'query'>): Promise<
   const [orders, ledger, processed, lineRows] = await Promise.all([
     db.query<OrderRow>(
       `select id, item_id, qty, status, partner_id, due_date, order_date, currency,
-        file_name, file_mime, file_base64, operation_id from stock_orders`,
+        file_name, file_mime, file_base64, request_id, operation_id from stock_orders`,
     ),
     db.query<LedgerRow>(
       `select id, operation_id, txn_type, item_id, warehouse_id, qty_delta,
@@ -309,6 +314,21 @@ export async function executeStockCommand(
     nextCommand = { ...command, directAsset: allocation.assetQty > 0 }
   }
   const prev = await loadStockState(db)
+  if (nextCommand.type === 'draft_order' || nextCommand.type === 'confirm_order') {
+    const existing = prev.orders.get(nextCommand.orderId)
+    const requestId =
+      nextCommand.requestId !== undefined ? nextCommand.requestId || undefined : existing?.requestId
+    if (requestId) {
+      const request = (await loadPurchaseRequests(db)).find((row) => row.id === requestId)
+      if (!request) throw new Error('연결한 구매요청이 없습니다.')
+      assertOrderFitsRequest({
+        request,
+        orders: [...prev.orders.values()],
+        lines: resolveOrderLines(nextCommand, existing),
+        exceptOrderId: nextCommand.orderId,
+      })
+    }
+  }
   const result = applyStockCommand(prev, nextCommand)
   if (result.status === 'duplicate') return result
 

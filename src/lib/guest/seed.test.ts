@@ -45,6 +45,7 @@ describe('게스트 샘플 시드', () => {
         '견본보험',
         '견본임대',
         'ORD-DEMO-01',
+        'REQ-DEMO-01',
       ]),
     )
     expect(names).not.toContain('김담당')

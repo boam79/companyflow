@@ -11,6 +11,19 @@ import { allocateReceiptQty } from '../lib/asset/receipt'
 import { migrateProcessAssetsToChecks } from '../lib/people/onboarding'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import { executeStockCommand, ensureDefaultStockMaster, loadOrderOriginal, loadStockState, orderAttachment } from '../lib/stock/persist'
+import {
+  executePurchaseRequest,
+  loadPurchaseRequests,
+  newPurchaseRequestId,
+  requestAmountText,
+  requestHasRemaining,
+  requestListButtonLabel,
+  requestRemainingQty,
+  requestSavedNotice,
+  requestSelectLabel,
+  requestTotalAmount,
+  type PurchaseRequest,
+} from '../lib/stock/request'
 import { toArrayBuffer } from '../lib/contracts/book'
 import { onHand, orderNetReceived, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, lowStockLine, resolveOrderPartnerId, stockAdjustReason, stockAssetsLinkLabel, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssuePersonName, stockLastSaveLead, stockPageLead, stockReturnSourceLead, stockSavedNotice, stockSupplierReturnLead, supplyLowStock, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
@@ -31,6 +44,8 @@ import { countHeading } from '../lib/company/nav'
 type NamedRow = { id: string; name: string }
 type ActionType = StockCommand['type']
 type ExtraOrderLine = { key: string; itemId: string; qty: string }
+type ExtraRequestLine = { key: string; itemId: string; qty: string; unitPrice: string }
+type EmployeeRow = { id: string; name: string; department_id?: string | null }
 
 const ACTIONS = [...DAILY_STOCK_ACTIONS, ...MORE_STOCK_ACTIONS]
 
@@ -51,6 +66,18 @@ export function StockPage() {
   const [partners, setPartners] = useState<NamedRow[]>([])
   const [warehouses, setWarehouses] = useState<NamedRow[]>([])
   const [departments, setDepartments] = useState<NamedRow[]>([])
+  const [employees, setEmployees] = useState<EmployeeRow[]>([])
+  const [requests, setRequests] = useState<PurchaseRequest[]>([])
+  const [requestId, setRequestId] = useState(newPurchaseRequestId)
+  const [requesterName, setRequesterName] = useState('')
+  const [requestDeptId, setRequestDeptId] = useState('')
+  const [requestNeededAt, setRequestNeededAt] = useState('')
+  const [requestPurpose, setRequestPurpose] = useState('')
+  const [requestQty, setRequestQty] = useState('1')
+  const [requestUnitPrice, setRequestUnitPrice] = useState('')
+  const [requestExtraLines, setRequestExtraLines] = useState<ExtraRequestLine[]>([])
+  const [requestSaving, setRequestSaving] = useState(false)
+  const [orderRequestId, setOrderRequestId] = useState('')
   const [orderPartnerId, setOrderPartnerId] = useState('')
   const [orderDueDate, setOrderDueDate] = useState('')
   const [orderDate, setOrderDate] = useState(() => formatCompanyDate(new Date(), 'Asia/Seoul'))
@@ -139,18 +166,22 @@ export function StockPage() {
   }
 
   async function reload() {
-    const [itemRows, partnerRows, warehouseRows, deptRows, nextState] = await Promise.all([
+    const [itemRows, partnerRows, warehouseRows, deptRows, employeeRows, nextState, nextRequests] = await Promise.all([
       loadItems(sqlite),
       sqlite.query<NamedRow>(`select id, name from partners where ${ACTIVE_MASTER_WHERE} order by name`),
       sqlite.query<NamedRow>(`select id, name from warehouses where ${ACTIVE_MASTER_WHERE} order by name`),
       sqlite.query<NamedRow>(`select id, name from departments where ${ACTIVE_MASTER_WHERE} order by name`),
+      sqlite.query<EmployeeRow>('select id, name, department_id from employees order by name'),
       loadStockState(sqlite),
+      loadPurchaseRequests(sqlite),
     ])
     setItems(itemRows)
     setPartners(partnerRows)
     setWarehouses(warehouseRows)
     setDepartments(deptRows)
+    setEmployees(employeeRows)
     setState(nextState)
+    setRequests(nextRequests)
     if (!currencyTouched.current) setOrderCurrency(await loadDisplayCurrency(sqlite))
     setSelectedLine((prev) => {
       const visible = nextState.ledger.filter(isSupplyLedgerLine)
@@ -197,6 +228,7 @@ export function StockPage() {
     setOrderFileName(row.fileName)
     setPendingOrderFile(null)
     const order = state?.orders.get(row.orderId)
+    setOrderRequestId(order?.requestId ?? '')
     const others = stockOrderLines(order ?? { itemId: row.itemId, qty: row.orderedQty }).filter(
       (line) => line.itemId !== row.itemId,
     )
@@ -207,6 +239,33 @@ export function StockPage() {
         qty: String(line.qty),
       })),
     )
+  }
+
+  function fillOrderFromRequest(row: PurchaseRequest) {
+    const orders = state ? [...state.orders.values()] : []
+    const first = row.lines[0]
+    setOrderRequestId(row.id)
+    setShowMoreActions(true)
+    setAction('draft_order')
+    setOrderId(stockDraftOrderId())
+    if (first) {
+      setItemId(first.itemId)
+      const remaining = requestRemainingQty(row, orders, first.itemId)
+      setQty(String(remaining > 0 ? remaining : first.qty))
+      setExtraLines(
+        row.lines.slice(1).map((line) => ({
+          key: `${row.id}-${line.itemId}`,
+          itemId: line.itemId,
+          qty: String(requestRemainingQty(row, orders, line.itemId) || line.qty),
+        })),
+      )
+    }
+  }
+
+  function onRequesterChange(name: string) {
+    setRequesterName(name)
+    const employee = employees.find((row) => row.name === name)
+    if (employee?.department_id) setRequestDeptId(employee.department_id)
   }
 
   async function pickOrderFile(file: File) {
@@ -319,6 +378,7 @@ export function StockPage() {
           dueDate: orderDueDate.trim() || undefined,
           orderDate: orderDate.trim() || undefined,
           currency: orderCurrency,
+          requestId: orderRequestId,
           ...(pendingOrderFile ?? {}),
           ...(moreLines.length
             ? { lines: [{ itemId: nextItemId, qty: quantity }, ...moreLines] }
@@ -468,6 +528,88 @@ export function StockPage() {
     }
   }
 
+  async function onRequestSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!ready || !canWriteOpenedCompany(guest, companyId, sqlite.companyId)) return
+    setMessage('')
+    setRequestSaving(true)
+    try {
+      const formData = new FormData(event.currentTarget)
+      const typedName = String(formData.get('requestItemName') ?? '')
+      const resolved = resolveTypedItem(items, typedName, {
+        createIfMissing: true,
+        newId: `item-${crypto.randomUUID()}`,
+      })
+      const unitPriceRaw = requestUnitPrice.trim()
+      const extraResolved: { item: ItemRecord; created: boolean; qty: number; unitPrice?: number }[] = []
+      const known = [...items]
+      if (resolved.created) known.push(resolved.item)
+      for (const extra of requestExtraLines) {
+        const extraName = String(formData.get(`requestLineItemName-${extra.key}`) ?? '')
+        if (!extraName.trim()) continue
+        const extraQty = Number(String(formData.get(`requestLineQty-${extra.key}`) ?? extra.qty))
+        const extraPriceRaw = String(formData.get(`requestLinePrice-${extra.key}`) ?? extra.unitPrice).trim()
+        const nextExtra = resolveTypedItem(known, extraName, {
+          createIfMissing: true,
+          newId: `item-${crypto.randomUUID()}`,
+        })
+        extraResolved.push({
+          ...nextExtra,
+          qty: extraQty,
+          ...(extraPriceRaw ? { unitPrice: Number(extraPriceRaw) } : {}),
+        })
+        if (nextExtra.created) known.push(nextExtra.item)
+      }
+      const createdItems = [
+        ...(resolved.created ? [resolved.item] : []),
+        ...extraResolved.filter((row) => row.created).map((row) => row.item),
+      ]
+      const departmentName = departments.find((row) => row.id === requestDeptId)?.name
+      const result = await executePurchaseRequest(
+        sqlite,
+        {
+          operationId: crypto.randomUUID(),
+          id: requestId.trim() || newPurchaseRequestId(),
+          requesterName,
+          departmentId: requestDeptId.trim() || undefined,
+          departmentName,
+          neededAt: requestNeededAt.trim() || undefined,
+          purpose: requestPurpose.trim() || undefined,
+          lines: [
+            {
+              itemId: resolved.item.id,
+              qty: Number(requestQty),
+              ...(unitPriceRaw ? { unitPrice: Number(unitPriceRaw) } : {}),
+            },
+            ...extraResolved.map((row) => ({
+              itemId: row.item.id,
+              qty: row.qty,
+              ...(row.unitPrice != null ? { unitPrice: row.unitPrice } : {}),
+            })),
+          ],
+        },
+        undefined,
+        createdItems.length ? { newItems: createdItems } : undefined,
+      )
+      setNotice(requestSavedNotice(result.status === 'duplicate'))
+      if (result.status === 'applied') {
+        setRequestId(newPurchaseRequestId())
+        setRequesterName('')
+        setRequestDeptId('')
+        setRequestNeededAt('')
+        setRequestPurpose('')
+        setRequestQty('1')
+        setRequestUnitPrice('')
+        setRequestExtraLines([])
+      }
+      await reload()
+    } catch (error) {
+      setMessage(publicErrorMessage(error))
+    } finally {
+      setRequestSaving(false)
+    }
+  }
+
   if (loading) return <p className="text-sm text-muted">세션을 확인하는 중입니다.</p>
   if (!guest && !configured) return <p className="text-sm text-muted">중앙 운영이 연결되지 않았습니다.</p>
   const gated = workSessionKind({
@@ -511,6 +653,7 @@ export function StockPage() {
   const lowRows = state ? supplyLowStock(items, state) : []
   const supplyOrders = state ? buildSupplyOrderList(items, state, partners) : []
   const assetOrders = state ? buildAssetOrderList(items, state, partners) : []
+  const orderRows = state ? [...state.orders.values()] : []
 
   return (
     <div className="flex flex-col gap-4">
@@ -573,6 +716,216 @@ export function StockPage() {
           </ul>
         </section>
       ) : null}
+
+      <section className="rounded-lg border border-line bg-card p-4">
+        <h2 className="text-base font-semibold">{countHeading('구매요청', requests.length)}</h2>
+        {requests.length ? (
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {requests.map((row) => (
+              <li key={row.id}>
+                <button
+                  type="button"
+                  className={`rounded border px-3 py-1.5 text-left text-sm ${
+                    row.id === orderRequestId ? 'border-accent bg-accent-soft' : 'border-line hover:bg-paper'
+                  }`}
+                  onClick={() => fillOrderFromRequest(row)}
+                >
+                  {requestListButtonLabel(row, items)}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <form
+          className="mt-3 grid gap-3 sm:grid-cols-2"
+          lang="ko"
+          onKeyDown={preventImeEnterSubmit}
+          onSubmit={(event) => void onRequestSubmit(event)}
+        >
+          <label className="text-sm">
+            요청 번호
+            <input
+              className="mt-1 w-full rounded border border-line px-3 py-2"
+              value={requestId}
+              onChange={(e) => setRequestId(e.target.value)}
+            />
+          </label>
+          <label className="text-sm">
+            요청자
+            <input
+              className="mt-1 w-full rounded border border-line px-3 py-2"
+              list="request-employee-names"
+              value={requesterName}
+              onChange={(e) => onRequesterChange(e.target.value)}
+            />
+            <datalist id="request-employee-names">
+              {employees.map((row) => (
+                <option key={row.id} value={row.name} />
+              ))}
+            </datalist>
+          </label>
+          <label className="text-sm">
+            부서
+            <select
+              className="mt-1 w-full rounded border border-line px-3 py-2"
+              value={requestDeptId}
+              onChange={(e) => setRequestDeptId(e.target.value)}
+            >
+              <option value="">없음</option>
+              {departments.map((row) => (
+                <option key={row.id} value={row.id}>
+                  {row.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm">
+            필요일
+            <input
+              className="mt-1 w-full rounded border border-line px-3 py-2"
+              type="date"
+              value={requestNeededAt}
+              onChange={(e) => setRequestNeededAt(e.target.value)}
+            />
+          </label>
+          <label className="sm:col-span-2 text-sm">
+            목적
+            <input
+              className="mt-1 w-full rounded border border-line px-3 py-2"
+              value={requestPurpose}
+              onChange={(e) => setRequestPurpose(e.target.value)}
+            />
+          </label>
+          <label className="text-sm">
+            요청할 이름
+            <input
+              key={`request-item-${itemId}`}
+              name="requestItemName"
+              list="request-item-names"
+              autoComplete="off"
+              className="mt-1 w-full rounded border border-line px-3 py-2"
+              defaultValue={items.find((row) => row.id === itemId)?.name ?? ''}
+              placeholder="요청 품목"
+            />
+            <datalist id="request-item-names">
+              {items.filter((item) => isSupplyItem(item) || isCompanyAssetItem(item)).map((item) => (
+                <option key={item.id} value={item.name} />
+              ))}
+            </datalist>
+          </label>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="w-28 text-sm">
+              요청량
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                type="number"
+                min="0"
+                value={requestQty}
+                onChange={(e) => setRequestQty(e.target.value)}
+              />
+            </label>
+            <label className="w-32 text-sm">
+              단가
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                type="number"
+                min="0"
+                value={requestUnitPrice}
+                onChange={(e) => setRequestUnitPrice(e.target.value)}
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={!ready || requestSaving}
+              className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              요청 저장
+            </button>
+          </div>
+          <div className="sm:col-span-2 text-sm">
+            <div className="flex items-center justify-between gap-2">
+              <span>요청 품목 줄</span>
+              <button
+                type="button"
+                className="text-xs font-semibold text-accent"
+                onClick={() =>
+                  setRequestExtraLines((prev) => [
+                    ...prev,
+                    { key: crypto.randomUUID(), itemId: '', qty: '1', unitPrice: '' },
+                  ])
+                }
+              >
+                요청 품목 줄 추가
+              </button>
+            </div>
+            {requestExtraLines.length ? (
+              <ul className="mt-2 space-y-2">
+                {requestExtraLines.map((line) => (
+                  <li key={line.key} className="flex flex-wrap items-end gap-2">
+                    <label className="min-w-[8rem] flex-1 text-sm">
+                      품목
+                      <input
+                        name={`requestLineItemName-${line.key}`}
+                        list="request-item-names"
+                        autoComplete="off"
+                        className="mt-1 w-full rounded border border-line px-3 py-2"
+                        defaultValue={items.find((row) => row.id === line.itemId)?.name ?? ''}
+                        placeholder="요청 품목"
+                      />
+                    </label>
+                    <label className="w-24 text-sm">
+                      수량
+                      <input
+                        name={`requestLineQty-${line.key}`}
+                        className="mt-1 w-full rounded border border-line px-3 py-2"
+                        inputMode="numeric"
+                        defaultValue={line.qty}
+                      />
+                    </label>
+                    <label className="w-28 text-sm">
+                      단가
+                      <input
+                        name={`requestLinePrice-${line.key}`}
+                        className="mt-1 w-full rounded border border-line px-3 py-2"
+                        inputMode="numeric"
+                        defaultValue={line.unitPrice}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="mb-0.5 text-xs text-muted"
+                      onClick={() => setRequestExtraLines((prev) => prev.filter((row) => row.key !== line.key))}
+                    >
+                      줄 삭제
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {requestAmountText(
+              requestTotalAmount([
+                {
+                  itemId: itemId || 'x',
+                  qty: Number(requestQty) || 0,
+                  ...(requestUnitPrice.trim() ? { unitPrice: Number(requestUnitPrice) } : {}),
+                },
+              ]),
+            ) ? (
+              <p className="mt-2 text-xs text-muted">
+                합계 {requestAmountText(
+                  requestTotalAmount([
+                    {
+                      itemId: itemId || 'x',
+                      qty: Number(requestQty) || 0,
+                      ...(requestUnitPrice.trim() ? { unitPrice: Number(requestUnitPrice) } : {}),
+                    },
+                  ]),
+                )}
+              </p>
+            ) : null}
+          </div>
+        </form>
+      </section>
 
       <div className="grid min-h-0 gap-4 lg:grid-cols-[12.5rem_minmax(0,1fr)_22rem] lg:items-start">
       <section className="rounded-lg border border-line bg-card p-4">
@@ -846,6 +1199,30 @@ export function StockPage() {
                 value={orderId}
                 onChange={(e) => setOrderId(e.target.value)}
               />
+            </label>
+          ) : null}
+          {action === 'draft_order' || action === 'confirm_order' ? (
+            <label className="text-sm">
+              연결 요청
+              <select
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={orderRequestId}
+                onChange={(e) => {
+                  const nextId = e.target.value
+                  const row = requests.find((item) => item.id === nextId)
+                  if (row) fillOrderFromRequest(row)
+                  else setOrderRequestId('')
+                }}
+              >
+                <option value="">없음</option>
+                {requests
+                  .filter((row) => requestHasRemaining(row, orderRows) || row.id === orderRequestId)
+                  .map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {requestSelectLabel(row, orderRows, items)}
+                    </option>
+                  ))}
+              </select>
             </label>
           ) : null}
           {action === 'draft_order' || action === 'confirm_order' ? (

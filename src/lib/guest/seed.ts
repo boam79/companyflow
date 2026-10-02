@@ -1,5 +1,6 @@
 import { PURCHASE_KINDS } from '../master/commands'
 import { executeStockCommand } from '../stock/persist'
+import { executePurchaseRequest } from '../stock/request'
 import { MEMORY_VFS } from '../sqlite/openPlan'
 import type { CompanySqlite } from '../sqlite/client'
 import { shiftYmd } from '../contracts/watch'
@@ -11,6 +12,8 @@ export const GUEST_PAPER_ITEM_ID = 'item-paper'
 export const GUEST_LEASE_PARTNER_ID = 'partner-guest-lease'
 export const GUEST_ORDER_ID = 'ORD-DEMO-01'
 export const GUEST_ORDER_OP = 'guest:ord-demo'
+export const GUEST_REQUEST_ID = 'REQ-DEMO-01'
+export const GUEST_REQUEST_OP = 'seed-req-demo'
 export const GUEST_BLANK_QR_ID = 'c0ffee00-0000-4000-8000-000000000001'
 export const GUEST_DESK_QR_ID = 'c0ffee00-0000-4000-8000-000000000011'
 export const GUEST_PC_QR_ID = 'c0ffee00-0000-4000-8000-000000000012'
@@ -236,6 +239,16 @@ export async function seedGuestCompany(
     qty: 2,
     partnerId: GUEST_LEASE_PARTNER_ID,
     orderDate: '2026-09-01',
+  })
+  await executePurchaseRequest(db, {
+    operationId: GUEST_REQUEST_OP,
+    id: GUEST_REQUEST_ID,
+    requesterName: '견본 김대리',
+    departmentId: 'dept-guest-admin',
+    departmentName: '샘플총무',
+    neededAt: '2026-10-10',
+    purpose: '샘플 비품 보충',
+    lines: [{ itemId: GUEST_PAPER_ITEM_ID, qty: 10, unitPrice: 15000 }],
   })
   await db.exec('update contracts set partner_id = ?, order_id = ? where id = ?', [
     GUEST_LEASE_PARTNER_ID,

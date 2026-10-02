@@ -1,5 +1,6 @@
 import { MASTER_TABLE_SQL } from '../master/book'
 import { STOCK_TABLE_SQL } from '../stock/engine'
+import { REQUEST_TABLE_SQL } from '../stock/request'
 import { ASSET_TABLE_SQL } from '../asset/book'
 import { ASSET_EVENT_TABLE_SQL } from '../asset/life'
 import { QR_LABEL_TABLE_SQL } from '../asset/register'
@@ -39,6 +40,7 @@ export const LOCAL_MIGRATIONS = [
   );`,
   ...MASTER_TABLE_SQL,
   ...STOCK_TABLE_SQL,
+  ...REQUEST_TABLE_SQL,
   ...ASSET_TABLE_SQL,
   ...ASSET_EVENT_TABLE_SQL,
   ...QR_LABEL_TABLE_SQL,
@@ -150,6 +152,8 @@ export const SCHEMA_PATCHES = [
   `create unique index if not exists assets_qr_token on assets(qr_token) where qr_token is not null`,
   ...ASSET_EVENT_TABLE_SQL,
   ...HIRE_WORKFLOW_TABLE_SQL,
+  ...REQUEST_TABLE_SQL,
+  'alter table stock_orders add column request_id text',
 ]
 
 export const SCHEMA_VERSION = LOCAL_MIGRATIONS.length

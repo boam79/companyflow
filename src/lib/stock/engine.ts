@@ -14,6 +14,7 @@ export type StockCommand =
       fileMime?: string
       fileBase64?: string
       currency?: string
+      requestId?: string
       lines?: StockOrderLine[]
     }
   | {
@@ -141,6 +142,7 @@ export type StockOrder = {
   fileMime?: string
   fileBase64?: string
   currency?: string
+  requestId?: string
 }
 
 export type StockState = {
@@ -181,7 +183,7 @@ export function stockOrderLines(order: Pick<StockOrder, 'itemId' | 'qty' | 'line
   return order.lines?.length ? order.lines : [{ itemId: order.itemId, qty: order.qty }]
 }
 
-function resolveOrderLines(
+export function resolveOrderLines(
   command: { itemId: string; qty: number; lines?: StockOrderLine[] },
   existing?: StockOrder,
 ): StockOrderLine[] {
@@ -284,6 +286,7 @@ export function applyStockCommand(
         fileMime: command.fileMime ?? existing?.fileMime,
         fileBase64: command.fileBase64 ?? existing?.fileBase64,
         currency: command.currency ?? existing?.currency ?? 'KRW',
+        requestId: command.requestId !== undefined ? command.requestId || undefined : existing?.requestId,
       })
       break
     }
@@ -533,6 +536,7 @@ export const STOCK_TABLE_SQL = [
     file_mime text,
     file_base64 text,
     currency text not null default 'KRW',
+    request_id text,
     operation_id text not null unique,
     created_at text not null
   );`,

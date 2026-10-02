@@ -196,6 +196,7 @@ describe('재고 영속 묶음', () => {
       null,
       null,
       null,
+      null,
       'op-paper',
       '2026-09-20T00:00:00.000Z',
     ])
@@ -218,6 +219,38 @@ describe('재고 영속 묶음', () => {
     expect(restored.orders.get('ord-paper')?.partnerId).toBe('partner-mfp')
     expect(restored.orders.get('ord-paper')?.dueDate).toBe('2026-09-27')
     expect(restored.orders.get('ord-paper')?.orderDate).toBe('2026-09-20')
+    expect(restored.orders.get('ord-paper')?.requestId).toBeUndefined()
+  })
+
+  it('발주 SQL에 구매요청 연결을 넣고 다시 읽는다', () => {
+    const prev = createStockState()
+    const command = {
+      type: 'confirm_order' as const,
+      operationId: 'op-req',
+      orderId: 'ord-req',
+      itemId: ITEM,
+      qty: 4,
+      requestId: 'REQ-DEMO-01',
+    }
+    const next = applyStockCommand(prev, command).state
+    const statements = statementsForCommand(command, prev, next, '2026-10-02T00:00:00.000Z')
+    expect(statements[0]?.sql).toContain('request_id')
+    expect(statements[0]?.params).toContain('REQ-DEMO-01')
+    const restored = stateFromRows(
+      [
+        {
+          id: 'ord-req',
+          item_id: ITEM,
+          qty: 4,
+          status: 'confirmed',
+          operation_id: 'op-req',
+          request_id: 'REQ-DEMO-01',
+        },
+      ],
+      [],
+      [],
+    )
+    expect(restored.orders.get('ord-req')?.requestId).toBe('REQ-DEMO-01')
   })
 
   it('발주 SQL에 첨부를 넣고 다시 읽는다', () => {

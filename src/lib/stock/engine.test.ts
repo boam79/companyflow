@@ -117,6 +117,18 @@ describe('복사용지 재고 원장', () => {
     ).toThrow(/성명 또는 부서/)
   })
 
+  it('발주에 구매요청 번호를 남긴다', () => {
+    const state = applyStockCommand(createStockState(), {
+      type: 'draft_order',
+      operationId: 'op-req',
+      orderId: 'ord-req',
+      itemId: ITEM,
+      qty: 4,
+      requestId: 'REQ-DEMO-01',
+    }).state
+    expect(state.orders.get('ord-req')?.requestId).toBe('REQ-DEMO-01')
+  })
+
   it('실사 조정과 정정은 원장으로만 현재고를 바꾼다', () => {
     let state = createStockState()
     state = applyStockCommand(state, {
