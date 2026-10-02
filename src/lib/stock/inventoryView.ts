@@ -56,6 +56,15 @@ export function stockAdjustReason() {
   return ''
 }
 
+export function stockAdjustLead(bookQty: number, countedText: string) {
+  const counted = Number(countedText)
+  if (!countedText.trim() || !Number.isFinite(counted)) return `장부 ${bookQty}`
+  const delta = counted - bookQty
+  if (delta === 0) return `장부 ${bookQty} · 맞음`
+  const signed = delta > 0 ? `+${delta}` : String(delta)
+  return `장부 ${bookQty} · 차이 ${signed}`
+}
+
 export function inventoryWarehouseColumns(warehouses: NamedWarehouse[]): NamedWarehouse[] {
   return warehouses.length > 1 ? warehouses : []
 }

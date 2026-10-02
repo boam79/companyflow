@@ -29,7 +29,7 @@ import {
 import { toArrayBuffer } from '../lib/contracts/book'
 import { onHand, orderNetReceived, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { defaultStockPolicy, loadStockPolicy, showsOverflowReason } from '../lib/stock/policy'
-import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, resolveOrderPartnerId, stockAdjustReason, stockAssetsLinkLabel, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssuePersonName, stockLastSaveLead, stockPageLead, stockReturnSourceLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, supplyLowStock, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssuePersonName, stockLastSaveLead, stockPageLead, stockReturnSourceLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, supplyLowStock, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, ledgerRelatedJumps, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -422,6 +422,12 @@ export function StockPage() {
       return
     }
     if (nextAction === 'post_return') setQty('1')
+    if (nextAction === 'adjust_stock') {
+      const useWh = defaultWarehouseId(warehouses, state, itemId) || warehouseId
+      if (useWh && useWh !== warehouseId) setWarehouseId(useWh)
+      setQty(String(onHand(state, itemId, useWh)))
+      return
+    }
     if (nextAction === 'transfer_stock') {
       const picked = transferWarehouseIds(warehouses, state, itemId)
       const fromId = warehouses.some((row) => row.id === fromWarehouseId) ? fromWarehouseId : picked.fromWarehouseId
@@ -760,6 +766,7 @@ export function StockPage() {
   const relatedJumps = ledgerRelatedJumps(state?.ledger ?? [], selectedLine)
   const showsWarehouse = inventoryShowsWarehouseField(action, warehouses.length)
   const showsTransfer = inventoryShowsTransferFields(action, warehouses.length)
+  const adjustBookQty = state ? onHand(state, itemId, warehouseId) : 0
   const lowRows = state ? supplyLowStock(items, state) : []
   const supplyOrders = state ? buildSupplyOrderList(items, state, partners) : []
   const assetOrders = state ? buildAssetOrderList(items, state, partners) : []
@@ -1713,14 +1720,17 @@ export function StockPage() {
           )
         ) : null}
         {action === 'adjust_stock' ? (
-          <label className="text-sm">
-            실사 사유
-            <input
-              className="mt-1 w-full rounded border border-line px-3 py-2"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-            />
-          </label>
+          <>
+            <p className="text-sm text-muted">{stockAdjustLead(adjustBookQty, qty)}</p>
+            <label className="text-sm">
+              실사 사유
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+              />
+            </label>
+          </>
         ) : null}
         {guest ? null : (
         <details className="text-sm text-muted">

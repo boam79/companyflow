@@ -18,6 +18,7 @@ import {
   stockDraftOrderId,
   stockIssuePersonName,
   stockAdjustReason,
+  stockAdjustLead,
   stockSupplierReturnLead,
   stockTransferLead,
   supplyLowStock,
@@ -68,6 +69,11 @@ describe('비품 현재고', () => {
     expect(stockIssuePersonName()).toBe('')
     expect(stockDraftOrderId()).toBe('')
     expect(stockAdjustReason()).toBe('')
+    expect(stockAdjustLead(7, '7')).toBe('장부 7 · 맞음')
+    expect(stockAdjustLead(7, '6')).toBe('장부 7 · 차이 -1')
+    expect(stockAdjustLead(7, '9')).toBe('장부 7 · 차이 +2')
+    expect(stockAdjustLead(7, '')).toBe('장부 7')
+    expect(stockAdjustLead(7, '6')).not.toMatch(/실사 차이|operation_id|본사창고/)
     expect(defaultWarehouseId(WAREHOUSES)).toBe('wh-main')
     expect(
       defaultWarehouseId(

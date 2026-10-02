@@ -157,6 +157,24 @@ test('게스트 창고 이동은 합계를 그대로 둔다', async ({ page }) =
   await expectNoHqLeftovers(page)
 })
 
+test('게스트 실사는 장부와 세고 차이를 남긴다', async ({ page }) => {
+  await page.goto('/guest/stock')
+  await expect(page.getByRole('heading', { name: '구매·재고' })).toBeVisible({ timeout: 20000 })
+  await page.getByRole('button', { name: '발주·검수 더 보기' }).click()
+  await page.getByLabel('명령').selectOption('adjust_stock')
+  await expect(page.getByText('장부 7 · 맞음')).toBeVisible()
+  await expect(page.getByText('실사 차이')).toHaveCount(0)
+  await page.getByPlaceholder('이름을 치세요').fill('샘플 복사용지')
+  await page.getByLabel('실사 수량').fill('6')
+  await expect(page.getByText('장부 7 · 차이 -1')).toBeVisible()
+  await page.getByLabel('실사 사유').fill('견본파손')
+  await page.getByRole('button', { name: '실사 조정' }).click()
+  await expect(page.getByText('저장했습니다. (실사 조정)')).toBeVisible()
+  await expect(page.getByRole('button', { name: '샘플창고 현재고 6' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '재고현황 0' })).toHaveCount(0)
+  await expectNoHqLeftovers(page)
+})
+
 test('게스트 구매요청은 바로 저장하고 발주 잔량을 지킨다', async ({ page }) => {
   await page.goto('/guest/stock')
   await expect(page.getByRole('heading', { name: '구매·재고' })).toBeVisible({ timeout: 20000 })
