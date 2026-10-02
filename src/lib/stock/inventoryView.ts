@@ -61,7 +61,7 @@ export function inventoryWarehouseColumns(warehouses: NamedWarehouse[]): NamedWa
 }
 
 export function inventoryWarehouseQtyLabel(warehouseName: string, qty: number) {
-  return `${warehouseName} ${qty}`
+  return `${warehouseName} 현재고 ${qty}`
 }
 
 export function inventoryShowsWarehouseField(action: string, warehouseCount: number) {

@@ -108,7 +108,7 @@ describe('비품 현재고', () => {
     ])
     expect(inventoryWarehouseColumns(WAREHOUSES).map((row) => row.name)).toEqual(['본사창고', '부속창고'])
     expect(inventoryWarehouseColumns([{ id: 'wh-main', name: '본사창고' }])).toEqual([])
-    expect(inventoryWarehouseQtyLabel('견본창고', 0)).toBe('견본창고 0')
+    expect(inventoryWarehouseQtyLabel('견본창고', 0)).toBe('견본창고 현재고 0')
     expect(inventoryShowsWarehouseField('post_direct_in', 2)).toBe(true)
     expect(inventoryShowsWarehouseField('draft_order', 2)).toBe(false)
     expect(inventoryShowsWarehouseField('post_issue', 0)).toBe(false)
