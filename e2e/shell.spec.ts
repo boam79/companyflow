@@ -62,6 +62,7 @@ test('게스트 둘러보기는 샘플 구매부터 연다', async ({ page }) =>
   await expect(page.getByLabel('연결 요청')).toBeVisible()
   await expect(page.getByRole('heading', { name: /구매요청/ })).toBeVisible()
   await expect(page.getByRole('heading', { name: '구매요청 0' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '요청 첨부' })).toBeVisible()
   await page.getByLabel('명령').selectOption('adjust_stock')
   await expect(page.getByLabel('실사 사유')).toHaveValue('')
   await expect(page.getByText('실사 차이')).toHaveCount(0)

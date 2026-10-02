@@ -134,8 +134,15 @@ test('게스트 구매요청은 바로 저장하고 발주 잔량을 지킨다',
   await page.getByLabel('목적').fill('샘플 청소 용품')
   await page.getByLabel('요청량').fill('3')
   await page.getByPlaceholder('요청 품목').first().fill('샘플 복사용지')
+  await expect(page.getByRole('button', { name: '요청 첨부' })).toBeVisible()
+  await page.getByLabel('요청 원본').setInputFiles({
+    name: '견본요청.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+  })
   await page.getByRole('button', { name: '요청 저장' }).click()
   await expect(page.getByText('구매요청을 저장했습니다.')).toBeVisible()
+  await expect(page.getByRole('button', { name: '견본요청.png', exact: true })).toBeVisible()
   await page.getByRole('button', { name: /REQ-DEMO-01/ }).click()
   await expect(page.getByLabel('연결 요청')).toHaveValue('REQ-DEMO-01')
   await page.getByLabel('발주 번호').fill('ORD-REQ-01')

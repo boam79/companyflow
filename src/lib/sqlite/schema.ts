@@ -154,6 +154,9 @@ export const SCHEMA_PATCHES = [
   ...HIRE_WORKFLOW_TABLE_SQL,
   ...REQUEST_TABLE_SQL,
   'alter table stock_orders add column request_id text',
+  'alter table purchase_requests add column file_name text',
+  'alter table purchase_requests add column file_mime text',
+  'alter table purchase_requests add column file_base64 text',
 ]
 
 export const SCHEMA_VERSION = LOCAL_MIGRATIONS.length

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyPurchaseRequest, assertOrderFitsRequest, requestCaption, requestHasRemaining, requestRemainingQty, requestSavedNotice, requestSelectLabel, requestTotalAmount } from './request'
+import { applyPurchaseRequest, assertOrderFitsRequest, requestAttachment, requestCaption, requestHasRemaining, requestRemainingQty, requestSavedNotice, requestSelectLabel, requestTotalAmount } from './request'
 
 const PAPER = 'item-paper'
 const REQUEST = applyPurchaseRequest({
@@ -90,5 +90,30 @@ describe('구매요청', () => {
     expect(
       requestSelectLabel(REQUEST, orders, [{ id: PAPER, name: '샘플 복사용지' }]),
     ).toBe('REQ-DEMO-01 · 견본 김대리 · 샘플 복사용지 잔량 4')
+  })
+
+  it('요청 첨부는 PDF·PNG·JPEG만 받는다', () => {
+    const attached = requestAttachment({
+      name: '견본요청.png',
+      mime: 'image/png',
+      bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
+    })
+    expect(attached.fileName).toBe('견본요청.png')
+    expect(attached.fileMime).toBe('image/png')
+    const withFile = applyPurchaseRequest({
+      id: 'REQ-FILE',
+      requesterName: '견본 김대리',
+      lines: [{ itemId: PAPER, qty: 1 }],
+      ...attached,
+    })
+    expect(withFile.fileName).toBe('견본요청.png')
+    expect(requestCaption(withFile, [{ id: PAPER, name: '샘플 복사용지' }])).toContain('견본요청.png')
+    expect(() =>
+      requestAttachment({
+        name: 'memo.txt',
+        mime: 'text/plain',
+        bytes: new Uint8Array([0x61, 0x62, 0x63]),
+      }),
+    ).toThrow(/PDF/)
   })
 })

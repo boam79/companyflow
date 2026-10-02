@@ -14,8 +14,10 @@ import { executeStockCommand, ensureDefaultStockMaster, loadOrderOriginal, loadS
 import {
   executePurchaseRequest,
   loadPurchaseRequests,
+  loadRequestOriginal,
   newPurchaseRequestId,
   requestAmountText,
+  requestAttachment,
   requestHasRemaining,
   requestListButtonLabel,
   requestRemainingQty,
@@ -77,6 +79,13 @@ export function StockPage() {
   const [requestUnitPrice, setRequestUnitPrice] = useState('')
   const [requestExtraLines, setRequestExtraLines] = useState<ExtraRequestLine[]>([])
   const [requestSaving, setRequestSaving] = useState(false)
+  const [requestFileName, setRequestFileName] = useState('')
+  const [pendingRequestFile, setPendingRequestFile] = useState<{
+    fileName: string
+    fileMime: string
+    fileBase64: string
+  } | null>(null)
+  const requestFileInput = useRef<HTMLInputElement>(null)
   const [orderRequestId, setOrderRequestId] = useState('')
   const [orderPartnerId, setOrderPartnerId] = useState('')
   const [orderDueDate, setOrderDueDate] = useState('')
@@ -266,6 +275,34 @@ export function StockPage() {
     setRequesterName(name)
     const employee = employees.find((row) => row.name === name)
     if (employee?.department_id) setRequestDeptId(employee.department_id)
+  }
+
+  async function pickRequestFile(file: File) {
+    setMessage('')
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      const attached = requestAttachment({ name: file.name, mime: file.type, bytes })
+      setPendingRequestFile(attached)
+      setRequestFileName(attached.fileName)
+    } catch (error) {
+      setMessage(publicErrorMessage(error))
+      if (requestFileInput.current) requestFileInput.current.value = ''
+    }
+  }
+
+  async function downloadRequestFile(id: string) {
+    setMessage('')
+    try {
+      const original = await loadRequestOriginal(sqlite, id)
+      const url = URL.createObjectURL(new Blob([toArrayBuffer(original.bytes)], { type: original.fileMime }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = original.fileName
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      setMessage(publicErrorMessage(error))
+    }
   }
 
   async function pickOrderFile(file: File) {
@@ -575,6 +612,7 @@ export function StockPage() {
           departmentName,
           neededAt: requestNeededAt.trim() || undefined,
           purpose: requestPurpose.trim() || undefined,
+          ...(pendingRequestFile ?? {}),
           lines: [
             {
               itemId: resolved.item.id,
@@ -601,6 +639,9 @@ export function StockPage() {
         setRequestQty('1')
         setRequestUnitPrice('')
         setRequestExtraLines([])
+        setPendingRequestFile(null)
+        setRequestFileName('')
+        if (requestFileInput.current) requestFileInput.current.value = ''
       }
       await reload()
     } catch (error) {
@@ -722,7 +763,7 @@ export function StockPage() {
         {requests.length ? (
           <ul className="mt-2 flex flex-wrap gap-2">
             {requests.map((row) => (
-              <li key={row.id}>
+              <li key={row.id} className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   className={`rounded border px-3 py-1.5 text-left text-sm ${
@@ -732,6 +773,15 @@ export function StockPage() {
                 >
                   {requestListButtonLabel(row, items)}
                 </button>
+                {row.fileName ? (
+                  <button
+                    type="button"
+                    className="rounded border border-line px-3 py-1.5 text-sm"
+                    onClick={() => void downloadRequestFile(row.id)}
+                  >
+                    {row.fileName}
+                  </button>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -796,6 +846,31 @@ export function StockPage() {
               onChange={(e) => setRequestPurpose(e.target.value)}
             />
           </label>
+          <div className="sm:col-span-2 text-sm">
+            요청 첨부
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <input
+                ref={requestFileInput}
+                aria-label="요청 원본"
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                className="sr-only"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) void pickRequestFile(file)
+                }}
+              />
+              <button
+                type="button"
+                disabled={!ready || requestSaving}
+                className="rounded border border-line px-3 py-2 text-sm font-semibold disabled:opacity-50"
+                onClick={() => requestFileInput.current?.click()}
+              >
+                요청 첨부
+              </button>
+              <span className="text-xs text-muted">{requestFileName || 'PDF·PNG·JPEG 8MB'}</span>
+            </div>
+          </div>
           <label className="text-sm">
             요청할 이름
             <input

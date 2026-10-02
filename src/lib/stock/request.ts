@@ -1,5 +1,6 @@
 import type { ProcessResult } from '../idempotency'
 import { formatCompanyMoney } from '../company/displayCurrency'
+import { assertContractFile, base64ToBytes, bytesToBase64 } from '../contracts/book'
 import type { ItemRecord } from '../master/book'
 import type { CompanySqlite } from '../sqlite/client'
 import { stockOrderLines, type StockOrder, type StockOrderLine } from './engine'
@@ -26,6 +27,9 @@ export type PurchaseRequest = {
   neededAt?: string
   purpose?: string
   status: 'open'
+  fileName?: string
+  fileMime?: string
+  fileBase64?: string
   lines: PurchaseRequestLine[]
   createdAt?: string
 }
@@ -37,6 +41,9 @@ export type PurchaseRequestInput = {
   departmentName?: string
   neededAt?: string
   purpose?: string
+  fileName?: string
+  fileMime?: string
+  fileBase64?: string
   lines: PurchaseRequestLine[]
 }
 
@@ -48,6 +55,8 @@ type RequestRow = {
   needed_at?: string | null
   purpose?: string | null
   status: string
+  file_name?: string | null
+  file_mime?: string | null
   created_at?: string | null
 }
 
@@ -69,6 +78,9 @@ export const REQUEST_TABLE_SQL = [
     needed_at text,
     purpose text,
     status text not null default 'open',
+    file_name text,
+    file_mime text,
+    file_base64 text,
     operation_id text not null unique,
     created_at text not null
   );`,
@@ -80,6 +92,15 @@ export const REQUEST_TABLE_SQL = [
     primary key (request_id, item_id)
   );`,
 ]
+
+export function requestAttachment(file: { name: string; mime?: string; bytes: Uint8Array }) {
+  const fileMime = assertContractFile(file.bytes.byteLength, file.mime, file.name, file.bytes)
+  return {
+    fileName: file.name.trim() || '요청첨부',
+    fileMime,
+    fileBase64: bytesToBase64(file.bytes),
+  }
+}
 
 export function newPurchaseRequestId(now = new Date()) {
   const ymd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
@@ -122,6 +143,9 @@ export function applyPurchaseRequest(input: PurchaseRequestInput): PurchaseReque
     })
   }
   if (!lines.length) throw new Error('요청 품목과 수량이 필요합니다.')
+  const fileName = input.fileName?.trim() || undefined
+  const fileBase64 = input.fileBase64?.trim() || undefined
+  if (fileBase64 && !fileName) throw new Error('요청 첨부 이름이 필요합니다.')
   return {
     id,
     requesterName,
@@ -130,6 +154,9 @@ export function applyPurchaseRequest(input: PurchaseRequestInput): PurchaseReque
     neededAt: input.neededAt?.trim() || undefined,
     purpose: input.purpose?.trim() || undefined,
     status: 'open',
+    fileName,
+    fileMime: fileName ? input.fileMime?.trim() || undefined : undefined,
+    fileBase64: fileName ? fileBase64 : undefined,
     lines,
   }
 }
@@ -195,7 +222,7 @@ export function requestCaption(
     })
     .join(', ')
   const amount = requestAmountText(requestTotalAmount(row.lines))
-  return [row.requesterName, row.departmentName, row.neededAt ? `필요 ${row.neededAt}` : '', itemPart, amount]
+  return [row.requesterName, row.departmentName, row.neededAt ? `필요 ${row.neededAt}` : '', itemPart, amount, row.fileName]
     .filter(Boolean)
     .join(' · ')
 }
@@ -229,7 +256,8 @@ export function requestListButtonLabel(
 export async function loadPurchaseRequests(db: Pick<CompanySqlite, 'query'>): Promise<PurchaseRequest[]> {
   const [rows, lineRows] = await Promise.all([
     db.query<RequestRow>(
-      `select id, requester_name, department_id, department_name, needed_at, purpose, status, created_at
+      `select id, requester_name, department_id, department_name, needed_at, purpose, status,
+        file_name, file_mime, created_at
         from purchase_requests order by created_at desc, id`,
     ),
     db.query<RequestLineRow>(
@@ -254,6 +282,8 @@ export async function loadPurchaseRequests(db: Pick<CompanySqlite, 'query'>): Pr
     neededAt: row.needed_at ?? undefined,
     purpose: row.purpose ?? undefined,
     status: 'open',
+    fileName: row.file_name ?? undefined,
+    fileMime: row.file_mime ?? undefined,
     lines: linesByRequest.get(row.id) ?? [],
     createdAt: row.created_at ?? undefined,
   }))
@@ -284,8 +314,9 @@ export async function executePurchaseRequest(
     },
     {
       sql: `insert into purchase_requests(
-          id, requester_name, department_id, department_name, needed_at, purpose, status, operation_id, created_at
-        ) values(?, ?, ?, ?, ?, ?, 'open', ?, ?)`,
+          id, requester_name, department_id, department_name, needed_at, purpose, status,
+          file_name, file_mime, file_base64, operation_id, created_at
+        ) values(?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?)`,
       params: [
         request.id,
         request.requesterName,
@@ -293,6 +324,9 @@ export async function executePurchaseRequest(
         request.departmentName ?? null,
         request.neededAt ?? null,
         request.purpose ?? null,
+        request.fileName ?? null,
+        request.fileMime ?? null,
+        request.fileBase64 ?? null,
         command.operationId,
         createdAt,
       ],
@@ -317,5 +351,23 @@ export async function executePurchaseRequest(
   } catch (error) {
     if (isUniqueConstraintError(error)) return { status: 'duplicate', request }
     throw error
+  }
+}
+
+export async function loadRequestOriginal(
+  db: Pick<CompanySqlite, 'query'>,
+  requestId: string,
+) {
+  const rows = await db.query<{
+    file_name?: string | null
+    file_mime?: string | null
+    file_base64?: string | null
+  }>('select file_name, file_mime, file_base64 from purchase_requests where id = ?', [requestId])
+  const row = rows[0]
+  if (!row?.file_base64 || !row.file_name) throw new Error('요청 첨부가 없습니다.')
+  return {
+    fileName: row.file_name,
+    fileMime: row.file_mime || 'application/octet-stream',
+    bytes: base64ToBytes(row.file_base64),
   }
 }
