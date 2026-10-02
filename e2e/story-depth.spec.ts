@@ -44,6 +44,18 @@ test('게스트 반출은 견본 이름으로 저장하고 중앙 쓰기를 하�
   expect(writes).toEqual([])
 })
 
+test('게스트 반출은 현재고를 넘지 못한다', async ({ page }) => {
+  await page.goto('/guest/stock')
+  await expect(page.getByRole('heading', { name: '구매·재고' })).toBeVisible({ timeout: 20000 })
+  await page.getByLabel('명령').selectOption('post_issue')
+  await page.getByPlaceholder('이름을 치세요').fill('샘플 복사용지')
+  await page.getByLabel('수량', { exact: true }).fill('99')
+  await page.getByLabel('반출 성명').fill('견본 김대리')
+  await expect(page.getByLabel('초과 사유')).toHaveCount(0)
+  await page.getByRole('button', { name: '반출', exact: true }).click()
+  await expect(page.getByText('현재고를 초과해 반출할 수 없습니다.')).toBeVisible()
+})
+
 test('게스트 계약 이름에 스크립트를 넣어도 실행되지 않는다', async ({ page }) => {
   const dialogs: string[] = []
   page.on('dialog', (dialog) => {

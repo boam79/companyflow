@@ -28,6 +28,7 @@ import {
 } from '../lib/stock/request'
 import { toArrayBuffer } from '../lib/contracts/book'
 import { onHand, orderNetReceived, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
+import { defaultStockPolicy, loadStockPolicy, showsOverflowReason } from '../lib/stock/policy'
 import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, lowStockLine, resolveOrderPartnerId, stockAdjustReason, stockAssetsLinkLabel, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssuePersonName, stockLastSaveLead, stockPageLead, stockReturnSourceLead, stockSavedNotice, stockSupplierReturnLead, supplyLowStock, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, type LedgerFilter } from '../lib/stock/ledgerView'
@@ -115,6 +116,8 @@ export function StockPage() {
   const [departmentId, setDepartmentId] = useState('')
   const [sourceOperationId, setSourceOperationId] = useState('')
   const [reason, setReason] = useState(stockAdjustReason)
+  const [overflowReason, setOverflowReason] = useState('')
+  const [stockPolicy, setStockPolicy] = useState(defaultStockPolicy)
   const [message, setMessage] = useState('')
   const [notice, setNotice] = useState('')
   const [lastOperationId, setLastOperationId] = useState('')
@@ -175,7 +178,8 @@ export function StockPage() {
   }
 
   async function reload() {
-    const [itemRows, partnerRows, warehouseRows, deptRows, employeeRows, nextState, nextRequests] = await Promise.all([
+    const [itemRows, partnerRows, warehouseRows, deptRows, employeeRows, nextState, nextRequests, nextPolicy] =
+      await Promise.all([
       loadItems(sqlite),
       sqlite.query<NamedRow>(`select id, name from partners where ${ACTIVE_MASTER_WHERE} order by name`),
       sqlite.query<NamedRow>(`select id, name from warehouses where ${ACTIVE_MASTER_WHERE} order by name`),
@@ -183,7 +187,9 @@ export function StockPage() {
       sqlite.query<EmployeeRow>('select id, name, department_id from employees order by name'),
       loadStockState(sqlite),
       loadPurchaseRequests(sqlite),
+      loadStockPolicy(sqlite),
     ])
+    setStockPolicy(nextPolicy)
     setItems(itemRows)
     setPartners(partnerRows)
     setWarehouses(warehouseRows)
@@ -392,6 +398,11 @@ export function StockPage() {
     }
   }
 
+  function overflowReasonField(): { reason?: string } {
+    const text = overflowReason.trim()
+    return text ? { reason: text } : {}
+  }
+
   function buildCommand(
     nextOperationId: string,
     nextItemId = itemId,
@@ -430,6 +441,7 @@ export function StockPage() {
           warehouseId,
           qty: quantity,
           ...(Number(defectQty) > 0 ? { defectQty: Number(defectQty) } : {}),
+          ...overflowReasonField(),
         }
       case 'post_supplier_return':
         return {
@@ -439,11 +451,20 @@ export function StockPage() {
           itemId: nextItemId,
           warehouseId,
           qty: quantity,
+          ...overflowReasonField(),
         }
       case 'post_direct_in':
+        return { type: action, operationId: nextOperationId, itemId: nextItemId, warehouseId, qty: quantity }
       case 'post_outbound':
       case 'convert_to_asset':
-        return { type: action, operationId: nextOperationId, itemId: nextItemId, warehouseId, qty: quantity }
+        return {
+          type: action,
+          operationId: nextOperationId,
+          itemId: nextItemId,
+          warehouseId,
+          qty: quantity,
+          ...overflowReasonField(),
+        }
       case 'post_issue':
         return {
           type: action,
@@ -453,6 +474,7 @@ export function StockPage() {
           qty: quantity,
           personName: personName.trim() || undefined,
           departmentId: departmentId.trim() || undefined,
+          ...overflowReasonField(),
         }
       case 'post_return':
         return {
@@ -471,6 +493,7 @@ export function StockPage() {
           fromWarehouseId,
           toWarehouseId,
           qty: quantity,
+          ...overflowReasonField(),
         }
       case 'adjust_stock':
         return {
@@ -556,6 +579,7 @@ export function StockPage() {
           if (orderFileInput.current) orderFileInput.current.value = ''
         }
         if (action === 'post_receipt') setDefectQty('0')
+        setOverflowReason('')
       }
       await reload()
     } catch (error) {
@@ -695,6 +719,17 @@ export function StockPage() {
   const supplyOrders = state ? buildSupplyOrderList(items, state, partners) : []
   const assetOrders = state ? buildAssetOrderList(items, state, partners) : []
   const orderRows = state ? [...state.orders.values()] : []
+  const overflowReasonNeeded = Boolean(
+    state &&
+      showsOverflowReason({
+        action,
+        qty: Number(qty),
+        onHand: onHand(state, itemId, action === 'transfer_stock' ? fromWarehouseId : warehouseId),
+        remaining: orderRemaining(state, orderId, itemId),
+        allowNegative: stockPolicy.allowNegative,
+        allowOverReceipt: stockPolicy.allowOverReceipt,
+      }),
+  )
 
   return (
     <div className="flex flex-col gap-4">
@@ -1252,6 +1287,16 @@ export function StockPage() {
                 min="0"
                 value={defectQty}
                 onChange={(e) => setDefectQty(e.target.value)}
+              />
+            </label>
+          ) : null}
+          {overflowReasonNeeded ? (
+            <label className="min-w-48 flex-1 text-sm">
+              초과 사유
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={overflowReason}
+                onChange={(e) => setOverflowReason(e.target.value)}
               />
             </label>
           ) : null}

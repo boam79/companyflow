@@ -1,4 +1,5 @@
 import type { ProcessResult } from '../idempotency'
+import { assertStockOverflow, defaultStockPolicy, type StockPolicy } from './policy'
 
 export type StockCommand =
   | {
@@ -26,6 +27,7 @@ export type StockCommand =
       qty: number
       directAsset?: boolean
       defectQty?: number
+      reason?: string
     }
   | {
       type: 'post_direct_in'
@@ -42,6 +44,7 @@ export type StockCommand =
       qty: number
       personName?: string
       departmentId?: string
+      reason?: string
     }
   | {
       type: 'post_outbound'
@@ -49,6 +52,7 @@ export type StockCommand =
       itemId: string
       warehouseId: string
       qty: number
+      reason?: string
     }
   | {
       type: 'post_return'
@@ -65,6 +69,7 @@ export type StockCommand =
       itemId: string
       warehouseId: string
       qty: number
+      reason?: string
     }
   | {
       type: 'transfer_stock'
@@ -73,6 +78,7 @@ export type StockCommand =
       fromWarehouseId: string
       toWarehouseId: string
       qty: number
+      reason?: string
     }
   | {
       type: 'adjust_stock'
@@ -88,6 +94,7 @@ export type StockCommand =
       itemId: string
       warehouseId: string
       qty: number
+      reason?: string
     }
   | {
       type: 'reverse_transaction'
@@ -257,6 +264,7 @@ export function orderRemaining(state: StockState, orderId: string, itemId?: stri
 export function applyStockCommand(
   state: StockState,
   command: StockCommand,
+  policy: StockPolicy = defaultStockPolicy(),
 ): { status: ProcessResult; state: StockState } {
   if (state.processed.has(command.operationId)) {
     return { status: 'duplicate', state }
@@ -301,7 +309,12 @@ export function applyStockCommand(
       const line = stockOrderLines(order).find((row) => row.itemId === command.itemId)
       if (!line) throw new Error('발주 품목이 다릅니다.')
       const remaining = line.qty - orderReceived(next, command.orderId, command.itemId)
-      if (command.qty > remaining) throw new Error('발주 잔량을 초과해 수령할 수 없습니다.')
+      assertStockOverflow({
+        over: command.qty > remaining,
+        allowed: policy.allowOverReceipt,
+        reason: command.reason,
+        blocked: '발주 잔량을 초과해 수령할 수 없습니다.',
+      })
       next.ledger.push({
         id: `${command.operationId}:receipt`,
         operationId: command.operationId,
@@ -310,7 +323,7 @@ export function applyStockCommand(
         warehouseId: command.warehouseId,
         qtyDelta: command.qty,
         orderId: command.orderId,
-        reason: command.directAsset ? '직접 자산화' : undefined,
+        reason: command.reason?.trim() || (command.directAsset ? '직접 자산화' : undefined),
       })
       if (defectQty > 0) {
         next.ledger.push({
@@ -354,9 +367,12 @@ export function applyStockCommand(
       if (!command.personName?.trim() && !command.departmentId?.trim()) {
         throw new Error('반출은 성명 또는 부서가 필요합니다.')
       }
-      if (command.qty > onHand(next, command.itemId, command.warehouseId)) {
-        throw new Error('현재고를 초과해 반출할 수 없습니다.')
-      }
+      assertStockOverflow({
+        over: command.qty > onHand(next, command.itemId, command.warehouseId),
+        allowed: policy.allowNegative,
+        reason: command.reason,
+        blocked: '현재고를 초과해 반출할 수 없습니다.',
+      })
       next.ledger.push({
         id: `${command.operationId}:issue`,
         operationId: command.operationId,
@@ -366,14 +382,18 @@ export function applyStockCommand(
         qtyDelta: -command.qty,
         personName: command.personName,
         departmentId: command.departmentId,
+        reason: command.reason?.trim() || undefined,
       })
       break
     }
     case 'post_outbound': {
       requirePositive(command.qty)
-      if (command.qty > onHand(next, command.itemId, command.warehouseId)) {
-        throw new Error('현재고를 초과해 출고할 수 없습니다.')
-      }
+      assertStockOverflow({
+        over: command.qty > onHand(next, command.itemId, command.warehouseId),
+        allowed: policy.allowNegative,
+        reason: command.reason,
+        blocked: '현재고를 초과해 출고할 수 없습니다.',
+      })
       next.ledger.push({
         id: `${command.operationId}:outbound`,
         operationId: command.operationId,
@@ -381,6 +401,7 @@ export function applyStockCommand(
         itemId: command.itemId,
         warehouseId: command.warehouseId,
         qtyDelta: -command.qty,
+        reason: command.reason?.trim() || undefined,
       })
       break
     }
@@ -417,9 +438,12 @@ export function applyStockCommand(
       }
       const net = orderNetReceived(next, command.orderId, command.itemId)
       if (command.qty > net) throw new Error('검수 통과 수량을 초과해 반품할 수 없습니다.')
-      if (command.qty > onHand(next, command.itemId, command.warehouseId)) {
-        throw new Error('현재고를 초과해 반품할 수 없습니다.')
-      }
+      assertStockOverflow({
+        over: command.qty > onHand(next, command.itemId, command.warehouseId),
+        allowed: policy.allowNegative,
+        reason: command.reason,
+        blocked: '현재고를 초과해 반품할 수 없습니다.',
+      })
       next.ledger.push({
         id: `${command.operationId}:supplier-return`,
         operationId: command.operationId,
@@ -428,6 +452,7 @@ export function applyStockCommand(
         warehouseId: command.warehouseId,
         qtyDelta: -command.qty,
         orderId: command.orderId,
+        reason: command.reason?.trim() || undefined,
       })
       break
     }
@@ -436,9 +461,12 @@ export function applyStockCommand(
       if (command.fromWarehouseId === command.toWarehouseId) {
         throw new Error('같은 창고로는 이동할 수 없습니다.')
       }
-      if (command.qty > onHand(next, command.itemId, command.fromWarehouseId)) {
-        throw new Error('현재고를 초과해 이동할 수 없습니다.')
-      }
+      assertStockOverflow({
+        over: command.qty > onHand(next, command.itemId, command.fromWarehouseId),
+        allowed: policy.allowNegative,
+        reason: command.reason,
+        blocked: '현재고를 초과해 이동할 수 없습니다.',
+      })
       next.ledger.push(
         {
           id: `${command.operationId}:out`,
@@ -447,6 +475,7 @@ export function applyStockCommand(
           itemId: command.itemId,
           warehouseId: command.fromWarehouseId,
           qtyDelta: -command.qty,
+          reason: command.reason?.trim() || undefined,
         },
         {
           id: `${command.operationId}:in`,
@@ -455,6 +484,7 @@ export function applyStockCommand(
           itemId: command.itemId,
           warehouseId: command.toWarehouseId,
           qtyDelta: command.qty,
+          reason: command.reason?.trim() || undefined,
         },
       )
       break
@@ -478,9 +508,12 @@ export function applyStockCommand(
     }
     case 'convert_to_asset': {
       requirePositive(command.qty)
-      if (command.qty > onHand(next, command.itemId, command.warehouseId)) {
-        throw new Error('현재고를 초과해 자산화할 수 없습니다.')
-      }
+      assertStockOverflow({
+        over: command.qty > onHand(next, command.itemId, command.warehouseId),
+        allowed: policy.allowNegative,
+        reason: command.reason,
+        blocked: '현재고를 초과해 자산화할 수 없습니다.',
+      })
       next.ledger.push({
         id: `${command.operationId}:convert`,
         operationId: command.operationId,
@@ -488,7 +521,7 @@ export function applyStockCommand(
         itemId: command.itemId,
         warehouseId: command.warehouseId,
         qtyDelta: -command.qty,
-        reason: '재고 자산화',
+        reason: command.reason?.trim() || '재고 자산화',
       })
       break
     }

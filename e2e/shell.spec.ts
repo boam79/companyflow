@@ -25,6 +25,7 @@ test('로그아웃 회사 설정은 로그인 안내만 두고 초대를 두지 
   await expect(page.getByText('회사 설정은 로그인한 뒤 봅니다.')).toBeVisible()
   await expect(page.getByRole('button', { name: '초대 남기기' })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: '회사 설정' })).toHaveCount(0)
+  await expect(page.getByLabel('음수 재고')).toHaveCount(0)
   await expect(page.getByText('모듈은 운영 계정만 바꿉니다.')).toHaveCount(0)
   await expect(page.getByText('추가 사람은 붙이지 않습니다.')).toHaveCount(0)
 })

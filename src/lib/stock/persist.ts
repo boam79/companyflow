@@ -17,6 +17,7 @@ import {
   type StockOrderLine,
   type StockState,
 } from './engine'
+import { loadStockPolicy, stockCommandReason } from './policy'
 
 export type SqlStatement = { sql: string; params: unknown[] }
 
@@ -329,8 +330,10 @@ export async function executeStockCommand(
       })
     }
   }
-  const result = applyStockCommand(prev, nextCommand)
+  const policy = await loadStockPolicy(db)
+  const result = applyStockCommand(prev, nextCommand, policy)
   if (result.status === 'duplicate') return result
+  const overflowReason = stockCommandReason(nextCommand)
 
   const createdItems = [
     ...(options?.newItem ? [options.newItem] : []),
@@ -348,7 +351,11 @@ export async function executeStockCommand(
       params: [
         `${command.operationId}:audit`,
         command.type,
-        JSON.stringify({ operationId: command.operationId, type: command.type }),
+        JSON.stringify({
+          operationId: command.operationId,
+          type: command.type,
+          ...(overflowReason ? { reason: overflowReason } : {}),
+        }),
         createdAt,
       ],
     },

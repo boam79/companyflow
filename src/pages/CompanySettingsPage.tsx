@@ -46,6 +46,13 @@ import {
   saveContractLimits,
   type ContractLimits,
 } from '../lib/contracts/limits'
+import {
+  defaultStockPolicy,
+  loadStockPolicy,
+  saveStockPolicy,
+  stockPolicyCaption,
+  type StockPolicy,
+} from '../lib/stock/policy'
 
 type MemberRow = {
   email: string
@@ -74,6 +81,8 @@ export function CompanySettingsPage() {
   const [timeZoneDraft, setTimeZoneDraft] = useState('Asia/Seoul')
   const [contractLimits, setContractLimits] = useState<ContractLimits>({ maxMb: 8, maxPages: 2 })
   const [contractLimitsDraft, setContractLimitsDraft] = useState<ContractLimits>({ maxMb: 8, maxPages: 2 })
+  const [stockPolicy, setStockPolicy] = useState<StockPolicy>(defaultStockPolicy)
+  const [stockPolicyDraft, setStockPolicyDraft] = useState<StockPolicy>(defaultStockPolicy)
   const [modules, setModules] = useState<Record<string, Record<CompanyModuleId, boolean>>>({})
   const [message, setMessage] = useState('')
   const [notice, setNotice] = useState('')
@@ -153,6 +162,7 @@ export function CompanySettingsPage() {
       if (cancelled || sqlite.companyId !== open.id) return
       const current = await loadCompanyDisplay(sqlite)
       const ocrLimits = await loadContractLimits(sqlite)
+      const nextStockPolicy = await loadStockPolicy(sqlite)
       setCurrency(current.currency)
       setDraft(current.currency)
       setGrouping(current.grouping)
@@ -161,6 +171,8 @@ export function CompanySettingsPage() {
       setTimeZoneDraft(current.timeZone)
       setContractLimits(ocrLimits)
       setContractLimitsDraft(ocrLimits)
+      setStockPolicy(nextStockPolicy)
+      setStockPolicyDraft(nextStockPolicy)
       const others: CompanyRow[] = []
       if (operator && controlsOtherCompanies(open)) {
         const { data: allCompanies, error: allError } = await client
@@ -277,6 +289,24 @@ export function CompanySettingsPage() {
       setContractLimits(saved)
       setContractLimitsDraft(saved)
       setNotice('이 회사 원본에 계약 원본 한도를 저장했습니다.')
+    } catch (error) {
+      setMessage(publicErrorMessage(error))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function saveOpenedStockPolicy() {
+    if (!companyId || !canSaveOpenCompany()) return
+    setBusy(true)
+    setNotice('')
+    setMessage('')
+    try {
+      if (!(await openSelectedFile())) return
+      const saved = await saveStockPolicy(sqlite, stockPolicyDraft)
+      setStockPolicy(saved)
+      setStockPolicyDraft(saved)
+      setNotice('이 회사 원본에 재고 한도를 저장했습니다.')
     } catch (error) {
       setMessage(publicErrorMessage(error))
     } finally {
@@ -419,7 +449,8 @@ export function CompanySettingsPage() {
               <p className="mt-2 text-sm text-muted">
                 {COMPANY_DISPLAY.language} ·{' '}
                 {formatCompanyClock(new Date(), shown.timeZone)} · {displayCurrencyName(shown.currency)} ·{' '}
-                {formatCompanyNumber(GROUPING_SAMPLE, shown.grouping)} · {contractLimitCaption(contractLimits)}
+                {formatCompanyNumber(GROUPING_SAMPLE, shown.grouping)} · {contractLimitCaption(contractLimits)} ·{' '}
+                {stockPolicyCaption(stockPolicy)}
               </p>
               {canEdit ? (
                 <div className="mt-3 flex flex-wrap items-end gap-3">
@@ -558,7 +589,60 @@ export function CompanySettingsPage() {
                     이 회사에 저장
                   </button>
                 </form>
-                <p className="basis-full text-xs text-muted">{contractLimitCaption(contractLimits)}</p>
+                <form
+                  className="flex flex-wrap items-end gap-2"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    void saveOpenedStockPolicy()
+                  }}
+                >
+                  <label className="text-sm">
+                    음수 재고
+                    <select
+                      className="mt-1 block rounded border border-line px-3 py-2"
+                      value={stockPolicyDraft.allowNegative ? 'on' : 'off'}
+                      onChange={(event) =>
+                        setStockPolicyDraft((prev) => ({
+                          ...prev,
+                          allowNegative: event.target.value === 'on',
+                        }))
+                      }
+                    >
+                      <option value="off">차단</option>
+                      <option value="on">허용</option>
+                    </select>
+                  </label>
+                  <label className="text-sm">
+                    초과 수령
+                    <select
+                      className="mt-1 block rounded border border-line px-3 py-2"
+                      value={stockPolicyDraft.allowOverReceipt ? 'on' : 'off'}
+                      onChange={(event) =>
+                        setStockPolicyDraft((prev) => ({
+                          ...prev,
+                          allowOverReceipt: event.target.value === 'on',
+                        }))
+                      }
+                    >
+                      <option value="off">차단</option>
+                      <option value="on">허용</option>
+                    </select>
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={
+                      busy ||
+                      (stockPolicyDraft.allowNegative === stockPolicy.allowNegative &&
+                        stockPolicyDraft.allowOverReceipt === stockPolicy.allowOverReceipt)
+                    }
+                    className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    이 회사에 저장
+                  </button>
+                </form>
+                <p className="basis-full text-xs text-muted">
+                  {contractLimitCaption(contractLimits)} · {stockPolicyCaption(stockPolicy)}
+                </p>
                 </div>
               ) : null}
             </div>

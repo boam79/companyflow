@@ -437,4 +437,88 @@ describe('복사용지 재고 원장', () => {
       }),
     ).toThrow(/검수 통과/)
   })
+
+  it('음수 재고는 기본 차단이고 허용이면 사유를 남긴다', () => {
+    let state = applyStockCommand(createStockState(), {
+      type: 'post_direct_in',
+      operationId: 'op-in-4',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 4,
+    }).state
+    expect(() =>
+      applyStockCommand(state, {
+        type: 'post_issue',
+        operationId: 'op-over',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qty: 5,
+        personName: '김대리',
+      }),
+    ).toThrow(/현재고를 초과해 반출/)
+    expect(() =>
+      applyStockCommand(
+        state,
+        {
+          type: 'post_issue',
+          operationId: 'op-over-reason',
+          itemId: ITEM,
+          warehouseId: MAIN,
+          qty: 5,
+          personName: '김대리',
+        },
+        { allowNegative: true, allowOverReceipt: false },
+      ),
+    ).toThrow(/초과 사유/)
+    state = applyStockCommand(
+      state,
+      {
+        type: 'post_issue',
+        operationId: 'op-over-ok',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qty: 5,
+        personName: '김대리',
+        reason: '긴급 반출',
+      },
+      { allowNegative: true, allowOverReceipt: false },
+    ).state
+    expect(onHand(state, ITEM, MAIN)).toBe(-1)
+    expect(state.ledger.at(-1)?.reason).toBe('긴급 반출')
+  })
+
+  it('초과 수령은 기본 차단이고 허용이면 사유를 남긴다', () => {
+    let state = applyStockCommand(createStockState(), {
+      type: 'confirm_order',
+      operationId: 'op-over-ord',
+      orderId: 'ord-over',
+      itemId: ITEM,
+      qty: 4,
+    }).state
+    expect(() =>
+      applyStockCommand(state, {
+        type: 'post_receipt',
+        operationId: 'op-recv-over',
+        orderId: 'ord-over',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qty: 5,
+      }),
+    ).toThrow(/잔량을 초과해 수령/)
+    state = applyStockCommand(
+      state,
+      {
+        type: 'post_receipt',
+        operationId: 'op-recv-over-ok',
+        orderId: 'ord-over',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qty: 5,
+        reason: '선입고',
+      },
+      { allowNegative: false, allowOverReceipt: true },
+    ).state
+    expect(onHand(state, ITEM, MAIN)).toBe(5)
+    expect(state.ledger.at(-1)?.reason).toBe('선입고')
+  })
 })
