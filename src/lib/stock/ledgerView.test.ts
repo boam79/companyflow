@@ -166,6 +166,32 @@ describe('입출고 수불부', () => {
       }),
     ).not.toMatch(/aaaaaaaa|원거래 aaaaaaaa/)
     expect(
+      formatLedgerLink(
+        {
+          id: 'l-back',
+          operationId: 'op-back',
+          txnType: 'supplier_return',
+          itemId: ITEM,
+          warehouseId: MAIN,
+          qtyDelta: -1,
+          sourceOperationId: 'guest:paper-in',
+          partnerId: 'partner-guest',
+        },
+        { partners: [{ id: 'partner-guest', name: '견본문구' }] },
+      ),
+    ).toBe('원입고 · 견본문구')
+    expect(
+      formatLedgerLink({
+        id: 'l-back',
+        operationId: 'op-back',
+        txnType: 'supplier_return',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qtyDelta: -1,
+        sourceOperationId: 'guest:paper-in',
+      }),
+    ).not.toMatch(/guest:paper|원거래/)
+    expect(
       formatLedgerLink({
         id: 'l3',
         operationId: 'op-recv',

@@ -3,6 +3,7 @@ import {
   applyStockCommand,
   companyOnHand,
   createStockState,
+  inboundReturnBalance,
   onHand,
   orderRemaining,
   returnBalance,
@@ -583,6 +584,51 @@ describe('복사용지 재고 원장', () => {
         qty: 5,
       }),
     ).toThrow(/검수 통과/)
+  })
+
+  it('직접 입고 반품은 원입고 잔량만 받고 발주를 만들지 않는다', () => {
+    let state = applyStockCommand(createStockState(), {
+      type: 'post_direct_in',
+      operationId: 'op-in',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 5,
+      partnerId: 'partner-guest',
+    }).state
+    state = applyStockCommand(state, {
+      type: 'post_supplier_return',
+      operationId: 'op-back',
+      sourceOperationId: 'op-in',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 2,
+    }).state
+    expect(onHand(state, ITEM, MAIN)).toBe(3)
+    expect(state.orders.size).toBe(0)
+    expect(inboundReturnBalance(state.ledger, 'op-in', ITEM)).toEqual({ inbound: 5, already: 2, left: 3 })
+    expect(state.ledger.some((line) => line.txnType === 'supplier_return' && line.partnerId === 'partner-guest')).toBe(
+      true,
+    )
+    expect(state.ledger.some((line) => line.txnType === 'supplier_return' && line.orderId)).toBe(false)
+    expect(() =>
+      applyStockCommand(state, {
+        type: 'post_supplier_return',
+        operationId: 'op-back-too-many',
+        sourceOperationId: 'op-in',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qty: 4,
+      }),
+    ).toThrow(/원입고/)
+    expect(() =>
+      applyStockCommand(createStockState(), {
+        type: 'post_supplier_return',
+        operationId: 'op-none',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qty: 1,
+      }),
+    ).toThrow(/입고 줄/)
   })
 
   it('음수 재고는 기본 차단이고 허용이면 사유를 남긴다', () => {

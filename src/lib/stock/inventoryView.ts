@@ -36,8 +36,10 @@ export function stockPageLead() {
   return '입고하면 현재고가 늘고 반출하면 줄어듭니다. 자리의 물건은 자산 메뉴입니다.'
 }
 
-export function stockInboundItemHint() {
-  return '없는 이름은 입고할 때 비품으로 등록됩니다. 자리의 물건은 자산 메뉴입니다.'
+export function stockInboundItemHint(item?: Pick<ItemRecord, 'unit'> | null) {
+  const unit = item?.unit?.trim()
+  const base = '없는 이름은 입고할 때 비품으로 등록됩니다. 자리의 물건은 자산 메뉴입니다.'
+  return unit ? `${base} 단위 ${unit}.` : base
 }
 
 export function stockAssetsLinkLabel() {
@@ -121,9 +123,11 @@ export function transferWarehouseIds(
   return { fromWarehouseId, toWarehouseId }
 }
 
-export function stockSupplierReturnLead(net = 0) {
+export function stockSupplierReturnLead(net = 0, mode: 'order' | 'inbound' = 'order') {
   const base =
-    '검수 통과분만 공급사에 돌려 보냅니다. 현재고가 줄고 발주 잔량이 늘어납니다. 불량 거절품 반환은 이 화면에서 다루지 않습니다.'
+    mode === 'inbound'
+      ? '원입고를 골라 공급사에 돌려 보냅니다. 발주는 만들지 않습니다.'
+      : '검수 통과분만 공급사에 돌려 보냅니다. 현재고가 줄고 발주 잔량이 늘어납니다. 불량 거절품 반환은 이 화면에서 다루지 않습니다.'
   if (!(net > 0)) return base
   return `${base} 반품 가능 ${net}.`
 }

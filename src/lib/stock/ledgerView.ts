@@ -76,8 +76,12 @@ export function formatLedgerLink(
   const parts: string[] = []
   const orderRef = publicOrderRef(line.orderId)
   if (orderRef) parts.push(`발주 ${orderRef}`)
-  const sourceRef = publicOrderRef(line.sourceOperationId)
-  if (sourceRef) parts.push(`원거래 ${sourceRef}`)
+  if (line.txnType === 'supplier_return' && line.sourceOperationId) {
+    parts.push('원입고')
+  } else {
+    const sourceRef = publicOrderRef(line.sourceOperationId)
+    if (sourceRef) parts.push(`원거래 ${sourceRef}`)
+  }
   if (line.personName) parts.push(line.personName)
   if (line.departmentId) {
     const department = names?.departments?.find((row) => row.id === line.departmentId)

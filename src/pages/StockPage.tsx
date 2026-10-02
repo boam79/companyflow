@@ -27,7 +27,7 @@ import {
   type PurchaseRequest,
 } from '../lib/stock/request'
 import { toArrayBuffer } from '../lib/contracts/book'
-import { onHand, orderNetReceived, orderRemaining, returnBalance, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
+import { onHand, orderNetReceived, orderRemaining, returnBalance, inboundReturnBalance, inboundSupplierSource, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { defaultStockPolicy, loadStockPolicy, showsOverflowReason } from '../lib/stock/policy'
 import { assertDueReturnAt, assertInboundAt, buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderQtyText, orderReceiptProgress, publicStockOrderId, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssueNoteLead, stockIssuePersonName, stockLastSaveLead, stockOutboundLead, stockPageLead, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, supplyLowStock, todayYmd, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
@@ -268,7 +268,7 @@ export function StockPage() {
     setSelectedLine(line)
     chooseItem(line.itemId)
     setWarehouseId(line.warehouseId)
-    if (line.txnType === 'issue' || line.txnType === 'outbound') {
+    if (line.txnType === 'issue' || line.txnType === 'outbound' || line.txnType === 'direct_in') {
       setSourceOperationId(line.operationId)
     } else if (line.sourceOperationId) {
       setSourceOperationId(line.sourceOperationId)
@@ -277,6 +277,7 @@ export function StockPage() {
 
   function chooseOrder(row: PurchaseOrderRow) {
     setOrderId(row.orderId)
+    setSelectedLine(null)
     setItemId(row.itemId)
     setOrderPartnerId(row.partnerId ?? '')
     setOrderDueDate(row.dueDate ?? '')
@@ -463,8 +464,19 @@ export function StockPage() {
       const useWh = defaultWarehouseId(warehouses, state, useItem)
       if (useWh && useWh !== warehouseId) setWarehouseId(useWh)
       const onHandQty = onHand(state, useItem, useWh || warehouseId)
+      const inbound =
+        nextAction === 'post_supplier_return'
+          ? inboundSupplierSource(state.ledger, sourceOperationId, useItem, selectedLine)
+          : undefined
       const returnable =
-        nextAction === 'post_supplier_return' ? Math.min(onHandQty, orderNetReceived(state, orderId, useItem)) : onHandQty
+        nextAction === 'post_supplier_return'
+          ? Math.min(
+              onHandQty,
+              inbound
+                ? inboundReturnBalance(state.ledger, inbound.operationId, useItem).left
+                : orderNetReceived(state, orderId, useItem),
+            )
+          : onHandQty
       setQty(String(returnable > 0 ? Math.min(1, returnable) : 1))
       return
     }
@@ -551,7 +563,21 @@ export function StockPage() {
           ...(Number(defectQty) > 0 ? { defectQty: Number(defectQty) } : {}),
           ...overflowReasonField(),
         }
-      case 'post_supplier_return':
+      case 'post_supplier_return': {
+        const inbound = state
+          ? inboundSupplierSource(state.ledger, sourceOperationId, nextItemId, selectedLine)
+          : undefined
+        if (inbound) {
+          return {
+            type: action,
+            operationId: nextOperationId,
+            itemId: nextItemId,
+            warehouseId,
+            qty: quantity,
+            sourceOperationId: inbound.operationId,
+            ...overflowReasonField(),
+          }
+        }
         return {
           type: action,
           operationId: nextOperationId,
@@ -561,6 +587,7 @@ export function StockPage() {
           qty: quantity,
           ...overflowReasonField(),
         }
+      }
       case 'post_direct_in':
         return {
           type: action,
@@ -864,7 +891,14 @@ export function StockPage() {
   const showsTransfer = inventoryShowsTransferFields(action, warehouses.length)
   const adjustBookQty = state ? onHand(state, itemId, warehouseId) : 0
   const returnRemain = returnBalance(state?.ledger ?? [], sourceOperationId)
-  const supplierReturnNet = state ? orderNetReceived(state, orderId, itemId) : 0
+  const inboundReturnSource = state
+    ? inboundSupplierSource(state.ledger, sourceOperationId, itemId, selectedLine)
+    : undefined
+  const supplierReturnNet = !state
+    ? 0
+    : inboundReturnSource
+      ? inboundReturnBalance(state.ledger, inboundReturnSource.operationId, itemId).left
+      : orderNetReceived(state, orderId, itemId)
   const receiptRemaining = state ? orderRemaining(state, orderId, itemId) : 0
   const lowRows = state ? supplyLowStock(items, state) : []
   const supplyOrders = state ? buildSupplyOrderList(items, state, partners) : []
@@ -1477,7 +1511,10 @@ export function StockPage() {
         {notice ? <p className="text-sm text-ok">{notice}</p> : null}
         {message ? <p className="text-sm text-danger">{message}</p> : null}
         <div className="grid gap-3 sm:grid-cols-2">
-          {action === 'draft_order' || action === 'confirm_order' || action === 'post_receipt' || action === 'post_supplier_return' ? (
+          {action === 'draft_order' ||
+          action === 'confirm_order' ||
+          action === 'post_receipt' ||
+          (action === 'post_supplier_return' && !inboundReturnSource) ? (
             <label className="text-sm">
               발주 번호
               <input
@@ -1625,7 +1662,7 @@ export function StockPage() {
               </datalist>
               <span className="mt-1 block text-xs text-muted">
                 {isInboundStockAction(action)
-                  ? stockInboundItemHint()
+                  ? stockInboundItemHint(items.find((row) => row.id === itemId))
                   : action === 'transfer_stock'
                     ? '있는 비품만 다른 창고로 옮깁니다.'
                     : '있는 비품 이름만 반출·출고할 수 있습니다.'}
@@ -1874,7 +1911,9 @@ export function StockPage() {
         ) : null}
         {action === 'convert_to_asset' ? <p className="text-sm text-muted">{stockConvertLead()}</p> : null}
         {action === 'post_supplier_return' ? (
-          <p className="text-sm text-muted">{stockSupplierReturnLead(supplierReturnNet)}</p>
+          <p className="text-sm text-muted">
+            {stockSupplierReturnLead(supplierReturnNet, inboundReturnSource ? 'inbound' : 'order')}
+          </p>
         ) : null}
         {action === 'transfer_stock' ? <p className="text-sm text-muted">{stockTransferLead()}</p> : null}
         {action === 'post_return' ? (
@@ -1887,19 +1926,7 @@ export function StockPage() {
             )}
           </p>
         ) : action === 'reverse_transaction' ? (
-          guest ? (
-            <p className="text-sm text-muted">{stockLastSaveLead()}</p>
-          ) : (
-          <label className="text-sm">
-            원거래
-            <input
-              className="mt-1 w-full rounded border border-line px-3 py-2"
-              value={sourceOperationId}
-              onChange={(e) => setSourceOperationId(e.target.value)}
-              placeholder="직전 저장"
-            />
-          </label>
-          )
+          <p className="text-sm text-muted">{stockLastSaveLead()}</p>
         ) : null}
         {action === 'adjust_stock' ? (
           <>

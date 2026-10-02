@@ -77,7 +77,8 @@ export type StockCommand =
   | {
       type: 'post_supplier_return'
       operationId: string
-      orderId: string
+      orderId?: string
+      sourceOperationId?: string
       itemId: string
       warehouseId: string
       qty: number
@@ -227,6 +228,42 @@ export function returnBalance(ledger: LedgerLine[], sourceOperationId?: string) 
     .filter((line) => line.sourceOperationId === source && line.txnType === 'return')
     .reduce((sum, line) => sum + line.qtyDelta, 0)
   return { issued, already, left: Math.max(0, issued - already) }
+}
+
+export function inboundLine(ledger: LedgerLine[], sourceOperationId?: string, itemId?: string) {
+  const source = sourceOperationId?.trim() ?? ''
+  if (!source) return undefined
+  return ledger.find(
+    (line) =>
+      line.operationId === source &&
+      line.txnType === 'direct_in' &&
+      (!itemId || line.itemId === itemId),
+  )
+}
+
+export function inboundSupplierSource(
+  ledger: LedgerLine[],
+  sourceOperationId?: string,
+  itemId?: string,
+  selected?: LedgerLine | null,
+) {
+  if (selected?.txnType === 'direct_in' && (!itemId || selected.itemId === itemId)) return selected
+  return inboundLine(ledger, sourceOperationId, itemId)
+}
+
+export function inboundReturnBalance(ledger: LedgerLine[], sourceOperationId?: string, itemId?: string) {
+  const source = inboundLine(ledger, sourceOperationId, itemId)
+  if (!source) return { inbound: 0, already: 0, left: 0 }
+  const inbound = Math.abs(source.qtyDelta)
+  const already = ledger
+    .filter(
+      (line) =>
+        line.sourceOperationId === source.operationId &&
+        line.txnType === 'supplier_return' &&
+        (!itemId || line.itemId === itemId),
+    )
+    .reduce((sum, line) => sum + Math.abs(line.qtyDelta), 0)
+  return { inbound, already, left: Math.max(0, inbound - already) }
 }
 
 function requirePositive(qty: number) {
@@ -476,14 +513,39 @@ export function applyStockCommand(
     }
     case 'post_supplier_return': {
       requirePositive(command.qty)
-      const order = next.orders.get(command.orderId)
+      const inbound = inboundLine(next.ledger, command.sourceOperationId, command.itemId)
+      if (inbound) {
+        const { left } = inboundReturnBalance(next.ledger, inbound.operationId, command.itemId)
+        if (command.qty > left) throw new Error('원입고 수량을 초과해 반품할 수 없습니다.')
+        assertStockOverflow({
+          over: command.qty > onHand(next, command.itemId, command.warehouseId),
+          allowed: policy.allowNegative,
+          reason: command.reason,
+          blocked: '현재고를 초과해 반품할 수 없습니다.',
+        })
+        next.ledger.push({
+          id: `${command.operationId}:supplier-return`,
+          operationId: command.operationId,
+          txnType: 'supplier_return',
+          itemId: command.itemId,
+          warehouseId: command.warehouseId,
+          qtyDelta: -command.qty,
+          sourceOperationId: inbound.operationId,
+          partnerId: inbound.partnerId,
+          reason: command.reason?.trim() || undefined,
+        })
+        break
+      }
+      const orderId = command.orderId?.trim() ?? ''
+      if (!orderId) throw new Error('수불부에서 입고 줄을 고르거나 발주를 넣으세요.')
+      const order = next.orders.get(orderId)
       if (!order || order.status !== 'confirmed') {
         throw new Error('확정된 발주만 반품할 수 있습니다.')
       }
       if (!stockOrderLines(order).some((line) => line.itemId === command.itemId)) {
         throw new Error('발주 품목이 다릅니다.')
       }
-      const net = orderNetReceived(next, command.orderId, command.itemId)
+      const net = orderNetReceived(next, orderId, command.itemId)
       if (command.qty > net) throw new Error('검수 통과 수량을 초과해 반품할 수 없습니다.')
       assertStockOverflow({
         over: command.qty > onHand(next, command.itemId, command.warehouseId),
@@ -498,7 +560,7 @@ export function applyStockCommand(
         itemId: command.itemId,
         warehouseId: command.warehouseId,
         qtyDelta: -command.qty,
-        orderId: command.orderId,
+        orderId,
         reason: command.reason?.trim() || undefined,
       })
       break

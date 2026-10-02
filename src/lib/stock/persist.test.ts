@@ -366,4 +366,31 @@ describe('재고 영속 묶음', () => {
     expect(statements[0]?.params).toContain('샘플 메모')
     expect(statements[0]?.params).toContain('견본입고.png')
   })
+
+  it('직접 입고 반품 SQL은 원입고만 남기고 발주 행은 만들지 않는다', () => {
+    let state = applyStockCommand(createStockState(), {
+      type: 'post_direct_in',
+      operationId: 'op-in',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 5,
+      partnerId: 'partner-guest',
+    }).state
+    const command = {
+      type: 'post_supplier_return' as const,
+      operationId: 'op-back',
+      sourceOperationId: 'op-in',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 2,
+    }
+    const next = applyStockCommand(state, command).state
+    const statements = statementsForCommand(command, state, next, '2026-10-03T00:00:00.000Z')
+    expect(statements.some((stmt) => stmt.sql.includes('stock_orders'))).toBe(false)
+    expect(next.orders.size).toBe(0)
+    const returned = statements.find((stmt) => stmt.sql.includes('stock_ledger'))
+    expect(returned?.params).toContain('op-in')
+    expect(returned?.params).toContain('partner-guest')
+    expect(returned?.params).not.toContain('ord-1')
+  })
 })

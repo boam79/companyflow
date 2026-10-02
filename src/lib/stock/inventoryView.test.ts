@@ -76,6 +76,7 @@ describe('비품 현재고', () => {
     expect(stockPageLead()).not.toMatch(/책상|컴퓨터/)
     expect(stockInboundItemHint()).toContain('비품으로 등록')
     expect(stockInboundItemHint()).not.toMatch(/책상|컴퓨터/)
+    expect(stockInboundItemHint({ unit: '박스' })).toContain('단위 박스')
     expect(stockAssetsLinkLabel()).toBe('자리의 물건은 자산')
     expect(stockAssetsLinkLabel()).not.toMatch(/가구|책상/)
     expect(stockIssuePersonName()).toBe('')
@@ -122,6 +123,10 @@ describe('비품 현재고', () => {
     expect(stockSupplierReturnLead(0)).not.toMatch(/반품 가능/)
     expect(stockSupplierReturnLead(2)).toContain('반품 가능 2')
     expect(stockSupplierReturnLead(2)).not.toMatch(/반품 가능 0|operation_id/)
+    expect(stockSupplierReturnLead(7, 'inbound')).toContain('원입고')
+    expect(stockSupplierReturnLead(7, 'inbound')).toContain('발주는 만들지 않습니다')
+    expect(stockSupplierReturnLead(7, 'inbound')).not.toMatch(/발주 잔량|반품 가능 0|guest:|operation_id/)
+    expect(stockSupplierReturnLead(0, 'inbound')).not.toMatch(/반품 가능/)
     expect(stockSavedNotice({ duplicate: true, actionLabel: '입고', assetCount: 0 })).toBe(
       '같은 거래는 한 번만 반영됩니다.',
     )
