@@ -5,8 +5,10 @@ import { WorkCompanyControl } from '../components/WorkCompanyControl'
 import { assetNumber, loadAssets, type AssetRecord } from '../lib/asset/book'
 import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
 import {
+  assetLifeAttachment,
   assetLifeLabel,
   executeAssetLife,
+  loadAssetEventOriginal,
   loadAssetEvents,
   readAssetLifeForm,
   type AssetLifeEvent,
@@ -33,6 +35,7 @@ import { ModuleClosed } from '../components/ModuleClosed'
 import { assetsEmptyLead, assetsInboxHeading, assetsListHeading, assetsMissingQrHint, assetsPageLead, assetsPrintedQrLead } from '../lib/asset/empty'
 import { countHeading, showsEmptyPickHint } from '../lib/company/nav'
 import { publicErrorMessage } from '../lib/publicError'
+import { toArrayBuffer } from '../lib/contracts/book'
 
 type NamedRow = { id: string; name: string }
 type PrintedQr = { id: string; url: string; dataUrl: string }
@@ -75,6 +78,13 @@ export function AssetsPage() {
   const [today, setToday] = useState(() => formatCompanyDate(new Date(), 'Asia/Seoul'))
   const [lifeForm, setLifeForm] = useState(() => emptyLifeForm(formatCompanyDate(new Date(), 'Asia/Seoul')))
   const [formTick, setFormTick] = useState(0)
+  const [lifeFileName, setLifeFileName] = useState('')
+  const [pendingLifeFile, setPendingLifeFile] = useState<{
+    fileName: string
+    fileMime: string
+    fileBase64: string
+  } | null>(null)
+  const lifeFileInput = useRef<HTMLInputElement>(null)
   const [notice, setNotice] = useState('')
   const [message, setMessage] = useState('')
   const [ready, setReady] = useState(() => sqlite.isOpen(sqlite.companyId))
@@ -286,12 +296,16 @@ export function AssetsPage() {
         operationId: crypto.randomUUID(),
         assetId: selectedId,
         ...fields,
+        ...(pendingLifeFile ?? {}),
       })
       const assetRows = await loadAssets(sqlite)
       setAssets(assetRows)
       setEvents(await loadAssetEvents(sqlite, selectedId))
       setLifeForm({ kind: fields.kind, happenedAt: today })
       setFormTick((tick) => tick + 1)
+      setPendingLifeFile(null)
+      setLifeFileName('')
+      if (lifeFileInput.current) lifeFileInput.current.value = ''
       setNotice(
         result.status === 'duplicate'
           ? '같은 이력은 한 번만 반영됩니다.'
@@ -301,6 +315,34 @@ export function AssetsPage() {
       setMessage(publicErrorMessage(error))
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function pickLifeFile(file: File) {
+    setMessage('')
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      const attached = assetLifeAttachment({ name: file.name, mime: file.type, bytes })
+      setPendingLifeFile(attached)
+      setLifeFileName(attached.fileName)
+    } catch (error) {
+      setMessage(publicErrorMessage(error))
+      if (lifeFileInput.current) lifeFileInput.current.value = ''
+    }
+  }
+
+  async function downloadLifeFile(eventId: string) {
+    setMessage('')
+    try {
+      const original = await loadAssetEventOriginal(sqlite, eventId)
+      const url = URL.createObjectURL(new Blob([toArrayBuffer(original.bytes)], { type: original.fileMime }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = original.fileName
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      setMessage(publicErrorMessage(error))
     }
   }
 
@@ -542,6 +584,9 @@ export function AssetsPage() {
                         setSelectedId(asset.id)
                         setLifeForm(emptyLifeForm(today))
                         setFormTick((tick) => tick + 1)
+                        setPendingLifeFile(null)
+                        setLifeFileName('')
+                        if (lifeFileInput.current) lifeFileInput.current.value = ''
                         setMessage('')
                         void loadAssetEvents(sqlite, asset.id).then(setEvents)
                       }}
@@ -701,6 +746,31 @@ export function AssetsPage() {
                 defaultValue=""
               />
             </label>
+            <div className="sm:col-span-2 text-sm">
+              이력 첨부
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <input
+                  ref={lifeFileInput}
+                  aria-label="이력 원본"
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                  className="sr-only"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) void pickLifeFile(file)
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={busy || !ready}
+                  className="rounded border border-line px-3 py-2 text-sm font-semibold disabled:opacity-50"
+                  onClick={() => lifeFileInput.current?.click()}
+                >
+                  이력 첨부
+                </button>
+                <span className="text-xs text-muted">{lifeFileName || 'PDF·PNG·JPEG 8MB'}</span>
+              </div>
+            </div>
             <div className="sm:col-span-2">
               <button
                 type="submit"
@@ -720,6 +790,15 @@ export function AssetsPage() {
                   <span className="text-muted"> · {event.happenedAt}</span>
                   {event.locationText ? <span> · {event.locationText}</span> : null}
                   {event.reason ? <span className="text-muted"> · {event.reason}</span> : null}
+                  {event.fileName ? (
+                    <button
+                      type="button"
+                      className="ml-2 text-sm text-accent underline"
+                      onClick={() => void downloadLifeFile(event.id)}
+                    >
+                      {event.fileName}
+                    </button>
+                  ) : null}
                 </li>
               ))}
             </ul>

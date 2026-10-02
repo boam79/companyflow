@@ -122,9 +122,16 @@ test('게스트 자산은 이관하고 빈 QR을 만든다', async ({ page }) =>
   await page.goto('/guest/assets')
   await expect(page.getByRole('heading', { name: '자산', exact: true })).toBeVisible({ timeout: 20000 })
   await page.getByRole('cell', { name: '샘플 책상' }).click()
+  await expect(page.getByRole('button', { name: '이력 첨부' })).toBeVisible()
+  await page.getByLabel('이력 원본').setInputFiles({
+    name: '견본이관.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+  })
   await page.getByLabel('위치').fill('샘플 3층')
   await page.getByRole('button', { name: '이관 저장' }).click()
   await expect(page.getByText('이관 이력을 남겼습니다. 직원에게 배정하지 않았습니다.')).toBeVisible()
+  await expect(page.getByRole('button', { name: '견본이관.png', exact: true })).toBeVisible()
   await page.getByRole('button', { name: '빈 QR 만들기' }).click()
   await expect(page.getByText(/샘플 빈 QR/)).toBeVisible()
   await expectNoHqLeftovers(page)

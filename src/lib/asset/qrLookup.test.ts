@@ -55,7 +55,9 @@ describe('등록 QR 자산 상세', () => {
     })
     expect(detail.assetNumber.startsWith('AST-')).toBe(true)
     expect(detail.history).toEqual(['이관 · 2026-09-20 · 본사 3층 총무석 · 자리 이동'])
-    expect(qrHistoryLine(events[0])).toBe('이관 · 2026-09-20 · 본사 3층 총무석 · 자리 이동')
+    expect(qrHistoryLine({ ...events[0], fileName: '견본이관.png' })).toBe(
+      '이관 · 2026-09-20 · 본사 3층 총무석 · 자리 이동 · 견본이관.png',
+    )
   })
 
   it('휴대폰에는 원본 상세를 보여 주지 않는다', () => {

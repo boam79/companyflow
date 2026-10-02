@@ -1,3 +1,4 @@
+import { assertContractFile, base64ToBytes, bytesToBase64 } from '../contracts/book'
 import { loadAssets, type AssetRecord } from './book'
 
 export const ASSET_EVENT_TABLE_SQL = [
@@ -10,7 +11,10 @@ export const ASSET_EVENT_TABLE_SQL = [
     location_text text,
     department_name text,
     owner_name text,
-    created_at text not null
+    created_at text not null,
+    file_name text,
+    file_mime text,
+    file_base64 text
   );`,
 ]
 
@@ -26,6 +30,8 @@ export type AssetLifeEvent = {
   departmentName?: string
   ownerName?: string
   createdAt: string
+  fileName?: string
+  fileMime?: string
 }
 
 export type AssetLifeInput = {
@@ -37,6 +43,9 @@ export type AssetLifeInput = {
   locationText?: string
   departmentName?: string
   ownerName?: string
+  fileName?: string
+  fileMime?: string
+  fileBase64?: string
 }
 
 const LIFE_LABELS: Record<AssetLifeKind, string> = {
@@ -47,6 +56,15 @@ const LIFE_LABELS: Record<AssetLifeKind, string> = {
 
 export function assetLifeLabel(kind: AssetLifeKind) {
   return LIFE_LABELS[kind]
+}
+
+export function assetLifeAttachment(file: { name: string; mime?: string; bytes: Uint8Array }) {
+  const fileMime = assertContractFile(file.bytes.byteLength, file.mime, file.name, file.bytes)
+  return {
+    fileName: file.name.trim() || '자산첨부',
+    fileMime,
+    fileBase64: bytesToBase64(file.bytes),
+  }
 }
 
 export function normalizeHangulField(raw: string) {
@@ -107,8 +125,10 @@ export async function loadAssetEvents(
     department_name?: string | null
     owner_name?: string | null
     created_at: string
+    file_name?: string | null
+    file_mime?: string | null
   }>(
-    `select id, asset_id, kind, happened_at, reason, location_text, department_name, owner_name, created_at
+    `select id, asset_id, kind, happened_at, reason, location_text, department_name, owner_name, created_at, file_name, file_mime
       from asset_events where asset_id = ? order by happened_at, created_at, id`,
     [assetId],
   )
@@ -122,7 +142,27 @@ export async function loadAssetEvents(
     departmentName: row.department_name ?? undefined,
     ownerName: row.owner_name ?? undefined,
     createdAt: row.created_at,
+    fileName: row.file_name ?? undefined,
+    fileMime: row.file_mime ?? undefined,
   }))
+}
+
+export async function loadAssetEventOriginal(
+  db: { query: <T>(sql: string, params?: unknown[]) => Promise<T[]> },
+  eventId: string,
+) {
+  const rows = await db.query<{
+    file_name?: string | null
+    file_mime?: string | null
+    file_base64?: string | null
+  }>('select file_name, file_mime, file_base64 from asset_events where id = ?', [eventId])
+  const row = rows[0]
+  if (!row?.file_base64 || !row.file_name) throw new Error('이력 첨부가 없습니다.')
+  return {
+    fileName: row.file_name,
+    fileMime: row.file_mime || 'application/octet-stream',
+    bytes: base64ToBytes(row.file_base64),
+  }
 }
 
 export async function executeAssetLife(
@@ -141,6 +181,13 @@ export async function executeAssetLife(
   const assets = await loadAssets(db)
   const next = applyAssetLife(assets, command).find((row) => row.id === command.assetId)
   if (!next) throw new Error('자산을 찾을 수 없습니다.')
+  const fileName = command.fileName?.trim() || undefined
+  const fileBase64 = command.fileBase64?.trim() || undefined
+  if (fileBase64 && !fileName) throw new Error('이력 첨부 이름이 필요합니다.')
+  const fileBytes = fileBase64 ? base64ToBytes(fileBase64) : undefined
+  const fileMime = fileBytes
+    ? assertContractFile(fileBytes.byteLength, command.fileMime, fileName, fileBytes)
+    : undefined
   try {
     await db.batch([
       {
@@ -158,8 +205,10 @@ export async function executeAssetLife(
         ],
       },
       {
-        sql: `insert into asset_events(id, asset_id, kind, happened_at, reason, location_text, department_name, owner_name, created_at)
-          values(?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        sql: `insert into asset_events(
+            id, asset_id, kind, happened_at, reason, location_text, department_name, owner_name, created_at,
+            file_name, file_mime, file_base64)
+          values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         params: [
           command.operationId,
           command.assetId,
@@ -170,6 +219,9 @@ export async function executeAssetLife(
           command.kind === 'transfer' ? next.departmentName ?? null : command.departmentName?.trim() || null,
           command.kind === 'transfer' ? next.ownerName ?? null : command.ownerName?.trim() || null,
           createdAt,
+          fileName ?? null,
+          fileMime ?? null,
+          fileBase64 ?? null,
         ],
       },
       {
@@ -177,7 +229,11 @@ export async function executeAssetLife(
         params: [
           `${command.operationId}:audit`,
           'asset_life',
-          JSON.stringify({ assetId: command.assetId, kind: command.kind }),
+          JSON.stringify({
+            assetId: command.assetId,
+            kind: command.kind,
+            ...(fileName ? { fileName } : {}),
+          }),
           createdAt,
         ],
       },
