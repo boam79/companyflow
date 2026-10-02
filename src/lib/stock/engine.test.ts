@@ -103,6 +103,46 @@ describe('복사용지 재고 원장', () => {
     ).toThrow(/반출 수량을 초과해 반납할 수 없습니다/)
   })
 
+  it('직접 입고는 발주를 만들지 않고 현재고만 늘린다', () => {
+    const state = applyStockCommand(createStockState(), {
+      type: 'post_direct_in',
+      operationId: 'op-direct-1',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 3,
+    }).state
+    expect(state.orders.size).toBe(0)
+    expect(onHand(state, ITEM, MAIN)).toBe(3)
+  })
+
+  it('출고는 현재고를 줄이고 잔량을 넘지 못한다', () => {
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'post_direct_in',
+      operationId: 'op-in-4',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 4,
+    }).state
+    state = applyStockCommand(state, {
+      type: 'post_outbound',
+      operationId: 'op-out-1',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 1,
+    }).state
+    expect(onHand(state, ITEM, MAIN)).toBe(3)
+    expect(() =>
+      applyStockCommand(state, {
+        type: 'post_outbound',
+        operationId: 'op-out-too-many',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qty: 9,
+      }),
+    ).toThrow(/현재고를 초과해 출고할 수 없습니다/)
+  })
+
   it('이동 후에도 회사 합계는 같고 같은 operation_id 는 한 번만 반영된다', () => {
     let state = createStockState()
     state = applyStockCommand(state, {

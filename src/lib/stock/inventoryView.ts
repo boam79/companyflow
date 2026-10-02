@@ -163,6 +163,36 @@ export function stockReturnLead(personName?: string, issued = 0, left = 0) {
   return `${source} · 반납 가능 ${left}`
 }
 
+function publicStockOrderId(orderId?: string) {
+  const text = orderId?.trim() ?? ''
+  if (!text) return ''
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text)) return ''
+  if (/^(guest:|sample:)/i.test(text)) return ''
+  return text
+}
+
+export function stockDirectInLead() {
+  return '발주·요청 없이 현재고만 늘립니다.'
+}
+
+export function stockOutboundLead() {
+  return '출고하면 현재고가 줄어듭니다. 사람 이름은 적지 않습니다.'
+}
+
+export function stockReceiptLead(orderId?: string, remaining = 0, defectText = '') {
+  const parts = ['정상만 현재고에 들어갑니다.']
+  const defect = Number(defectText)
+  if (defectText.trim() && Number.isFinite(defect) && defect > 0) {
+    parts.push('불량은 현재고에 넣지 않습니다.')
+  }
+  const order = publicStockOrderId(orderId)
+  if (order) {
+    if (remaining > 0) parts.push(`발주 ${order} 잔량 ${remaining}.`)
+    else parts.push('이 발주는 다 받았습니다.')
+  }
+  return parts.join(' ')
+}
+
 export function buildSupplyInventory(
   items: ItemRecord[],
   warehouses: NamedWarehouse[],

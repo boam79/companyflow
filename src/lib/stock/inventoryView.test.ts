@@ -20,6 +20,9 @@ import {
   stockIssuePersonName,
   stockAdjustReason,
   stockAdjustLead,
+  stockDirectInLead,
+  stockOutboundLead,
+  stockReceiptLead,
   stockSupplierReturnLead,
   stockTransferLead,
   supplyLowStock,
@@ -132,6 +135,22 @@ describe('비품 현재고', () => {
     )
     expect(stockReturnLead('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', 2, 2)).not.toMatch(
       /aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/,
+    )
+    expect(stockDirectInLead()).toContain('발주·요청 없이')
+    expect(stockDirectInLead()).not.toMatch(/아직|operation_id|본사창고/)
+    expect(stockOutboundLead()).toContain('현재고가 줄어듭니다')
+    expect(stockOutboundLead()).not.toMatch(/김담당|반출 성명/)
+    expect(stockReceiptLead('', 0, '0')).toBe('정상만 현재고에 들어갑니다.')
+    expect(stockReceiptLead('', 0, '0')).not.toMatch(/잔량 0|불량 0/)
+    expect(stockReceiptLead('ORD-DEMO-01', 2, '1')).toBe(
+      '정상만 현재고에 들어갑니다. 불량은 현재고에 넣지 않습니다. 발주 ORD-DEMO-01 잔량 2.',
+    )
+    expect(stockReceiptLead('ORD-DEMO-01', 0, '')).toBe(
+      '정상만 현재고에 들어갑니다. 이 발주는 다 받았습니다.',
+    )
+    expect(stockReceiptLead('ORD-DEMO-01', 0, '')).not.toMatch(/잔량 0/)
+    expect(stockReceiptLead('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', 2, '')).toBe(
+      '정상만 현재고에 들어갑니다.',
     )
     expect(buildSupplyInventory(items, WAREHOUSES, state)).toEqual([
       {
