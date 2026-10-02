@@ -13,6 +13,7 @@ import {
   stockAssetsLinkLabel,
   stockPageLead,
   stockLastSaveLead,
+  stockReturnLead,
   stockReturnSourceLead,
   stockSavedNotice,
   stockDraftOrderId,
@@ -107,6 +108,9 @@ describe('비품 현재고', () => {
       toWarehouseId: 'wh-sub',
     })
     expect(stockSupplierReturnLead()).not.toMatch(/아직/)
+    expect(stockSupplierReturnLead(0)).not.toMatch(/반품 가능/)
+    expect(stockSupplierReturnLead(2)).toContain('반품 가능 2')
+    expect(stockSupplierReturnLead(2)).not.toMatch(/반품 가능 0|operation_id/)
     expect(stockSavedNotice({ duplicate: true, actionLabel: '입고', assetCount: 0 })).toBe(
       '같은 거래는 한 번만 반영됩니다.',
     )
@@ -119,6 +123,16 @@ describe('비품 현재고', () => {
     expect(stockReturnSourceLead('견본 김대리')).toBe('견본 김대리 반출')
     expect(stockReturnSourceLead('')).toBe('수불부에서 반출 줄을 고르세요.')
     expect(stockReturnSourceLead('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee')).toBe('수불부에서 반출 줄을 고르세요.')
+    expect(stockReturnLead('견본 김대리', 1, 1)).toBe('견본 김대리 반출 · 반납 가능 1')
+    expect(stockReturnLead('견본 김대리', 1, 0)).toBe('견본 김대리 반출 · 다 돌아왔습니다.')
+    expect(stockReturnLead('견본 김대리', 1, 0)).not.toMatch(/반납 가능 0/)
+    expect(stockReturnLead('', 0, 0)).toBe('수불부에서 반출 줄을 고르세요.')
+    expect(stockReturnLead('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', 2, 2)).toBe(
+      '수불부에서 반출 줄을 고르세요. · 반납 가능 2',
+    )
+    expect(stockReturnLead('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', 2, 2)).not.toMatch(
+      /aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/,
+    )
     expect(buildSupplyInventory(items, WAREHOUSES, state)).toEqual([
       {
         itemId: 'item-paper',

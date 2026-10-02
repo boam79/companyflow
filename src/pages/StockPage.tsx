@@ -27,9 +27,9 @@ import {
   type PurchaseRequest,
 } from '../lib/stock/request'
 import { toArrayBuffer } from '../lib/contracts/book'
-import { onHand, orderNetReceived, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
+import { onHand, orderNetReceived, orderRemaining, returnBalance, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { defaultStockPolicy, loadStockPolicy, showsOverflowReason } from '../lib/stock/policy'
-import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssuePersonName, stockLastSaveLead, stockPageLead, stockReturnSourceLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, supplyLowStock, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssuePersonName, stockLastSaveLead, stockPageLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, supplyLowStock, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, ledgerRelatedJumps, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -313,6 +313,12 @@ export function StockPage() {
     if (employee?.department_id) setRequestDeptId(employee.department_id)
   }
 
+  function onIssuePersonChange(name: string) {
+    setPersonName(name)
+    const employee = employees.find((row) => row.name === name)
+    if (employee?.department_id) setDepartmentId(employee.department_id)
+  }
+
   async function pickRequestFile(file: File) {
     setMessage('')
     try {
@@ -421,7 +427,11 @@ export function StockPage() {
       setQty(String(returnable > 0 ? Math.min(1, returnable) : 1))
       return
     }
-    if (nextAction === 'post_return') setQty('1')
+    if (nextAction === 'post_return') {
+      const { left } = returnBalance(state.ledger, sourceOperationId)
+      setQty(String(left > 0 ? left : 1))
+      return
+    }
     if (nextAction === 'adjust_stock') {
       const useWh = defaultWarehouseId(warehouses, state, itemId) || warehouseId
       if (useWh && useWh !== warehouseId) setWarehouseId(useWh)
@@ -767,6 +777,8 @@ export function StockPage() {
   const showsWarehouse = inventoryShowsWarehouseField(action, warehouses.length)
   const showsTransfer = inventoryShowsTransferFields(action, warehouses.length)
   const adjustBookQty = state ? onHand(state, itemId, warehouseId) : 0
+  const returnRemain = returnBalance(state?.ledger ?? [], sourceOperationId)
+  const supplierReturnNet = state ? orderNetReceived(state, orderId, itemId) : 0
   const lowRows = state ? supplyLowStock(items, state) : []
   const supplyOrders = state ? buildSupplyOrderList(items, state, partners) : []
   const assetOrders = state ? buildAssetOrderList(items, state, partners) : []
@@ -1672,9 +1684,15 @@ export function StockPage() {
               반출 성명
               <input
                 className="mt-1 w-full rounded border border-line px-3 py-2"
+                list="issue-employee-names"
                 value={personName}
-                onChange={(e) => setPersonName(e.target.value)}
+                onChange={(e) => onIssuePersonChange(e.target.value)}
               />
+              <datalist id="issue-employee-names">
+                {employees.map((row) => (
+                  <option key={row.id} value={row.name} />
+                ))}
+              </datalist>
             </label>
             <label className="text-sm">
               반출 부서
@@ -1694,14 +1712,16 @@ export function StockPage() {
           </>
         ) : null}
         {action === 'post_supplier_return' ? (
-          <p className="text-sm text-muted">{stockSupplierReturnLead()}</p>
+          <p className="text-sm text-muted">{stockSupplierReturnLead(supplierReturnNet)}</p>
         ) : null}
         {action === 'transfer_stock' ? <p className="text-sm text-muted">{stockTransferLead()}</p> : null}
         {action === 'post_return' ? (
           <p className="text-sm text-muted">
             원거래:{' '}
-            {stockReturnSourceLead(
+            {stockReturnLead(
               state?.ledger.find((line) => line.operationId === sourceOperationId)?.personName,
+              returnRemain.issued,
+              returnRemain.left,
             )}
           </p>
         ) : action === 'reverse_transaction' ? (

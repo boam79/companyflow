@@ -5,6 +5,7 @@ import {
   createStockState,
   onHand,
   orderRemaining,
+  returnBalance,
 } from './engine'
 
 const ITEM = 'item-paper'
@@ -61,6 +62,45 @@ describe('복사용지 재고 원장', () => {
     })
     state = returned.state
     expect(companyOnHand(state, ITEM)).toBe(8)
+  })
+
+  it('반납은 원반출 수량을 넘지 못한다', () => {
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'post_direct_in',
+      operationId: 'op-in-5',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 5,
+    }).state
+    state = applyStockCommand(state, {
+      type: 'post_issue',
+      operationId: 'op-issue-2',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 2,
+      personName: '견본 김대리',
+    }).state
+    expect(returnBalance(state.ledger, 'op-issue-2')).toEqual({ issued: 2, already: 0, left: 2 })
+    state = applyStockCommand(state, {
+      type: 'post_return',
+      operationId: 'op-return-2',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 2,
+      sourceOperationId: 'op-issue-2',
+    }).state
+    expect(returnBalance(state.ledger, 'op-issue-2')).toEqual({ issued: 2, already: 2, left: 0 })
+    expect(() =>
+      applyStockCommand(state, {
+        type: 'post_return',
+        operationId: 'op-return-extra',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qty: 1,
+        sourceOperationId: 'op-issue-2',
+      }),
+    ).toThrow(/반출 수량을 초과해 반납할 수 없습니다/)
   })
 
   it('이동 후에도 회사 합계는 같고 같은 operation_id 는 한 번만 반영된다', () => {

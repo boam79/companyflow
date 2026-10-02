@@ -182,6 +182,18 @@ export function companyOnHand(state: StockState, itemId: string): number {
     .reduce((sum, line) => sum + line.qtyDelta, 0)
 }
 
+export function returnBalance(ledger: LedgerLine[], sourceOperationId?: string) {
+  const source = sourceOperationId?.trim() ?? ''
+  if (!source) return { issued: 0, already: 0, left: 0 }
+  const issued = ledger
+    .filter((line) => line.operationId === source && line.txnType === 'issue')
+    .reduce((sum, line) => sum + Math.abs(line.qtyDelta), 0)
+  const already = ledger
+    .filter((line) => line.sourceOperationId === source && line.txnType === 'return')
+    .reduce((sum, line) => sum + line.qtyDelta, 0)
+  return { issued, already, left: Math.max(0, issued - already) }
+}
+
 function requirePositive(qty: number) {
   if (!(qty > 0)) throw new Error('수량은 0보다 커야 합니다.')
 }
@@ -407,15 +419,8 @@ export function applyStockCommand(
     }
     case 'post_return': {
       requirePositive(command.qty)
-      const issued = next.ledger
-        .filter((line) => line.operationId === command.sourceOperationId && line.txnType === 'issue')
-        .reduce((sum, line) => sum + Math.abs(line.qtyDelta), 0)
-      const already = next.ledger
-        .filter(
-          (line) => line.sourceOperationId === command.sourceOperationId && line.txnType === 'return',
-        )
-        .reduce((sum, line) => sum + line.qtyDelta, 0)
-      if (command.qty > issued - already) throw new Error('반출 수량을 초과해 반납할 수 없습니다.')
+      const { left } = returnBalance(next.ledger, command.sourceOperationId)
+      if (command.qty > left) throw new Error('반출 수량을 초과해 반납할 수 없습니다.')
       next.ledger.push({
         id: `${command.operationId}:return`,
         operationId: command.operationId,

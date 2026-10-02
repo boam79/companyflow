@@ -120,8 +120,11 @@ export function transferWarehouseIds(
   return { fromWarehouseId, toWarehouseId }
 }
 
-export function stockSupplierReturnLead() {
-  return '검수 통과분만 공급사에 돌려 보냅니다. 현재고가 줄고 발주 잔량이 늘어납니다. 불량 거절품 반환은 이 화면에서 다루지 않습니다.'
+export function stockSupplierReturnLead(net = 0) {
+  const base =
+    '검수 통과분만 공급사에 돌려 보냅니다. 현재고가 줄고 발주 잔량이 늘어납니다. 불량 거절품 반환은 이 화면에서 다루지 않습니다.'
+  if (!(net > 0)) return base
+  return `${base} 반품 가능 ${net}.`
 }
 
 export function stockSavedNotice(input: {
@@ -151,6 +154,13 @@ export function stockReturnSourceLead(personName?: string) {
     return `${name} 반출`
   }
   return '수불부에서 반출 줄을 고르세요.'
+}
+
+export function stockReturnLead(personName?: string, issued = 0, left = 0) {
+  const source = stockReturnSourceLead(personName)
+  if (issued <= 0) return source
+  if (left <= 0) return `${source} · 다 돌아왔습니다.`
+  return `${source} · 반납 가능 ${left}`
 }
 
 export function buildSupplyInventory(

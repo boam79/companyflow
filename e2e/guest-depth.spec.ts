@@ -59,6 +59,8 @@ test('게스트 재고 명령 여러 개는 영어와 본사 잔재를 두지 �
     await page.getByLabel('명령').selectOption(command)
     await expectNoHqLeftovers(page)
     await expect(page.getByText(/operation_id/)).toHaveCount(0)
+    await expect(page.getByText('반납 가능 0')).toHaveCount(0)
+    await expect(page.getByText('반품 가능 0')).toHaveCount(0)
   }
 })
 
@@ -172,6 +174,29 @@ test('게스트 실사는 장부와 세고 차이를 남긴다', async ({ page }
   await expect(page.getByText('저장했습니다. (실사 조정)')).toBeVisible()
   await expect(page.getByRole('button', { name: '샘플창고 현재고 6' })).toBeVisible()
   await expect(page.getByRole('heading', { name: '재고현황 0' })).toHaveCount(0)
+  await expectNoHqLeftovers(page)
+})
+
+test('게스트 반납은 원반출을 넘지 못한다', async ({ page }) => {
+  await page.goto('/guest/stock')
+  await expect(page.getByRole('heading', { name: '구매·재고' })).toBeVisible({ timeout: 20000 })
+  await page.getByLabel('명령').selectOption('post_issue')
+  await page.getByPlaceholder('이름을 치세요').fill('샘플 복사용지')
+  await page.getByLabel('수량', { exact: true }).fill('1')
+  await page.getByLabel('반출 성명').fill('견본 김대리')
+  await page.getByRole('button', { name: '반출', exact: true }).click()
+  await expect(page.getByText('저장했습니다. (반출)')).toBeVisible()
+  await page.getByLabel('명령').selectOption('post_return')
+  await expect(page.getByText('견본 김대리 반출 · 반납 가능 1')).toBeVisible()
+  await expect(page.getByText('반납 가능 0')).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: '반납 가능 0' })).toHaveCount(0)
+  await page.getByLabel('수량', { exact: true }).fill('2')
+  await page.getByRole('button', { name: '반납', exact: true }).click()
+  await expect(page.getByText('반출 수량을 초과해 반납할 수 없습니다.')).toBeVisible()
+  await page.getByLabel('수량', { exact: true }).fill('1')
+  await page.getByRole('button', { name: '반납', exact: true }).click()
+  await expect(page.getByText('저장했습니다. (반납)')).toBeVisible()
+  await expect(page.getByText('견본 김대리 반출 · 다 돌아왔습니다.')).toBeVisible()
   await expectNoHqLeftovers(page)
 })
 
