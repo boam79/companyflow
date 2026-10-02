@@ -38,6 +38,10 @@ export type StockCommand =
       partnerId?: string
       purpose?: string
       businessDate?: string
+      memo?: string
+      fileName?: string
+      fileMime?: string
+      fileBase64?: string
     }
   | {
       type: 'post_issue'
@@ -50,6 +54,9 @@ export type StockCommand =
       reason?: string
       purpose?: string
       dueReturnAt?: string
+      fileName?: string
+      fileMime?: string
+      fileBase64?: string
     }
   | {
       type: 'post_outbound'
@@ -137,7 +144,26 @@ export type LedgerLine = {
   purpose?: string
   dueReturnAt?: string
   businessDate?: string
+  memo?: string
+  fileName?: string
+  fileMime?: string
+  fileBase64?: string
   createdAt?: string
+}
+
+export function ledgerNoteFields(input: {
+  memo?: string
+  fileName?: string
+  fileMime?: string
+  fileBase64?: string
+}): Pick<LedgerLine, 'memo' | 'fileName' | 'fileMime' | 'fileBase64'> {
+  const fileName = input.fileName?.trim() || undefined
+  const fileBase64 = input.fileBase64?.trim() || undefined
+  if (fileBase64 && !fileName) throw new Error('첨부 이름이 필요합니다.')
+  return {
+    ...(input.memo?.trim() ? { memo: input.memo.trim() } : {}),
+    ...(fileName ? { fileName, fileMime: input.fileMime?.trim() || undefined, fileBase64 } : {}),
+  }
 }
 
 export type StockOrderLine = {
@@ -384,6 +410,7 @@ export function applyStockCommand(
         partnerId: command.partnerId?.trim() || undefined,
         purpose: command.purpose?.trim() || undefined,
         businessDate: command.businessDate?.trim() || undefined,
+        ...ledgerNoteFields(command),
       })
       break
     case 'post_issue': {
@@ -409,6 +436,7 @@ export function applyStockCommand(
         reason: command.reason?.trim() || undefined,
         purpose: command.purpose?.trim() || undefined,
         dueReturnAt: command.dueReturnAt?.trim() || undefined,
+        ...ledgerNoteFields(command),
       })
       break
     }

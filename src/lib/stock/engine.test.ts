@@ -125,6 +125,10 @@ describe('복사용지 재고 원장', () => {
       partnerId: 'partner-guest',
       purpose: '샘플 보충',
       businessDate: '2026-10-01',
+      memo: '샘플 메모',
+      fileName: '견본입고.png',
+      fileMime: 'image/png',
+      fileBase64: 'abcd',
     }).state
     expect(state.orders.size).toBe(0)
     expect(state.ledger[0]).toMatchObject({
@@ -132,8 +136,21 @@ describe('복사용지 재고 원장', () => {
       partnerId: 'partner-guest',
       purpose: '샘플 보충',
       businessDate: '2026-10-01',
+      memo: '샘플 메모',
+      fileName: '견본입고.png',
     })
+    expect(state.ledger[0].fileBase64).toBe('abcd')
     expect(onHand(state, ITEM, MAIN)).toBe(2)
+    expect(() =>
+      applyStockCommand(createStockState(), {
+        type: 'post_direct_in',
+        operationId: 'op-direct-file',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qty: 1,
+        fileBase64: 'abcd',
+      }),
+    ).toThrow(/첨부 이름/)
   })
 
   it('반출 목적과 반납 예정일은 남긴다', () => {
@@ -154,12 +171,14 @@ describe('복사용지 재고 원장', () => {
       personName: '견본 김대리',
       purpose: '샘플 청소',
       dueReturnAt: '2026-10-10',
+      fileName: '견본반출.png',
     }).state
     expect(state.ledger.at(-1)).toMatchObject({
       txnType: 'issue',
       personName: '견본 김대리',
       purpose: '샘플 청소',
       dueReturnAt: '2026-10-10',
+      fileName: '견본반출.png',
     })
   })
 

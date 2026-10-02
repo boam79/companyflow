@@ -8,6 +8,7 @@ import {
 import {
   isUniqueConstraintError,
   orderAttachment,
+  ledgerAttachment,
   statementsForCommand,
   stateFromRows,
 } from './persist'
@@ -336,7 +337,12 @@ describe('재고 영속 묶음', () => {
     ])
   })
 
-  it('입고 SQL에 공급사·사유를 넣고 발주 행은 만들지 않는다', () => {
+  it('입고 SQL에 공급사·사유·증빙·메모를 넣고 발주 행은 만들지 않는다', () => {
+    const attached = ledgerAttachment({
+      name: '견본입고.png',
+      mime: 'image/png',
+      bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
+    })
     const prev = createStockState()
     const command = {
       type: 'post_direct_in' as const,
@@ -347,13 +353,17 @@ describe('재고 영속 묶음', () => {
       partnerId: 'partner-guest',
       purpose: '샘플 보충',
       businessDate: '2026-10-01',
+      memo: '샘플 메모',
+      ...attached,
     }
     const next = applyStockCommand(prev, command).state
     const statements = statementsForCommand(command, prev, next, '2026-10-03T00:00:00.000Z')
     expect(statements.some((stmt) => stmt.sql.includes('stock_orders'))).toBe(false)
-    expect(statements[0]?.sql).toContain('business_date')
+    expect(statements[0]?.sql).toContain('file_base64')
     expect(statements[0]?.params).toContain('partner-guest')
     expect(statements[0]?.params).toContain('샘플 보충')
     expect(statements[0]?.params).toContain('2026-10-01')
+    expect(statements[0]?.params).toContain('샘플 메모')
+    expect(statements[0]?.params).toContain('견본입고.png')
   })
 })

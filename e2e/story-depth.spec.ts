@@ -34,11 +34,17 @@ test('게스트 반출은 견본 이름으로 저장하고 중앙 쓰기를 하�
   await page.getByLabel('반출 성명').fill('견본 김대리')
   await page.getByLabel('반출 목적').fill('샘플 청소')
   await page.getByLabel('반납 예정일').fill('2026-10-10')
+  await page.getByLabel('반출 첨부').setInputFiles({
+    name: '견본반출.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+  })
   await page.getByRole('button', { name: '반출', exact: true }).click()
   await expect(page.getByText('저장했습니다. (반출)')).toBeVisible()
   await expect(page.getByRole('cell', { name: '견본 김대리' })).toBeVisible()
   await expect(page.getByText('샘플 청소')).toBeVisible()
   await expect(page.getByText('반납 예정 2026-10-10')).toBeVisible()
+  await expect(page.getByText('견본반출.png')).toBeVisible()
   await page.getByLabel('명령').selectOption('post_return')
   await page.getByRole('button', { name: '반납', exact: true }).click()
   await expect(page.getByText('저장했습니다. (반납)')).toBeVisible()

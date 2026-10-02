@@ -33,6 +33,7 @@ export function StockLedgerTable(props: {
   filter: LedgerFilter
   selected?: LedgerLine | null
   onSelect: (line: LedgerLine) => void
+  onDownloadFile?: (line: LedgerLine) => void
   variant?: 'full' | 'supply'
 }) {
   const names = { departments: props.departments, warehouses: props.warehouses, partners: props.partners }
@@ -105,7 +106,21 @@ export function StockLedgerTable(props: {
                   <td className="py-2 pr-3 text-right tabular-nums">{row.warehouseBalance}</td>
                 )}
                 <td className="py-2 pr-3 text-right tabular-nums">{row.companyBalance}</td>
-                <td className="py-2 text-muted">{row.link || '—'}</td>
+                <td className="py-2 text-muted">
+                  <span>{row.link || '—'}</span>
+                  {row.line.fileName && props.onDownloadFile ? (
+                    <button
+                      type="button"
+                      className="ml-2 font-semibold text-accent"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        props.onDownloadFile?.(row.line)
+                      }}
+                    >
+                      원본 받기
+                    </button>
+                  ) : null}
+                </td>
               </tr>
             )
           })}

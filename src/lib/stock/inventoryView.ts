@@ -173,11 +173,11 @@ export function publicStockOrderId(orderId?: string) {
 }
 
 export function stockDirectInLead() {
-  return '발주·요청 없이 현재고만 늘립니다. 공급사와 사유는 선택입니다.'
+  return '발주·요청 없이 현재고만 늘립니다. 공급사·사유·증빙·메모는 선택입니다.'
 }
 
 export function stockIssueNoteLead() {
-  return '목적과 반납 예정일은 선택입니다.'
+  return '목적·반납 예정일·첨부는 선택입니다.'
 }
 
 export function assertDueReturnAt(value: string) {

@@ -116,10 +116,29 @@ describe('입출고 수불부', () => {
           partnerId: 'partner-guest',
           purpose: '샘플 보충',
           businessDate: '2026-10-01',
+          memo: '샘플 메모',
+          fileName: '견본입고.png',
+          fileBase64: 'iVBORw0KGgo=',
         },
         { partners: [{ id: 'partner-guest', name: '견본문구' }] },
       ),
-    ).toBe('견본문구 · 샘플 보충 · 입고 2026-10-01')
+    ).toBe('견본문구 · 샘플 보충 · 입고 2026-10-01 · 샘플 메모 · 견본입고.png')
+    expect(
+      formatLedgerLink({
+        id: 'l-note',
+        operationId: 'op-in-note',
+        txnType: 'direct_in',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qtyDelta: 1,
+        partnerId: 'partner-guest',
+        purpose: '샘플 보충',
+        businessDate: '2026-10-01',
+        memo: '샘플 메모',
+        fileName: '견본입고.png',
+        fileBase64: 'iVBORw0KGgo=',
+      }),
+    ).not.toMatch(/iVBORw0KGgo/)
     expect(
       formatLedgerLink({
         id: 'l-issue-note',
@@ -132,8 +151,9 @@ describe('입출고 수불부', () => {
         purpose: '샘플 청소',
         dueReturnAt: '2026-10-10',
         partnerId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+        fileName: '견본반출.png',
       }),
-    ).toBe('견본 김대리 · 샘플 청소 · 반납 예정 2026-10-10')
+    ).toBe('견본 김대리 · 샘플 청소 · 반납 예정 2026-10-10 · 견본반출.png')
     expect(
       formatLedgerLink({
         id: 'l2',

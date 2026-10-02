@@ -10,7 +10,7 @@ import { isInboundStockAction, resolveTypedItem } from '../lib/stock/typedItem'
 import { allocateReceiptQty } from '../lib/asset/receipt'
 import { migrateProcessAssetsToChecks } from '../lib/people/onboarding'
 import { retireSupplyAssets } from '../lib/asset/retireSupplies'
-import { executeStockCommand, ensureDefaultStockMaster, loadOrderOriginal, loadStockState, orderAttachment } from '../lib/stock/persist'
+import { executeStockCommand, ensureDefaultStockMaster, ledgerAttachment, loadLedgerOriginal, loadOrderOriginal, loadStockState, orderAttachment } from '../lib/stock/persist'
 import {
   executePurchaseRequest,
   loadPurchaseRequests,
@@ -120,6 +120,14 @@ export function StockPage() {
   const [inboundPartnerId, setInboundPartnerId] = useState('')
   const [inboundPurpose, setInboundPurpose] = useState('')
   const [inboundAt, setInboundAt] = useState(todayYmd)
+  const [inboundMemo, setInboundMemo] = useState('')
+  const [pendingLedgerFile, setPendingLedgerFile] = useState<{
+    fileName: string
+    fileMime: string
+    fileBase64: string
+  } | null>(null)
+  const [ledgerFileName, setLedgerFileName] = useState('')
+  const ledgerFileInput = useRef<HTMLInputElement>(null)
   const [sourceOperationId, setSourceOperationId] = useState('')
   const [reason, setReason] = useState(stockAdjustReason)
   const [overflowReason, setOverflowReason] = useState('')
@@ -380,6 +388,34 @@ export function StockPage() {
     }
   }
 
+  async function pickLedgerFile(file: File) {
+    setMessage('')
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      const attached = ledgerAttachment({ name: file.name, mime: file.type, bytes })
+      setPendingLedgerFile(attached)
+      setLedgerFileName(attached.fileName)
+    } catch (error) {
+      setMessage(publicErrorMessage(error))
+      if (ledgerFileInput.current) ledgerFileInput.current.value = ''
+    }
+  }
+
+  async function downloadLedgerFile(line: LedgerLine) {
+    setMessage('')
+    try {
+      const original = await loadLedgerOriginal(sqlite, line.id)
+      const url = URL.createObjectURL(new Blob([toArrayBuffer(original.bytes)], { type: original.fileMime }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = original.fileName
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      setMessage(publicErrorMessage(error))
+    }
+  }
+
   function applySuggestedForm(next: NextStockForm | null) {
     if (!next) {
       setAction('post_issue')
@@ -535,6 +571,8 @@ export function StockPage() {
           partnerId: inboundPartnerId || undefined,
           purpose: inboundPurpose.trim() || undefined,
           businessDate: assertInboundAt(inboundAt),
+          memo: inboundMemo.trim() || undefined,
+          ...(pendingLedgerFile ?? {}),
         }
       case 'post_outbound':
       case 'convert_to_asset':
@@ -557,6 +595,7 @@ export function StockPage() {
           departmentId: departmentId.trim() || undefined,
           purpose: issuePurpose.trim() || undefined,
           dueReturnAt: assertDueReturnAt(issueDueReturnAt) || undefined,
+          ...(pendingLedgerFile ?? {}),
           ...overflowReasonField(),
         }
       case 'post_return':
@@ -666,10 +705,16 @@ export function StockPage() {
           setInboundPurpose('')
           setInboundPartnerId('')
           setInboundAt(todayYmd())
+          setInboundMemo('')
         }
         if (action === 'post_issue') {
           setIssuePurpose('')
           setIssueDueReturnAt('')
+        }
+        if (action === 'post_direct_in' || action === 'post_issue') {
+          setPendingLedgerFile(null)
+          setLedgerFileName('')
+          if (ledgerFileInput.current) ledgerFileInput.current.value = ''
         }
         setOverflowReason('')
       }
@@ -1336,6 +1381,7 @@ export function StockPage() {
           selected={selectedLine}
           variant="supply"
           onSelect={selectLedgerLine}
+          onDownloadFile={downloadLedgerFile}
         />
         </div>
         {relatedJumps.length ? (
@@ -1783,7 +1829,42 @@ export function StockPage() {
                 onChange={(e) => setInboundPurpose(e.target.value)}
               />
             </label>
+            <label className="sm:col-span-2 text-sm">
+              메모
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={inboundMemo}
+                onChange={(e) => setInboundMemo(e.target.value)}
+              />
+            </label>
           </>
+        ) : null}
+        {action === 'post_direct_in' || action === 'post_issue' ? (
+          <div className="sm:col-span-2 text-sm">
+            {action === 'post_direct_in' ? '증빙' : '첨부'}
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <input
+                ref={ledgerFileInput}
+                aria-label={action === 'post_direct_in' ? '입고 증빙' : '반출 첨부'}
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                className="sr-only"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) void pickLedgerFile(file)
+                }}
+              />
+              <button
+                type="button"
+                disabled={!ready || saving}
+                className="rounded border border-line px-3 py-2 text-sm font-semibold disabled:opacity-50"
+                onClick={() => ledgerFileInput.current?.click()}
+              >
+                {action === 'post_direct_in' ? '증빙' : '첨부'}
+              </button>
+              <span className="text-xs text-muted">{ledgerFileName || 'PDF·PNG·JPEG 8MB'}</span>
+            </div>
+          </div>
         ) : null}
         {action === 'post_outbound' ? <p className="text-sm text-muted">{stockOutboundLead()}</p> : null}
         {action === 'post_receipt' ? (

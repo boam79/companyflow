@@ -37,6 +37,10 @@ export type LedgerRow = {
   purpose?: string | null
   due_return_at?: string | null
   business_date?: string | null
+  memo?: string | null
+  file_name?: string | null
+  file_mime?: string | null
+  file_base64?: string | null
   created_at?: string | null
 }
 
@@ -78,13 +82,18 @@ export function orderAttachment(file: { name: string; mime?: string; bytes: Uint
   }
 }
 
+export function ledgerAttachment(file: { name: string; mime?: string; bytes: Uint8Array }) {
+  return orderAttachment({ ...file, name: file.name.trim() || '수불첨부' })
+}
+
 export function ledgerInsert(line: LedgerLine, createdAt: string): SqlStatement {
   return {
     sql: `insert into stock_ledger(
       id, operation_id, txn_type, item_id, warehouse_id, qty_delta,
       person_name, department_id, source_operation_id, order_id, reason,
-      partner_id, purpose, due_return_at, business_date, created_at
-    ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      partner_id, purpose, due_return_at, business_date, memo,
+      file_name, file_mime, file_base64, created_at
+    ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     params: [
       line.id,
       line.operationId,
@@ -101,6 +110,10 @@ export function ledgerInsert(line: LedgerLine, createdAt: string): SqlStatement 
       line.purpose ?? null,
       line.dueReturnAt ?? null,
       line.businessDate ?? null,
+      line.memo ?? null,
+      line.fileName ?? null,
+      line.fileMime ?? null,
+      line.fileBase64 ?? null,
       createdAt,
     ],
   }
@@ -274,6 +287,10 @@ export function stateFromRows(
       purpose: row.purpose ?? undefined,
       dueReturnAt: row.due_return_at ?? undefined,
       businessDate: row.business_date ?? undefined,
+      memo: row.memo ?? undefined,
+      fileName: row.file_name ?? undefined,
+      fileMime: row.file_mime ?? undefined,
+      fileBase64: row.file_base64 ?? undefined,
       createdAt: row.created_at ?? undefined,
     }
     state.ledger.push(line)
@@ -291,7 +308,8 @@ export async function loadStockState(db: Pick<CompanySqlite, 'query'>): Promise<
     db.query<LedgerRow>(
       `select id, operation_id, txn_type, item_id, warehouse_id, qty_delta,
         person_name, department_id, source_operation_id, order_id, reason,
-        partner_id, purpose, due_return_at, business_date, created_at
+        partner_id, purpose, due_return_at, business_date, memo,
+        file_name, file_mime, file_base64, created_at
        from stock_ledger order by created_at, id`,
     ),
     db.query<{ operation_id: string }>('select operation_id from processed_operations'),
@@ -303,6 +321,24 @@ export async function loadStockState(db: Pick<CompanySqlite, 'query'>): Promise<
     processed.map((row) => row.operation_id),
     lineRows,
   )
+}
+
+export async function loadLedgerOriginal(
+  db: Pick<CompanySqlite, 'query'>,
+  lineId: string,
+) {
+  const rows = await db.query<{
+    file_name?: string | null
+    file_mime?: string | null
+    file_base64?: string | null
+  }>('select file_name, file_mime, file_base64 from stock_ledger where id = ?', [lineId])
+  const row = rows[0]
+  if (!row?.file_base64 || !row.file_name) throw new Error('수불 첨부가 없습니다.')
+  return {
+    fileName: row.file_name,
+    fileMime: row.file_mime || 'application/octet-stream',
+    bytes: base64ToBytes(row.file_base64),
+  }
 }
 
 export async function loadOrderOriginal(
