@@ -7,7 +7,7 @@
 
 ## 지금 하는 일
 
-AST-01 수령·전환 자산에 QR을 붙이고 PC에서 모델·자리 정보를 고친다. 구매요청은 미발주·부분발주·발주완료로 보여 주고 `잔량 0`은 두지 않는다. PUR-02 결재, P3, `/reports`는 사용자가 켜기 전에는 두지 않는다.
+미차단 PRD는 AST-01 자산 QR·PC 정보와 구매요청 미발주·부분발주·발주완료까지 배포했다. PUR-02 결재, P3, `/reports`는 사용자가 켜기 전에는 두지 않는다.
 
 ## 보드
 
@@ -97,11 +97,11 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 
 ## MCP에서 확인한 것
 
-- Vercel: `prj_KXGPhwGOtB8IQ2pAsnuTOZ0l3isR` / team `team_U7AuO5lMD3rtoAwkrj410jpx`. 도메인 `companyflow-opal.vercel.app`. 수불부 품목 표시 READY `dpl_6q8EPw4X8hAoFNkCm2NzJraNV5mW` 번들 `index-BBcvG6-4.js`.
+- Vercel: `prj_KXGPhwGOtB8IQ2pAsnuTOZ0l3isR` / team `team_U7AuO5lMD3rtoAwkrj410jpx`. 도메인 `companyflow-opal.vercel.app`. AST-01 READY `dpl_67RmaJE5gY4k8b3xqkMKArJyoj3C` 번들 `index-D2JMwgti.js`. 단위 309. HTTPS E2E 56.
 - Supabase 활성: `companyflow`, `boardroom`. 정지: `boam79_patient_data`, `qr-asset-manager`, `policyfund-ai-v2`.
 - `confirm_company_device` RPC 추가. 초기 설정 성공 후 원본 장치를 confirmed 로 올린다.
 
-- 2026-10-03: AST-01 책상 수령·전환은 QR 표식을 붙인다. PC에서 모델·자리를 저장해도 직원 배정이 아니다. 구매요청은 미발주·부분발주·발주완료. `잔량 0`은 두지 않음. `/reports`·PUR-02는 되돌리지 않음.
+- 2026-10-03: AST-01 책상 수령·전환은 QR 표식을 붙인다. PC에서 모델·자리를 저장해도 직원 배정이 아니다. 구매요청은 미발주·부분발주·발주완료. `잔량 0`은 두지 않음. 단위 309. HTTPS E2E 56. `/reports`·PUR-02는 되돌리지 않음.
 - 2026-10-03: PUR-05 발주 항목은 여러 차례 수령하고 미수령·부분수령·수령완료로 보여 준다. 정상·불량·반품·미수령 0은 표에 두지 않음. `/reports`·PUR-02는 되돌리지 않음.
 - 2026-10-03: AST-02·03·04 책상 수령은 현재고 없이 자산으로 등록한다. 한 발주에 비품 줄을 함께 둔다. 복사용지는 자산화하지 않음. `/reports`·PUR-02는 되돌리지 않음.
 - 2026-10-02: INV-01·03·04·10 수령은 정상만 현재고, 불량은 빼 둔다. 직접 입고는 발주 없이 현재고만. 출고는 현재고를 줄인다. `/reports`·PUR-02는 되돌리지 않음.
