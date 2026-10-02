@@ -61,9 +61,10 @@ export function showsOverflowReason(input: {
   return false
 }
 
-export function stockCommandReason(command: { reason?: string }) {
-  const text = command.reason?.trim()
-  return text || undefined
+export function stockCommandReason(command: unknown) {
+  if (!command || typeof command !== 'object' || !('reason' in command)) return undefined
+  const reason = (command as { reason?: unknown }).reason
+  return typeof reason === 'string' ? reason.trim() || undefined : undefined
 }
 
 export async function loadStockPolicy(db: Pick<MetaDb, 'query'>): Promise<StockPolicy> {

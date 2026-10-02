@@ -5,6 +5,7 @@ import {
   loadStockPolicy,
   saveStockPolicy,
   showsOverflowReason,
+  stockCommandReason,
   stockPolicyCaption,
   STOCK_OVERFLOW_REASON_MESSAGE,
 } from './policy'
@@ -92,5 +93,12 @@ describe('재고 한도 정책', () => {
     const saved = await saveStockPolicy(db, { allowNegative: true, allowOverReceipt: false })
     expect(saved).toEqual({ allowNegative: true, allowOverReceipt: false })
     expect(await loadStockPolicy(db)).toEqual(saved)
+  })
+
+  it('발주 명령에는 사유가 없고 초과 거래만 남긴다', () => {
+    expect(stockCommandReason({ type: 'confirm_order', operationId: 'op' })).toBeUndefined()
+    expect(
+      stockCommandReason({ type: 'post_issue', operationId: 'op', reason: '긴급 반출' }),
+    ).toBe('긴급 반출')
   })
 })
