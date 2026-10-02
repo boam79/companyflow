@@ -19,9 +19,11 @@ import {
   stockIssuePersonName,
   stockAdjustReason,
   stockSupplierReturnLead,
+  stockTransferLead,
   supplyLowStock,
   transferWarehouseIds,
   defaultWarehouseId,
+  inventoryShowsTransferFields,
   inventoryShowsWarehouseField,
   inventoryWarehouseColumns,
   inventoryWarehouseQtyLabel,
@@ -85,6 +87,19 @@ describe('비품 현재고', () => {
       fromWarehouseId: 'wh-a',
       toWarehouseId: '',
     })
+    expect(
+      transferWarehouseIds(
+        [
+          { id: 'wh-sub' },
+          { id: 'wh-main' },
+        ],
+        state,
+        PAPER_ITEM.id,
+      ),
+    ).toEqual({
+      fromWarehouseId: 'wh-main',
+      toWarehouseId: 'wh-sub',
+    })
     expect(stockSupplierReturnLead()).not.toMatch(/아직/)
     expect(stockSavedNotice({ duplicate: true, actionLabel: '입고', assetCount: 0 })).toBe(
       '같은 거래는 한 번만 반영됩니다.',
@@ -112,6 +127,11 @@ describe('비품 현재고', () => {
     expect(inventoryShowsWarehouseField('post_direct_in', 2)).toBe(true)
     expect(inventoryShowsWarehouseField('draft_order', 2)).toBe(false)
     expect(inventoryShowsWarehouseField('post_issue', 0)).toBe(false)
+    expect(inventoryShowsTransferFields('transfer_stock', 2)).toBe(true)
+    expect(inventoryShowsTransferFields('transfer_stock', 1)).toBe(false)
+    expect(inventoryShowsTransferFields('post_direct_in', 2)).toBe(false)
+    expect(stockTransferLead()).toContain('회사 합계는 그대로')
+    expect(stockTransferLead()).not.toMatch(/아직|본사창고|operation_id/)
     expect(lowStockLine({ itemName: '복사용지', onHand: 7, minStock: 10 })).toBe('복사용지 7 / 최소 10')
     expect(
       supplyLowStock([{ ...PAPER_ITEM, minStock: 10 }, ...COMPANY_ASSET_ITEMS.map((item) => ({ ...item, minStock: 2 }))], state).map(

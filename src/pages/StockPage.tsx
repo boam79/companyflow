@@ -29,7 +29,7 @@ import {
 import { toArrayBuffer } from '../lib/contracts/book'
 import { onHand, orderNetReceived, orderRemaining, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { defaultStockPolicy, loadStockPolicy, showsOverflowReason } from '../lib/stock/policy'
-import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, resolveOrderPartnerId, stockAdjustReason, stockAssetsLinkLabel, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssuePersonName, stockLastSaveLead, stockPageLead, stockReturnSourceLead, stockSavedNotice, stockSupplierReturnLead, supplyLowStock, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, resolveOrderPartnerId, stockAdjustReason, stockAssetsLinkLabel, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssuePersonName, stockLastSaveLead, stockPageLead, stockReturnSourceLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, supplyLowStock, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, ledgerRelatedJumps, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -109,7 +109,8 @@ export function StockPage() {
   const [orderId, setOrderId] = useState(stockDraftOrderId)
   const [itemId, setItemId] = useState('')
   const [warehouseId, setWarehouseId] = useState('')
-  const { fromWarehouseId, toWarehouseId } = transferWarehouseIds(warehouses)
+  const [fromWarehouseId, setFromWarehouseId] = useState('')
+  const [toWarehouseId, setToWarehouseId] = useState('')
   const [qty, setQty] = useState('1')
   const [defectQty, setDefectQty] = useState('0')
   const [personName, setPersonName] = useState(stockIssuePersonName)
@@ -224,6 +225,13 @@ export function StockPage() {
       }
       return defaultWarehouseId(warehouseRows, nextState, selectedItem?.id)
     })
+    const pickedTransfer = transferWarehouseIds(warehouseRows, nextState, selectedItem?.id)
+    setFromWarehouseId((prev) => (warehouseRows.some((row) => row.id === prev) ? prev : pickedTransfer.fromWarehouseId))
+    setToWarehouseId((prev) => {
+      const from = warehouseRows.some((row) => row.id === fromWarehouseId) ? fromWarehouseId : pickedTransfer.fromWarehouseId
+      if (warehouseRows.some((row) => row.id === prev) && prev !== from) return prev
+      return warehouseRows.find((row) => row.id !== from)?.id ?? ''
+    })
   }
 
   function chooseItem(nextItemId: string) {
@@ -235,6 +243,12 @@ export function StockPage() {
   function chooseItemAtWarehouse(nextItemId: string, nextWarehouseId: string) {
     chooseItem(nextItemId)
     setWarehouseId(nextWarehouseId)
+    if (action === 'transfer_stock') {
+      setFromWarehouseId(nextWarehouseId)
+      setToWarehouseId((prev) =>
+        prev === nextWarehouseId ? warehouses.find((row) => row.id !== nextWarehouseId)?.id ?? '' : prev,
+      )
+    }
   }
 
   function selectLedgerLine(line: LedgerLine) {
@@ -408,7 +422,18 @@ export function StockPage() {
       return
     }
     if (nextAction === 'post_return') setQty('1')
-    if (nextAction === 'transfer_stock') setQty('2')
+    if (nextAction === 'transfer_stock') {
+      const picked = transferWarehouseIds(warehouses, state, itemId)
+      const fromId = warehouses.some((row) => row.id === fromWarehouseId) ? fromWarehouseId : picked.fromWarehouseId
+      const toId =
+        toWarehouseId && toWarehouseId !== fromId && warehouses.some((row) => row.id === toWarehouseId)
+          ? toWarehouseId
+          : picked.toWarehouseId
+      setFromWarehouseId(fromId)
+      setToWarehouseId(toId)
+      const onHandQty = onHand(state, itemId, fromId)
+      setQty(String(onHandQty > 0 ? Math.min(1, onHandQty) : 1))
+    }
     if (nextAction === 'reverse_transaction' && lastOperationId) {
       setSourceOperationId((prev) => prev || lastOperationId)
     }
@@ -734,6 +759,7 @@ export function StockPage() {
   const warehouseColumns = inventoryWarehouseColumns(warehouses)
   const relatedJumps = ledgerRelatedJumps(state?.ledger ?? [], selectedLine)
   const showsWarehouse = inventoryShowsWarehouseField(action, warehouses.length)
+  const showsTransfer = inventoryShowsTransferFields(action, warehouses.length)
   const lowRows = state ? supplyLowStock(items, state) : []
   const supplyOrders = state ? buildSupplyOrderList(items, state, partners) : []
   const assetOrders = state ? buildAssetOrderList(items, state, partners) : []
@@ -1516,7 +1542,9 @@ export function StockPage() {
               <span className="mt-1 block text-xs text-muted">
                 {isInboundStockAction(action)
                   ? stockInboundItemHint()
-                  : '있는 비품 이름만 반출·출고할 수 있습니다.'}
+                  : action === 'transfer_stock'
+                    ? '있는 비품만 다른 창고로 옮깁니다.'
+                    : '있는 비품 이름만 반출·출고할 수 있습니다.'}
               </span>
             </label>
           ) : null}
@@ -1535,6 +1563,46 @@ export function StockPage() {
                 ))}
               </select>
             </label>
+          ) : null}
+          {showsTransfer ? (
+            <>
+              <label className="text-sm">
+                보내는 창고
+                <select
+                  className="mt-1 w-full rounded border border-line px-3 py-2"
+                  value={fromWarehouseId}
+                  onChange={(e) => {
+                    const nextFrom = e.target.value
+                    setFromWarehouseId(nextFrom)
+                    setToWarehouseId((prev) =>
+                      prev === nextFrom ? warehouses.find((row) => row.id !== nextFrom)?.id ?? '' : prev,
+                    )
+                  }}
+                >
+                  {warehouses.map((row) => (
+                    <option key={row.id} value={row.id}>
+                      {row.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-sm">
+                받는 창고
+                <select
+                  className="mt-1 w-full rounded border border-line px-3 py-2"
+                  value={toWarehouseId}
+                  onChange={(e) => setToWarehouseId(e.target.value)}
+                >
+                  {warehouses
+                    .filter((row) => row.id !== fromWarehouseId)
+                    .map((row) => (
+                      <option key={row.id} value={row.id}>
+                        {row.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            </>
           ) : null}
           {action === 'draft_order' || action === 'confirm_order' ? (
             <div className="text-sm">
@@ -1621,6 +1689,7 @@ export function StockPage() {
         {action === 'post_supplier_return' ? (
           <p className="text-sm text-muted">{stockSupplierReturnLead()}</p>
         ) : null}
+        {action === 'transfer_stock' ? <p className="text-sm text-muted">{stockTransferLead()}</p> : null}
         {action === 'post_return' ? (
           <p className="text-sm text-muted">
             원거래:{' '}

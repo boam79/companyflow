@@ -12,6 +12,7 @@ export const MORE_STOCK_ACTIONS: { id: StockCommand['type']; label: string }[] =
   { id: 'post_supplier_return', label: '공급사 반품' },
   { id: 'draft_order', label: '발주 초안' },
   { id: 'post_outbound', label: '출고' },
+  { id: 'transfer_stock', label: '이동' },
   { id: 'adjust_stock', label: '실사 조정' },
   { id: 'reverse_transaction', label: '정정' },
 ]

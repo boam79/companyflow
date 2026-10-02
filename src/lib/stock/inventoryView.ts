@@ -77,6 +77,14 @@ export function inventoryShowsWarehouseField(action: string, warehouseCount: num
   )
 }
 
+export function inventoryShowsTransferFields(action: string, warehouseCount: number) {
+  return action === 'transfer_stock' && warehouseCount > 1
+}
+
+export function stockTransferLead() {
+  return '보내는 창고에서 받는 창고로 옮깁니다. 회사 합계는 그대로입니다.'
+}
+
 export function defaultWarehouseId(
   rows: { id: string }[],
   state?: StockState,
@@ -93,8 +101,12 @@ export function defaultWarehouseId(
   return rows[0]?.id ?? ''
 }
 
-export function transferWarehouseIds(rows: { id: string }[]) {
-  const fromWarehouseId = defaultWarehouseId(rows)
+export function transferWarehouseIds(
+  rows: { id: string }[],
+  state?: StockState,
+  itemId?: string,
+) {
+  const fromWarehouseId = defaultWarehouseId(rows, state, itemId)
   const toWarehouseId = rows.find((row) => row.id !== fromWarehouseId)?.id ?? ''
   return { fromWarehouseId, toWarehouseId }
 }

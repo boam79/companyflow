@@ -16,6 +16,7 @@ describe('매일 재고 명령', () => {
     expect(ids.slice(0, 3)).toEqual(['post_direct_in', 'post_issue', 'post_return'])
     expect(ids).toContain('confirm_order')
     expect(ids).toContain('post_receipt')
+    expect(ids).toContain('transfer_stock')
   })
 
   it('접혀 있어도 고른 발주 명령은 남긴다', () => {

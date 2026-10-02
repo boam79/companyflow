@@ -53,7 +53,7 @@ test('게스트 재고 명령 여러 개는 영어와 본사 잔재를 두지 �
   await page.getByRole('button', { name: '발주·검수 더 보기' }).click()
   const commands = [
     ...['post_direct_in', 'post_issue', 'post_return'],
-    ...['confirm_order', 'post_receipt', 'post_supplier_return', 'draft_order', 'post_outbound', 'adjust_stock', 'reverse_transaction'],
+    ...['confirm_order', 'post_receipt', 'post_supplier_return', 'draft_order', 'post_outbound', 'transfer_stock', 'adjust_stock', 'reverse_transaction'],
   ] as const
   for (const command of commands) {
     await page.getByLabel('명령').selectOption(command)
@@ -133,6 +133,27 @@ test('게스트 현재고는 창고별 수량을 보여 준다', async ({ page }
   await page.getByRole('button', { name: '견본창고 현재고 0' }).click()
   await expect(page.getByRole('button', { name: '견본창고 현재고 0' })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByRole('combobox', { name: '창고' })).toHaveValue('wh-sub')
+  await expectNoHqLeftovers(page)
+})
+
+test('게스트 창고 이동은 합계를 그대로 둔다', async ({ page }) => {
+  await page.goto('/guest/stock')
+  await expect(page.getByRole('heading', { name: '구매·재고' })).toBeVisible({ timeout: 20000 })
+  await page.getByRole('button', { name: '발주·검수 더 보기' }).click()
+  await page.getByLabel('명령').selectOption('transfer_stock')
+  await expect(page.getByText('회사 합계는 그대로입니다.')).toBeVisible()
+  await page.getByPlaceholder('이름을 치세요').fill('샘플 복사용지')
+  await page.getByLabel('보내는 창고').selectOption({ label: '샘플창고' })
+  await page.getByLabel('받는 창고').selectOption({ label: '견본창고' })
+  await page.getByLabel('수량', { exact: true }).fill('2')
+  await page.getByRole('button', { name: '이동', exact: true }).click()
+  await expect(page.getByText('저장했습니다. (이동)')).toBeVisible()
+  await expect(page.getByRole('button', { name: '샘플창고 현재고 5' })).toBeVisible()
+  await expect(page.getByRole('button', { name: '견본창고 현재고 2' })).toBeVisible()
+  await expect(page.getByRole('columnheader', { name: '합계' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '재고현황 0' })).toHaveCount(0)
+  await expect(page.getByRole('cell', { name: '이동 출고' })).toHaveCount(0)
+  await expect(page.getByRole('cell', { name: '이동 입고' })).toHaveCount(0)
   await expectNoHqLeftovers(page)
 })
 
