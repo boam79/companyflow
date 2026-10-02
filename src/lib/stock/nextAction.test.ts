@@ -205,5 +205,7 @@ describe('반출 품목', () => {
     expect(stockActionItemId('post_supplier_return', 'item-desk', items)).toBe('item-paper')
     expect(stockActionItemId('post_receipt', 'item-desk', items)).toBe('item-desk')
     expect(stockActionItemId('post_issue', 'item-paper', items)).toBe('item-paper')
+    expect(stockActionItemId('convert_to_asset', 'item-paper', items)).toBe('item-desk')
+    expect(stockActionItemId('convert_to_asset', 'item-desk', items)).toBe('item-desk')
   })
 })

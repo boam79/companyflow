@@ -96,6 +96,12 @@ export function stockActionItemId(
       return items.find(isSupplyItem)?.id ?? currentItemId
     }
   }
+  if (action === 'convert_to_asset') {
+    const item = items.find((row) => row.id === candidate)
+    if (!isCompanyAssetItem(item)) {
+      return items.find(isCompanyAssetItem)?.id ?? currentItemId
+    }
+  }
   return candidate
 }
 

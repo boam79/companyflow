@@ -23,6 +23,7 @@ import {
   stockDirectInLead,
   stockOutboundLead,
   stockReceiptLead,
+  stockConvertLead,
   stockSupplierReturnLead,
   stockTransferLead,
   supplyLowStock,
@@ -152,6 +153,12 @@ describe('비품 현재고', () => {
     expect(stockReceiptLead('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', 2, '')).toBe(
       '정상만 현재고에 들어갑니다.',
     )
+    expect(stockReceiptLead('ORD-AST-01', 1, '', true)).toBe(
+      '수령하면 현재고 없이 자리의 물건으로 등록됩니다. 발주 ORD-AST-01 잔량 1.',
+    )
+    expect(stockReceiptLead('ORD-AST-01', 1, '1', true)).not.toMatch(/불량/)
+    expect(stockConvertLead()).toContain('자리의 물건만')
+    expect(stockConvertLead()).not.toMatch(/복사용지|김담당|operation_id/)
     expect(buildSupplyInventory(items, WAREHOUSES, state)).toEqual([
       {
         itemId: 'item-paper',
@@ -166,6 +173,7 @@ describe('비품 현재고', () => {
     expect(inventoryShowsWarehouseField('post_direct_in', 2)).toBe(true)
     expect(inventoryShowsWarehouseField('draft_order', 2)).toBe(false)
     expect(inventoryShowsWarehouseField('post_issue', 0)).toBe(false)
+    expect(inventoryShowsWarehouseField('convert_to_asset', 2)).toBe(true)
     expect(inventoryShowsTransferFields('transfer_stock', 2)).toBe(true)
     expect(inventoryShowsTransferFields('transfer_stock', 1)).toBe(false)
     expect(inventoryShowsTransferFields('post_direct_in', 2)).toBe(false)

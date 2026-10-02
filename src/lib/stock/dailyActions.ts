@@ -15,6 +15,7 @@ export const MORE_STOCK_ACTIONS: { id: StockCommand['type']; label: string }[] =
   { id: 'transfer_stock', label: '이동' },
   { id: 'adjust_stock', label: '실사 조정' },
   { id: 'reverse_transaction', label: '정정' },
+  { id: 'convert_to_asset', label: '자산화' },
 ]
 
 export function stockActionChoices(showMore: boolean, current: StockCommand['type']) {

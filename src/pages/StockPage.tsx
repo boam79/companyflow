@@ -29,7 +29,7 @@ import {
 import { toArrayBuffer } from '../lib/contracts/book'
 import { onHand, orderNetReceived, orderRemaining, returnBalance, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { defaultStockPolicy, loadStockPolicy, showsOverflowReason } from '../lib/stock/policy'
-import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssuePersonName, stockLastSaveLead, stockOutboundLead, stockPageLead, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, supplyLowStock, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssuePersonName, stockLastSaveLead, stockOutboundLead, stockPageLead, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, supplyLowStock, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, ledgerRelatedJumps, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -427,6 +427,16 @@ export function StockPage() {
       setQty(String(returnable > 0 ? Math.min(1, returnable) : 1))
       return
     }
+    if (nextAction === 'convert_to_asset') {
+      const assetId = stockActionItemId(nextAction, itemId, items)
+      if (assetId && assetId !== itemId) chooseItem(assetId)
+      const useItem = assetId && assetId !== itemId ? assetId : itemId
+      const useWh = defaultWarehouseId(warehouses, state, useItem)
+      if (useWh && useWh !== warehouseId) setWarehouseId(useWh)
+      const onHandQty = onHand(state, useItem, useWh || warehouseId)
+      setQty(String(onHandQty > 0 ? Math.min(1, onHandQty) : 1))
+      return
+    }
     if (nextAction === 'post_return') {
       const { left } = returnBalance(state.ledger, sourceOperationId)
       setQty(String(left > 0 ? left : 1))
@@ -767,8 +777,14 @@ export function StockPage() {
 
   const stockItems = supplyItems(items)
   const orderableItems = items.filter((item) => isSupplyItem(item) || isCompanyAssetItem(item))
+  const selectedItem = items.find((row) => row.id === itemId)
+  const receiptAsAsset = isCompanyAssetItem(selectedItem)
   const formItems =
-    action === 'draft_order' || action === 'confirm_order' || action === 'post_receipt' ? orderableItems : stockItems
+    action === 'draft_order' || action === 'confirm_order' || action === 'post_receipt'
+      ? orderableItems
+      : action === 'convert_to_asset'
+        ? items.filter(isCompanyAssetItem)
+        : stockItems
   const inventory =
     state && stockItems.length && warehouses.length ? buildSupplyInventory(stockItems, warehouses, state) : []
   const selectedInventory = inventory.find((row) => row.itemId === itemId) ?? inventory[0]
@@ -1380,7 +1396,7 @@ export function StockPage() {
               />
             </label>
           ) : null}
-          {action === 'post_receipt' ? (
+          {action === 'post_receipt' && !receiptAsAsset ? (
             <label className="w-28 text-sm">
               불량
               <input
@@ -1715,8 +1731,11 @@ export function StockPage() {
         {action === 'post_direct_in' ? <p className="text-sm text-muted">{stockDirectInLead()}</p> : null}
         {action === 'post_outbound' ? <p className="text-sm text-muted">{stockOutboundLead()}</p> : null}
         {action === 'post_receipt' ? (
-          <p className="text-sm text-muted">{stockReceiptLead(orderId, receiptRemaining, defectQty)}</p>
+          <p className="text-sm text-muted">
+            {stockReceiptLead(orderId, receiptRemaining, defectQty, receiptAsAsset)}
+          </p>
         ) : null}
+        {action === 'convert_to_asset' ? <p className="text-sm text-muted">{stockConvertLead()}</p> : null}
         {action === 'post_supplier_return' ? (
           <p className="text-sm text-muted">{stockSupplierReturnLead(supplierReturnNet)}</p>
         ) : null}

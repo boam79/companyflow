@@ -53,7 +53,7 @@ test('게스트 재고 명령 여러 개는 영어와 본사 잔재를 두지 �
   await page.getByRole('button', { name: '발주·검수 더 보기' }).click()
   const commands = [
     ...['post_direct_in', 'post_issue', 'post_return'],
-    ...['confirm_order', 'post_receipt', 'post_supplier_return', 'draft_order', 'post_outbound', 'transfer_stock', 'adjust_stock', 'reverse_transaction'],
+    ...['confirm_order', 'post_receipt', 'post_supplier_return', 'draft_order', 'post_outbound', 'transfer_stock', 'adjust_stock', 'reverse_transaction', 'convert_to_asset'],
   ] as const
   for (const command of commands) {
     await page.getByLabel('명령').selectOption(command)
@@ -245,6 +245,38 @@ test('게스트 출고는 현재고를 줄인다', async ({ page }) => {
   await expect(page.getByText('저장했습니다. (출고)')).toBeVisible()
   await expect(page.getByRole('button', { name: '샘플창고 현재고 6' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '출고', exact: true })).toBeVisible()
+  await expectNoHqLeftovers(page)
+})
+
+test('게스트 책상 수령은 현재고 없이 자산이 된다', async ({ page }) => {
+  await page.goto('/guest/stock')
+  await expect(page.getByRole('heading', { name: '구매·재고' })).toBeVisible({ timeout: 20000 })
+  await page.getByRole('button', { name: '발주·검수 더 보기' }).click()
+  await page.getByLabel('명령').selectOption('draft_order')
+  await page.getByLabel('발주 번호').fill('ORD-AST-01')
+  await page.getByPlaceholder('이름을 치세요').first().fill('샘플 책상')
+  await page.getByLabel('수량', { exact: true }).first().fill('1')
+  await page.getByRole('button', { name: '품목 줄 추가' }).click()
+  await page.getByPlaceholder('이름을 치세요').nth(1).fill('샘플 복사용지')
+  await page.getByRole('button', { name: '발주 초안' }).click()
+  await expect(page.getByText('저장했습니다. (발주 초안)')).toBeVisible()
+  await page.getByLabel('명령').selectOption('confirm_order')
+  await page.getByRole('button', { name: '발주 확정' }).click()
+  await expect(page.getByText('저장했습니다. (발주 확정)')).toBeVisible()
+  await page.getByLabel('명령').selectOption('post_receipt')
+  await expect(page.getByText('수령하면 현재고 없이 자리의 물건으로 등록됩니다.')).toBeVisible()
+  await expect(page.getByText('발주 ORD-AST-01 잔량 1.')).toBeVisible()
+  await expect(page.getByLabel('불량')).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: '불량 0' })).toHaveCount(0)
+  await page.getByRole('button', { name: '수령', exact: true }).click()
+  await expect(page.getByText('샘플 책상 1건을 자산으로 등록했습니다.')).toBeVisible()
+  await expect(page.getByRole('button', { name: '샘플창고 현재고 7' })).toBeVisible()
+  await expectNoHqLeftovers(page)
+  await page.goto('/guest/assets')
+  await expect(page.getByRole('heading', { name: '회사 자산 3' })).toBeVisible({ timeout: 20000 })
+  await page.getByRole('cell', { name: '수령' }).click()
+  await expect(page.getByText('구매 원본 발주 ORD-AST-01')).toBeVisible()
+  await expect(page.getByRole('heading', { name: '회사 자산 0' })).toHaveCount(0)
   await expectNoHqLeftovers(page)
 })
 

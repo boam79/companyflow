@@ -82,7 +82,8 @@ export function inventoryShowsWarehouseField(action: string, warehouseCount: num
     action === 'post_receipt' ||
     action === 'post_outbound' ||
     action === 'adjust_stock' ||
-    action === 'post_supplier_return'
+    action === 'post_supplier_return' ||
+    action === 'convert_to_asset'
   )
 }
 
@@ -179,10 +180,12 @@ export function stockOutboundLead() {
   return '출고하면 현재고가 줄어듭니다. 사람 이름은 적지 않습니다.'
 }
 
-export function stockReceiptLead(orderId?: string, remaining = 0, defectText = '') {
-  const parts = ['정상만 현재고에 들어갑니다.']
+export function stockReceiptLead(orderId?: string, remaining = 0, defectText = '', asAsset = false) {
+  const parts = asAsset
+    ? ['수령하면 현재고 없이 자리의 물건으로 등록됩니다.']
+    : ['정상만 현재고에 들어갑니다.']
   const defect = Number(defectText)
-  if (defectText.trim() && Number.isFinite(defect) && defect > 0) {
+  if (!asAsset && defectText.trim() && Number.isFinite(defect) && defect > 0) {
     parts.push('불량은 현재고에 넣지 않습니다.')
   }
   const order = publicStockOrderId(orderId)
@@ -191,6 +194,10 @@ export function stockReceiptLead(orderId?: string, remaining = 0, defectText = '
     else parts.push('이 발주는 다 받았습니다.')
   }
   return parts.join(' ')
+}
+
+export function stockConvertLead() {
+  return '자리의 물건만 재고에서 자산으로 바꿉니다. 일반 비품 현재고는 그대로입니다.'
 }
 
 export function buildSupplyInventory(
