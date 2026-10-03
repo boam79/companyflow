@@ -113,6 +113,7 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 - Supabase 활성: `companyflow`, `boardroom`. 정지: `boam79_patient_data`, `qr-asset-manager`, `policyfund-ai-v2`.
 - `confirm_company_device` RPC 추가. 초기 설정 성공 후 원본 장치를 confirmed 로 올린다.
 
+- 2026-10-03: 보안 점검. 테이블 권한을 조회 중심으로 줄임(TRUNCATE·DELETE 제거), 쓰지 않는 초대 RPC 닫음, 소속 확인 함수는 호출자 권한, vite 8.3.2·supabase-js 2.117.2. npm audit 0. HTTPS E2E 59, 번들 `index-BYgglqXS.js`. 유출 비밀번호 검사는 Supabase 대시보드에서 켜야 함. 초대 가입 자동 확인은 사용자가 현행 유지를 선택(잔여 위험: 초대 이메일을 아는 사람이 먼저 가입 가능).
 - 2026-10-03: 출고·반출·수령·반품 메모·등록자, 수령·반납·이동·실사 확정 후, 납기 지남 발주, 요청 품목 스냅샷, 명찰·입퇴사 직원번호. 단위 326. HTTPS E2E 59. 앱 `91a67ea` 번들 `index-B9f098uE.js`. 단가·`/reports`·PUR-02는 두지 않음.
 - 2026-10-03: 직원 직위·입사일과 입출고 현재고·확정 후, 발주 확정 당시 품목명·단위·공급사명을 남긴다. 단위 323. HTTPS E2E 59. READY `dpl_CNBUuZgFF5KKqZTDtu6VWZ7CFiJE` 번들 `index-PchEDy0f.js`. 단가·퇴사일 마스터·`/reports`·PUR-02는 두지 않음.
 - 2026-10-03: 확정 당시 품목명·단위·구매 구분·창고명·공급사명을 원장에 남긴다. 단위 320. HTTPS E2E 59. READY `dpl_BZyj7vziubHzG9SQQmvba2vab43a` 번들 `index-ygF63rOb.js`. 단가·`/reports`·PUR-02는 두지 않음.
