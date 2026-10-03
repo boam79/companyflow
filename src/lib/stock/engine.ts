@@ -154,6 +154,11 @@ export type LedgerLine = {
   fileName?: string
   fileMime?: string
   fileBase64?: string
+  itemName?: string
+  itemUnit?: string
+  purchaseKind?: string
+  warehouseName?: string
+  partnerName?: string
   createdAt?: string
 }
 
@@ -180,6 +185,27 @@ export function ledgerActorFields(input: {
     ...(input.departmentId?.trim() ? { departmentId: input.departmentId.trim() } : {}),
     ...(departmentName ? { departmentName } : {}),
     ...(recordedBy ? { recordedBy } : {}),
+  }
+}
+
+export function ledgerCatalogFields(input: {
+  itemName?: string
+  itemUnit?: string
+  purchaseKind?: string
+  warehouseName?: string
+  partnerName?: string
+}): Pick<LedgerLine, 'itemName' | 'itemUnit' | 'purchaseKind' | 'warehouseName' | 'partnerName'> {
+  const itemName = ledgerPersonLabel(input.itemName)
+  const itemUnit = ledgerPersonLabel(input.itemUnit)
+  const purchaseKind = ledgerPersonLabel(input.purchaseKind)
+  const warehouseName = ledgerPersonLabel(input.warehouseName)
+  const partnerName = ledgerPersonLabel(input.partnerName)
+  return {
+    ...(itemName ? { itemName } : {}),
+    ...(itemUnit ? { itemUnit } : {}),
+    ...(purchaseKind ? { purchaseKind } : {}),
+    ...(warehouseName ? { warehouseName } : {}),
+    ...(partnerName ? { partnerName } : {}),
   }
 }
 
@@ -531,6 +557,9 @@ export function applyStockCommand(
       requirePositive(command.qty)
       const { left } = returnBalance(next.ledger, command.sourceOperationId)
       if (command.qty > left) throw new Error('반출 수량을 초과해 반납할 수 없습니다.')
+      const source = next.ledger.find(
+        (line) => line.operationId === command.sourceOperationId && line.txnType === 'issue',
+      )
       next.ledger.push({
         id: `${command.operationId}:return`,
         operationId: command.operationId,
@@ -539,6 +568,7 @@ export function applyStockCommand(
         warehouseId: command.warehouseId,
         qtyDelta: command.qty,
         sourceOperationId: command.sourceOperationId,
+        ...ledgerCatalogFields(source ?? {}),
       })
       break
     }
@@ -564,6 +594,7 @@ export function applyStockCommand(
           sourceOperationId: inbound.operationId,
           partnerId: inbound.partnerId,
           reason: command.reason?.trim() || undefined,
+          ...ledgerCatalogFields({ ...inbound, warehouseName: undefined }),
         })
         break
       }
@@ -684,6 +715,7 @@ export function applyStockCommand(
           warehouseId: line.warehouseId,
           qtyDelta: -line.qtyDelta,
           sourceOperationId: command.sourceOperationId,
+          ...ledgerCatalogFields(line),
         })
       }
       break

@@ -3,7 +3,7 @@ import {
   applyStockCommand,
   createStockState,
 } from './engine'
-import { buildLedgerView, buildSupplyLedgerView, filterLedgerView, formatLedgerLink, ledgerRelatedJumps, publicItemLabel, publicRecorderName, rowsAreRelated, sessionRecorderName, stockEmptyLedgerFilterLead, stockEmptyLedgerLead } from './ledgerView'
+import { buildLedgerView, buildSupplyLedgerView, filterLedgerView, formatLedgerLink, ledgerItemCaption, ledgerRelatedJumps, publicItemLabel, publicRecorderName, rowsAreRelated, sessionRecorderName, stockEmptyLedgerFilterLead, stockEmptyLedgerLead } from './ledgerView'
 
 const ITEM = 'item-paper'
 const MAIN = 'wh-main'
@@ -246,6 +246,45 @@ describe('입출고 수불부', () => {
     expect(publicItemLabel('복사용지', 'item-paper')).toBe('복사용지')
     expect(publicItemLabel('item-d2361da5-1d84-4f31-b43b-9e8ad4cc4bc2')).toBe('비품')
     expect(publicItemLabel('', 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee')).toBe('비품')
+    expect(
+      ledgerItemCaption(
+        {
+          id: 'l-cap',
+          operationId: 'op-cap',
+          txnType: 'direct_in',
+          itemId: ITEM,
+          warehouseId: MAIN,
+          qtyDelta: 1,
+          itemName: '옛복사용지',
+          itemUnit: '박스',
+          purchaseKind: '일반 비품',
+        },
+        '새복사용지',
+      ),
+    ).toBe('옛복사용지 · 박스 · 일반 비품')
+    expect(
+      formatLedgerLink({
+        id: 'l-partner-snap',
+        operationId: 'op-in-snap',
+        txnType: 'direct_in',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qtyDelta: 1,
+        partnerId: 'partner-gone',
+        partnerName: '견본문구',
+      }),
+    ).toBe('견본문구')
+    expect(
+      formatLedgerLink({
+        id: 'l-wh-snap',
+        operationId: 'op-move-snap',
+        txnType: 'transfer_out',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qtyDelta: -1,
+        warehouseName: '본사창고',
+      }),
+    ).toBe('본사창고')
   })
 
   it('창고 이동은 회사잔량을 바꾸지 않고 출고 다음에 입고를 둔다', () => {

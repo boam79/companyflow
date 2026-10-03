@@ -2,12 +2,14 @@ import { assetsFromConvert } from '../asset/book'
 import { assetsFromReceipt, allocateReceiptQty } from '../asset/receipt'
 import { assertContractFile, base64ToBytes, bytesToBase64 } from '../contracts/book'
 import { assertConvertibleItem, loadItems, writeDefaultMaster, type ItemRecord } from '../master/book'
+import { purchaseKindLabel } from '../master/commands'
 import type { CompanySqlite } from '../sqlite/client'
 import { supplyItemInsert } from './typedItem'
 import { assertOrderFitsRequest, loadPurchaseRequests } from './request'
 import {
   applyStockCommand,
   createStockState,
+  ledgerCatalogFields,
   resolveOrderLines,
   stockOrderLines,
   type LedgerLine,
@@ -43,6 +45,11 @@ export type LedgerRow = {
   file_base64?: string | null
   department_name?: string | null
   recorded_by?: string | null
+  item_name?: string | null
+  item_unit?: string | null
+  purchase_kind?: string | null
+  warehouse_name?: string | null
+  partner_name?: string | null
   created_at?: string | null
 }
 
@@ -88,14 +95,51 @@ export function ledgerAttachment(file: { name: string; mime?: string; bytes: Uin
   return orderAttachment({ ...file, name: file.name.trim() || '수불첨부' })
 }
 
+export type LedgerCatalog = {
+  items: { id: string; name: string; unit?: string; purchaseKind?: string }[]
+  warehouses: { id: string; name: string }[]
+  partners: { id: string; name: string }[]
+  purchaseKinds: { id: string; name: string }[]
+}
+
+export function stampLedgerCatalog(line: LedgerLine, catalog: LedgerCatalog): LedgerLine {
+  const item = catalog.items.find((row) => row.id === line.itemId)
+  const warehouse = catalog.warehouses.find((row) => row.id === line.warehouseId)
+  const partner = line.partnerId
+    ? catalog.partners.find((row) => row.id === line.partnerId)
+    : undefined
+  const kind = item
+    ? purchaseKindLabel(item.purchaseKind, catalog.purchaseKinds)
+    : undefined
+  return {
+    ...line,
+    ...ledgerCatalogFields({
+      itemName: line.itemName || item?.name,
+      itemUnit: line.itemUnit || item?.unit || (item ? '개' : undefined),
+      purchaseKind: line.purchaseKind || kind,
+      warehouseName: line.warehouseName || warehouse?.name,
+      partnerName: line.partnerName || partner?.name,
+    }),
+  }
+}
+
+export function stampNewLedgerLines(prev: StockState, next: StockState, catalog: LedgerCatalog): StockState {
+  const prevIds = new Set(prev.ledger.map((line) => line.id))
+  return {
+    ...next,
+    ledger: next.ledger.map((line) => (prevIds.has(line.id) ? line : stampLedgerCatalog(line, catalog))),
+  }
+}
+
 export function ledgerInsert(line: LedgerLine, createdAt: string): SqlStatement {
   return {
     sql: `insert into stock_ledger(
       id, operation_id, txn_type, item_id, warehouse_id, qty_delta,
       person_name, department_id, source_operation_id, order_id, reason,
       partner_id, purpose, due_return_at, business_date, memo,
-      file_name, file_mime, file_base64, department_name, recorded_by, created_at
-    ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      file_name, file_mime, file_base64, department_name, recorded_by,
+      item_name, item_unit, purchase_kind, warehouse_name, partner_name, created_at
+    ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     params: [
       line.id,
       line.operationId,
@@ -118,6 +162,11 @@ export function ledgerInsert(line: LedgerLine, createdAt: string): SqlStatement 
       line.fileBase64 ?? null,
       line.departmentName ?? null,
       line.recordedBy ?? null,
+      line.itemName ?? null,
+      line.itemUnit ?? null,
+      line.purchaseKind ?? null,
+      line.warehouseName ?? null,
+      line.partnerName ?? null,
       createdAt,
     ],
   }
@@ -297,6 +346,11 @@ export function stateFromRows(
       fileBase64: row.file_base64 ?? undefined,
       departmentName: row.department_name ?? undefined,
       recordedBy: row.recorded_by ?? undefined,
+      itemName: row.item_name ?? undefined,
+      itemUnit: row.item_unit ?? undefined,
+      purchaseKind: row.purchase_kind ?? undefined,
+      warehouseName: row.warehouse_name ?? undefined,
+      partnerName: row.partner_name ?? undefined,
       createdAt: row.created_at ?? undefined,
     }
     state.ledger.push(line)
@@ -315,7 +369,8 @@ export async function loadStockState(db: Pick<CompanySqlite, 'query'>): Promise<
       `select id, operation_id, txn_type, item_id, warehouse_id, qty_delta,
         person_name, department_id, source_operation_id, order_id, reason,
         partner_id, purpose, due_return_at, business_date, memo,
-        file_name, file_mime, file_base64, department_name, recorded_by, created_at
+        file_name, file_mime, file_base64, department_name, recorded_by,
+        item_name, item_unit, purchase_kind, warehouse_name, partner_name, created_at
        from stock_ledger order by created_at, id`,
     ),
     db.query<{ operation_id: string }>('select operation_id from processed_operations'),
@@ -409,13 +464,29 @@ export async function executeStockCommand(
     ...(options?.newItem ? [options.newItem] : []),
     ...(options?.newItems ?? []).filter((item) => item.id !== options?.newItem?.id),
   ]
+  const [itemRows, warehouses, partners, purchaseKinds] = await Promise.all([
+    loadItems(db),
+    db.query<{ id: string; name: string }>('select id, name from warehouses'),
+    db.query<{ id: string; name: string }>('select id, name from partners'),
+    db.query<{ id: string; name: string }>('select id, name from purchase_kinds'),
+  ])
+  const catalog: LedgerCatalog = {
+    items: [
+      ...itemRows,
+      ...createdItems.filter((item) => !itemRows.some((row) => row.id === item.id)),
+    ],
+    warehouses,
+    partners,
+    purchaseKinds,
+  }
+  const stamped = stampNewLedgerLines(prev, result.state, catalog)
   const statements: SqlStatement[] = [
     ...createdItems.map((item) => supplyItemInsert(item, createdAt)),
     {
       sql: 'insert into processed_operations(operation_id, result_json, created_at) values(?, ?, ?)',
       params: [nextCommand.operationId, JSON.stringify({ type: nextCommand.type }), createdAt],
     },
-    ...statementsForCommand(nextCommand, prev, result.state, createdAt),
+    ...statementsForCommand(nextCommand, prev, stamped, createdAt),
     {
       sql: 'insert into audit_events(id, action, detail_json, created_at) values(?, ?, ?, ?)',
       params: [
@@ -433,7 +504,7 @@ export async function executeStockCommand(
 
   try {
     await db.batch(statements)
-    return result
+    return { status: result.status, state: stamped }
   } catch (error) {
     if (isUniqueConstraintError(error)) {
       const again = await loadStockState(db)

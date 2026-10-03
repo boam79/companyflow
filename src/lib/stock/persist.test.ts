@@ -10,6 +10,7 @@ import {
   orderAttachment,
   ledgerAttachment,
   ledgerInsert,
+  stampLedgerCatalog,
   statementsForCommand,
   stateFromRows,
 } from './persist'
@@ -125,8 +126,86 @@ describe('재고 영속 묶음', () => {
     const stmt = ledgerInsert(state.ledger[0], 't')
     expect(stmt.sql).toContain('department_name')
     expect(stmt.sql).toContain('recorded_by')
+    expect(stmt.sql).toContain('item_name')
+    expect(stmt.sql).toContain('warehouse_name')
     expect(stmt.params).toContain('샘플품질')
     expect(stmt.params).toContain('박재민')
+  })
+
+  it('원장은 확정 당시 품목명·단위·구매 구분·창고명·공급사명을 다시 읽는다', () => {
+    const stamped = stampLedgerCatalog(
+      {
+        id: 'l1',
+        operationId: 'op-1',
+        txnType: 'direct_in',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qtyDelta: 1,
+        partnerId: 'partner-guest',
+      },
+      {
+        items: [{ id: ITEM, name: '복사용지', unit: '박스', purchaseKind: 'supply' }],
+        warehouses: [{ id: MAIN, name: '본사창고' }],
+        partners: [{ id: 'partner-guest', name: '견본문구' }],
+        purchaseKinds: [{ id: 'supply', name: '일반 비품' }],
+      },
+    )
+    expect(stamped).toMatchObject({
+      itemName: '복사용지',
+      itemUnit: '박스',
+      purchaseKind: '일반 비품',
+      warehouseName: '본사창고',
+      partnerName: '견본문구',
+    })
+    expect(
+      stampLedgerCatalog(
+        { ...stamped, itemName: '옛복사용지', warehouseName: '옛창고' },
+        {
+          items: [{ id: ITEM, name: '새복사용지', unit: '권', purchaseKind: 'material' }],
+          warehouses: [{ id: MAIN, name: '새창고' }],
+          partners: [{ id: 'partner-guest', name: '새문구' }],
+          purchaseKinds: [{ id: 'material', name: '자재' }],
+        },
+      ),
+    ).toMatchObject({
+      itemName: '옛복사용지',
+      itemUnit: '박스',
+      purchaseKind: '일반 비품',
+      warehouseName: '옛창고',
+      partnerName: '견본문구',
+    })
+    const restored = stateFromRows(
+      [],
+      [
+        {
+          id: 'l1',
+          operation_id: 'op-1',
+          txn_type: 'direct_in',
+          item_id: ITEM,
+          warehouse_id: MAIN,
+          qty_delta: 1,
+          item_name: '복사용지',
+          item_unit: '박스',
+          purchase_kind: '일반 비품',
+          warehouse_name: '본사창고',
+          partner_name: '견본문구',
+        },
+      ],
+      ['op-1'],
+    )
+    expect(restored.ledger[0]).toMatchObject({
+      itemName: '복사용지',
+      itemUnit: '박스',
+      purchaseKind: '일반 비품',
+      warehouseName: '본사창고',
+      partnerName: '견본문구',
+    })
+    const stmt = ledgerInsert(restored.ledger[0], 't')
+    expect(stmt.params).toContain('복사용지')
+    expect(stmt.params).toContain('박스')
+    expect(stmt.params).toContain('일반 비품')
+    expect(stmt.params).toContain('본사창고')
+    expect(stmt.params).toContain('견본문구')
   })
 
   it('자산화는 원장 출고와 자산 행을 한 묶음으로 만든다', () => {

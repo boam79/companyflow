@@ -87,6 +87,13 @@ export function publicItemLabel(name?: string | null, id?: string | null) {
   return (name ?? '').trim() || '비품'
 }
 
+export function ledgerItemCaption(line: LedgerLine, liveName?: string | null) {
+  const name = publicItemLabel(line.itemName || liveName, line.itemId)
+  const unit = publicRecorderName(line.itemUnit)
+  const kind = publicRecorderName(line.purchaseKind)
+  return [name, unit, kind].filter(Boolean).join(' · ')
+}
+
 export function formatLedgerLink(
   line: LedgerLine,
   names?: LedgerNameMaps,
@@ -107,9 +114,10 @@ export function formatLedgerLink(
     names?.departments?.find((row) => row.id === line.departmentId)?.name ||
     publicOrderRef(line.departmentId)
   if (departmentName) parts.push(departmentName)
-  if (line.partnerId) {
+  if (line.partnerId || line.partnerName) {
     const partner = names?.partners?.find((row) => row.id === line.partnerId)
-    const partnerName = partner?.name ?? publicOrderRef(line.partnerId)
+    const partnerName =
+      publicRecorderName(line.partnerName) || partner?.name || publicOrderRef(line.partnerId)
     if (partnerName) parts.push(partnerName)
   }
   if (line.purpose?.trim()) parts.push(line.purpose.trim())
@@ -121,7 +129,8 @@ export function formatLedgerLink(
   if (line.memo?.trim()) parts.push(line.memo.trim())
   if (line.fileName?.trim()) parts.push(line.fileName.trim())
   if (line.txnType === 'transfer_in' || line.txnType === 'transfer_out') {
-    const warehouse = warehouseName ?? publicOrderRef(line.warehouseId)
+    const warehouse =
+      warehouseName || publicRecorderName(line.warehouseName) || publicOrderRef(line.warehouseId)
     if (warehouse) parts.push(warehouse)
   }
   if (line.reason && !/자산화|자산이 아니라 재고/.test(line.reason)) parts.push(line.reason)
@@ -168,7 +177,8 @@ function toViewRow(
 ): LedgerViewRow {
   const fromName =
     line.txnType === 'transfer_in' || line.txnType === 'transfer_out'
-      ? names?.warehouses?.find((row) => row.id === line.warehouseId)?.name
+      ? publicRecorderName(line.warehouseName) ||
+        names?.warehouses?.find((row) => row.id === line.warehouseId)?.name
       : undefined
   return {
     line,

@@ -256,6 +256,15 @@ describe('비품 현재고', () => {
     expect(overdueIssueReturns(state.ledger, [PAPER_ITEM], '2026-10-03').map((row) => row.caption)).toEqual([
       '견본 김대리 · 복사용지 · 기한 지남 2026-01-01',
     ])
+    expect(
+      overdueIssueReturns(
+        state.ledger.map((line) =>
+          line.operationId === 'op-late' ? { ...line, itemName: '옛복사용지' } : line,
+        ),
+        [{ ...PAPER_ITEM, name: '새복사용지' }],
+        '2026-10-03',
+      ).map((row) => row.caption),
+    ).toEqual(['견본 김대리 · 옛복사용지 · 기한 지남 2026-01-01'])
     state = applyStockCommand(state, {
       type: 'post_return',
       operationId: 'op-back',

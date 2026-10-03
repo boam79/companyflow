@@ -4,6 +4,7 @@ import {
   companyOnHand,
   createStockState,
   inboundReturnBalance,
+  ledgerCatalogFields,
   onHand,
   orderRemaining,
   returnBalance,
@@ -284,6 +285,22 @@ describe('복사용지 재고 원장', () => {
       departmentName: '샘플품질',
     })
     expect(named.ledger.at(-1)?.recordedBy).toBeUndefined()
+    expect(ledgerCatalogFields({ itemName: '복사용지', itemUnit: '박스', purchaseKind: '일반 비품', warehouseName: '본사창고', partnerName: '견본문구' })).toEqual({
+      itemName: '복사용지',
+      itemUnit: '박스',
+      purchaseKind: '일반 비품',
+      warehouseName: '본사창고',
+      partnerName: '견본문구',
+    })
+    expect(
+      ledgerCatalogFields({
+        itemName: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+        itemUnit: 'guest:box',
+        purchaseKind: 'user@example.com',
+        warehouseName: 'sample:wh',
+        partnerName: 'item-paper',
+      }),
+    ).toEqual({})
     expect(
       applyStockCommand(createStockState(), {
         type: 'post_direct_in',
@@ -340,6 +357,76 @@ describe('복사용지 재고 원장', () => {
         sourceOperationId: 'op-count',
       }),
     ).toThrow(/이미 정정/)
+  })
+
+  it('정정·반납은 확정 당시 품목명·단위·구매 구분·창고명·공급사명을 그대로 둔다', () => {
+    let state = applyStockCommand(createStockState(), {
+      type: 'post_direct_in',
+      operationId: 'op-in-snap',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 3,
+      partnerId: 'partner-guest',
+    }).state
+    state.ledger[0] = {
+      ...state.ledger[0],
+      itemName: '옛복사용지',
+      itemUnit: '박스',
+      purchaseKind: '일반 비품',
+      warehouseName: '본사창고',
+      partnerName: '견본문구',
+    }
+    const reversed = applyStockCommand(state, {
+      type: 'reverse_transaction',
+      operationId: 'op-rev-snap',
+      sourceOperationId: 'op-in-snap',
+    }).state
+    expect(reversed.ledger.at(-1)).toMatchObject({
+      txnType: 'reversal',
+      itemName: '옛복사용지',
+      itemUnit: '박스',
+      purchaseKind: '일반 비품',
+      warehouseName: '본사창고',
+      partnerName: '견본문구',
+    })
+
+    let issued = applyStockCommand(createStockState(), {
+      type: 'post_direct_in',
+      operationId: 'op-in-iss',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 2,
+    }).state
+    issued = applyStockCommand(issued, {
+      type: 'post_issue',
+      operationId: 'op-iss',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 1,
+      personName: '견본 김대리',
+    }).state
+    issued.ledger[1] = {
+      ...issued.ledger[1],
+      itemName: '옛복사용지',
+      itemUnit: '박스',
+      purchaseKind: '일반 비품',
+      warehouseName: '본사창고',
+    }
+    const returned = applyStockCommand(issued, {
+      type: 'post_return',
+      operationId: 'op-ret',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 1,
+      sourceOperationId: 'op-iss',
+    }).state
+    expect(returned.ledger.at(-1)).toMatchObject({
+      txnType: 'return',
+      itemName: '옛복사용지',
+      itemUnit: '박스',
+      purchaseKind: '일반 비품',
+      warehouseName: '본사창고',
+    })
   })
 
   it('발주 확정은 공급사를 남기고 초안 공급사를 유지한다', () => {

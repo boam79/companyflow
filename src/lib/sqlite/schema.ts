@@ -172,6 +172,11 @@ export const SCHEMA_PATCHES = [
   'alter table stock_ledger add column recorded_by text',
   'alter table warehouses add column location_text text',
   'alter table employees add column employee_no text',
+  'alter table stock_ledger add column item_name text',
+  'alter table stock_ledger add column item_unit text',
+  'alter table stock_ledger add column purchase_kind text',
+  'alter table stock_ledger add column warehouse_name text',
+  'alter table stock_ledger add column partner_name text',
 ]
 
 export const SCHEMA_VERSION = LOCAL_MIGRATIONS.length

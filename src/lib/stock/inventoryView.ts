@@ -202,7 +202,7 @@ export function overdueIssueReturns(ledger: LedgerLine[], items: ItemRecord[], t
       if (!due || due >= today) return []
       const { left } = returnBalance(ledger, line.operationId)
       if (!(left > 0)) return []
-      const itemName = items.find((item) => item.id === line.itemId)?.name ?? ''
+      const itemName = line.itemName || items.find((item) => item.id === line.itemId)?.name || ''
       return [{ line, caption: overdueIssueReturnLine(line.personName, itemName, due) }]
     })
     .sort(
