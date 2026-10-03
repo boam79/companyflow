@@ -15,6 +15,8 @@ import {
   masterInsertStatement,
   partnerAttachment,
   partnerUpdateStatement,
+  warehouseUpdateStatement,
+  employeeUpdateStatement,
   PURCHASE_KINDS,
   purchaseKindLabel,
   purchaseKindNamePlaceholder,
@@ -26,6 +28,7 @@ import {
   ACTIVE_MASTER_WHERE,
   masterSavedNotice,
   masterDisabledNotice,
+  masterOptionalText,
   type MasterFieldEntity,
   type MasterTable,
   type PurchaseKindRow,
@@ -55,6 +58,8 @@ type NamedRow = {
   memo?: string | null
   file_name?: string | null
   has_file?: number | null
+  location_text?: string | null
+  employee_no?: string | null
 }
 type FieldRow = { entity: string; key: string; label: string }
 type TabId = MasterTable | 'fields'
@@ -155,6 +160,8 @@ export function MasterDataPage() {
   const [partnerMemo, setPartnerMemo] = useState('')
   const [selectedPartnerId, setSelectedPartnerId] = useState('')
   const [selectedNamedId, setSelectedNamedId] = useState('')
+  const [warehouseLocation, setWarehouseLocation] = useState('')
+  const [employeeNo, setEmployeeNo] = useState('')
   const [partnerFileName, setPartnerFileName] = useState('')
   const [partnerHasFile, setPartnerHasFile] = useState(false)
   const [pendingPartnerFile, setPendingPartnerFile] = useState<{
@@ -235,7 +242,7 @@ export function MasterDataPage() {
     const named =
       nextTab === 'employees'
         ? await sqlite.query<NamedRow>(
-            'select id, name, department_id, title, left_at from employees order by name',
+            'select id, name, department_id, title, left_at, employee_no from employees order by name',
           )
         : nextTab === 'items'
           ? await sqlite.query<NamedRow>(
@@ -247,9 +254,13 @@ export function MasterDataPage() {
                   case when file_base64 is not null and length(file_base64) > 0 then 1 else 0 end as has_file
                  from partners where ${ACTIVE_MASTER_WHERE} order by name`,
               )
-            : await sqlite.query<NamedRow>(
-                `select id, name from ${nextTab} where ${ACTIVE_MASTER_WHERE} order by name`,
-              )
+            : nextTab === 'warehouses'
+              ? await sqlite.query<NamedRow>(
+                  `select id, name, location_text from warehouses where ${ACTIVE_MASTER_WHERE} order by name`,
+                )
+              : await sqlite.query<NamedRow>(
+                  `select id, name from ${nextTab} where ${ACTIVE_MASTER_WHERE} order by name`,
+                )
     setRows(named)
     setListTab(nextTab)
   }
@@ -309,6 +320,8 @@ export function MasterDataPage() {
           fileName: tab === 'partners' ? pendingPartnerFile?.fileName : undefined,
           fileMime: tab === 'partners' ? pendingPartnerFile?.fileMime : undefined,
           fileBase64: tab === 'partners' ? pendingPartnerFile?.fileBase64 : undefined,
+          locationText: tab === 'warehouses' ? warehouseLocation : undefined,
+          employeeNo: tab === 'employees' ? employeeNo : undefined,
         }
         const stmt = masterInsertStatement(tab, row)
         const result = await sqlite.runOnce(operationId, async () => {
@@ -325,6 +338,9 @@ export function MasterDataPage() {
       setPurchaseKindName(purchaseKindNamePlaceholder())
       setItemPartnerId('')
       setSelectedItemId('')
+      setSelectedNamedId('')
+      setWarehouseLocation('')
+      setEmployeeNo('')
       resetPartnerForm()
       await reload()
     } catch (error) {
@@ -355,6 +371,49 @@ export function MasterDataPage() {
         return { itemId: selectedItemId, name: stmt.params[0], code: stmt.params[1] }
       })
       setNotice(masterSavedNotice('품목', result.status))
+      await reload()
+    } catch (error) {
+      setMessage(publicErrorMessage(error))
+    }
+  }
+
+  async function saveWarehouse() {
+    if (!ready || !selectedNamedId || !writingAllowed()) return
+    setMessage('')
+    const operationId = crypto.randomUUID()
+    try {
+      const stmt = warehouseUpdateStatement({
+        id: selectedNamedId,
+        name,
+        locationText: warehouseLocation,
+      })
+      const result = await sqlite.runOnce(operationId, async () => {
+        await sqlite.exec(stmt.sql, stmt.params)
+        return { id: selectedNamedId }
+      })
+      setNotice(masterSavedNotice('창고', result.status))
+      await reload()
+    } catch (error) {
+      setMessage(publicErrorMessage(error))
+    }
+  }
+
+  async function saveEmployee() {
+    if (!ready || !selectedNamedId || !writingAllowed()) return
+    setMessage('')
+    const operationId = crypto.randomUUID()
+    try {
+      const stmt = employeeUpdateStatement({
+        id: selectedNamedId,
+        name,
+        departmentId,
+        employeeNo,
+      })
+      const result = await sqlite.runOnce(operationId, async () => {
+        await sqlite.exec(stmt.sql, stmt.params)
+        return { id: selectedNamedId }
+      })
+      setNotice(masterSavedNotice('직원', result.status))
       await reload()
     } catch (error) {
       setMessage(publicErrorMessage(error))
@@ -561,6 +620,7 @@ export function MasterDataPage() {
             { key: 'name', label: '이름' },
             { key: 'department', label: '부서', muted: true },
             { key: 'title', label: '직위', muted: true },
+            { key: 'employeeNo', label: '직원번호', muted: true },
             { key: 'status', label: '상태', muted: true },
           ],
           rows: rows.map((row) => ({
@@ -568,6 +628,7 @@ export function MasterDataPage() {
             name: row.name,
             department: departments.find((dept) => dept.id === row.department_id)?.name ?? '',
             title: row.title?.trim() ?? '',
+            employeeNo: masterOptionalText(row.employee_no ?? undefined) ?? '',
             status: row.left_at ? '퇴사' : '재직',
           })),
         }
@@ -627,6 +688,18 @@ export function MasterDataPage() {
                 entity: FIELD_ENTITIES.find((item) => item.id === field.entity)?.label ?? field.entity,
                 key: field.key,
                 label: field.label,
+              })),
+            }
+        : tab === 'warehouses'
+          ? {
+              columns: [
+                { key: 'name', label: '이름' },
+                { key: 'location', label: '위치', muted: true },
+              ],
+              rows: rows.map((row) => ({
+                id: row.id,
+                name: row.name,
+                location: masterOptionalText(row.location_text ?? undefined) ?? '',
               })),
             }
           : {
@@ -693,6 +766,8 @@ export function MasterDataPage() {
               setPurchaseKindName(purchaseKindNamePlaceholder())
               setItemPartnerId('')
               setSelectedNamedId('')
+              setWarehouseLocation('')
+              setEmployeeNo('')
               resetPartnerForm()
               setTab(item.id)
             }}
@@ -947,17 +1022,37 @@ export function MasterDataPage() {
           </>
         ) : null}
         {tab === 'employees' ? (
-          <select
-            className="rounded border border-line px-3 py-2 text-sm"
-            value={departmentId}
-            onChange={(e) => setDepartmentId(e.target.value)}
-          >
-            {departments.map((dept) => (
-              <option key={dept.id} value={dept.id}>
-                {dept.name}
-              </option>
-            ))}
-          </select>
+          <>
+            <select
+              className="rounded border border-line px-3 py-2 text-sm"
+              value={departmentId}
+              onChange={(e) => setDepartmentId(e.target.value)}
+            >
+              {departments.map((dept) => (
+                <option key={dept.id} value={dept.id}>
+                  {dept.name}
+                </option>
+              ))}
+            </select>
+            <label className="text-sm">
+              직원번호
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2 text-sm"
+                value={employeeNo}
+                onChange={(e) => setEmployeeNo(e.target.value)}
+              />
+            </label>
+          </>
+        ) : null}
+        {tab === 'warehouses' ? (
+          <label className="text-sm">
+            위치
+            <input
+              className="mt-1 w-full rounded border border-line px-3 py-2 text-sm"
+              value={warehouseLocation}
+              onChange={(e) => setWarehouseLocation(e.target.value)}
+            />
+          </label>
         ) : null}
         <div className="flex flex-wrap gap-2">
         <input
@@ -973,6 +1068,26 @@ export function MasterDataPage() {
         >
           추가
         </button>
+        {tab === 'warehouses' ? (
+          <button
+            type="button"
+            disabled={!ready || !selectedNamedId}
+            className="rounded border border-line px-4 py-2 text-sm font-semibold disabled:opacity-50"
+            onClick={() => void saveWarehouse()}
+          >
+            창고 저장
+          </button>
+        ) : null}
+        {tab === 'employees' ? (
+          <button
+            type="button"
+            disabled={!ready || !selectedNamedId}
+            className="rounded border border-line px-4 py-2 text-sm font-semibold disabled:opacity-50"
+            onClick={() => void saveEmployee()}
+          >
+            직원 저장
+          </button>
+        ) : null}
         {tab === 'departments' || tab === 'warehouses' ? (
           <button
             type="button"
@@ -1004,7 +1119,7 @@ export function MasterDataPage() {
                 ? selectedItemId
                 : tab === 'partners'
                   ? selectedPartnerId
-                  : tab === 'departments' || tab === 'warehouses'
+                  : tab === 'departments' || tab === 'warehouses' || tab === 'employees'
                     ? selectedNamedId
                     : undefined
             }
@@ -1048,9 +1163,20 @@ export function MasterDataPage() {
                         const row = rows.find((item) => item.id === id)
                         setSelectedNamedId(id)
                         setName(row?.name ?? '')
+                        setWarehouseLocation(row?.location_text ?? '')
                         setMessage('')
                         setNotice('')
                       }
+                    : tab === 'employees'
+                      ? (id) => {
+                          const row = rows.find((item) => item.id === id)
+                          setSelectedNamedId(id)
+                          setName(row?.name ?? '')
+                          setDepartmentId(row?.department_id ?? departmentId)
+                          setEmployeeNo(row?.employee_no ?? '')
+                          setMessage('')
+                          setNotice('')
+                        }
                     : undefined
             }
           />

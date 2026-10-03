@@ -23,6 +23,9 @@ import {
   masterDeactivateStatement,
   masterSavedNotice,
   masterDisabledNotice,
+  masterOptionalText,
+  warehouseUpdateStatement,
+  employeeUpdateStatement,
 } from './commands'
 
 describe('기준정보 SQL 명령', () => {
@@ -35,7 +38,7 @@ describe('기준정보 SQL 명령', () => {
       })
       expect(stmt.sql.startsWith(`insert into ${table}`)).toBe(true)
       if (table === 'employees') {
-        expect(stmt.params).toEqual(['id-1', '총무', null, '2026-09-16T00:00:00.000Z'])
+        expect(stmt.params).toEqual(['id-1', '총무', null, null, '2026-09-16T00:00:00.000Z'])
       } else if (table === 'items') {
         expect(stmt.params).toEqual(['id-1', '총무', null, '개', 0, 'supply', null, '2026-09-16T00:00:00.000Z'])
       } else if (table === 'partners') {
@@ -49,6 +52,8 @@ describe('기준정보 SQL 명령', () => {
           null,
           '2026-09-16T00:00:00.000Z',
         ])
+      } else if (table === 'warehouses') {
+        expect(stmt.params).toEqual(['id-1', '총무', null, '2026-09-16T00:00:00.000Z'])
       } else {
         expect(stmt.params).toEqual(['id-1', '총무', '2026-09-16T00:00:00.000Z'])
       }
@@ -260,5 +265,43 @@ describe('기준정보 SQL 명령', () => {
     expect(masterSavedNotice('부서', 'duplicate')).toBe('같은 내용은 한 번만 반영됩니다.')
     expect(masterDisabledNotice('창고', 'applied')).toBe('사용 안 함으로 바꿨습니다. (창고)')
     expect(masterSavedNotice('품목', 'applied')).not.toMatch(/applied|duplicate/)
+  })
+
+  it('창고 위치와 직원번호는 선택이고 UUID는 두지 않는다', () => {
+    expect(masterOptionalText(' 샘플 3층 ')).toBe('샘플 3층')
+    expect(masterOptionalText('aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee')).toBeUndefined()
+    expect(masterOptionalText('guest:wh-main')).toBeUndefined()
+    expect(
+      masterInsertStatement('warehouses', {
+        id: 'wh-q',
+        name: '샘플품질창고',
+        createdAt: 't',
+        locationText: '샘플 3층',
+      }).params,
+    ).toEqual(['wh-q', '샘플품질창고', '샘플 3층', 't'])
+    expect(
+      warehouseUpdateStatement({ id: 'wh-q', name: '샘플품질창고', locationText: '샘플 1층' }),
+    ).toEqual({
+      sql: 'update warehouses set name = ?, location_text = ? where id = ?',
+      params: ['샘플품질창고', '샘플 1층', 'wh-q'],
+    })
+    expect(
+      masterInsertStatement('employees', {
+        id: 'emp-1',
+        name: '견본 테스트',
+        createdAt: 't',
+        departmentId: 'dept-guest-admin',
+        employeeNo: 'G-001',
+      }).params,
+    ).toEqual(['emp-1', '견본 테스트', 'dept-guest-admin', 'G-001', 't'])
+    expect(masterOptionalText('pjm7908@hanmail.net')).toBeUndefined()
+    expect(
+      employeeUpdateStatement({
+        id: 'emp-1',
+        name: '견본 테스트',
+        departmentId: 'dept-guest-admin',
+        employeeNo: 'G-001',
+      }).params,
+    ).toEqual(['견본 테스트', 'dept-guest-admin', 'G-001', 'emp-1'])
   })
 })

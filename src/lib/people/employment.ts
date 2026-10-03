@@ -6,6 +6,7 @@ import {
   type OnboardingCheck,
   type OnboardingKey,
 } from './onboarding'
+import { masterOptionalText } from '../master/commands'
 
 export type EmployeeRecord = {
   id: string
@@ -16,6 +17,7 @@ export type EmployeeRecord = {
   leftAt?: string
   badgeName?: string
   badgeDepartment?: string
+  employeeNo?: string
 }
 
 export function isActiveEmployee(employee: EmployeeRecord): boolean {
@@ -53,10 +55,16 @@ export function visiblePeoplePanels(phase: RosterPhase) {
 export function rosterCaption(employee: EmployeeRecord, checks: OnboardingCheck[]): string {
   const phase = rosterPhase(employee, checks)
   const issued = hireIssuedCount(checks)
-  if (phase === 'left') return `퇴사 ${employee.leftAt}`
-  if (!employee.hiredAt) return `입사 전 · ${issued}/3 지급`
-  if (phase === 'joining') return `입사 중 · ${issued}/3 지급`
-  return `재직 · ${employee.hiredAt}`
+  const number = masterOptionalText(employee.employeeNo)
+  const base =
+    phase === 'left'
+      ? `퇴사 ${employee.leftAt}`
+      : !employee.hiredAt
+        ? `입사 전 · ${issued}/3 지급`
+        : phase === 'joining'
+          ? `입사 중 · ${issued}/3 지급`
+          : `재직 · ${employee.hiredAt}`
+  return number ? `${base} · ${number}` : base
 }
 
 export type HireProcessStep = {
@@ -174,8 +182,9 @@ export async function loadEmployees(
     left_at?: string | null
     badge_name?: string | null
     badge_department?: string | null
+    employee_no?: string | null
   }>(
-    'select id, name, department_id, title, hired_at, left_at, badge_name, badge_department from employees order by name',
+    'select id, name, department_id, title, hired_at, left_at, badge_name, badge_department, employee_no from employees order by name',
   )
   return rows.map((row) => ({
     id: row.id,
@@ -186,6 +195,7 @@ export async function loadEmployees(
     leftAt: row.left_at ?? undefined,
     badgeName: row.badge_name ?? undefined,
     badgeDepartment: row.badge_department ?? undefined,
+    employeeNo: masterOptionalText(row.employee_no ?? undefined),
   }))
 }
 

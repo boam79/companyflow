@@ -170,6 +170,8 @@ export const SCHEMA_PATCHES = [
   'alter table stock_ledger add column file_base64 text',
   'alter table stock_ledger add column department_name text',
   'alter table stock_ledger add column recorded_by text',
+  'alter table warehouses add column location_text text',
+  'alter table employees add column employee_no text',
 ]
 
 export const SCHEMA_VERSION = LOCAL_MIGRATIONS.length
