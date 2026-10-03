@@ -105,10 +105,11 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 
 ## MCP에서 확인한 것
 
-- Vercel: `prj_KXGPhwGOtB8IQ2pAsnuTOZ0l3isR` / team `team_U7AuO5lMD3rtoAwkrj410jpx`. 도메인 `companyflow-opal.vercel.app`. 자산 공급사 반품 READY `dpl_4xjPawvJ3LeKUQcXeiCuzEa6s3R7` 번들 `index-DutuDF9K.js`. 단위 316. HTTPS E2E 59.
+- Vercel: `prj_KXGPhwGOtB8IQ2pAsnuTOZ0l3isR` / team `team_U7AuO5lMD3rtoAwkrj410jpx`. 도메인 `companyflow-opal.vercel.app`. 반출 부서명·입고 등록자 READY `dpl_EhmjwZmnW91Qedynv4hA6jp1Srso` 번들 `index-CQLag06i.js`. 단위 317. HTTPS E2E 59.
 - Supabase 활성: `companyflow`, `boardroom`. 정지: `boam79_patient_data`, `qr-asset-manager`, `policyfund-ai-v2`.
 - `confirm_company_device` RPC 추가. 초기 설정 성공 후 원본 장치를 confirmed 로 올린다.
 
+- 2026-10-03: 반출은 확정 당시 부서명을 남기고 부서는 직접 입력한다. 직접 입고 등록자는 로그인 이름만. 단위 317. HTTPS E2E 59. READY `dpl_EhmjwZmnW91Qedynv4hA6jp1Srso` 번들 `index-CQLag06i.js`. 게스트·이메일·`/reports`·PUR-02는 두지 않음.
 - 2026-10-03: 자산 이력에 공급사 반품을 두고 회사 자산에서 뺀다. 단위 316. HTTPS E2E 59. READY `dpl_4xjPawvJ3LeKUQcXeiCuzEa6s3R7` 번들 `index-DutuDF9K.js`. 직원 배정·`/reports`·PUR-02는 두지 않음.
 - 2026-10-03: 반출 반납 예정일이 지나면 `/stock` 반납 기한만 보여 준다. 단위 315. HTTPS E2E 58. READY `dpl_gbBAwWWCRzauK3aZCLSDonvsxTkV` 번들 `index-kfLBAHgQ.js`. 홈 카드·`/reports`·PUR-02는 두지 않음.
 - 2026-10-03: 직접 입고분 공급사 반품은 원입고 잔량만 받고 가짜 발주를 만들지 않는다. 단위 314. HTTPS E2E 57. READY `dpl_21Ai5qL6yF5hRGGnkX68kxNkCcZz` 번들 `index-CCViAxMb.js`. 단가·가짜 발주·`/reports`·PUR-02는 두지 않음.
@@ -301,6 +302,7 @@ PRD 11.1·기능 ID·AC와 코드를 맞춰 본 결과다. T7·T8·T9는 2026-09
 
 - 반출 부서는 선택 또는 직접 입력하고 확정 당시 이름을 남긴다. 직접 입고 등록자는 로그인 이름만 남긴다
 - 게스트·이메일·UUID는 두지 않는다. `/reports`·PUR-02는 되돌리지 않음
+- 단위 317. HTTPS E2E 59. READY `dpl_EhmjwZmnW91Qedynv4hA6jp1Srso` 번들 `index-CQLag06i.js`
 
 ### AST-01 자산 정보·QR (2026-10-03)
 
