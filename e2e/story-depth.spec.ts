@@ -140,7 +140,7 @@ test('게스트 입퇴사는 명찰 지급과 퇴사를 기록한다', async ({ 
   await page.getByLabel('퇴사일').fill('2026-09-15')
   await page.getByRole('button', { name: '퇴사', exact: true }).click()
   await expect(page.getByText('퇴사를 기록했습니다.')).toBeVisible()
-  await expect(page.getByText('퇴사 2026-09-15')).toBeVisible()
+  await expect(page.getByText('퇴사 2026-09-15').first()).toBeVisible()
   await expectNoHqLeftovers(page)
 })
 
