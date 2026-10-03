@@ -116,7 +116,9 @@ test('게스트 빈 QR 위치 스크립트는 텍스트로만 남고 중앙에 �
 test('게스트 입퇴사는 명찰 지급과 퇴사를 기록한다', async ({ page }) => {
   await page.goto('/guest/people')
   await expect(page.getByRole('heading', { name: '직원·입퇴사' })).toBeVisible({ timeout: 20000 })
-  await page.getByRole('button', { name: /견본 김대리/ }).click()
+  await expect(page.getByRole('heading', { name: '기한 지남 1' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '기한 지남 0' })).toHaveCount(0)
+  await page.getByRole('button', { name: /견본 김대리.*입사 중/ }).click()
   await page.getByRole('checkbox', { name: '명찰 지급' }).click()
   await expect(page.getByText('입사 프로세스: 명찰 지급 완료')).toBeVisible()
   await page.getByRole('checkbox', { name: '근로계약서' }).click()
@@ -135,8 +137,10 @@ test('게스트 입퇴사는 명찰 지급과 퇴사를 기록한다', async ({ 
   await expect(page.getByText('퇴사 프로세스: 유니폼 회수 완료')).toBeVisible()
   await page.getByRole('checkbox', { name: '노트북 회수' }).click()
   await expect(page.getByText('퇴사 프로세스: 노트북 회수 완료')).toBeVisible()
+  await page.getByLabel('퇴사일').fill('2026-09-15')
   await page.getByRole('button', { name: '퇴사', exact: true }).click()
   await expect(page.getByText('퇴사를 기록했습니다.')).toBeVisible()
+  await expect(page.getByText('퇴사 2026-09-15')).toBeVisible()
   await expectNoHqLeftovers(page)
 })
 

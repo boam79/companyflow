@@ -121,6 +121,8 @@ export type StockCommand =
       warehouseId: string
       countedQty: number
       reason: string
+      memo?: string
+      recordedBy?: string
     }
   | {
       type: 'convert_to_asset'
@@ -129,6 +131,7 @@ export type StockCommand =
       warehouseId: string
       qty: number
       reason?: string
+      memo?: string
       recordedBy?: string
     }
   | {
@@ -707,6 +710,8 @@ export function applyStockCommand(
           warehouseId: command.warehouseId,
           qtyDelta: delta,
           reason: command.reason.trim(),
+          ...ledgerActorFields(command),
+          ...ledgerNoteFields(command),
         })
       }
       break
@@ -728,6 +733,7 @@ export function applyStockCommand(
         qtyDelta: -command.qty,
         reason: command.reason?.trim() || '재고 자산화',
         ...ledgerActorFields(command),
+        ...ledgerNoteFields(command),
       })
       break
     }

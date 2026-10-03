@@ -561,7 +561,7 @@ export function ContractsPage() {
                   {row.counterparty}
                 </span>
                 <span className="mt-0.5 text-xs text-muted">
-                  {contractPeriod(row)} · {contractAmountText(row.amount, grouping, currency)}
+                  {contractPeriod(row)} · {contractAmountText(row.amount, grouping, row.currency)}
                   {row.hasOriginal ? ` · ${row.fileName}` : ' · 원본 없음'}
                   {row.ocrStatus === 'reviewed' ? ' · OCR 확인' : ''}
                 </span>
@@ -627,7 +627,7 @@ export function ContractsPage() {
                 </div>
                 <div>
                   <dt className="text-muted">금액</dt>
-                  <dd>{contractAmountText(selected.amount, grouping, currency)}</dd>
+                  <dd>{contractAmountText(selected.amount, grouping, selected.currency)}</dd>
                 </div>
                 <div className="sm:col-span-2">
                   <dt className="text-muted">상태</dt>

@@ -4,7 +4,7 @@ import { WorkGateNotice } from '../components/WorkGateNotice'
 import { WorkCompanyControl } from '../components/WorkCompanyControl'
 import { formatCompanyDate, loadDisplayTimezone } from '../lib/company/displayCurrency'
 import { writeDefaultMaster } from '../lib/master/book'
-import { peopleBadgeEmptyLead, peopleEmptyLead, peopleHistoryEmptyLead, peoplePageLead, showsBadgeTemplate, countLabel } from '../lib/company/nav'
+import { peopleBadgeEmptyLead, peopleEmptyLead, peopleHistoryEmptyLead, peoplePageLead, showsBadgeTemplate, countHeading, countLabel } from '../lib/company/nav'
 import { showModuleLink } from '../lib/company/modules'
 import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
@@ -67,7 +67,8 @@ import {
   hireDocumentView,
   hireHistory,
   hireWorkflowCaption,
-  overdueHireNotice,
+  overdueHireCaption,
+  overdueHireRows,
   loadHireEvents,
   loadHireWorkflowFile,
   loadHireWorkflows,
@@ -123,6 +124,7 @@ export function PeoplePage() {
   const [previewStatus, setPreviewStatus] = useState<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
   const [badgeEmployeeId, setBadgeEmployeeId] = useState('')
   const [rosterTab, setRosterTab] = useState<RosterPhase>('joining')
+  const [leaveAt, setLeaveAt] = useState(() => formatCompanyDate(new Date(), 'Asia/Seoul'))
   const [notify, setNotify] = useState<NotifySettings>({ adminEmail: '', slackWebhook: '' })
   const [saving, setSaving] = useState(false)
   const opening = useRef(false)
@@ -538,7 +540,7 @@ export function PeoplePage() {
       const result = await executeLeave(sqlite, {
         operationId: crypto.randomUUID(),
         employeeId,
-        leftAt: today,
+        leftAt: leaveAt.trim() || today,
       })
       setNotice(result.status === 'duplicate' ? '같은 퇴사는 한 번만 반영됩니다.' : '퇴사를 기록했습니다.')
       setDrafts((prev) => {
@@ -559,7 +561,7 @@ export function PeoplePage() {
   const filledRoster = filledRosterSections(roster)
   const visibleEmployees = roster.find((section) => section.phase === rosterTab)?.employees ?? []
   const joiningIds = new Set((roster.find((section) => section.phase === 'joining')?.employees ?? []).map((row) => row.id))
-  const hireDueLead = overdueHireNotice(
+  const overdueHires = overdueHireRows(
     hireWorkflows.filter((row) => joiningIds.has(row.employeeId)),
     today,
   )
@@ -652,7 +654,30 @@ export function PeoplePage() {
           ) : null}
         </div>
       </div>
-      {hireDueLead ? <p className="text-sm text-accent">{hireDueLead}</p> : null}
+      {overdueHires.length ? (
+        <section className="rounded-lg border border-line bg-card p-4">
+          <h2 className="text-base font-semibold">{countHeading('기한 지남', overdueHires.length)}</h2>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {overdueHires.map((row) => {
+              const employee = employees.find((item) => item.id === row.employeeId)
+              return (
+                <li key={row.employeeId}>
+                  <button
+                    type="button"
+                    className="rounded border border-line px-3 py-1.5 text-sm hover:bg-paper"
+                    onClick={() => {
+                      setRosterTab('joining')
+                      setBadgeEmployeeId(row.employeeId)
+                    }}
+                  >
+                    {overdueHireCaption(row, employee?.name ?? '', today)}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      ) : null}
       {notice ? <p className="text-sm text-ok">{notice}</p> : null}
       {message ? <p className="text-sm text-danger">{message}</p> : null}
       <section
@@ -765,14 +790,25 @@ export function PeoplePage() {
                       명찰
                     </button>
                     {panels.leave && !selectedEmployee.leftAt ? (
-                      <button
-                        type="button"
-                        disabled={!ready || saving}
-                        className="rounded border border-line px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
-                        onClick={() => void leave(selectedEmployee.id)}
-                      >
-                        퇴사
-                      </button>
+                      <div className="flex flex-wrap items-end gap-2">
+                        <label className="text-xs">
+                          퇴사일
+                          <input
+                            type="date"
+                            className="mt-1 w-36 rounded border border-line px-2 py-1.5 text-sm"
+                            value={leaveAt}
+                            onChange={(e) => setLeaveAt(e.target.value)}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          disabled={!ready || saving}
+                          className="rounded border border-line px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+                          onClick={() => void leave(selectedEmployee.id)}
+                        >
+                          퇴사
+                        </button>
+                      </div>
                     ) : null}
                   </div>
                 </div>

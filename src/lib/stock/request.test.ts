@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyPurchaseRequest, assertOrderFitsRequest, requestAttachment, requestCaption, requestHasRemaining, requestListButtonLabel, requestProgress, requestRemainingQty, requestSavedNotice, requestSelectLabel, requestTotalAmount, stampRequestLines } from './request'
+import { applyPurchaseRequest, assertOrderFitsRequest, overduePurchaseRequestCaption, overduePurchaseRequests, requestAttachment, requestCaption, requestHasRemaining, requestListButtonLabel, requestProgress, requestRemainingQty, requestSavedNotice, requestSelectLabel, requestTotalAmount, stampRequestLines } from './request'
 
 const PAPER = 'item-paper'
 const REQUEST = applyPurchaseRequest({
@@ -153,6 +153,20 @@ describe('구매요청', () => {
         }),
         [{ id: PAPER, name: '새복사용지' }],
       ),
-    ).toContain('샘플 복사용지 10')
+    ).toContain('샘플 복사용지 · 박스 · 일반 비품 10')
+  })
+
+  it('필요일이 지난 미발주 요청만 보여 준다', () => {
+    expect(overduePurchaseRequests([REQUEST], [], '2026-10-11').map((row) => row.id)).toEqual(['REQ-DEMO-01'])
+    expect(overduePurchaseRequests([REQUEST], [], '2026-10-10')).toEqual([])
+    expect(
+      overduePurchaseRequests(
+        [REQUEST],
+        [{ id: 'ORD-FULL', itemId: PAPER, qty: 10, requestId: REQUEST.id }],
+        '2026-10-11',
+      ),
+    ).toEqual([])
+    expect(overduePurchaseRequestCaption(REQUEST)).toBe('REQ-DEMO-01 · 필요 2026-10-10')
+    expect(overduePurchaseRequestCaption(REQUEST)).not.toMatch(/필요일 지남 0/)
   })
 })

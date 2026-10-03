@@ -153,6 +153,31 @@ describe('입출고 수불부', () => {
     ).toBe('등록 박재민')
     expect(
       formatLedgerLink({
+        id: 'l-return-rec',
+        operationId: 'op-return-rec',
+        txnType: 'return',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qtyDelta: 1,
+        recordedBy: '박재민',
+        memo: '견본 반납',
+      }),
+    ).toBe('등록 박재민 · 견본 반납')
+    expect(
+      formatLedgerLink({
+        id: 'l-adjust-rec',
+        operationId: 'op-adjust-rec',
+        txnType: 'adjust',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qtyDelta: -1,
+        recordedBy: '박재민',
+        reason: '파손 확인',
+        memo: '견본 실사',
+      }),
+    ).toBe('등록 박재민 · 견본 실사 · 파손 확인')
+    expect(
+      formatLedgerLink({
         id: 'l-mail',
         operationId: 'op-in-mail',
         txnType: 'direct_in',

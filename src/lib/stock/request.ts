@@ -232,7 +232,8 @@ export function requestCaption(
   const itemPart = row.lines
     .map((line) => {
       const name = line.itemName || items.find((item) => item.id === line.itemId)?.name || line.itemId
-      return `${name} ${line.qty}`
+      const label = [name, line.itemUnit, line.purchaseKind].filter(Boolean).join(' · ')
+      return `${label} ${line.qty}`
     })
     .join(', ')
   const amount = requestAmountText(requestTotalAmount(row.lines))
@@ -263,7 +264,8 @@ export function requestRemainCaption(
       const left = requestRemainingQty(row, orders, line.itemId)
       if (left <= 0) return []
       const name = line.itemName || items.find((item) => item.id === line.itemId)?.name || line.itemId
-      return [`${name} 미발주 ${left}`]
+      const label = [name, line.itemUnit, line.purchaseKind].filter(Boolean).join(' · ')
+      return [`${label} 미발주 ${left}`]
     })
     .join(', ')
 }
@@ -288,6 +290,28 @@ export function requestListButtonLabel(
   items: Pick<ItemRecord, 'id' | 'name'>[],
 ) {
   return `${row.id} · ${requestCaption(row, items)} · ${requestProgress(row, orders)}`
+}
+
+export function overduePurchaseRequests(
+  rows: PurchaseRequest[],
+  orders: Pick<StockOrder, 'id' | 'itemId' | 'qty' | 'lines' | 'requestId'>[],
+  today: string,
+): PurchaseRequest[] {
+  return rows
+    .filter(
+      (row) =>
+        requestHasRemaining(row, orders) &&
+        /^\d{4}-\d{2}-\d{2}$/.test(row.neededAt ?? '') &&
+        (row.neededAt ?? '') < today,
+    )
+    .sort(
+      (a, b) =>
+        (a.neededAt ?? '').localeCompare(b.neededAt ?? '') || a.id.localeCompare(b.id),
+    )
+}
+
+export function overduePurchaseRequestCaption(row: PurchaseRequest) {
+  return [row.id, row.neededAt ? `필요 ${row.neededAt}` : ''].filter(Boolean).join(' · ')
 }
 
 export async function loadPurchaseRequests(db: Pick<CompanySqlite, 'query'>): Promise<PurchaseRequest[]> {

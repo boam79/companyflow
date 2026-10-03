@@ -6,7 +6,9 @@ import {
   hireDocumentView,
   hireHistory,
   hireWorkflowCaption,
+  overdueHireCaption,
   overdueHireNotice,
+  overdueHireRows,
 } from './hireWorkflow'
 
 describe('입사 워크플로', () => {
@@ -37,6 +39,19 @@ describe('입사 워크플로', () => {
     ).toBe('담당 김담당 · 기한 2026-09-18 · 기한 지남')
     expect(overdueHireNotice([{ dueAt: '2026-09-18' }, { dueAt: '2026-09-25' }], '2026-09-20')).toBe('기한 지남 1건')
     expect(overdueHireNotice([{ dueAt: '2026-09-25' }], '2026-09-20')).toBe('')
+    expect(
+      overdueHireRows(
+        [
+          { employeeId: 'emp-a', dueAt: '2026-09-18', ownerName: '김담당' },
+          { employeeId: 'emp-b', dueAt: '2026-09-25' },
+        ],
+        '2026-09-20',
+      ).map((row) => row.employeeId),
+    ).toEqual(['emp-a'])
+    expect(
+      overdueHireCaption({ ownerName: '김담당', dueAt: '2026-09-18' }, '견본 김대리', '2026-09-20'),
+    ).toBe('견본 김대리 · 담당 김담당 · 기한 2026-09-18 · 기한 지남')
+    expect(overdueHireNotice([], '2026-09-20')).not.toMatch(/기한 지남 0/)
   })
 
   it('완료 이력은 마지막 퇴사 이후 현재 입사 주기만 보여 준다', () => {

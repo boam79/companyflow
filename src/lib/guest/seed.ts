@@ -129,6 +129,11 @@ export async function seedGuestCompany(
   }
   await db.exec('update employees set employee_no = ? where id = ?', ['G-101', 'emp-guest-a'])
   await db.exec(
+    `insert or ignore into employment_workflows(employee_id, kind, owner_id, due_at, updated_at)
+      values(?, 'hire', ?, ?, ?)`,
+    ['emp-guest-a', 'emp-guest-b', '2026-01-01', now],
+  )
+  await db.exec(
     `insert or ignore into employment_checks(employee_id, item_key, issued, issued_at, returned_at, updated_at)
       values(?, ?, 1, ?, null, ?)`,
     ['emp-guest-a', 'laptop', '2026-08-01', now],
@@ -193,7 +198,7 @@ export async function seedGuestCompany(
     `insert or ignore into contracts(
       id, title, contract_no, counterparty, signed_at, start_at, end_at, amount, currency,
       owner_name, status, ocr_status, created_at
-    ) values(?, ?, ?, ?, ?, ?, ?, ?, 'KRW', ?, 'draft', 'off', ?)`,
+    ) values(?, ?, ?, ?, ?, ?, ?, ?, 'USD', ?, 'draft', 'off', ?)`,
     [
       'guest:con-1',
       '샘플 사무실 임대',
@@ -248,7 +253,7 @@ export async function seedGuestCompany(
     requesterName: '견본 김대리',
     departmentId: 'dept-guest-admin',
     departmentName: '샘플총무',
-    neededAt: '2026-10-10',
+    neededAt: '2026-01-01',
     purpose: '샘플 비품 보충',
     lines: [{ itemId: GUEST_PAPER_ITEM_ID, qty: 10, unitPrice: 15000 }],
   })

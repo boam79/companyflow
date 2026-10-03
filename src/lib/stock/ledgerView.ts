@@ -126,7 +126,11 @@ export function formatLedgerLink(
   const recorder = publicRecorderName(line.recordedBy)
   if (
     recorder &&
-    (line.txnType === 'direct_in' || line.txnType === 'receipt' || line.txnType === 'convert_out')
+    (line.txnType === 'direct_in' ||
+      line.txnType === 'receipt' ||
+      line.txnType === 'return' ||
+      line.txnType === 'adjust' ||
+      line.txnType === 'convert_out')
   ) {
     parts.push(`등록 ${recorder}`)
   }

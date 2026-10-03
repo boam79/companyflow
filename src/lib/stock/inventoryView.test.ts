@@ -365,6 +365,20 @@ describe('비품 발주 목록', () => {
     ])
   })
 
+  it('발주 목록에 연결 요청을 둔다', () => {
+    const state = applyStockCommand(createStockState(), {
+      type: 'confirm_order',
+      operationId: 'op-req',
+      orderId: 'ord-req',
+      itemId: PAPER_ITEM.id,
+      qty: 4,
+      requestId: 'REQ-DEMO-01',
+    }).state
+    const rows = buildSupplyOrderList(items, state)
+    expect(rows[0]?.requestId).toBe('REQ-DEMO-01')
+    expect(supplyOrderCsv(rows)).toContain('ord-req,복사용지,REQ-DEMO-01,,,,,원,4,0,0,0,4,미수령')
+  })
+
   it('발주 목록은 품목 공급사 이름을 붙인다', () => {
     const paper = { ...PAPER_ITEM, partnerId: 'partner-mfp' }
     const partners = [{ id: 'partner-mfp', name: '사무기기코리아' }]
@@ -487,8 +501,8 @@ describe('비품 발주 목록', () => {
       ['ord-mix', '책상', 1],
     ])
     const csv = supplyOrderCsv(buildSupplyOrderList(mixedItems, state))
-    expect(csv).toContain('ord-mix,복사용지,,,,,원,10,0,0,0,10,미수령')
-    expect(csv).toContain('ord-mix,클립,,,,,원,3,0,0,0,3,미수령')
+    expect(csv).toContain('ord-mix,복사용지,,,,,,원,10,0,0,0,10,미수령')
+    expect(csv).toContain('ord-mix,클립,,,,,,원,3,0,0,0,3,미수령')
   })
 
   it('오늘 날짜는 YYYY-MM-DD다', () => {
@@ -512,8 +526,8 @@ describe('비품 발주 목록', () => {
     }).state
     const csv = supplyOrderCsv(buildSupplyOrderList(items, state))
     expect(csv.startsWith('\uFEFF')).toBe(true)
-    expect(csv).toContain('발주번호,품목,공급사,발주일,납기,첨부,통화,발주,수령,불량,반품,미수령,상태')
-    expect(csv).toContain('ord-paper,복사용지,,,,,원,10,0,0,0,10,미수령')
+    expect(csv).toContain('발주번호,품목,연결요청,공급사,발주일,납기,첨부,통화,발주,수령,불량,반품,미수령,상태')
+    expect(csv).toContain('ord-paper,복사용지,,,,,,원,10,0,0,0,10,미수령')
   })
 
   it('발주 목록은 검수 불량을 따로 보여 준다', () => {

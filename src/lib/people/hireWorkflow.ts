@@ -113,8 +113,22 @@ export function applyHireWorkflow(
 }
 
 export function overdueHireNotice(rows: { dueAt?: string }[], today: string) {
-  const count = rows.filter((row) => row.dueAt?.trim() && row.dueAt.trim() < today).length
+  const count = overdueHireRows(rows, today).length
   return count ? `기한 지남 ${count}건` : ''
+}
+
+export function overdueHireRows<T extends { dueAt?: string }>(rows: T[], today: string): T[] {
+  return rows
+    .filter((row) => /^\d{4}-\d{2}-\d{2}$/.test(row.dueAt?.trim() ?? '') && (row.dueAt ?? '') < today)
+    .sort((a, b) => (a.dueAt ?? '').localeCompare(b.dueAt ?? ''))
+}
+
+export function overdueHireCaption(
+  row: { ownerName?: string; dueAt?: string },
+  employeeName: string,
+  today: string,
+) {
+  return [employeeName, hireWorkflowCaption(row, today)].filter(Boolean).join(' · ')
 }
 
 export function hireWorkflowCaption(

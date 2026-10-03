@@ -364,6 +364,7 @@ export type PurchaseOrderRow = {
   remainingQty: number
   status: StockOrder['status']
   partnerId?: string
+  requestId?: string
   supplierName: string
   dueDate: string
   orderDate: string
@@ -447,6 +448,7 @@ function orderRows(
             dueDate: order.dueDate ?? '',
             orderDate: order.orderDate ?? '',
             fileName: order.fileName ?? '',
+            ...(order.requestId ? { requestId: order.requestId } : {}),
             currency: order.currency || 'KRW',
             currencyName: orderCurrencyLabel(order.currency),
           },
@@ -513,11 +515,12 @@ function csvCell(value: string | number) {
 
 export function supplyOrderCsv(rows: PurchaseOrderRow[]): string {
   const lines = [
-    ['발주번호', '품목', '공급사', '발주일', '납기', '첨부', '통화', '발주', '수령', '불량', '반품', '미수령', '상태'].join(','),
+    ['발주번호', '품목', '연결요청', '공급사', '발주일', '납기', '첨부', '통화', '발주', '수령', '불량', '반품', '미수령', '상태'].join(','),
     ...rows.map((row) =>
       [
         csvCell(publicStockOrderId(row.orderId)),
         csvCell(row.itemName),
+        csvCell(row.requestId ?? ''),
         csvCell(row.supplierName),
         csvCell(row.orderDate),
         csvCell(row.dueDate),

@@ -18,6 +18,8 @@ import {
   newPurchaseRequestId,
   requestAmountText,
   requestAttachment,
+  overduePurchaseRequestCaption,
+  overduePurchaseRequests,
   requestHasRemaining,
   requestListButtonLabel,
   requestRemainingQty,
@@ -585,6 +587,8 @@ export function StockPage() {
           ...(Number(defectQty) > 0 ? { defectQty: Number(defectQty) } : {}),
           ...overflowReasonField(),
           ...ledgerActorSave(),
+          ...ledgerMemoSave(),
+          ...ledgerFileSave(),
         }
       case 'post_supplier_return': {
         const inbound = state
@@ -601,6 +605,7 @@ export function StockPage() {
             ...overflowReasonField(),
             ...ledgerActorSave(),
             ...ledgerMemoSave(),
+            ...ledgerFileSave(),
           }
         }
         return {
@@ -613,6 +618,7 @@ export function StockPage() {
           ...overflowReasonField(),
           ...ledgerActorSave(),
           ...ledgerMemoSave(),
+          ...ledgerFileSave(),
         }
       }
       case 'post_direct_in':
@@ -650,6 +656,7 @@ export function StockPage() {
           qty: quantity,
           ...overflowReasonField(),
           ...ledgerActorSave(),
+          ...ledgerMemoSave(),
         }
       case 'post_issue':
         return {
@@ -675,6 +682,8 @@ export function StockPage() {
           warehouseId,
           qty: quantity,
           sourceOperationId,
+          ...ledgerActorSave(),
+          ...ledgerMemoSave(),
         }
       case 'transfer_stock':
         return {
@@ -694,6 +703,8 @@ export function StockPage() {
           warehouseId,
           countedQty: quantity,
           reason,
+          ...ledgerActorSave(),
+          ...ledgerMemoSave(),
         }
       case 'reverse_transaction':
         return { type: action, operationId: nextOperationId, sourceOperationId: sourceOperationId || lastOperationId }
@@ -779,7 +790,11 @@ export function StockPage() {
           action === 'post_direct_in' ||
           action === 'post_issue' ||
           action === 'post_outbound' ||
-          action === 'post_supplier_return'
+          action === 'post_supplier_return' ||
+          action === 'post_receipt' ||
+          action === 'post_return' ||
+          action === 'convert_to_asset' ||
+          action === 'adjust_stock'
         ) {
           setInboundMemo('')
         }
@@ -787,7 +802,13 @@ export function StockPage() {
           setIssuePurpose('')
           setIssueDueReturnAt('')
         }
-        if (action === 'post_direct_in' || action === 'post_issue' || action === 'post_outbound') {
+        if (
+          action === 'post_direct_in' ||
+          action === 'post_issue' ||
+          action === 'post_outbound' ||
+          action === 'post_receipt' ||
+          action === 'post_supplier_return'
+        ) {
           setPendingLedgerFile(null)
           setLedgerFileName('')
           if (ledgerFileInput.current) ledgerFileInput.current.value = ''
@@ -963,6 +984,7 @@ export function StockPage() {
   )
   const overdueOrders = overdueSupplyOrders(purchaseOrders, todayYmd())
   const orderRows = state ? [...state.orders.values()] : []
+  const overdueRequests = overduePurchaseRequests(requests, orderRows, todayYmd())
   const overflowReasonNeeded = Boolean(
     state &&
       showsOverflowReason({
@@ -1080,6 +1102,27 @@ export function StockPage() {
                   }}
                 >
                   {overdueSupplyOrderCaption(row)}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {overdueRequests.length ? (
+        <section className="rounded-lg border border-line bg-card p-4">
+          <h2 className="text-base font-semibold">{countHeading('필요일 지남', overdueRequests.length)}</h2>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {overdueRequests.map((row) => (
+              <li key={row.id}>
+                <button
+                  type="button"
+                  className={`rounded border px-3 py-1.5 text-sm ${
+                    row.id === orderRequestId ? 'border-accent bg-accent-soft' : 'border-line hover:bg-paper'
+                  }`}
+                  onClick={() => fillOrderFromRequest(row)}
+                >
+                  {overduePurchaseRequestCaption(row)}
                 </button>
               </li>
             ))}
@@ -1459,6 +1502,7 @@ export function StockPage() {
                     <tr className="border-b border-line text-muted">
                       <th className="whitespace-nowrap py-1.5 pr-3 font-medium">발주번호</th>
                       <th className="whitespace-nowrap py-1.5 pr-3 font-medium">품목</th>
+                      <th className="whitespace-nowrap py-1.5 pr-3 font-medium">연결요청</th>
                       <th className="whitespace-nowrap py-1.5 pr-3 font-medium">공급사</th>
                       <th className="whitespace-nowrap py-1.5 pr-3 font-medium">발주일</th>
                       <th className="whitespace-nowrap py-1.5 pr-3 font-medium">납기</th>
@@ -1490,6 +1534,7 @@ export function StockPage() {
                             {publicStockOrderId(row.orderId) || '—'}
                           </td>
                           <td className="whitespace-nowrap py-1.5 pr-3">{orderItemCaption(row)}</td>
+                          <td className="whitespace-nowrap py-1.5 pr-3">{row.requestId || '—'}</td>
                           <td className="whitespace-nowrap py-1.5 pr-3">{row.supplierName || '—'}</td>
                           <td className="whitespace-nowrap py-1.5 pr-3">{row.orderDate || '—'}</td>
                           <td className="whitespace-nowrap py-1.5 pr-3">{row.dueDate || '—'}</td>
@@ -2011,14 +2056,26 @@ export function StockPage() {
             </label>
           </>
         ) : null}
-        {action === 'post_direct_in' || action === 'post_issue' || action === 'post_outbound' ? (
+        {action === 'post_direct_in' ||
+        action === 'post_issue' ||
+        action === 'post_outbound' ||
+        action === 'post_receipt' ||
+        action === 'post_supplier_return' ? (
           <div className="sm:col-span-2 text-sm">
             {action === 'post_direct_in' ? '증빙' : '첨부'}
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <input
                 ref={ledgerFileInput}
                 aria-label={
-                  action === 'post_direct_in' ? '입고 증빙' : action === 'post_outbound' ? '출고 첨부' : '반출 첨부'
+                  action === 'post_direct_in'
+                    ? '입고 증빙'
+                    : action === 'post_outbound'
+                      ? '출고 첨부'
+                      : action === 'post_issue'
+                        ? '반출 첨부'
+                        : action === 'post_receipt'
+                          ? '수령 첨부'
+                          : '반품 첨부'
                 }
                 type="file"
                 accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
@@ -2054,11 +2111,33 @@ export function StockPage() {
           </>
         ) : null}
         {action === 'post_receipt' ? (
-          <p className="text-sm text-muted">
-            {stockReceiptLead(orderId, receiptRemaining, defectQty, receiptAsAsset)}
-          </p>
+          <>
+            <p className="sm:col-span-2 text-sm text-muted">
+              {stockReceiptLead(orderId, receiptRemaining, defectQty, receiptAsAsset)}
+            </p>
+            <label className="sm:col-span-2 text-sm">
+              메모
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={inboundMemo}
+                onChange={(e) => setInboundMemo(e.target.value)}
+              />
+            </label>
+          </>
         ) : null}
-        {action === 'convert_to_asset' ? <p className="text-sm text-muted">{stockConvertLead()}</p> : null}
+        {action === 'convert_to_asset' ? (
+          <>
+            <p className="text-sm text-muted">{stockConvertLead()}</p>
+            <label className="sm:col-span-2 text-sm">
+              메모
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={inboundMemo}
+                onChange={(e) => setInboundMemo(e.target.value)}
+              />
+            </label>
+          </>
+        ) : null}
         {action === 'post_supplier_return' ? (
           <>
             <p className="sm:col-span-2 text-sm text-muted">
@@ -2076,14 +2155,24 @@ export function StockPage() {
         ) : null}
         {action === 'transfer_stock' ? <p className="text-sm text-muted">{stockTransferLead()}</p> : null}
         {action === 'post_return' ? (
-          <p className="text-sm text-muted">
-            원거래:{' '}
-            {stockReturnLead(
-              state?.ledger.find((line) => line.operationId === sourceOperationId)?.personName,
-              returnRemain.issued,
-              returnRemain.left,
-            )}
-          </p>
+          <>
+            <p className="sm:col-span-2 text-sm text-muted">
+              원거래:{' '}
+              {stockReturnLead(
+                state?.ledger.find((line) => line.operationId === sourceOperationId)?.personName,
+                returnRemain.issued,
+                returnRemain.left,
+              )}
+            </p>
+            <label className="sm:col-span-2 text-sm">
+              메모
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={inboundMemo}
+                onChange={(e) => setInboundMemo(e.target.value)}
+              />
+            </label>
+          </>
         ) : action === 'reverse_transaction' ? (
           <p className="text-sm text-muted">{stockLastSaveLead()}</p>
         ) : null}
@@ -2096,6 +2185,14 @@ export function StockPage() {
                 className="mt-1 w-full rounded border border-line px-3 py-2"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
+              />
+            </label>
+            <label className="sm:col-span-2 text-sm">
+              메모
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={inboundMemo}
+                onChange={(e) => setInboundMemo(e.target.value)}
               />
             </label>
           </>

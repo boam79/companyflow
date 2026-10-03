@@ -243,12 +243,14 @@ describe('복사용지 재고 원장', () => {
       itemId: ITEM,
       warehouseId: MAIN,
       qty: 1,
-      recordedBy: '박재민',
-    }).state
-    expect(state.ledger.at(-1)).toMatchObject({
-      txnType: 'convert_out',
-      recordedBy: '박재민',
-    })
+          recordedBy: '박재민',
+          memo: '견본 전환',
+        }).state
+        expect(state.ledger.at(-1)).toMatchObject({
+          txnType: 'convert_out',
+          recordedBy: '박재민',
+          memo: '견본 전환',
+        })
   })
 
   it('이동 후에도 회사 합계는 같고 같은 operation_id 는 한 번만 반영된다', () => {
@@ -380,8 +382,15 @@ describe('복사용지 재고 원장', () => {
       warehouseId: MAIN,
       countedQty: 4,
       reason: '파손 확인',
+      memo: '견본 실사',
+      recordedBy: '박재민',
     }).state
     expect(onHand(state, ITEM, MAIN)).toBe(4)
+    expect(state.ledger.at(-1)).toMatchObject({
+      txnType: 'adjust',
+      memo: '견본 실사',
+      recordedBy: '박재민',
+    })
 
     state = applyStockCommand(state, {
       type: 'reverse_transaction',
