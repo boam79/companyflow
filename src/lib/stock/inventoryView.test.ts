@@ -42,6 +42,8 @@ import {
   inventoryWarehouseQtyLabel,
   supplyItems,
   supplyOrderCsv,
+  overdueIssueReturnLine,
+  overdueIssueReturns,
   todayYmd,
 } from './inventoryView'
 
@@ -207,6 +209,54 @@ describe('비품 현재고', () => {
       ),
     ).toEqual([['복사용지', 7, 10]])
     expect(supplyLowStock([{ ...PAPER_ITEM, minStock: 0 }], state)).toEqual([])
+  })
+
+  it('반출 반납 기한은 지난 원반출만 보여 준다', () => {
+    let state = applyStockCommand(createStockState(), {
+      type: 'post_direct_in',
+      operationId: 'op-in',
+      itemId: PAPER_ITEM.id,
+      warehouseId: 'wh-main',
+      qty: 4,
+    }).state
+    state = applyStockCommand(state, {
+      type: 'post_issue',
+      operationId: 'op-late',
+      itemId: PAPER_ITEM.id,
+      warehouseId: 'wh-main',
+      qty: 2,
+      personName: '견본 김대리',
+      dueReturnAt: '2026-01-01',
+    }).state
+    state = applyStockCommand(state, {
+      type: 'post_issue',
+      operationId: 'op-soon',
+      itemId: PAPER_ITEM.id,
+      warehouseId: 'wh-main',
+      qty: 1,
+      personName: '견본 김대리',
+      dueReturnAt: '2026-12-31',
+    }).state
+    expect(overdueIssueReturnLine('견본 김대리', '복사용지', '2026-01-01')).toBe(
+      '견본 김대리 · 복사용지 · 기한 지남 2026-01-01',
+    )
+    expect(overdueIssueReturnLine('aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', '복사용지', '2026-01-01')).toBe(
+      '복사용지 · 기한 지남 2026-01-01',
+    )
+    expect(overdueIssueReturnLine('guest:emp', '', '2026-01-01')).toBe('비품 · 기한 지남 2026-01-01')
+    expect(overdueIssueReturnLine('guest:emp', '', '2026-01-01')).not.toMatch(/guest:|기한 지남 0|operation_id/)
+    expect(overdueIssueReturns(state.ledger, [PAPER_ITEM], '2026-10-03').map((row) => row.caption)).toEqual([
+      '견본 김대리 · 복사용지 · 기한 지남 2026-01-01',
+    ])
+    state = applyStockCommand(state, {
+      type: 'post_return',
+      operationId: 'op-back',
+      itemId: PAPER_ITEM.id,
+      warehouseId: 'wh-main',
+      qty: 2,
+      sourceOperationId: 'op-late',
+    }).state
+    expect(overdueIssueReturns(state.ledger, [PAPER_ITEM], '2026-10-03')).toEqual([])
   })
 
   it('현재고 안내는 고른 품목 발주만 붙인다', () => {

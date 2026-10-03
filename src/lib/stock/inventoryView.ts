@@ -1,5 +1,6 @@
 import { isCompanyAssetItem, isSupplyItem, type ItemRecord } from '../master/book'
-import { companyOnHand, onHand, orderReceived, orderRejected, orderRemaining, orderSupplierReturned, stockOrderLines, type StockOrder, type StockState } from './engine'
+import { companyOnHand, onHand, orderReceived, orderRejected, orderRemaining, orderSupplierReturned, returnBalance, stockOrderLines, type LedgerLine, type StockOrder, type StockState } from './engine'
+import { publicItemLabel } from './ledgerView'
 
 export type NamedWarehouse = { id: string; name: string }
 
@@ -159,6 +160,42 @@ export function stockReturnSourceLead(personName?: string) {
     return `${name} 반출`
   }
   return '수불부에서 반출 줄을 고르세요.'
+}
+
+export function overdueIssueReturnLine(personName: string | undefined, itemName: string, dueReturnAt?: string) {
+  const person = personName?.trim() ?? ''
+  const who =
+    person &&
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(person) &&
+    !/^(guest:|sample:)/i.test(person)
+      ? person
+      : ''
+  const item = publicItemLabel(itemName)
+  const due = dueReturnAt?.trim() ?? ''
+  const late = due && /^\d{4}-\d{2}-\d{2}$/.test(due) ? `기한 지남 ${due}` : '기한 지남'
+  return [who, item, late].filter(Boolean).join(' · ')
+}
+
+export type OverdueIssueReturn = {
+  line: LedgerLine
+  caption: string
+}
+
+export function overdueIssueReturns(ledger: LedgerLine[], items: ItemRecord[], today: string): OverdueIssueReturn[] {
+  return ledger
+    .flatMap((line) => {
+      if (line.txnType !== 'issue') return []
+      const due = line.dueReturnAt?.trim() ?? ''
+      if (!due || due >= today) return []
+      const { left } = returnBalance(ledger, line.operationId)
+      if (!(left > 0)) return []
+      const itemName = items.find((item) => item.id === line.itemId)?.name ?? ''
+      return [{ line, caption: overdueIssueReturnLine(line.personName, itemName, due) }]
+    })
+    .sort(
+      (a, b) =>
+        (a.line.dueReturnAt ?? '').localeCompare(b.line.dueReturnAt ?? '') || a.caption.localeCompare(b.caption, 'ko'),
+    )
 }
 
 export function stockReturnLead(personName?: string, issued = 0, left = 0) {

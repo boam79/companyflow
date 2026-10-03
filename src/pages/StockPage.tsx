@@ -29,7 +29,7 @@ import {
 import { toArrayBuffer } from '../lib/contracts/book'
 import { onHand, orderNetReceived, orderRemaining, returnBalance, inboundReturnBalance, inboundSupplierSource, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { defaultStockPolicy, loadStockPolicy, showsOverflowReason } from '../lib/stock/policy'
-import { assertDueReturnAt, assertInboundAt, buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderQtyText, orderReceiptProgress, publicStockOrderId, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssueNoteLead, stockIssuePersonName, stockLastSaveLead, stockOutboundLead, stockPageLead, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, supplyLowStock, todayYmd, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { assertDueReturnAt, assertInboundAt, buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderQtyText, orderReceiptProgress, overdueIssueReturns, publicStockOrderId, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssueNoteLead, stockIssuePersonName, stockLastSaveLead, stockOutboundLead, stockPageLead, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, supplyLowStock, todayYmd, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, ledgerRelatedJumps, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -273,6 +273,13 @@ export function StockPage() {
     } else if (line.sourceOperationId) {
       setSourceOperationId(line.sourceOperationId)
     }
+  }
+
+  function chooseOverdueIssue(line: LedgerLine) {
+    selectLedgerLine(line)
+    setAction('post_return')
+    const { left } = returnBalance(state?.ledger ?? [], line.operationId)
+    setQty(String(left > 0 ? left : 1))
   }
 
   function chooseOrder(row: PurchaseOrderRow) {
@@ -901,6 +908,7 @@ export function StockPage() {
       : orderNetReceived(state, orderId, itemId)
   const receiptRemaining = state ? orderRemaining(state, orderId, itemId) : 0
   const lowRows = state ? supplyLowStock(items, state) : []
+  const overdueReturns = state ? overdueIssueReturns(state.ledger, items, todayYmd()) : []
   const supplyOrders = state ? buildSupplyOrderList(items, state, partners) : []
   const assetOrders = state ? buildAssetOrderList(items, state, partners) : []
   const purchaseOrders = [...supplyOrders, ...assetOrders].sort(
@@ -974,6 +982,29 @@ export function StockPage() {
                   onClick={() => chooseItem(row.itemId)}
                 >
                   {lowStockLine(row)}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {overdueReturns.length ? (
+        <section className="rounded-lg border border-line bg-card p-4">
+          <h2 className="text-base font-semibold">{countHeading('반납 기한', overdueReturns.length)}</h2>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {overdueReturns.map((row) => (
+              <li key={row.line.id}>
+                <button
+                  type="button"
+                  className={`rounded border px-3 py-1.5 text-sm ${
+                    selectedLine?.operationId === row.line.operationId
+                      ? 'border-accent bg-accent-soft'
+                      : 'border-line hover:bg-paper'
+                  }`}
+                  onClick={() => chooseOverdueIssue(row.line)}
+                >
+                  {row.caption}
                 </button>
               </li>
             ))}
