@@ -113,6 +113,7 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 - Supabase 활성: `companyflow`, `boardroom`. 정지: `boam79_patient_data`, `qr-asset-manager`, `policyfund-ai-v2`.
 - `confirm_company_device` RPC 추가. 초기 설정 성공 후 원본 장치를 confirmed 로 올린다.
 
+- 2026-10-03: 출고·반출·수령·반품 메모·등록자, 수령·반납·이동·실사 확정 후, 납기 지남 발주, 요청 품목 스냅샷, 명찰·입퇴사 직원번호. 단위 326. HTTPS E2E 59. 앱 `91a67ea` 번들 `index-B9f098uE.js`. 단가·`/reports`·PUR-02는 두지 않음.
 - 2026-10-03: 직원 직위·입사일과 입출고 현재고·확정 후, 발주 확정 당시 품목명·단위·공급사명을 남긴다. 단위 323. HTTPS E2E 59. READY `dpl_CNBUuZgFF5KKqZTDtu6VWZ7CFiJE` 번들 `index-PchEDy0f.js`. 단가·퇴사일 마스터·`/reports`·PUR-02는 두지 않음.
 - 2026-10-03: 확정 당시 품목명·단위·구매 구분·창고명·공급사명을 원장에 남긴다. 단위 320. HTTPS E2E 59. READY `dpl_BZyj7vziubHzG9SQQmvba2vab43a` 번들 `index-ygF63rOb.js`. 단가·`/reports`·PUR-02는 두지 않음.
 - 2026-10-03: 반출은 확정 당시 부서명을 남기고 부서는 직접 입력한다. 직접 입고 등록자는 로그인 이름만. 단위 317. HTTPS E2E 59. READY `dpl_EhmjwZmnW91Qedynv4hA6jp1Srso` 번들 `index-CQLag06i.js`. 게스트·이메일·`/reports`·PUR-02는 두지 않음.
