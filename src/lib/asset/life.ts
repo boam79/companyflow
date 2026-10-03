@@ -18,7 +18,7 @@ export const ASSET_EVENT_TABLE_SQL = [
   );`,
 ]
 
-export type AssetLifeKind = 'transfer' | 'repair' | 'dispose'
+export type AssetLifeKind = 'transfer' | 'repair' | 'dispose' | 'supplier_return'
 
 export type AssetLifeEvent = {
   id: string
@@ -52,6 +52,7 @@ const LIFE_LABELS: Record<AssetLifeKind, string> = {
   transfer: '이관',
   repair: '수리',
   dispose: '폐기',
+  supplier_return: '공급사 반품',
 }
 
 export function assetLifeLabel(kind: AssetLifeKind) {
@@ -87,10 +88,14 @@ export function readAssetLifeForm(data: FormData): Omit<AssetLifeInput, 'operati
 export function applyAssetLife(assets: AssetRecord[], command: Omit<AssetLifeInput, 'operationId'>): AssetRecord[] {
   const asset = assets.find((row) => row.id === command.assetId)
   if (!asset) throw new Error('자산을 찾을 수 없습니다.')
-  if (asset.status === 'disposed') throw new Error('폐기된 자산은 이관·수리할 수 없습니다.')
+  if (asset.status === 'disposed') throw new Error('폐기된 자산은 이관·수리·반품할 수 없습니다.')
+  if (asset.status === 'returned') throw new Error('공급사에 반품한 자산은 이관·수리할 수 없습니다.')
   if (!command.happenedAt.trim()) throw new Error('발생일이 필요합니다.')
   if (command.kind === 'transfer' && !normalizeHangulField(command.locationText ?? '')) {
     throw new Error('이관할 위치가 필요합니다.')
+  }
+  if (command.kind === 'supplier_return' && !normalizeHangulField(command.reason ?? '')) {
+    throw new Error('반품 사유가 필요합니다.')
   }
   return assets.map((row) => {
     if (row.id !== command.assetId) return row
@@ -106,6 +111,14 @@ export function applyAssetLife(assets: AssetRecord[], command: Omit<AssetLifeInp
     }
     if (command.kind === 'dispose') {
       return { ...row, status: 'disposed' as const, employeeId: undefined }
+    }
+    if (command.kind === 'supplier_return') {
+      return {
+        ...row,
+        ownerName: normalizeHangulField(command.ownerName ?? '') || row.ownerName,
+        employeeId: undefined,
+        status: 'returned' as const,
+      }
     }
     return row
   })

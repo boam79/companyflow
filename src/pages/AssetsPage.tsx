@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { WorkGateNotice } from '../components/WorkGateNotice'
 import { WorkCompanyControl } from '../components/WorkCompanyControl'
-import { assetNumber, loadAssets, type AssetRecord } from '../lib/asset/book'
+import { assetIsOpen, assetNumber, loadAssets, type AssetRecord } from '../lib/asset/book'
 import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
 import {
   assetLifeAttachment,
@@ -166,11 +166,11 @@ export function AssetsPage() {
       setItems(itemRows)
       setWarehouses(warehouseRows)
       setAssets(assetRows)
-      const nextSelected = assetRows.some((row) => row.id === selectedId && row.status !== 'disposed')
+      const nextSelected = assetRows.some((row) => row.id === selectedId && assetIsOpen(row.status))
         ? selectedId
         : (assetRows.find(
             (row) =>
-              row.status !== 'disposed' && isCompanyAssetItem(itemRows.find((item) => item.id === row.itemId)),
+              assetIsOpen(row.status) && isCompanyAssetItem(itemRows.find((item) => item.id === row.itemId)),
           )?.id ?? '')
       setSelectedId(nextSelected)
       if (nextSelected) {
@@ -326,8 +326,15 @@ export function AssetsPage() {
       })
       const assetRows = await loadAssets(sqlite)
       setAssets(assetRows)
-      setEvents(await loadAssetEvents(sqlite, selectedId))
-      setLifeForm({ kind: fields.kind, happenedAt: today })
+      const stillOpen = assetRows.some((row) => row.id === selectedId && assetIsOpen(row.status))
+      const nextId = stillOpen
+        ? selectedId
+        : (assetRows.find(
+            (row) => assetIsOpen(row.status) && isCompanyAssetItem(items.find((item) => item.id === row.itemId)),
+          )?.id ?? '')
+      setSelectedId(nextId)
+      setEvents(nextId ? await loadAssetEvents(sqlite, nextId) : [])
+      setLifeForm({ kind: stillOpen ? fields.kind : 'transfer', happenedAt: today })
       setFormTick((tick) => tick + 1)
       setPendingLifeFile(null)
       setLifeFileName('')
@@ -396,10 +403,13 @@ export function AssetsPage() {
 
   const companyAssets = assets.filter(
     (asset) =>
-      asset.status !== 'disposed' && isCompanyAssetItem(items.find((item) => item.id === asset.itemId)),
+      assetIsOpen(asset.status) && isCompanyAssetItem(items.find((item) => item.id === asset.itemId)),
   )
   const disposedAssets = assets.filter(
     (asset) => asset.status === 'disposed' && isCompanyAssetItem(items.find((item) => item.id === asset.itemId)),
+  )
+  const returnedAssets = assets.filter(
+    (asset) => asset.status === 'returned' && isCompanyAssetItem(items.find((item) => item.id === asset.itemId)),
   )
   const selected = assets.find((row) => row.id === selectedId)
 
@@ -654,15 +664,27 @@ export function AssetsPage() {
           </ul>
         </section>
       ) : null}
+      {returnedAssets.length ? (
+        <section className="rounded-lg border border-line bg-card p-4">
+          <h2 className="text-base font-semibold">공급사 반품 {returnedAssets.length}</h2>
+          <ul className="mt-2 space-y-1 text-sm text-muted">
+            {returnedAssets.map((asset) => (
+              <li key={asset.id}>
+                {assetNumber(asset.id, asset.serialNo)} · {items.find((row) => row.id === asset.itemId)?.name ?? asset.itemId}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       </div>
 
-      {selected && selected.status !== 'disposed' ? (
+      {selected && assetIsOpen(selected.status) ? (
         <section className="max-h-[calc(100svh-12rem)] overflow-auto rounded-lg border border-line bg-card p-4">
           <h2 className="text-base font-semibold">
             {items.find((row) => row.id === selected.itemId)?.name ?? '자산'} · {assetNumber(selected.id, selected.serialNo)}
           </h2>
           <p className="mt-1 text-sm text-muted">
-            직원에게 배정하지 않습니다. 자리를 옮기면 이관, 고치면 수리, 더 이상 안 쓰면 폐기를 남깁니다.
+            직원에게 배정하지 않습니다. 자리를 옮기면 이관, 고치면 수리, 공급사에 돌려 보내면 반품, 더 이상 안 쓰면 폐기를 남깁니다.
             {publicOrderRef(selected.sourceOrderId) ? ` 구매 원본 발주 ${publicOrderRef(selected.sourceOrderId)}.` : ''}
           </p>
           {boundQr ? (
@@ -791,6 +813,7 @@ export function AssetsPage() {
               >
                 <option value="transfer">이관</option>
                 <option value="repair">수리</option>
+                <option value="supplier_return">공급사 반품</option>
                 <option value="dispose">폐기</option>
               </select>
             </label>
@@ -805,27 +828,31 @@ export function AssetsPage() {
                 onChange={(e) => setLifeForm((prev) => ({ ...prev, happenedAt: e.target.value }))}
               />
             </label>
-            {lifeForm.kind === 'transfer' ? (
+            {lifeForm.kind === 'transfer' || lifeForm.kind === 'supplier_return' ? (
               <>
-                <label className="text-sm">
-                  위치
-                  <input
-                    name="locationText"
-                    required
-                    autoComplete="off"
-                    className="mt-1 w-full rounded border border-line px-3 py-2"
-                    defaultValue={selected.locationText ?? ''}
-                  />
-                </label>
-                <label className="text-sm">
-                  부서
-                  <input
-                    name="departmentName"
-                    autoComplete="off"
-                    className="mt-1 w-full rounded border border-line px-3 py-2"
-                    defaultValue={selected.departmentName ?? ''}
-                  />
-                </label>
+                {lifeForm.kind === 'transfer' ? (
+                  <>
+                    <label className="text-sm">
+                      위치
+                      <input
+                        name="locationText"
+                        required
+                        autoComplete="off"
+                        className="mt-1 w-full rounded border border-line px-3 py-2"
+                        defaultValue={selected.locationText ?? ''}
+                      />
+                    </label>
+                    <label className="text-sm">
+                      부서
+                      <input
+                        name="departmentName"
+                        autoComplete="off"
+                        className="mt-1 w-full rounded border border-line px-3 py-2"
+                        defaultValue={selected.departmentName ?? ''}
+                      />
+                    </label>
+                  </>
+                ) : null}
                 <label className="text-sm sm:col-span-2">
                   담당
                   <input
@@ -842,6 +869,7 @@ export function AssetsPage() {
               <textarea
                 name="reason"
                 rows={2}
+                required={lifeForm.kind === 'supplier_return'}
                 autoComplete="off"
                 className="mt-1 w-full rounded border border-line px-3 py-2"
                 defaultValue=""
@@ -909,7 +937,7 @@ export function AssetsPage() {
         </section>
       ) : showsEmptyPickHint(companyAssets.length) ? (
         <section className="rounded-lg border border-dashed border-line bg-card p-4 text-sm text-muted">
-          왼쪽 목록에서 회사 자산을 고르면 이관·수리·폐기를 남깁니다.
+          왼쪽 목록에서 회사 자산을 고르면 이관·수리·공급사 반품·폐기를 남깁니다.
         </section>
       ) : null}
       </div>

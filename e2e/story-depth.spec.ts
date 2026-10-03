@@ -152,6 +152,28 @@ test('게스트 자산은 이관하고 빈 QR을 만든다', async ({ page }) =>
   expect(writes).toEqual([])
 })
 
+test('게스트 자산은 공급사에 반품하고 회사 자산에서 뺀다', async ({ page }) => {
+  const writes = trackSupabaseMutations(page)
+  await page.goto('/guest/assets')
+  await expect(page.getByRole('heading', { name: '자산', exact: true })).toBeVisible({ timeout: 20000 })
+  await expect(page.getByRole('heading', { name: '공급사 반품 0' })).toHaveCount(0)
+  await page.getByRole('cell', { name: '샘플 책상' }).click()
+  await page.getByLabel('구분').selectOption('supplier_return')
+  await page.getByLabel('사유').fill('샘플 반품')
+  await page.getByLabel('이력 원본').setInputFiles({
+    name: '견본반품.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+  })
+  await page.getByRole('button', { name: '공급사 반품 저장' }).click()
+  await expect(page.getByText('공급사 반품 이력을 남겼습니다. 직원에게 배정하지 않았습니다.')).toBeVisible()
+  await expect(page.getByRole('heading', { name: '공급사 반품 1' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '회사 자산 1' })).toBeVisible()
+  await expect(page.getByText('샘플 책상')).toBeVisible()
+  await expectNoHqLeftovers(page)
+  expect(writes).toEqual([])
+})
+
 test('게스트 기준정보 창고·거래처를 저장하고 빈 필드 키는 막는다', async ({ page }) => {
   await page.goto('/guest/master')
   await expect(page.getByRole('heading', { name: '기준정보' })).toBeVisible({ timeout: 20000 })

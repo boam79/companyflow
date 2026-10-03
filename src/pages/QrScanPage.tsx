@@ -271,7 +271,7 @@ export function QrScanPage() {
           )}
         </section>
         <Link className="inline-block text-sm text-accent underline" to={href('/assets')}>
-          자산 화면에서 이관·수리·폐기
+          자산 화면에서 이력
         </Link>
       </div>
     )

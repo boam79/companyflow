@@ -13,11 +13,13 @@ export const ASSET_TABLE_SQL = [
   );`,
 ]
 
+export type AssetStatus = 'in_storage' | 'assigned' | 'disposed' | 'returned'
+
 export type AssetRecord = {
   id: string
   itemId: string
   warehouseId: string
-  status: 'in_storage' | 'assigned' | 'disposed'
+  status: AssetStatus
   employeeId?: string
   sourceOperationId: string
   createdAt?: string
@@ -29,6 +31,10 @@ export type AssetRecord = {
   ownerName?: string
   acquiredAt?: string
   sourceOrderId?: string
+}
+
+export function assetIsOpen(status: AssetStatus) {
+  return status !== 'disposed' && status !== 'returned'
 }
 
 export function assetNumber(id: string, serialNo?: string): string {
@@ -72,7 +78,7 @@ export async function loadAssets(
     id: string
     item_id: string
     warehouse_id: string
-    status: 'in_storage' | 'assigned' | 'disposed'
+    status: AssetStatus
     employee_id?: string | null
     source_operation_id: string
     created_at?: string | null

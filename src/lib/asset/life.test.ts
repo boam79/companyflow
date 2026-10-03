@@ -159,6 +159,29 @@ describe('자산 이관·수리·폐기', () => {
     ).toThrow(/폐기/)
   })
 
+  it('공급사 반품은 목록에서 빼는 상태로 바꾸고 사유가 필요하다', () => {
+    expect(assetLifeLabel('supplier_return')).toBe('공급사 반품')
+    expect(() =>
+      applyAssetLife(DESK, { assetId: 'op-desk:1', kind: 'supplier_return', happenedAt: '2026-09-24' }),
+    ).toThrow(/반품 사유/)
+    const next = applyAssetLife(DESK, {
+      assetId: 'op-desk:1',
+      kind: 'supplier_return',
+      happenedAt: '2026-09-24',
+      reason: '불량',
+      ownerName: '박재민',
+    })
+    expect(next[0]).toMatchObject({ status: 'returned', employeeId: undefined, ownerName: '박재민' })
+    expect(() =>
+      applyAssetLife(next, {
+        assetId: 'op-desk:1',
+        kind: 'transfer',
+        happenedAt: '2026-09-25',
+        locationText: '샘플 3층',
+      }),
+    ).toThrow(/반품/)
+  })
+
   it('이관에 위치가 없으면 막는다', () => {
     expect(() =>
       applyAssetLife(DESK, { assetId: 'op-desk:1', kind: 'transfer', happenedAt: '2026-09-20' }),

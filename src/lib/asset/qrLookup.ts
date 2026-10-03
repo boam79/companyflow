@@ -42,7 +42,7 @@ export function buildQrAssetDetail(
     departmentName: asset.departmentName,
     ownerName: asset.ownerName,
     acquiredAt: asset.acquiredAt,
-    statusLabel: asset.status === 'disposed' ? '폐기' : '사용',
+    statusLabel: asset.status === 'disposed' ? '폐기' : asset.status === 'returned' ? '반품' : '사용',
     history: events.map(qrHistoryLine),
   }
 }
