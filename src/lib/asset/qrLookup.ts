@@ -22,7 +22,15 @@ export function findAssetByQrToken(assets: AssetRecord[], token: string): AssetR
 }
 
 export function qrHistoryLine(event: AssetLifeEvent) {
-  return [assetLifeLabel(event.kind), event.happenedAt, event.locationText, event.reason, event.fileName]
+  return [
+    assetLifeLabel(event.kind),
+    event.happenedAt,
+    event.locationText,
+    event.departmentName ? `부서 ${event.departmentName}` : '',
+    event.ownerName ? `담당 ${event.ownerName}` : '',
+    event.reason,
+    event.fileName,
+  ]
     .filter(Boolean)
     .join(' · ')
 }

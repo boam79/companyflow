@@ -311,7 +311,20 @@ export function overduePurchaseRequests(
 }
 
 export function overduePurchaseRequestCaption(row: PurchaseRequest) {
-  return [row.id, row.neededAt ? `필요 ${row.neededAt}` : ''].filter(Boolean).join(' · ')
+  const itemPart = row.lines
+    .map((line) => [line.itemName, line.itemUnit, line.purchaseKind].filter(Boolean).join(' · '))
+    .filter(Boolean)
+    .join(', ')
+  return [
+    row.id,
+    row.neededAt ? `필요 ${row.neededAt}` : '',
+    row.requesterName,
+    row.departmentName,
+    row.purpose,
+    itemPart,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 export async function loadPurchaseRequests(db: Pick<CompanySqlite, 'query'>): Promise<PurchaseRequest[]> {

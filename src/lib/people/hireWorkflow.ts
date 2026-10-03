@@ -70,6 +70,11 @@ export function applyHireDocument(
   )
 }
 
+export function hireDocumentDoneCaption(row: Pick<HireDocumentCheck, 'doneAt'>) {
+  const at = row.doneAt?.slice(0, 10)
+  return at ? `완료 ${at}` : ''
+}
+
 export function hireDocumentSummary(docs: HireDocumentCheck[]): string {
   return `서류 ${docs.filter((row) => row.done).length}/${docs.length}`
 }
@@ -124,7 +129,7 @@ export function overdueHireRows<T extends { dueAt?: string }>(rows: T[], today: 
 }
 
 export function overdueHireCaption(
-  row: { ownerName?: string; dueAt?: string },
+  row: { ownerName?: string; dueAt?: string; fileName?: string },
   employeeName: string,
   today: string,
 ) {
@@ -132,7 +137,7 @@ export function overdueHireCaption(
 }
 
 export function hireWorkflowCaption(
-  row: { ownerName?: string; dueAt?: string },
+  row: { ownerName?: string; dueAt?: string; fileName?: string },
   today: string,
 ): string {
   const parts: string[] = []
@@ -141,6 +146,7 @@ export function hireWorkflowCaption(
     parts.push(`기한 ${row.dueAt.trim()}`)
     if (row.dueAt.trim() < today) parts.push('기한 지남')
   }
+  if (row.fileName?.trim()) parts.push(row.fileName.trim())
   if (!parts.length) return '담당·기한을 저장하세요'
   return parts.join(' · ')
 }

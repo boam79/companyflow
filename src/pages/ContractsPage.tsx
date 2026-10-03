@@ -59,6 +59,7 @@ import { displayCurrencyName, formatCompanyDate, loadCompanyDisplay } from '../l
 import { countHeading, countLabel, showsEmptyPickHint } from '../lib/company/nav'
 import { publicErrorMessage } from '../lib/publicError'
 import { ACTIVE_MASTER_WHERE } from '../lib/master/commands'
+import { partnerSelectHint } from '../lib/stock/inventoryView'
 
 function emptyForm(today: string) {
   return {
@@ -79,7 +80,7 @@ export function ContractsPage() {
   const { guest, sqlite, loading, configured, user, companies, companyId, sessionReady, setCompanyId, href } =
     useWorkAccess()
   const [rows, setRows] = useState<ContractDraft[]>([])
-  const [partners, setPartners] = useState<{ id: string; name: string }[]>([])
+  const [partners, setPartners] = useState<{ id: string; name: string; phone?: string | null; memo?: string | null }[]>([])
   const [orders, setOrders] = useState<{ id: string; partnerId?: string; partnerName?: string; orderDate?: string }[]>([])
   const [revisions, setRevisions] = useState<ContractRevision[]>([])
   const [query, setQuery] = useState('')
@@ -162,7 +163,9 @@ export function ContractsPage() {
       const nextRows = await loadContracts(sqlite)
       if (ticket !== openTicket.current || sqlite.companyId !== nextId) return
       const [partnerRows, orderRows] = await Promise.all([
-        sqlite.query<{ id: string; name: string }>(`select id, name from partners where ${ACTIVE_MASTER_WHERE} order by name`),
+        sqlite.query<{ id: string; name: string; phone?: string | null; memo?: string | null }>(
+          `select id, name, phone, memo from partners where ${ACTIVE_MASTER_WHERE} order by name`,
+        ),
         sqlite.query<{ id: string; partner_id?: string | null; order_date?: string | null; partner_name?: string | null }>(
           'select id, partner_id, order_date, partner_name from stock_orders order by created_at desc, id',
         ),
@@ -742,6 +745,11 @@ export function ContractsPage() {
                     </option>
                   ))}
                 </select>
+                {partnerSelectHint(partners.find((row) => row.id === form.partnerId)) ? (
+                  <p className="mt-1 text-xs text-muted">
+                    {partnerSelectHint(partners.find((row) => row.id === form.partnerId))}
+                  </p>
+                ) : null}
               </label>
             ) : null}
             {orderChoices.length ? (

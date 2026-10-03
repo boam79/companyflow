@@ -48,6 +48,9 @@ import {
 } from '../lib/people/employment'
 import {
   executeOnboardingToggle,
+  hireHiredCaption,
+  hireIssuedCaption,
+  hireReturnedCaption,
   leavePhase,
   leaveRowLabel,
   leaveSummary,
@@ -63,6 +66,7 @@ import { retireSupplyAssets } from '../lib/asset/retireSupplies'
 import {
   executeHireDocumentToggle,
   executeSaveHireWorkflow,
+  hireDocumentDoneCaption,
   hireDocumentSummary,
   hireDocumentView,
   hireHistory,
@@ -900,6 +904,9 @@ export function PeoplePage() {
                                   />
                                   <span className={step.done ? 'font-medium' : 'text-muted'}>{step.label}</span>
                                 </label>
+                                {step.done ? (
+                                  <span className="text-xs text-muted">{hireHiredCaption(selectedEmployee.hiredAt)}</span>
+                                ) : null}
                               </li>
                             )
                           }
@@ -919,6 +926,9 @@ export function PeoplePage() {
                                 />
                                 <span className={row.issued ? 'font-medium' : 'text-muted'}>{row.hireLabel}</span>
                               </label>
+                              {hireIssuedCaption(row) ? (
+                                <span className="text-xs text-muted">{hireIssuedCaption(row)}</span>
+                              ) : null}
                               {row.key === 'badge' ? (
                                 <button
                                   type="button"
@@ -946,8 +956,8 @@ export function PeoplePage() {
                       <h3 className="text-sm font-semibold">입사 서류</h3>
                       <ul className="mt-2 space-y-2">
                         {selectedDocuments.map((row) => (
-                          <li key={`doc-${row.key}`}>
-                            <label className="flex items-center gap-2 whitespace-nowrap">
+                          <li key={`doc-${row.key}`} className="flex items-center gap-2 whitespace-nowrap">
+                            <label className="flex items-center gap-2">
                               <input
                                 type="checkbox"
                                 className="size-4 shrink-0 accent-accent"
@@ -957,6 +967,9 @@ export function PeoplePage() {
                               />
                               <span className={row.done ? 'font-medium' : 'text-muted'}>{row.label}</span>
                             </label>
+                            {hireDocumentDoneCaption(row) ? (
+                              <span className="text-xs text-muted">{hireDocumentDoneCaption(row)}</span>
+                            ) : null}
                           </li>
                         ))}
                       </ul>
@@ -970,8 +983,8 @@ export function PeoplePage() {
                       {selectedProcess.map((row) => {
                         const phase = leavePhase(row, Boolean(selectedEmployee.leftAt))
                         return (
-                          <li key={`leave-${row.key}`}>
-                            <label className="flex items-center gap-2 whitespace-nowrap">
+                          <li key={`leave-${row.key}`} className="flex items-center gap-2 whitespace-nowrap">
+                            <label className="flex items-center gap-2">
                               <input
                                 type="checkbox"
                                 className="size-4 shrink-0 accent-accent"
@@ -985,6 +998,9 @@ export function PeoplePage() {
                                 {leaveRowLabel(row, Boolean(selectedEmployee.leftAt))}
                               </span>
                             </label>
+                            {phase === 'returned' && hireReturnedCaption(row) ? (
+                              <span className="text-xs text-muted">{hireReturnedCaption(row)}</span>
+                            ) : null}
                           </li>
                         )
                       })}
@@ -1076,6 +1092,7 @@ export function PeoplePage() {
                           {
                             ownerName: employees.find((row) => row.id === selectedWorkflowDraft.ownerId)?.name,
                             dueAt: selectedWorkflowDraft.dueAt || selectedWorkflow?.dueAt,
+                            fileName: selectedWorkflow?.fileName,
                           },
                           today,
                         )}

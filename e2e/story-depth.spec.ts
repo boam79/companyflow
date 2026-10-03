@@ -119,6 +119,7 @@ test('게스트 입퇴사는 명찰 지급과 퇴사를 기록한다', async ({ 
   await expect(page.getByRole('heading', { name: '기한 지남 1' })).toBeVisible()
   await expect(page.getByRole('heading', { name: '기한 지남 0' })).toHaveCount(0)
   await page.getByRole('button', { name: /견본 김대리.*입사 중/ }).click()
+  await expect(page.getByText('완료 2026-08-01').first()).toBeVisible()
   await page.getByRole('checkbox', { name: '명찰 지급' }).click()
   await expect(page.getByText('입사 프로세스: 명찰 지급 완료')).toBeVisible()
   await page.getByRole('checkbox', { name: '근로계약서' }).click()
@@ -149,6 +150,7 @@ test('게스트 자산은 이관하고 빈 QR을 만든다', async ({ page }) =>
   await page.goto('/guest/assets')
   await expect(page.getByRole('heading', { name: '자산', exact: true })).toBeVisible({ timeout: 20000 })
   await page.getByRole('cell', { name: '샘플 책상' }).click()
+  await expect(page.getByRole('columnheader', { name: '구매 원본' })).toBeVisible()
   await expect(page.getByRole('button', { name: '이력 첨부' })).toBeVisible()
   await page.getByLabel('이력 원본').setInputFiles({
     name: '견본이관.png',
@@ -158,6 +160,8 @@ test('게스트 자산은 이관하고 빈 QR을 만든다', async ({ page }) =>
   await page.getByLabel('위치').fill('샘플 3층')
   await page.getByRole('button', { name: '이관 저장' }).click()
   await expect(page.getByText('이관 이력을 남겼습니다. 직원에게 배정하지 않았습니다.')).toBeVisible()
+  await expect(page.getByText(/부서 샘플총무/)).toBeVisible()
+  await expect(page.getByText(/담당 견본 김대리/)).toBeVisible()
   await expect(page.getByRole('button', { name: '견본이관.png', exact: true })).toBeVisible()
   await page.getByRole('button', { name: '빈 QR 만들기' }).click()
   await expect(page.getByText(/샘플 빈 QR/)).toBeVisible()

@@ -31,7 +31,7 @@ import {
 import { toArrayBuffer } from '../lib/contracts/book'
 import { onHand, orderNetReceived, orderRemaining, returnBalance, inboundReturnBalance, inboundSupplierSource, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { defaultStockPolicy, loadStockPolicy, showsOverflowReason } from '../lib/stock/policy'
-import { assertDueReturnAt, assertInboundAt, buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderItemCaption, orderQtyText, orderReceiptProgress, overdueIssueReturns, overdueSupplyOrderCaption, overdueSupplyOrders, partnerSelectHint, publicStockOrderId, resolveIssueDepartment, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssueNoteLead, stockIssuePersonName, stockLastSaveLead, stockOnHandPreview, stockOnHandPreviewKind, stockOutboundLead, stockPageLead, stockQtyUnitHint, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, stockTransferOnHandPreview, supplyLowStock, todayYmd, transferWarehouseIds, supplyItems, supplyOrderCsv, warehouseOptionLabel, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { assertDueReturnAt, assertInboundAt, buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderInspectCaption, orderItemCaption, orderQtyText, orderReceiptProgress, overdueIssueReturns, overdueSupplyOrderCaption, overdueSupplyOrders, partnerSelectHint, publicStockOrderId, resolveIssueDepartment, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssueNoteLead, stockIssuePersonName, stockLastSaveLead, stockOnHandPreview, stockOnHandPreviewKind, stockOutboundLead, stockPageLead, stockQtyUnitHint, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, stockTransferOnHandPreview, supplyLowStock, todayYmd, transferWarehouseIds, supplyItems, supplyOrderCsv, warehouseOptionLabel, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, ledgerRelatedJumps, sessionRecorderName, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -644,6 +644,7 @@ export function StockPage() {
           qty: quantity,
           ...overflowReasonField(),
           ...ledgerActorSave(),
+          purpose: issuePurpose.trim() || undefined,
           ...ledgerMemoSave(),
           ...ledgerFileSave(),
         }
@@ -657,6 +658,7 @@ export function StockPage() {
           ...overflowReasonField(),
           ...ledgerActorSave(),
           ...ledgerMemoSave(),
+          ...ledgerFileSave(),
         }
       case 'post_issue':
         return {
@@ -684,6 +686,7 @@ export function StockPage() {
           sourceOperationId,
           ...ledgerActorSave(),
           ...ledgerMemoSave(),
+          ...ledgerFileSave(),
         }
       case 'transfer_stock':
         return {
@@ -705,6 +708,7 @@ export function StockPage() {
           reason,
           ...ledgerActorSave(),
           ...ledgerMemoSave(),
+          ...ledgerFileSave(),
         }
       case 'reverse_transaction':
         return { type: action, operationId: nextOperationId, sourceOperationId: sourceOperationId || lastOperationId }
@@ -798,7 +802,7 @@ export function StockPage() {
         ) {
           setInboundMemo('')
         }
-        if (action === 'post_issue') {
+        if (action === 'post_issue' || action === 'post_outbound') {
           setIssuePurpose('')
           setIssueDueReturnAt('')
         }
@@ -807,7 +811,10 @@ export function StockPage() {
           action === 'post_issue' ||
           action === 'post_outbound' ||
           action === 'post_receipt' ||
-          action === 'post_supplier_return'
+          action === 'post_supplier_return' ||
+          action === 'post_return' ||
+          action === 'convert_to_asset' ||
+          action === 'adjust_stock'
         ) {
           setPendingLedgerFile(null)
           setLedgerFileName('')
@@ -985,6 +992,14 @@ export function StockPage() {
   const overdueOrders = overdueSupplyOrders(purchaseOrders, todayYmd())
   const orderRows = state ? [...state.orders.values()] : []
   const overdueRequests = overduePurchaseRequests(requests, orderRows, todayYmd())
+  const receiptInspect = orderInspectCaption(
+    purchaseOrders.find((row) => row.orderId === orderId && row.itemId === itemId) ?? {
+      receivedQty: 0,
+      rejectedQty: 0,
+      returnedQty: 0,
+      remainingQty: 0,
+    },
+  )
   const overflowReasonNeeded = Boolean(
     state &&
       showsOverflowReason({
@@ -2060,7 +2075,10 @@ export function StockPage() {
         action === 'post_issue' ||
         action === 'post_outbound' ||
         action === 'post_receipt' ||
-        action === 'post_supplier_return' ? (
+        action === 'post_supplier_return' ||
+        action === 'post_return' ||
+        action === 'convert_to_asset' ||
+        action === 'adjust_stock' ? (
           <div className="sm:col-span-2 text-sm">
             {action === 'post_direct_in' ? '증빙' : '첨부'}
             <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -2075,7 +2093,13 @@ export function StockPage() {
                         ? '반출 첨부'
                         : action === 'post_receipt'
                           ? '수령 첨부'
-                          : '반품 첨부'
+                          : action === 'post_return'
+                            ? '반납 첨부'
+                            : action === 'convert_to_asset'
+                              ? '자산화 첨부'
+                              : action === 'adjust_stock'
+                                ? '실사 첨부'
+                                : '반품 첨부'
                 }
                 type="file"
                 accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
@@ -2101,6 +2125,14 @@ export function StockPage() {
           <>
             <p className="sm:col-span-2 text-sm text-muted">{stockOutboundLead()}</p>
             <label className="sm:col-span-2 text-sm">
+              출고 목적
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={issuePurpose}
+                onChange={(e) => setIssuePurpose(e.target.value)}
+              />
+            </label>
+            <label className="sm:col-span-2 text-sm">
               메모
               <input
                 className="mt-1 w-full rounded border border-line px-3 py-2"
@@ -2115,6 +2147,7 @@ export function StockPage() {
             <p className="sm:col-span-2 text-sm text-muted">
               {stockReceiptLead(orderId, receiptRemaining, defectQty, receiptAsAsset)}
             </p>
+            {receiptInspect ? <p className="sm:col-span-2 text-sm text-muted">{receiptInspect}</p> : null}
             <label className="sm:col-span-2 text-sm">
               메모
               <input

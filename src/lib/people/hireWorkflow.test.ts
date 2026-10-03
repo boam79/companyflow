@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   applyHireWorkflow,
   applyHireDocument,
+  hireDocumentDoneCaption,
   hireDocumentSummary,
   hireDocumentView,
   hireHistory,
@@ -27,16 +28,18 @@ describe('입사 워크플로', () => {
       fileName: '입사서류.pdf',
       hasFile: true,
     })
-    expect(hireWorkflowCaption({ ...next, ownerName: '박재민' }, '2026-09-20')).toBe('담당 박재민 · 기한 2026-09-25')
+    expect(hireWorkflowCaption({ ...next, ownerName: '박재민' }, '2026-09-20')).toBe(
+      '담당 박재민 · 기한 2026-09-25 · 입사서류.pdf',
+    )
   })
 
   it('기한이 지났으면 입사 중 안내를 붙인다', () => {
     expect(
       hireWorkflowCaption(
-        { ownerName: '김담당', dueAt: '2026-09-18' },
+        { ownerName: '김담당', dueAt: '2026-09-18', fileName: '견본입사.pdf' },
         '2026-09-20',
       ),
-    ).toBe('담당 김담당 · 기한 2026-09-18 · 기한 지남')
+    ).toBe('담당 김담당 · 기한 2026-09-18 · 기한 지남 · 견본입사.pdf')
     expect(overdueHireNotice([{ dueAt: '2026-09-18' }, { dueAt: '2026-09-25' }], '2026-09-20')).toBe('기한 지남 1건')
     expect(overdueHireNotice([{ dueAt: '2026-09-25' }], '2026-09-20')).toBe('')
     expect(
@@ -49,8 +52,12 @@ describe('입사 워크플로', () => {
       ).map((row) => row.employeeId),
     ).toEqual(['emp-a'])
     expect(
-      overdueHireCaption({ ownerName: '김담당', dueAt: '2026-09-18' }, '견본 김대리', '2026-09-20'),
-    ).toBe('견본 김대리 · 담당 김담당 · 기한 2026-09-18 · 기한 지남')
+      overdueHireCaption(
+        { ownerName: '김담당', dueAt: '2026-09-18', fileName: '견본입사.pdf' },
+        '견본 김대리',
+        '2026-09-20',
+      ),
+    ).toBe('견본 김대리 · 담당 김담당 · 기한 2026-09-18 · 기한 지남 · 견본입사.pdf')
     expect(overdueHireNotice([], '2026-09-20')).not.toMatch(/기한 지남 0/)
   })
 
@@ -95,6 +102,7 @@ describe('입사 워크플로', () => {
     expect(hireDocumentSummary(empty)).toBe('서류 0/5')
     const next = applyHireDocument(empty, 'contract', true, '2026-09-20')
     expect(next.find((row) => row.key === 'contract')?.done).toBe(true)
+    expect(hireDocumentDoneCaption(next.find((row) => row.key === 'contract')!)).toBe('완료 2026-09-20')
     expect(hireDocumentSummary(next)).toBe('서류 1/5')
     expect(hireHistory([{ kind: 'hire_contract', occurredAt: '2026-09-20' }])).toEqual([
       { at: '2026-09-20', label: '근로계약서' },

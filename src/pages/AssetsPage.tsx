@@ -600,6 +600,7 @@ export function AssetsPage() {
                   <th className="py-1.5 pr-3 font-medium">위치</th>
                   <th className="py-1.5 pr-3 font-medium">부서</th>
                   <th className="py-1.5 pr-3 font-medium">담당</th>
+                  <th className="py-1.5 pr-3 font-medium">구매 원본</th>
                   <th className="py-1.5 font-medium">취득</th>
                 </tr>
               </thead>
@@ -637,6 +638,7 @@ export function AssetsPage() {
                       <td className="py-2 pr-4">{location || '—'}</td>
                       <td className="py-2 pr-4">{asset.departmentName || '—'}</td>
                       <td className="py-2 pr-4">{asset.ownerName || '—'}</td>
+                      <td className="py-2 pr-4 text-muted">{publicOrderRef(asset.sourceOrderId) || '—'}</td>
                       <td className="whitespace-nowrap py-2 text-muted">{asset.acquiredAt || '—'}</td>
                     </tr>
                   )
@@ -918,6 +920,8 @@ export function AssetsPage() {
                   <span className="font-medium">{assetLifeLabel(event.kind)}</span>
                   <span className="text-muted"> · {event.happenedAt}</span>
                   {event.locationText ? <span> · {event.locationText}</span> : null}
+                  {event.departmentName ? <span> · 부서 {event.departmentName}</span> : null}
+                  {event.ownerName ? <span> · 담당 {event.ownerName}</span> : null}
                   {event.reason ? <span className="text-muted"> · {event.reason}</span> : null}
                   {event.fileName ? (
                     <button

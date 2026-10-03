@@ -74,6 +74,7 @@ export type StockCommand =
       warehouseId: string
       qty: number
       reason?: string
+      purpose?: string
       memo?: string
       fileName?: string
       fileMime?: string
@@ -88,6 +89,9 @@ export type StockCommand =
       qty: number
       sourceOperationId: string
       memo?: string
+      fileName?: string
+      fileMime?: string
+      fileBase64?: string
       recordedBy?: string
     }
   | {
@@ -122,6 +126,9 @@ export type StockCommand =
       countedQty: number
       reason: string
       memo?: string
+      fileName?: string
+      fileMime?: string
+      fileBase64?: string
       recordedBy?: string
     }
   | {
@@ -132,6 +139,9 @@ export type StockCommand =
       qty: number
       reason?: string
       memo?: string
+      fileName?: string
+      fileMime?: string
+      fileBase64?: string
       recordedBy?: string
     }
   | {
@@ -579,6 +589,7 @@ export function applyStockCommand(
         warehouseId: command.warehouseId,
         qtyDelta: -command.qty,
         reason: command.reason?.trim() || undefined,
+        purpose: command.purpose?.trim() || undefined,
         ...ledgerActorFields(command),
         ...ledgerNoteFields(command),
       })

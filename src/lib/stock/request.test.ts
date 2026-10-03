@@ -166,7 +166,21 @@ describe('구매요청', () => {
         '2026-10-11',
       ),
     ).toEqual([])
-    expect(overduePurchaseRequestCaption(REQUEST)).toBe('REQ-DEMO-01 · 필요 2026-10-10')
+    expect(overduePurchaseRequestCaption(REQUEST)).toBe(
+      'REQ-DEMO-01 · 필요 2026-10-10 · 견본 김대리 · 샘플총무 · 샘플 비품 보충',
+    )
+    expect(
+      overduePurchaseRequestCaption({
+        ...REQUEST,
+        lines: stampRequestLines(
+          REQUEST.lines,
+          [{ id: PAPER, name: '샘플 복사용지', unit: '박스', purchaseKind: 'supply' }],
+          [{ id: 'supply', name: '일반 비품' }],
+        ),
+      }),
+    ).toBe(
+      'REQ-DEMO-01 · 필요 2026-10-10 · 견본 김대리 · 샘플총무 · 샘플 비품 보충 · 샘플 복사용지 · 박스 · 일반 비품',
+    )
     expect(overduePurchaseRequestCaption(REQUEST)).not.toMatch(/필요일 지남 0/)
   })
 })

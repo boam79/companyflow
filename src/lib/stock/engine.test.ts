@@ -91,8 +91,17 @@ describe('복사용지 재고 원장', () => {
       warehouseId: MAIN,
       qty: 2,
       sourceOperationId: 'op-issue-2',
+      memo: '견본 반납 메모',
+      fileName: '견본반납.png',
+      recordedBy: '박재민',
     }).state
     expect(returnBalance(state.ledger, 'op-issue-2')).toEqual({ issued: 2, already: 2, left: 0 })
+    expect(state.ledger.at(-1)).toMatchObject({
+      txnType: 'return',
+      memo: '견본 반납 메모',
+      fileName: '견본반납.png',
+      recordedBy: '박재민',
+    })
     expect(() =>
       applyStockCommand(state, {
         type: 'post_return',
@@ -209,12 +218,14 @@ describe('복사용지 재고 원장', () => {
       qty: 1,
       memo: '샘플 출고 메모',
       recordedBy: '박재민',
+      purpose: '샘플 출고',
       fileName: '견본출고.png',
     }).state
     expect(state.ledger.at(-1)).toMatchObject({
       txnType: 'outbound',
       memo: '샘플 출고 메모',
       recordedBy: '박재민',
+      purpose: '샘플 출고',
       fileName: '견본출고.png',
     })
     expect(() =>
@@ -243,14 +254,16 @@ describe('복사용지 재고 원장', () => {
       itemId: ITEM,
       warehouseId: MAIN,
       qty: 1,
-          recordedBy: '박재민',
-          memo: '견본 전환',
-        }).state
-        expect(state.ledger.at(-1)).toMatchObject({
-          txnType: 'convert_out',
-          recordedBy: '박재민',
-          memo: '견본 전환',
-        })
+      recordedBy: '박재민',
+      memo: '견본 전환',
+      fileName: '견본전환.png',
+    }).state
+    expect(state.ledger.at(-1)).toMatchObject({
+      txnType: 'convert_out',
+      recordedBy: '박재민',
+      memo: '견본 전환',
+      fileName: '견본전환.png',
+    })
   })
 
   it('이동 후에도 회사 합계는 같고 같은 operation_id 는 한 번만 반영된다', () => {
@@ -384,12 +397,14 @@ describe('복사용지 재고 원장', () => {
       reason: '파손 확인',
       memo: '견본 실사',
       recordedBy: '박재민',
+      fileName: '견본실사.png',
     }).state
     expect(onHand(state, ITEM, MAIN)).toBe(4)
     expect(state.ledger.at(-1)).toMatchObject({
       txnType: 'adjust',
       memo: '견본 실사',
       recordedBy: '박재민',
+      fileName: '견본실사.png',
     })
 
     state = applyStockCommand(state, {

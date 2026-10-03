@@ -3,6 +3,9 @@ import {
   applyIssueCheck,
   applyReturnCheck,
   assertOffboardingClear,
+  hireHiredCaption,
+  hireIssuedCaption,
+  hireReturnedCaption,
   isProcessItemId,
   leavePhase,
   leaveRowLabel,
@@ -20,6 +23,8 @@ describe('입퇴사 프로세스', () => {
     const issued = applyIssueCheck(empty, 'badge', '2026-09-17')
     expect(outstandingOnboarding(issued)).toHaveLength(1)
     expect(issued.find((row) => row.key === 'badge')?.issued).toBe(true)
+    expect(hireIssuedCaption(issued.find((row) => row.key === 'badge')!)).toBe('완료 2026-09-17')
+    expect(hireHiredCaption('2026-08-01')).toBe('완료 2026-08-01')
   })
 
   it('퇴사는 지급 중인 입사 항목이 있으면 막힌다', () => {
@@ -34,6 +39,7 @@ describe('입퇴사 프로세스', () => {
     checks = applyReturnCheck(checks, 'uniform', '2026-09-17')
     expect(() => assertOffboardingClear(checks)).not.toThrow()
     expect(outstandingOnboarding(checks)).toHaveLength(0)
+    expect(hireReturnedCaption(checks.find((row) => row.key === 'uniform')!)).toBe('회수 2026-09-17')
   })
 
   it('재직 중에는 이전 회수를 퇴사 완료로 보여 주지 않는다', () => {

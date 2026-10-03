@@ -65,6 +65,21 @@ export function leavePhase(row: OnboardingCheck, left: boolean): LeavePhase {
   return 'pending'
 }
 
+export function hireIssuedCaption(row: Pick<OnboardingCheck, 'issuedAt'>) {
+  const at = row.issuedAt?.slice(0, 10)
+  return at ? `완료 ${at}` : ''
+}
+
+export function hireReturnedCaption(row: Pick<OnboardingCheck, 'returnedAt'>) {
+  const at = row.returnedAt?.slice(0, 10)
+  return at ? `회수 ${at}` : ''
+}
+
+export function hireHiredCaption(hiredAt?: string) {
+  const at = hiredAt?.slice(0, 10)
+  return at ? `완료 ${at}` : ''
+}
+
 export function leaveRowLabel(row: OnboardingCheck, left: boolean): string {
   return leavePhase(row, left) === 'pending' ? `${row.name} 미지급` : row.leaveLabel
 }

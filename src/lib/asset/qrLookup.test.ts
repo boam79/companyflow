@@ -58,6 +58,14 @@ describe('등록 QR 자산 상세', () => {
     expect(qrHistoryLine({ ...events[0], fileName: '견본이관.png' })).toBe(
       '이관 · 2026-09-20 · 본사 3층 총무석 · 자리 이동 · 견본이관.png',
     )
+    expect(
+      qrHistoryLine({
+        ...events[0],
+        departmentName: '총무',
+        ownerName: '김담당',
+        fileName: '견본이관.png',
+      }),
+    ).toBe('이관 · 2026-09-20 · 본사 3층 총무석 · 부서 총무 · 담당 김담당 · 자리 이동 · 견본이관.png')
     expect(buildQrAssetDetail({ ...asset, status: 'returned' }, [{ id: 'item-desk', name: '책상' }], []).statusLabel).toBe(
       '반품',
     )

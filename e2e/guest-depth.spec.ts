@@ -42,6 +42,11 @@ test('게스트 입퇴사 탭은 견본만 두고 본사 사람을 두지 않는
   await expect(page.getByRole('heading', { name: '기한 지남 1' })).toBeVisible()
   await expect(page.getByRole('heading', { name: '기한 지남 0' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /담당 데모 이사원 · 기한 2026-01-01/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /견본입사\.pdf/ })).toBeVisible()
+  await page.getByRole('button', { name: /견본 김대리.*입사 중/ }).click()
+  await expect(page.getByRole('checkbox', { name: '노트북 지급' })).toBeVisible()
+  await expect(page.getByText('완료 2026-08-01').first()).toBeVisible()
+  await expect(page.getByText('견본입사.pdf').first()).toBeVisible()
   await expect(page.getByText('G-101').first()).toBeVisible()
   await expect(page.getByRole('button', { name: /데모 이사원.*입사 중/ })).toBeVisible()
   await page.getByRole('button', { name: /^퇴사/ }).click()
@@ -150,6 +155,8 @@ test('게스트 계약 초안은 본사 김담당 없이 저장한다', async ({
   await page.getByRole('button', { name: '새 초안' }).click()
   await page.getByLabel('계약명').fill('샘플 청소 계약')
   await page.getByLabel('상대방').fill('견본청소')
+  await page.getByLabel('거래처').selectOption('견본문구')
+  await expect(page.getByText('02-000-0000 · 샘플 공급사')).toBeVisible()
   await page.getByRole('button', { name: '초안 저장' }).click()
   await expect(page.getByText('계약 초안을 저장했습니다.')).toBeVisible()
   await expect(page.getByText('김담당')).toHaveCount(0)
@@ -228,9 +235,15 @@ test('게스트 실사는 장부와 세고 차이를 남긴다', async ({ page }
   await expect(page.getByText('장부 7 · 차이 -1 · 확정 후 6')).toBeVisible()
   await page.getByLabel('실사 사유').fill('견본파손')
   await page.getByLabel('메모').fill('견본 실사 메모')
+  await page.getByLabel('실사 첨부').setInputFiles({
+    name: '견본실사.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+  })
   await page.getByRole('button', { name: '실사 조정' }).click()
   await expect(page.getByText('저장했습니다. (실사 조정)')).toBeVisible()
   await expect(page.getByText('견본 실사 메모')).toBeVisible()
+  await expect(page.getByText('견본실사.png')).toBeVisible()
   await expect(page.getByRole('button', { name: '샘플창고 현재고 6' })).toBeVisible()
   await expect(page.getByRole('heading', { name: '재고현황 0' })).toHaveCount(0)
   await expectNoHqLeftovers(page)
@@ -255,9 +268,15 @@ test('게스트 반납은 원반출을 넘지 못한다', async ({ page }) => {
   await page.getByLabel('수량', { exact: true }).fill('1')
   await expect(page.getByText('현재고 6 · 확정 후 7')).toBeVisible()
   await page.getByLabel('메모').fill('견본 반납 메모')
+  await page.getByLabel('반납 첨부').setInputFiles({
+    name: '견본반납.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+  })
   await page.getByRole('button', { name: '반납', exact: true }).click()
   await expect(page.getByText('저장했습니다. (반납)')).toBeVisible()
   await expect(page.getByText('견본 반납 메모')).toBeVisible()
+  await expect(page.getByText('견본반납.png')).toBeVisible()
   await expect(page.getByText('견본 김대리 반출 · 다 돌아왔습니다.')).toBeVisible()
   await expectNoHqLeftovers(page)
 })
@@ -307,6 +326,7 @@ test('게스트 수령은 정상만 현재고에 넣고 여러 차례 진행을 
   await page.getByLabel('발주 번호').fill('ORD-DEMO-01')
   await page.getByPlaceholder('이름을 치세요').fill('샘플 복사용지')
   await expect(page.getByText('발주 ORD-DEMO-01 잔량 2.')).toBeVisible()
+  await expect(page.getByText('미수령 2')).toBeVisible()
   await page.getByLabel('정상').fill('1')
   await page.getByLabel('불량').fill('1')
   await expect(page.getByText('현재고 7 · 확정 후 8')).toBeVisible()
@@ -352,12 +372,19 @@ test('게스트 출고는 현재고를 줄인다', async ({ page }) => {
   await expect(page.getByText('현재고를 초과해 출고할 수 없습니다.')).toBeVisible()
   await page.getByLabel('수량', { exact: true }).fill('1')
   await expect(page.getByText('현재고 7 · 확정 후 6')).toBeVisible()
+  await page.getByLabel('출고 목적').fill('샘플 출고')
+  await page.getByLabel('출고 첨부').setInputFiles({
+    name: '견본출고.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+  })
   await page.getByLabel('메모').fill('샘플 출고 메모')
   await page.getByRole('button', { name: '출고', exact: true }).click()
   await expect(page.getByText('저장했습니다. (출고)')).toBeVisible()
   await expect(page.getByRole('button', { name: '샘플창고 현재고 6' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '출고', exact: true })).toBeVisible()
   await expect(page.getByText('샘플 출고 메모')).toBeVisible()
+  await expect(page.getByText('견본출고.png')).toBeVisible()
   await expectNoHqLeftovers(page)
 })
 
@@ -387,6 +414,8 @@ test('게스트 책상 수령은 현재고 없이 자산이 된다', async ({ pa
   await expectNoHqLeftovers(page)
   await page.getByRole('link', { name: '자산', exact: true }).click()
   await expect(page.getByRole('heading', { name: '회사 자산 3' })).toBeVisible({ timeout: 20000 })
+  await expect(page.getByRole('columnheader', { name: '구매 원본' })).toBeVisible()
+  await expect(page.getByRole('cell', { name: 'ORD-AST-01' })).toBeVisible()
   await page.getByRole('cell', { name: '수령' }).click()
   await expect(page.getByText('구매 원본 발주 ORD-AST-01')).toBeVisible()
   await expect(page.getByRole('button', { name: 'PNG 받기' })).toBeVisible()
@@ -412,7 +441,7 @@ test('게스트 구매요청은 바로 저장하고 발주 잔량을 지킨다',
   await expect(page.getByRole('heading', { name: '구매요청 0' })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: '필요일 지남 1' })).toBeVisible()
   await expect(page.getByRole('heading', { name: '필요일 지남 0' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'REQ-DEMO-01 · 필요 2026-01-01' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /REQ-DEMO-01 · 필요 2026-01-01/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /REQ-DEMO-01.*박스 · 일반 비품.*미발주/ })).toBeVisible()
   await expect(page.getByRole('button', { name: '결재' })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: '결재' })).toHaveCount(0)
