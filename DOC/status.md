@@ -111,6 +111,7 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 - Supabase 활성: `companyflow`, `boardroom`. 정지: `boam79_patient_data`, `qr-asset-manager`, `policyfund-ai-v2`.
 - `confirm_company_device` RPC 추가. 초기 설정 성공 후 원본 장치를 confirmed 로 올린다.
 
+- 2026-10-03: 확정 당시 품목명·단위·구매 구분·창고명·공급사명을 원장에 남긴다. 단위 320. HTTPS E2E 59. READY `dpl_BZyj7vziubHzG9SQQmvba2vab43a` 번들 `index-ygF63rOb.js`. 단가·`/reports`·PUR-02는 두지 않음.
 - 2026-10-03: 반출은 확정 당시 부서명을 남기고 부서는 직접 입력한다. 직접 입고 등록자는 로그인 이름만. 단위 317. HTTPS E2E 59. READY `dpl_EhmjwZmnW91Qedynv4hA6jp1Srso` 번들 `index-CQLag06i.js`. 게스트·이메일·`/reports`·PUR-02는 두지 않음.
 - 2026-10-03: 자산 이력에 공급사 반품을 두고 회사 자산에서 뺀다. 단위 316. HTTPS E2E 59. READY `dpl_4xjPawvJ3LeKUQcXeiCuzEa6s3R7` 번들 `index-DutuDF9K.js`. 직원 배정·`/reports`·PUR-02는 두지 않음.
 - 2026-10-03: 반출 반납 예정일이 지나면 `/stock` 반납 기한만 보여 준다. 단위 315. HTTPS E2E 58. READY `dpl_gbBAwWWCRzauK3aZCLSDonvsxTkV` 번들 `index-kfLBAHgQ.js`. 홈 카드·`/reports`·PUR-02는 두지 않음.
@@ -316,6 +317,7 @@ PRD 11.1·기능 ID·AC와 코드를 맞춰 본 결과다. T7·T8·T9는 2026-09
 
 - 확정 당시 품목명·단위·구매 구분·창고명·공급사명을 원장에 남긴다. 단가·UUID·이메일은 두지 않는다
 - `/reports`·PUR-02는 되돌리지 않음
+- 단위 320. HTTPS E2E 59. READY `dpl_BZyj7vziubHzG9SQQmvba2vab43a` 번들 `index-ygF63rOb.js`
 
 ### AST-01 자산 정보·QR (2026-10-03)
 
