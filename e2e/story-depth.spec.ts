@@ -123,7 +123,7 @@ test('게스트 입퇴사는 명찰 지급과 퇴사를 기록한다', async ({ 
   await expect(page.getByText('입사 프로세스: 명찰 지급 완료')).toBeVisible()
   await page.getByRole('checkbox', { name: '근로계약서' }).click()
   await expect(page.getByText('입사 서류: 근로계약서 완료')).toBeVisible()
-  await page.getByRole('button', { name: /데모 이사원/ }).click()
+  await page.getByRole('button', { name: /데모 이사원.*입사 중/ }).click()
   await page.getByRole('checkbox', { name: '명찰 지급' }).click()
   await expect(page.getByText('입사 프로세스: 명찰 지급 완료')).toBeVisible()
   await page.getByRole('checkbox', { name: '유니폼 지급' }).click()
