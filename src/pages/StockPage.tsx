@@ -29,9 +29,9 @@ import {
 import { toArrayBuffer } from '../lib/contracts/book'
 import { onHand, orderNetReceived, orderRemaining, returnBalance, inboundReturnBalance, inboundSupplierSource, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { defaultStockPolicy, loadStockPolicy, showsOverflowReason } from '../lib/stock/policy'
-import { assertDueReturnAt, assertInboundAt, buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderQtyText, orderReceiptProgress, overdueIssueReturns, publicStockOrderId, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssueNoteLead, stockIssuePersonName, stockLastSaveLead, stockOutboundLead, stockPageLead, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, supplyLowStock, todayYmd, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { assertDueReturnAt, assertInboundAt, buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderQtyText, orderReceiptProgress, overdueIssueReturns, publicStockOrderId, resolveIssueDepartment, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssueNoteLead, stockIssuePersonName, stockLastSaveLead, stockOutboundLead, stockPageLead, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, supplyLowStock, todayYmd, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
-import { isSupplyLedgerLine, ledgerRelatedJumps, type LedgerFilter } from '../lib/stock/ledgerView'
+import { isSupplyLedgerLine, ledgerRelatedJumps, sessionRecorderName, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
 import { loadDisplayCurrency, formatCompanyDate, loadDisplayTimezone } from '../lib/company/displayCurrency'
 import { showModuleLink } from '../lib/company/modules'
@@ -114,7 +114,7 @@ export function StockPage() {
   const [qty, setQty] = useState('1')
   const [defectQty, setDefectQty] = useState('0')
   const [personName, setPersonName] = useState(stockIssuePersonName)
-  const [departmentId, setDepartmentId] = useState('')
+  const [issueDepartment, setIssueDepartment] = useState('')
   const [issuePurpose, setIssuePurpose] = useState('')
   const [issueDueReturnAt, setIssueDueReturnAt] = useState('')
   const [inboundPartnerId, setInboundPartnerId] = useState('')
@@ -337,7 +337,10 @@ export function StockPage() {
   function onIssuePersonChange(name: string) {
     setPersonName(name)
     const employee = employees.find((row) => row.name === name)
-    if (employee?.department_id) setDepartmentId(employee.department_id)
+    if (employee?.department_id) {
+      const dept = departments.find((row) => row.id === employee.department_id)
+      setIssueDepartment(dept?.name ?? '')
+    }
   }
 
   async function pickRequestFile(file: File) {
@@ -606,6 +609,7 @@ export function StockPage() {
           purpose: inboundPurpose.trim() || undefined,
           businessDate: assertInboundAt(inboundAt),
           memo: inboundMemo.trim() || undefined,
+          recordedBy: sessionRecorderName(user, guest),
           ...(pendingLedgerFile ?? {}),
         }
       case 'post_outbound':
@@ -626,7 +630,8 @@ export function StockPage() {
           warehouseId,
           qty: quantity,
           personName: personName.trim() || undefined,
-          departmentId: departmentId.trim() || undefined,
+          ...resolveIssueDepartment(issueDepartment, departments),
+          recordedBy: sessionRecorderName(user, guest),
           purpose: issuePurpose.trim() || undefined,
           dueReturnAt: assertDueReturnAt(issueDueReturnAt) || undefined,
           ...(pendingLedgerFile ?? {}),
@@ -1829,18 +1834,17 @@ export function StockPage() {
             </label>
             <label className="text-sm">
               반출 부서
-              <select
+              <input
                 className="mt-1 w-full rounded border border-line px-3 py-2"
-                value={departmentId}
-                onChange={(e) => setDepartmentId(e.target.value)}
-              >
-                <option value="">선택 안 함</option>
+                list="issue-department-names"
+                value={issueDepartment}
+                onChange={(e) => setIssueDepartment(e.target.value)}
+              />
+              <datalist id="issue-department-names">
                 {departments.map((dept) => (
-                  <option key={dept.id} value={dept.id}>
-                    {dept.name}
-                  </option>
+                  <option key={dept.id} value={dept.name} />
                 ))}
-              </select>
+              </datalist>
             </label>
             <label className="text-sm">
               반출 목적

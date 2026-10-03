@@ -61,6 +61,25 @@ export function publicOrderRef(value?: string | null) {
   return text
 }
 
+export function publicRecorderName(value?: string | null) {
+  const text = value?.trim() ?? ''
+  if (!text) return ''
+  if (/@/.test(text)) return ''
+  return publicOrderRef(text)
+}
+
+export function sessionRecorderName(
+  user?: { user_metadata?: Record<string, unknown> } | null,
+  guest = false,
+) {
+  if (guest || !user) return undefined
+  const meta = user.user_metadata ?? {}
+  const name = [meta.full_name, meta.name, meta.display_name]
+    .map((value) => String(value ?? '').trim())
+    .find(Boolean)
+  return publicRecorderName(name) || undefined
+}
+
 export function publicItemLabel(name?: string | null, id?: string | null) {
   const text = (name ?? '').trim() || (id ?? '').trim()
   if (!text || isOpaqueLedgerRef(text)) return '비품'
@@ -83,11 +102,11 @@ export function formatLedgerLink(
     if (sourceRef) parts.push(`원거래 ${sourceRef}`)
   }
   if (line.personName) parts.push(line.personName)
-  if (line.departmentId) {
-    const department = names?.departments?.find((row) => row.id === line.departmentId)
-    const departmentName = department?.name ?? publicOrderRef(line.departmentId)
-    if (departmentName) parts.push(departmentName)
-  }
+  const departmentName =
+    publicRecorderName(line.departmentName) ||
+    names?.departments?.find((row) => row.id === line.departmentId)?.name ||
+    publicOrderRef(line.departmentId)
+  if (departmentName) parts.push(departmentName)
   if (line.partnerId) {
     const partner = names?.partners?.find((row) => row.id === line.partnerId)
     const partnerName = partner?.name ?? publicOrderRef(line.partnerId)
@@ -96,6 +115,9 @@ export function formatLedgerLink(
   if (line.purpose?.trim()) parts.push(line.purpose.trim())
   if (line.dueReturnAt?.trim()) parts.push(`반납 예정 ${line.dueReturnAt.trim()}`)
   if (line.txnType === 'direct_in' && line.businessDate?.trim()) parts.push(`입고 ${line.businessDate.trim()}`)
+  const recorder = publicRecorderName(line.recordedBy)
+  if (recorder && line.txnType === 'direct_in') parts.push(`등록 ${recorder}`)
+  if (recorder && line.txnType === 'issue' && recorder !== line.personName?.trim()) parts.push(`입력 ${recorder}`)
   if (line.memo?.trim()) parts.push(line.memo.trim())
   if (line.fileName?.trim()) parts.push(line.fileName.trim())
   if (line.txnType === 'transfer_in' || line.txnType === 'transfer_out') {

@@ -8,6 +8,7 @@ import {
   lowStockLine,
   orderRemainingCaption,
   resolveOrderPartnerId,
+  resolveIssueDepartment,
   stockEmptyItemsLead,
   stockInboundItemHint,
   stockAssetsLinkLabel,
@@ -82,6 +83,13 @@ describe('비품 현재고', () => {
     expect(stockAssetsLinkLabel()).toBe('자리의 물건은 자산')
     expect(stockAssetsLinkLabel()).not.toMatch(/가구|책상/)
     expect(stockIssuePersonName()).toBe('')
+    expect(resolveIssueDepartment('샘플총무', [{ id: 'dept-guest-admin', name: '샘플총무' }])).toEqual({
+      departmentId: 'dept-guest-admin',
+      departmentName: '샘플총무',
+    })
+    expect(resolveIssueDepartment('샘플품질', [{ id: 'dept-guest-admin', name: '샘플총무' }])).toEqual({
+      departmentName: '샘플품질',
+    })
     expect(stockDraftOrderId()).toBe('')
     expect(stockAdjustReason()).toBe('')
     expect(stockAdjustLead(7, '7')).toBe('장부 7 · 맞음')

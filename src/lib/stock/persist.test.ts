@@ -9,6 +9,7 @@ import {
   isUniqueConstraintError,
   orderAttachment,
   ledgerAttachment,
+  ledgerInsert,
   statementsForCommand,
   stateFromRows,
 } from './persist'
@@ -97,6 +98,35 @@ describe('재고 영속 묶음', () => {
       true,
     )
     expect(isUniqueConstraintError(new Error('NOT NULL constraint failed'))).toBe(false)
+  })
+
+  it('원장은 확정 당시 부서명과 등록자를 다시 읽는다', () => {
+    const state = stateFromRows(
+      [],
+      [
+        {
+          id: 'l1',
+          operation_id: 'op-1',
+          txn_type: 'issue',
+          item_id: ITEM,
+          warehouse_id: MAIN,
+          qty_delta: -1,
+          person_name: '견본 김대리',
+          department_name: '샘플품질',
+          recorded_by: '박재민',
+        },
+      ],
+      ['op-1'],
+    )
+    expect(state.ledger[0]).toMatchObject({
+      departmentName: '샘플품질',
+      recordedBy: '박재민',
+    })
+    const stmt = ledgerInsert(state.ledger[0], 't')
+    expect(stmt.sql).toContain('department_name')
+    expect(stmt.sql).toContain('recorded_by')
+    expect(stmt.params).toContain('샘플품질')
+    expect(stmt.params).toContain('박재민')
   })
 
   it('자산화는 원장 출고와 자산 행을 한 묶음으로 만든다', () => {

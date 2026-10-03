@@ -90,6 +90,7 @@ test('게스트 입고는 저장하고 영어 거래 번호를 두지 않는다'
   await expect(page.getByText('저장했습니다. (입고)')).toBeVisible()
   await expect(page.getByRole('button', { name: '샘플창고 현재고 8' })).toBeVisible()
   await expect(page.getByText('견본문구 · 샘플 보충 · 입고 2026-10-01 · 샘플 메모 · 견본입고.png')).toBeVisible()
+  await expect(page.getByText(/등록 /)).toHaveCount(0)
   await expect(page.getByText('단위 박스')).toBeVisible()
   await expect(page.getByRole('heading', { name: '발주 기록 0' })).toHaveCount(0)
   await expect(page.getByText(/operation_id/)).toHaveCount(0)

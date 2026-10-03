@@ -263,6 +263,37 @@ describe('복사용지 재고 원장', () => {
         qty: 1,
       }),
     ).toThrow(/성명 또는 부서/)
+    state = applyStockCommand(state, {
+      type: 'post_direct_in',
+      operationId: 'op-in-dept',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 2,
+    }).state
+    const named = applyStockCommand(state, {
+      type: 'post_issue',
+      operationId: 'op-issue-dept',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 1,
+      departmentName: '샘플품질',
+      recordedBy: 'pjm7908@hanmail.net',
+    }).state
+    expect(named.ledger.at(-1)).toMatchObject({
+      txnType: 'issue',
+      departmentName: '샘플품질',
+    })
+    expect(named.ledger.at(-1)?.recordedBy).toBeUndefined()
+    expect(
+      applyStockCommand(createStockState(), {
+        type: 'post_direct_in',
+        operationId: 'op-in-rec',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qty: 1,
+        recordedBy: '박재민',
+      }).state.ledger[0],
+    ).toMatchObject({ recordedBy: '박재민' })
   })
 
   it('발주에 구매요청 번호를 남긴다', () => {

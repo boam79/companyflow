@@ -41,6 +41,8 @@ export type LedgerRow = {
   file_name?: string | null
   file_mime?: string | null
   file_base64?: string | null
+  department_name?: string | null
+  recorded_by?: string | null
   created_at?: string | null
 }
 
@@ -92,8 +94,8 @@ export function ledgerInsert(line: LedgerLine, createdAt: string): SqlStatement 
       id, operation_id, txn_type, item_id, warehouse_id, qty_delta,
       person_name, department_id, source_operation_id, order_id, reason,
       partner_id, purpose, due_return_at, business_date, memo,
-      file_name, file_mime, file_base64, created_at
-    ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      file_name, file_mime, file_base64, department_name, recorded_by, created_at
+    ) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     params: [
       line.id,
       line.operationId,
@@ -114,6 +116,8 @@ export function ledgerInsert(line: LedgerLine, createdAt: string): SqlStatement 
       line.fileName ?? null,
       line.fileMime ?? null,
       line.fileBase64 ?? null,
+      line.departmentName ?? null,
+      line.recordedBy ?? null,
       createdAt,
     ],
   }
@@ -291,6 +295,8 @@ export function stateFromRows(
       fileName: row.file_name ?? undefined,
       fileMime: row.file_mime ?? undefined,
       fileBase64: row.file_base64 ?? undefined,
+      departmentName: row.department_name ?? undefined,
+      recordedBy: row.recorded_by ?? undefined,
       createdAt: row.created_at ?? undefined,
     }
     state.ledger.push(line)
@@ -309,7 +315,7 @@ export async function loadStockState(db: Pick<CompanySqlite, 'query'>): Promise<
       `select id, operation_id, txn_type, item_id, warehouse_id, qty_delta,
         person_name, department_id, source_operation_id, order_id, reason,
         partner_id, purpose, due_return_at, business_date, memo,
-        file_name, file_mime, file_base64, created_at
+        file_name, file_mime, file_base64, department_name, recorded_by, created_at
        from stock_ledger order by created_at, id`,
     ),
     db.query<{ operation_id: string }>('select operation_id from processed_operations'),

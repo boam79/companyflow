@@ -51,6 +51,19 @@ export function stockIssuePersonName() {
   return ''
 }
 
+export function resolveIssueDepartment(
+  text: string,
+  departments: { id: string; name: string }[],
+): { departmentId?: string; departmentName?: string } {
+  const value = text.trim()
+  if (!value) return {}
+  const dept = departments.find((row) => row.id === value || row.name === value)
+  return {
+    ...(dept?.id ? { departmentId: dept.id } : {}),
+    departmentName: dept?.name || value,
+  }
+}
+
 export function stockDraftOrderId() {
   return ''
 }

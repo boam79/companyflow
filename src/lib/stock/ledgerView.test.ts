@@ -3,7 +3,7 @@ import {
   applyStockCommand,
   createStockState,
 } from './engine'
-import { buildLedgerView, buildSupplyLedgerView, filterLedgerView, formatLedgerLink, ledgerRelatedJumps, publicItemLabel, rowsAreRelated, stockEmptyLedgerFilterLead, stockEmptyLedgerLead } from './ledgerView'
+import { buildLedgerView, buildSupplyLedgerView, filterLedgerView, formatLedgerLink, ledgerRelatedJumps, publicItemLabel, publicRecorderName, rowsAreRelated, sessionRecorderName, stockEmptyLedgerFilterLead, stockEmptyLedgerLead } from './ledgerView'
 
 const ITEM = 'item-paper'
 const MAIN = 'wh-main'
@@ -104,6 +104,46 @@ describe('입출고 수불부', () => {
         { departments: [{ id: 'dept-admin', name: '총무' }] },
       ),
     ).toBe('김담당 · 총무')
+    expect(
+      formatLedgerLink({
+        id: 'l-snap',
+        operationId: 'op-issue-snap',
+        txnType: 'issue',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qtyDelta: -1,
+        personName: '견본 김대리',
+        departmentId: 'dept-gone',
+        departmentName: '샘플품질',
+      }),
+    ).toBe('견본 김대리 · 샘플품질')
+    expect(
+      formatLedgerLink({
+        id: 'l-rec',
+        operationId: 'op-in-rec',
+        txnType: 'direct_in',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qtyDelta: 1,
+        businessDate: '2026-10-01',
+        recordedBy: '박재민',
+      }),
+    ).toBe('입고 2026-10-01 · 등록 박재민')
+    expect(
+      formatLedgerLink({
+        id: 'l-mail',
+        operationId: 'op-in-mail',
+        txnType: 'direct_in',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qtyDelta: 1,
+        recordedBy: 'pjm7908@hanmail.net',
+      }),
+    ).toBe('')
+    expect(publicRecorderName('pjm7908@hanmail.net')).toBe('')
+    expect(sessionRecorderName({ user_metadata: { full_name: '박재민' } })).toBe('박재민')
+    expect(sessionRecorderName({ user_metadata: { full_name: '박재민' } }, true)).toBeUndefined()
+    expect(sessionRecorderName({ user_metadata: {} })).toBeUndefined()
     expect(
       formatLedgerLink(
         {

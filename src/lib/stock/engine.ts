@@ -42,6 +42,7 @@ export type StockCommand =
       fileName?: string
       fileMime?: string
       fileBase64?: string
+      recordedBy?: string
     }
   | {
       type: 'post_issue'
@@ -51,6 +52,8 @@ export type StockCommand =
       qty: number
       personName?: string
       departmentId?: string
+      departmentName?: string
+      recordedBy?: string
       reason?: string
       purpose?: string
       dueReturnAt?: string
@@ -138,6 +141,8 @@ export type LedgerLine = {
   qtyDelta: number
   personName?: string
   departmentId?: string
+  departmentName?: string
+  recordedBy?: string
   sourceOperationId?: string
   orderId?: string
   reason?: string
@@ -150,6 +155,32 @@ export type LedgerLine = {
   fileMime?: string
   fileBase64?: string
   createdAt?: string
+}
+
+export function ledgerPersonLabel(raw?: string) {
+  const text = raw?.trim() ?? ''
+  if (!text) return undefined
+  if (/@/.test(text)) return undefined
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text)) return undefined
+  if (/^(guest:|sample:|op-|item-|emp-|wh-|dept-)/i.test(text)) return undefined
+  return text
+}
+
+export function ledgerActorFields(input: {
+  personName?: string
+  departmentId?: string
+  departmentName?: string
+  recordedBy?: string
+}): Pick<LedgerLine, 'personName' | 'departmentId' | 'departmentName' | 'recordedBy'> {
+  const personName = ledgerPersonLabel(input.personName)
+  const departmentName = ledgerPersonLabel(input.departmentName)
+  const recordedBy = ledgerPersonLabel(input.recordedBy)
+  return {
+    ...(personName ? { personName } : {}),
+    ...(input.departmentId?.trim() ? { departmentId: input.departmentId.trim() } : {}),
+    ...(departmentName ? { departmentName } : {}),
+    ...(recordedBy ? { recordedBy } : {}),
+  }
 }
 
 export function ledgerNoteFields(input: {
@@ -447,12 +478,13 @@ export function applyStockCommand(
         partnerId: command.partnerId?.trim() || undefined,
         purpose: command.purpose?.trim() || undefined,
         businessDate: command.businessDate?.trim() || undefined,
+        ...ledgerActorFields(command),
         ...ledgerNoteFields(command),
       })
       break
     case 'post_issue': {
       requirePositive(command.qty)
-      if (!command.personName?.trim() && !command.departmentId?.trim()) {
+      if (!command.personName?.trim() && !command.departmentId?.trim() && !command.departmentName?.trim()) {
         throw new Error('반출은 성명 또는 부서가 필요합니다.')
       }
       assertStockOverflow({
@@ -468,8 +500,7 @@ export function applyStockCommand(
         itemId: command.itemId,
         warehouseId: command.warehouseId,
         qtyDelta: -command.qty,
-        personName: command.personName,
-        departmentId: command.departmentId,
+        ...ledgerActorFields(command),
         reason: command.reason?.trim() || undefined,
         purpose: command.purpose?.trim() || undefined,
         dueReturnAt: command.dueReturnAt?.trim() || undefined,
