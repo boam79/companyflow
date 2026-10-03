@@ -2,7 +2,7 @@ import { isCompanyAssetItem, isSupplyItem, type ItemRecord } from '../master/boo
 import { companyOnHand, onHand, orderReceived, orderRejected, orderRemaining, orderSupplierReturned, returnBalance, stockOrderLines, type LedgerLine, type StockOrder, type StockState } from './engine'
 import { publicItemLabel } from './ledgerView'
 
-export type NamedWarehouse = { id: string; name: string }
+export type NamedWarehouse = { id: string; name: string; locationText?: string | null; location_text?: string | null }
 
 export type LowStock = {
   itemId: string
@@ -10,6 +10,7 @@ export type LowStock = {
   onHand: number
   minStock: number
   managed?: boolean
+  unit?: string
 }
 
 export function lowStock(rows: LowStock[]): LowStock[] {
@@ -60,13 +61,24 @@ export function stockTransferOnHandPreview(fromOnHand: number, toOnHand: number,
   return `보내는 현재고 ${fromOnHand} · 확정 후 ${fromOnHand - qty} · 받는 현재고 ${toOnHand} · 확정 후 ${toOnHand + qty}`
 }
 
-export function warehouseOptionLabel(row: { name: string; locationText?: string | null }) {
-  const location = row.locationText?.trim()
+export function warehouseOptionLabel(row: {
+  name: string
+  locationText?: string | null
+  location_text?: string | null
+}) {
+  const location = (row.locationText ?? row.location_text)?.trim()
   return location ? `${row.name} · ${location}` : row.name
 }
 
-export function partnerSelectHint(row?: { phone?: string | null; memo?: string | null }) {
-  return [row?.phone?.trim(), row?.memo?.trim()].filter(Boolean).join(' · ')
+export function partnerSelectHint(row?: {
+  phone?: string | null
+  memo?: string | null
+  fileName?: string | null
+  file_name?: string | null
+}) {
+  return [row?.phone?.trim(), row?.memo?.trim(), (row?.fileName ?? row?.file_name)?.trim()]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 export function stockQtyUnitHint(unit?: string | null) {
@@ -211,18 +223,31 @@ export function stockReturnSourceLead(personName?: string) {
   return '수불부에서 반출 줄을 고르세요.'
 }
 
-export function overdueIssueReturnLine(personName: string | undefined, itemName: string, dueReturnAt?: string) {
-  const person = personName?.trim() ?? ''
-  const who =
-    person &&
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(person) &&
-    !/^(guest:|sample:)/i.test(person)
-      ? person
-      : ''
-  const item = publicItemLabel(itemName)
+function publicCaptionPart(value?: string) {
+  const text = value?.trim() ?? ''
+  if (!text) return ''
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text)) return ''
+  if (/^(guest:|sample:)/i.test(text)) return ''
+  return text
+}
+
+export function overdueIssueReturnLine(
+  personName: string | undefined,
+  itemName: string,
+  dueReturnAt?: string,
+  extra?: { departmentName?: string; purpose?: string },
+) {
   const due = dueReturnAt?.trim() ?? ''
   const late = due && /^\d{4}-\d{2}-\d{2}$/.test(due) ? `기한 지남 ${due}` : '기한 지남'
-  return [who, item, late].filter(Boolean).join(' · ')
+  return [
+    publicCaptionPart(personName),
+    publicCaptionPart(extra?.departmentName),
+    publicItemLabel(itemName),
+    publicCaptionPart(extra?.purpose),
+    late,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 export type OverdueIssueReturn = {
@@ -239,7 +264,15 @@ export function overdueIssueReturns(ledger: LedgerLine[], items: ItemRecord[], t
       const { left } = returnBalance(ledger, line.operationId)
       if (!(left > 0)) return []
       const itemName = line.itemName || items.find((item) => item.id === line.itemId)?.name || ''
-      return [{ line, caption: overdueIssueReturnLine(line.personName, itemName, due) }]
+      return [
+        {
+          line,
+          caption: overdueIssueReturnLine(line.personName, itemName, due, {
+            departmentName: line.departmentName,
+            purpose: line.purpose,
+          }),
+        },
+      ]
     })
     .sort(
       (a, b) =>
@@ -329,12 +362,16 @@ export function supplyLowStock(items: ItemRecord[], state: StockState): LowStock
       onHand: companyOnHand(state, item.id),
       minStock: item.minStock ?? 0,
       managed: item.stockManaged,
+      unit: item.unit,
     })),
   )
 }
 
-export function lowStockLine(row: Pick<LowStock, 'itemName' | 'onHand' | 'minStock'>) {
-  return `${row.itemName} ${row.onHand} / 최소 ${row.minStock}`
+export function lowStockLine(row: Pick<LowStock, 'itemName' | 'onHand' | 'minStock' | 'unit'>) {
+  const unit = row.unit?.trim()
+  return unit
+    ? `${row.itemName} ${row.onHand} / 최소 ${row.minStock} · ${unit}`
+    : `${row.itemName} ${row.onHand} / 최소 ${row.minStock}`
 }
 
 export function orderRemainingCaption(
@@ -349,7 +386,14 @@ export function orderRemainingCaption(
   return ` · 발주 ${orderId} 다 받았습니다`
 }
 
-export type NamedPartner = { id: string; name: string; phone?: string | null; memo?: string | null }
+export type NamedPartner = {
+  id: string
+  name: string
+  phone?: string | null
+  memo?: string | null
+  fileName?: string | null
+  file_name?: string | null
+}
 
 export type PurchaseOrderRow = {
   orderId: string
@@ -497,7 +541,9 @@ export function overdueSupplyOrders(rows: PurchaseOrderRow[], today: string): Pu
 
 export function overdueSupplyOrderCaption(row: PurchaseOrderRow) {
   const order = publicStockOrderId(row.orderId)
-  return [order, row.itemName, `납기 ${row.dueDate}`].filter(Boolean).join(' · ')
+  return [order, row.supplierName, orderItemCaption(row), row.requestId, row.fileName, `납기 ${row.dueDate}`]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 export function todayYmd(now = new Date()): string {
@@ -515,11 +561,13 @@ function csvCell(value: string | number) {
 
 export function supplyOrderCsv(rows: PurchaseOrderRow[]): string {
   const lines = [
-    ['발주번호', '품목', '연결요청', '공급사', '발주일', '납기', '첨부', '통화', '발주', '수령', '불량', '반품', '미수령', '상태'].join(','),
+    ['발주번호', '품목', '단위', '구매구분', '연결요청', '공급사', '발주일', '납기', '첨부', '통화', '발주', '수령', '불량', '반품', '미수령', '상태'].join(','),
     ...rows.map((row) =>
       [
         csvCell(publicStockOrderId(row.orderId)),
         csvCell(row.itemName),
+        csvCell(row.itemUnit ?? ''),
+        csvCell(row.purchaseKind ?? ''),
         csvCell(row.requestId ?? ''),
         csvCell(row.supplierName),
         csvCell(row.orderDate),

@@ -94,6 +94,20 @@ export function contractPeriod(row: { startAt?: string; endAt?: string }) {
   return [row.startAt, row.endAt].filter(Boolean).join(' ~ ')
 }
 
+function publicContractRef(value?: string) {
+  const text = value?.trim() ?? ''
+  if (!text) return ''
+  if (/^(guest:|sample:)/i.test(text)) return ''
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(text)) return ''
+  return text
+}
+
+export function contractListMeta(row: { ownerName?: string; orderId?: string }) {
+  const owner = publicContractRef(row.ownerName)
+  const order = publicContractRef(row.orderId)
+  return [owner ? `담당 ${owner}` : '', order ? `발주 ${order}` : ''].filter(Boolean).join(' · ')
+}
+
 export function contractAmountText(amount?: number, grouping = true, currency = 'KRW') {
   if (amount == null) return '금액 없음'
   return formatCompanyMoney(amount, grouping, currency)

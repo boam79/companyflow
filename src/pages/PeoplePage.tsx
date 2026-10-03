@@ -741,7 +741,13 @@ export function PeoplePage() {
                         }}
                       >
                         <span className="font-medium whitespace-nowrap">{employee.name}</span>
-                        <span className="mt-0.5 text-xs text-muted">{rosterCaption(employee, process)}</span>
+                        <span className="mt-0.5 text-xs text-muted">
+                          {rosterCaption(
+                            employee,
+                            process,
+                            departments.find((row) => row.id === employee.departmentId)?.name,
+                          )}
+                        </span>
                       </button>
                     )
                   })
@@ -756,7 +762,11 @@ export function PeoplePage() {
                   <div>
                     <h2 className="text-lg font-semibold whitespace-nowrap">{selectedEmployee.name}</h2>
                     <p className="mt-1 text-sm text-muted">
-                      {rosterCaption(selectedEmployee, selectedProcess)}
+                      {rosterCaption(
+                        selectedEmployee,
+                        selectedProcess,
+                        departments.find((row) => row.id === selectedEmployee.departmentId)?.name,
+                      )}
                       {selectedPhase !== 'joining' && selectedHeld ? ` · 지급품 미회수 ${selectedHeld}` : ''}
                     </p>
                   </div>

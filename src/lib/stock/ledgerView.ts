@@ -247,6 +247,10 @@ export function ledgerJumpCaption(line: LedgerLine): string {
   const parts = [TXN_LABELS[line.txnType]]
   const person = line.personName?.trim()
   if (person && !isOpaqueLedgerRef(person) && !/^(guest:)/i.test(person)) parts.push(person)
+  const itemName = line.itemName?.trim()
+  if (itemName && !isOpaqueLedgerRef(itemName) && !/^(guest:|item-)/i.test(itemName)) parts.push(itemName)
+  const qty = Math.abs(line.qtyDelta)
+  if (qty > 0) parts.push(String(qty))
   return parts.join(' · ')
 }
 

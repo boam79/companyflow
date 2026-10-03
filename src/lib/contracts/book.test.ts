@@ -6,6 +6,7 @@ import {
   bytesToBase64,
   contractAmountText,
   contractLife,
+  contractListMeta,
   contractPeriod,
   defaultContractTab,
   filterContracts,
@@ -122,6 +123,10 @@ describe('계약 초안', () => {
     expect(contractAmountText(rows[0].amount)).toBe('12,000,000원')
     expect(contractAmountText(12000000, false, 'USD')).toBe('12000000달러')
     expect(contractAmountText(1_000_000, true, 'USD')).toBe('1,000,000달러')
+    expect(contractListMeta({ ownerName: '견본 김대리', orderId: 'ORD-DEMO-01' })).toBe(
+      '담당 견본 김대리 · 발주 ORD-DEMO-01',
+    )
+    expect(contractListMeta({ ownerName: 'guest:emp', orderId: 'sample:ord' })).toBe('')
     expect(contractLife('2026-02-28', '2026-09-19')).toBe('종료')
     expect(contractLife('2026-12-31', '2026-09-19')).toBe('진행')
   })

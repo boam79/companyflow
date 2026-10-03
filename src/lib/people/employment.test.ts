@@ -109,8 +109,9 @@ describe('입퇴사', () => {
       rosterCaption(
         { ...employed, title: '주임', employeeNo: 'G-001' },
         onboardingView('emp-lee', checks),
+        '총무',
       ),
-    ).toBe('재직 · 2025-07-14 · 주임 · G-001')
+    ).toBe('재직 · 2025-07-14 · 주임 · 총무 · G-001')
     expect(
       rosterCaption({ ...employed, employeeNo: 'pjm7908@hanmail.net' }, onboardingView('emp-lee', checks)),
     ).toBe('재직 · 2025-07-14')

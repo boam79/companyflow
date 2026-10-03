@@ -322,6 +322,7 @@ export function overduePurchaseRequestCaption(row: PurchaseRequest) {
     row.departmentName,
     row.purpose,
     itemPart,
+    row.fileName,
   ]
     .filter(Boolean)
     .join(' · ')

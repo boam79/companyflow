@@ -48,6 +48,8 @@ export async function seedGuestCompany(
     '견본창고',
     now,
   ])
+  await db.exec('update warehouses set location_text = ? where id = ?', ['1층', 'wh-main'])
+  await db.exec('update warehouses set location_text = ? where id = ?', ['2층', 'wh-sub'])
   for (const kind of PURCHASE_KINDS) {
     await db.exec('insert or ignore into purchase_kinds(id, name, created_at) values(?, ?, ?)', [
       kind.id,
@@ -79,9 +81,10 @@ export async function seedGuestCompany(
     '견본임대',
     now,
   ])
-  await db.exec(`update partners set phone = ?, memo = ? where id = ?`, [
+  await db.exec(`update partners set phone = ?, memo = ?, file_name = ? where id = ?`, [
     '02-000-0000',
     '샘플 공급사',
+    '견본거래처.pdf',
     'partner-guest',
   ])
   const employees = [
@@ -246,6 +249,7 @@ export async function seedGuestCompany(
     partnerId: GUEST_LEASE_PARTNER_ID,
     orderDate: '2026-09-01',
     dueDate: '2026-01-01',
+    fileName: '견본발주.pdf',
   })
   await executePurchaseRequest(db, {
     operationId: GUEST_REQUEST_OP,
@@ -255,6 +259,7 @@ export async function seedGuestCompany(
     departmentName: '샘플총무',
     neededAt: '2026-01-01',
     purpose: '샘플 비품 보충',
+    fileName: '견본요청.pdf',
     lines: [{ itemId: GUEST_PAPER_ITEM_ID, qty: 10, unitPrice: 15000 }],
   })
   await db.exec('update contracts set partner_id = ?, order_id = ? where id = ?', [

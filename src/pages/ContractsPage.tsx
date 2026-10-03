@@ -7,6 +7,7 @@ import {
   contractAmountText,
   contractOrderLabel,
   contractPeriod,
+  contractListMeta,
   contractPhase,
   contractPhaseCaption,
   defaultContractTab,
@@ -80,7 +81,7 @@ export function ContractsPage() {
   const { guest, sqlite, loading, configured, user, companies, companyId, sessionReady, setCompanyId, href } =
     useWorkAccess()
   const [rows, setRows] = useState<ContractDraft[]>([])
-  const [partners, setPartners] = useState<{ id: string; name: string; phone?: string | null; memo?: string | null }[]>([])
+  const [partners, setPartners] = useState<{ id: string; name: string; phone?: string | null; memo?: string | null; file_name?: string | null }[]>([])
   const [orders, setOrders] = useState<{ id: string; partnerId?: string; partnerName?: string; orderDate?: string }[]>([])
   const [revisions, setRevisions] = useState<ContractRevision[]>([])
   const [query, setQuery] = useState('')
@@ -163,8 +164,8 @@ export function ContractsPage() {
       const nextRows = await loadContracts(sqlite)
       if (ticket !== openTicket.current || sqlite.companyId !== nextId) return
       const [partnerRows, orderRows] = await Promise.all([
-        sqlite.query<{ id: string; name: string; phone?: string | null; memo?: string | null }>(
-          `select id, name, phone, memo from partners where ${ACTIVE_MASTER_WHERE} order by name`,
+        sqlite.query<{ id: string; name: string; phone?: string | null; memo?: string | null; file_name?: string | null }>(
+          `select id, name, phone, memo, file_name from partners where ${ACTIVE_MASTER_WHERE} order by name`,
         ),
         sqlite.query<{ id: string; partner_id?: string | null; order_date?: string | null; partner_name?: string | null }>(
           'select id, partner_id, order_date, partner_name from stock_orders order by created_at desc, id',
@@ -566,6 +567,7 @@ export function ContractsPage() {
                 <span className="mt-0.5 text-xs text-muted">
                   {contractPeriod(row)} · {contractAmountText(row.amount, grouping, row.currency)}
                   {row.hasOriginal ? ` · ${row.fileName}` : ' · 원본 없음'}
+                  {contractListMeta(row) ? ` · ${contractListMeta(row)}` : ''}
                   {row.ocrStatus === 'reviewed' ? ' · OCR 확인' : ''}
                 </span>
               </button>

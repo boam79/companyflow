@@ -46,7 +46,14 @@ import { showsWorkDbReopen, workOpenedNotice } from '../lib/data/storageStatus'
 import { publicErrorMessage } from '../lib/publicError'
 import { countHeading } from '../lib/company/nav'
 
-type NamedRow = { id: string; name: string; location_text?: string | null; phone?: string | null; memo?: string | null }
+type NamedRow = {
+  id: string
+  name: string
+  location_text?: string | null
+  phone?: string | null
+  memo?: string | null
+  file_name?: string | null
+}
 type ActionType = StockCommand['type']
 type ExtraOrderLine = { key: string; itemId: string; qty: string }
 type ExtraRequestLine = { key: string; itemId: string; qty: string; unitPrice: string }
@@ -197,7 +204,7 @@ export function StockPage() {
     const [itemRows, partnerRows, warehouseRows, deptRows, employeeRows, nextState, nextRequests, nextPolicy] =
       await Promise.all([
       loadItems(sqlite),
-      sqlite.query<NamedRow>(`select id, name, phone, memo from partners where ${ACTIVE_MASTER_WHERE} order by name`),
+      sqlite.query<NamedRow>(`select id, name, phone, memo, file_name from partners where ${ACTIVE_MASTER_WHERE} order by name`),
       sqlite.query<NamedRow>(`select id, name, location_text from warehouses where ${ACTIVE_MASTER_WHERE} order by name`),
       sqlite.query<NamedRow>(`select id, name from departments where ${ACTIVE_MASTER_WHERE} order by name`),
       sqlite.query<EmployeeRow>('select id, name, department_id from employees order by name'),
@@ -1416,7 +1423,10 @@ export function StockPage() {
                   <th className="py-1.5 pr-3 font-medium">비품</th>
                   {warehouseColumns.map((warehouse) => (
                     <th key={warehouse.id} className="whitespace-nowrap py-1.5 pr-3 text-right font-medium">
-                      {warehouse.name}
+                      {warehouseOptionLabel({
+                        name: warehouse.name,
+                        locationText: warehouse.location_text ?? warehouse.locationText,
+                      })}
                     </th>
                   ))}
                   <th className="py-1.5 text-right font-medium">

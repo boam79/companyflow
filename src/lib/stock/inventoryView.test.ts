@@ -220,6 +220,9 @@ describe('비품 현재고', () => {
     expect(stockTransferLead()).toContain('회사 합계는 그대로')
     expect(stockTransferLead()).not.toMatch(/아직|본사창고|operation_id/)
     expect(lowStockLine({ itemName: '복사용지', onHand: 7, minStock: 10 })).toBe('복사용지 7 / 최소 10')
+    expect(lowStockLine({ itemName: '복사용지', onHand: 7, minStock: 10, unit: '박스' })).toBe(
+      '복사용지 7 / 최소 10 · 박스',
+    )
     expect(
       supplyLowStock([{ ...PAPER_ITEM, minStock: 10 }, ...COMPANY_ASSET_ITEMS.map((item) => ({ ...item, minStock: 2 }))], state).map(
         (row) => [row.itemName, row.onHand, row.minStock],
@@ -257,6 +260,12 @@ describe('비품 현재고', () => {
     expect(overdueIssueReturnLine('견본 김대리', '복사용지', '2026-01-01')).toBe(
       '견본 김대리 · 복사용지 · 기한 지남 2026-01-01',
     )
+    expect(
+      overdueIssueReturnLine('견본 김대리', '복사용지', '2026-01-01', {
+        departmentName: '샘플총무',
+        purpose: '샘플 청소',
+      }),
+    ).toBe('견본 김대리 · 샘플총무 · 복사용지 · 샘플 청소 · 기한 지남 2026-01-01')
     expect(overdueIssueReturnLine('aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', '복사용지', '2026-01-01')).toBe(
       '복사용지 · 기한 지남 2026-01-01',
     )
@@ -376,7 +385,7 @@ describe('비품 발주 목록', () => {
     }).state
     const rows = buildSupplyOrderList(items, state)
     expect(rows[0]?.requestId).toBe('REQ-DEMO-01')
-    expect(supplyOrderCsv(rows)).toContain('ord-req,복사용지,REQ-DEMO-01,,,,,원,4,0,0,0,4,미수령')
+    expect(supplyOrderCsv(rows)).toContain('ord-req,복사용지,,,REQ-DEMO-01,,,,,원,4,0,0,0,4,미수령')
   })
 
   it('발주 목록은 품목 공급사 이름을 붙인다', () => {
@@ -501,8 +510,8 @@ describe('비품 발주 목록', () => {
       ['ord-mix', '책상', 1],
     ])
     const csv = supplyOrderCsv(buildSupplyOrderList(mixedItems, state))
-    expect(csv).toContain('ord-mix,복사용지,,,,,,원,10,0,0,0,10,미수령')
-    expect(csv).toContain('ord-mix,클립,,,,,,원,3,0,0,0,3,미수령')
+    expect(csv).toContain('ord-mix,복사용지,,,,,,,,원,10,0,0,0,10,미수령')
+    expect(csv).toContain('ord-mix,클립,,,,,,,,원,3,0,0,0,3,미수령')
   })
 
   it('오늘 날짜는 YYYY-MM-DD다', () => {
@@ -526,8 +535,8 @@ describe('비품 발주 목록', () => {
     }).state
     const csv = supplyOrderCsv(buildSupplyOrderList(items, state))
     expect(csv.startsWith('\uFEFF')).toBe(true)
-    expect(csv).toContain('발주번호,품목,연결요청,공급사,발주일,납기,첨부,통화,발주,수령,불량,반품,미수령,상태')
-    expect(csv).toContain('ord-paper,복사용지,,,,,,원,10,0,0,0,10,미수령')
+    expect(csv).toContain('발주번호,품목,단위,구매구분,연결요청,공급사,발주일,납기,첨부,통화,발주,수령,불량,반품,미수령,상태')
+    expect(csv).toContain('ord-paper,복사용지,,,,,,,,원,10,0,0,0,10,미수령')
   })
 
   it('발주 목록은 검수 불량을 따로 보여 준다', () => {
@@ -698,6 +707,9 @@ describe('비품 발주 목록', () => {
     expect(warehouseOptionLabel({ name: '샘플창고', locationText: '3층' })).toBe('샘플창고 · 3층')
     expect(warehouseOptionLabel({ name: '샘플창고' })).toBe('샘플창고')
     expect(partnerSelectHint({ phone: '02-000-0000', memo: '샘플 공급사' })).toBe('02-000-0000 · 샘플 공급사')
+    expect(partnerSelectHint({ phone: '02-000-0000', memo: '샘플 공급사', fileName: '견본거래처.pdf' })).toBe(
+      '02-000-0000 · 샘플 공급사 · 견본거래처.pdf',
+    )
     expect(stockQtyUnitHint('박스')).toBe('박스')
     expect(orderItemCaption({ itemName: '샘플 복사용지', itemUnit: '박스', purchaseKind: '일반 비품' })).toBe(
       '샘플 복사용지 · 박스 · 일반 비품',
@@ -747,14 +759,16 @@ describe('비품 발주 목록', () => {
       supplierName: '견본임대',
       dueDate: '2026-01-01',
       orderDate: '2026-09-01',
-      fileName: '',
+      fileName: '견본발주.pdf',
       currency: 'KRW',
       currencyName: '원',
     }
     const received = { ...due, remainingQty: 0, receivedQty: 2 }
     const later = { ...due, orderId: 'ORD-DEMO-02', dueDate: '2026-12-31' }
     expect(overdueSupplyOrders([due, received, later], '2026-10-03')).toEqual([due])
-    expect(overdueSupplyOrderCaption(due)).toBe('ORD-DEMO-01 · 샘플 복사용지 · 납기 2026-01-01')
+    expect(overdueSupplyOrderCaption(due)).toBe(
+      'ORD-DEMO-01 · 견본임대 · 샘플 복사용지 · 견본발주.pdf · 납기 2026-01-01',
+    )
     expect(overdueSupplyOrders([due], '2026-01-01')).toEqual([])
   })
 })

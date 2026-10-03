@@ -66,7 +66,7 @@ describe('입출고 수불부', () => {
     expect(filterLedgerView(rows, 'out')).toHaveLength(1)
     expect(filterLedgerView(rows, 'in')).toHaveLength(3)
     const fromReturn = ledgerRelatedJumps(state.ledger, rows[3].line)
-    expect(fromReturn.map((jump) => [jump.button, jump.caption])).toEqual([['원거래로', '반출 · 김담당']])
+    expect(fromReturn.map((jump) => [jump.button, jump.caption])).toEqual([['원거래로', '반출 · 김담당 · 3']])
     expect(fromReturn[0].caption).not.toMatch(/op-issue|aaaaaaaa|[0-9a-f]{8}-/)
     const fromIssue = ledgerRelatedJumps(state.ledger, rows[2].line)
     expect(fromIssue.map((jump) => jump.button)).toEqual(['반납으로'])
@@ -80,7 +80,7 @@ describe('입출고 수불부', () => {
     expect(reversed).toBeTruthy()
     const fromReversal = ledgerRelatedJumps(state.ledger, reversed ?? null)
     expect(fromReversal.map((jump) => jump.button)).toEqual(['원거래로'])
-    expect(fromReversal[0].caption).toBe('수령 입고')
+    expect(fromReversal[0].caption).toBe('수령 입고 · 6')
     const fromReceipt = ledgerRelatedJumps(
       state.ledger,
       state.ledger.find((line) => line.operationId === 'op-recv-6') ?? null,
