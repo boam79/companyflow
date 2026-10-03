@@ -127,6 +127,7 @@ export async function seedGuestCompany(
       ],
     )
   }
+  await db.exec('update employees set employee_no = ? where id = ?', ['G-101', 'emp-guest-a'])
   await db.exec(
     `insert or ignore into employment_checks(employee_id, item_key, issued, issued_at, returned_at, updated_at)
       values(?, ?, 1, ?, null, ?)`,
@@ -239,6 +240,7 @@ export async function seedGuestCompany(
     qty: 2,
     partnerId: GUEST_LEASE_PARTNER_ID,
     orderDate: '2026-09-01',
+    dueDate: '2026-01-01',
   })
   await executePurchaseRequest(db, {
     operationId: GUEST_REQUEST_OP,

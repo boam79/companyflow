@@ -2,8 +2,10 @@ import type { ProcessResult } from '../idempotency'
 import { formatCompanyMoney } from '../company/displayCurrency'
 import { assertContractFile, base64ToBytes, bytesToBase64 } from '../contracts/book'
 import type { ItemRecord } from '../master/book'
+import { loadItems } from '../master/book'
+import { purchaseKindLabel } from '../master/commands'
 import type { CompanySqlite } from '../sqlite/client'
-import { stockOrderLines, type StockOrder, type StockOrderLine } from './engine'
+import { ledgerCatalogFields, stockOrderLines, type StockOrder, type StockOrderLine } from './engine'
 import { supplyItemInsert } from './typedItem'
 
 type SqlStatement = { sql: string; params: unknown[] }
@@ -17,6 +19,9 @@ export type PurchaseRequestLine = {
   itemId: string
   qty: number
   unitPrice?: number
+  itemName?: string
+  itemUnit?: string
+  purchaseKind?: string
 }
 
 export type PurchaseRequest = {
@@ -65,6 +70,9 @@ type RequestLineRow = {
   item_id: string
   qty: number
   unit_price?: number | null
+  item_name?: string | null
+  item_unit?: string | null
+  purchase_kind?: string | null
 }
 
 type RequestDb = Pick<CompanySqlite, 'query' | 'batch'>
@@ -89,6 +97,9 @@ export const REQUEST_TABLE_SQL = [
     item_id text not null,
     qty integer not null,
     unit_price integer,
+    item_name text,
+    item_unit text,
+    purchase_kind text,
     primary key (request_id, item_id)
   );`,
 ]
@@ -140,6 +151,9 @@ export function applyPurchaseRequest(input: PurchaseRequestInput): PurchaseReque
       itemId: line.itemId,
       qty: line.qty,
       ...(line.unitPrice != null ? { unitPrice: line.unitPrice } : {}),
+      ...(line.itemName?.trim() ? { itemName: line.itemName.trim() } : {}),
+      ...(line.itemUnit?.trim() ? { itemUnit: line.itemUnit.trim() } : {}),
+      ...(line.purchaseKind?.trim() ? { purchaseKind: line.purchaseKind.trim() } : {}),
     })
   }
   if (!lines.length) throw new Error('요청 품목과 수량이 필요합니다.')
@@ -217,12 +231,12 @@ export function requestCaption(
 ) {
   const itemPart = row.lines
     .map((line) => {
-      const name = items.find((item) => item.id === line.itemId)?.name ?? line.itemId
+      const name = line.itemName || items.find((item) => item.id === line.itemId)?.name || line.itemId
       return `${name} ${line.qty}`
     })
     .join(', ')
   const amount = requestAmountText(requestTotalAmount(row.lines))
-  return [row.requesterName, row.departmentName, row.neededAt ? `필요 ${row.neededAt}` : '', itemPart, amount, row.fileName]
+  return [row.requesterName, row.departmentName, row.neededAt ? `필요 ${row.neededAt}` : '', row.purpose, itemPart, amount, row.fileName]
     .filter(Boolean)
     .join(' · ')
 }
@@ -248,7 +262,7 @@ export function requestRemainCaption(
     .flatMap((line) => {
       const left = requestRemainingQty(row, orders, line.itemId)
       if (left <= 0) return []
-      const name = items.find((item) => item.id === line.itemId)?.name ?? line.itemId
+      const name = line.itemName || items.find((item) => item.id === line.itemId)?.name || line.itemId
       return [`${name} 미발주 ${left}`]
     })
     .join(', ')
@@ -284,7 +298,7 @@ export async function loadPurchaseRequests(db: Pick<CompanySqlite, 'query'>): Pr
         from purchase_requests order by created_at desc, id`,
     ),
     db.query<RequestLineRow>(
-      'select request_id, item_id, qty, unit_price from purchase_request_lines order by request_id, item_id',
+      'select request_id, item_id, qty, unit_price, item_name, item_unit, purchase_kind from purchase_request_lines order by request_id, item_id',
     ),
   ])
   const linesByRequest = new Map<string, PurchaseRequestLine[]>()
@@ -294,6 +308,9 @@ export async function loadPurchaseRequests(db: Pick<CompanySqlite, 'query'>): Pr
       itemId: row.item_id,
       qty: row.qty,
       ...(row.unit_price != null ? { unitPrice: row.unit_price } : {}),
+      ...(row.item_name ? { itemName: row.item_name } : {}),
+      ...(row.item_unit ? { itemUnit: row.item_unit } : {}),
+      ...(row.purchase_kind ? { purchaseKind: row.purchase_kind } : {}),
     })
     linesByRequest.set(row.request_id, list)
   }
@@ -310,6 +327,25 @@ export async function loadPurchaseRequests(db: Pick<CompanySqlite, 'query'>): Pr
     lines: linesByRequest.get(row.id) ?? [],
     createdAt: row.created_at ?? undefined,
   }))
+}
+
+export function stampRequestLines(
+  lines: PurchaseRequestLine[],
+  items: Pick<ItemRecord, 'id' | 'name' | 'unit' | 'purchaseKind'>[],
+  kinds: { id: string; name: string }[] = [],
+): PurchaseRequestLine[] {
+  return lines.map((line) => {
+    const item = items.find((row) => row.id === line.itemId)
+    const kind = item ? purchaseKindLabel(item.purchaseKind, kinds) : undefined
+    return {
+      ...line,
+      ...ledgerCatalogFields({
+        itemName: line.itemName || item?.name,
+        itemUnit: line.itemUnit || item?.unit || (item ? '개' : undefined),
+        purchaseKind: line.purchaseKind || kind,
+      }),
+    }
+  })
 }
 
 export async function executePurchaseRequest(
@@ -329,6 +365,18 @@ export async function executePurchaseRequest(
     throw new Error('같은 요청 번호가 있습니다.')
   }
   const createdItems = options?.newItems ?? []
+  const [itemRows, kinds] = await Promise.all([
+    loadItems(db),
+    db.query<{ id: string; name: string }>('select id, name from purchase_kinds'),
+  ])
+  const stamped: PurchaseRequest = {
+    ...request,
+    lines: stampRequestLines(
+      request.lines,
+      [...itemRows, ...createdItems.filter((item) => !itemRows.some((row) => row.id === item.id))],
+      kinds,
+    ),
+  }
   const statements: SqlStatement[] = [
     ...createdItems.map((item) => supplyItemInsert(item, createdAt)),
     {
@@ -341,22 +389,30 @@ export async function executePurchaseRequest(
           file_name, file_mime, file_base64, operation_id, created_at
         ) values(?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?, ?)`,
       params: [
-        request.id,
-        request.requesterName,
-        request.departmentId ?? null,
-        request.departmentName ?? null,
-        request.neededAt ?? null,
-        request.purpose ?? null,
-        request.fileName ?? null,
-        request.fileMime ?? null,
-        request.fileBase64 ?? null,
+        stamped.id,
+        stamped.requesterName,
+        stamped.departmentId ?? null,
+        stamped.departmentName ?? null,
+        stamped.neededAt ?? null,
+        stamped.purpose ?? null,
+        stamped.fileName ?? null,
+        stamped.fileMime ?? null,
+        stamped.fileBase64 ?? null,
         command.operationId,
         createdAt,
       ],
     },
-    ...request.lines.map((line) => ({
-      sql: 'insert into purchase_request_lines(request_id, item_id, qty, unit_price) values(?, ?, ?, ?)',
-      params: [request.id, line.itemId, line.qty, line.unitPrice ?? null],
+    ...stamped.lines.map((line) => ({
+      sql: 'insert into purchase_request_lines(request_id, item_id, qty, unit_price, item_name, item_unit, purchase_kind) values(?, ?, ?, ?, ?, ?, ?)',
+      params: [
+        stamped.id,
+        line.itemId,
+        line.qty,
+        line.unitPrice ?? null,
+        line.itemName ?? null,
+        line.itemUnit ?? null,
+        line.purchaseKind ?? null,
+      ],
     })),
     {
       sql: 'insert into audit_events(id, action, detail_json, created_at) values(?, ?, ?, ?)',
@@ -370,9 +426,9 @@ export async function executePurchaseRequest(
   ]
   try {
     await db.batch(statements)
-    return { status: 'applied', request }
+    return { status: 'applied', request: stamped }
   } catch (error) {
-    if (isUniqueConstraintError(error)) return { status: 'duplicate', request }
+    if (isUniqueConstraintError(error)) return { status: 'duplicate', request: stamped }
     throw error
   }
 }

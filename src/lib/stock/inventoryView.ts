@@ -38,13 +38,8 @@ export function stockPageLead() {
 }
 
 export function stockOnHandPreviewKind(action: string): 'in' | 'out' | undefined {
-  if (action === 'post_direct_in') return 'in'
-  if (
-    action === 'post_issue' ||
-    action === 'post_outbound' ||
-    action === 'post_supplier_return' ||
-    action === 'transfer_stock'
-  ) {
+  if (action === 'post_direct_in' || action === 'post_receipt' || action === 'post_return') return 'in'
+  if (action === 'post_issue' || action === 'post_outbound' || action === 'post_supplier_return') {
     return 'out'
   }
   return undefined
@@ -55,6 +50,27 @@ export function stockOnHandPreview(onHandQty: number, qtyText: string, direction
   if (!Number.isFinite(qty) || qty <= 0) return `현재고 ${onHandQty}`
   const next = direction === 'in' ? onHandQty + qty : onHandQty - qty
   return `현재고 ${onHandQty} · 확정 후 ${next}`
+}
+
+export function stockTransferOnHandPreview(fromOnHand: number, toOnHand: number, qtyText: string) {
+  const qty = Number(qtyText)
+  if (!Number.isFinite(qty) || qty <= 0) {
+    return `보내는 현재고 ${fromOnHand} · 받는 현재고 ${toOnHand}`
+  }
+  return `보내는 현재고 ${fromOnHand} · 확정 후 ${fromOnHand - qty} · 받는 현재고 ${toOnHand} · 확정 후 ${toOnHand + qty}`
+}
+
+export function warehouseOptionLabel(row: { name: string; locationText?: string | null }) {
+  const location = row.locationText?.trim()
+  return location ? `${row.name} · ${location}` : row.name
+}
+
+export function partnerSelectHint(row?: { phone?: string | null; memo?: string | null }) {
+  return [row?.phone?.trim(), row?.memo?.trim()].filter(Boolean).join(' · ')
+}
+
+export function stockQtyUnitHint(unit?: string | null) {
+  return unit?.trim() || ''
 }
 
 export function stockInboundItemHint(item?: Pick<ItemRecord, 'unit'> | null) {
@@ -98,7 +114,7 @@ export function stockAdjustLead(bookQty: number, countedText: string) {
   const delta = counted - bookQty
   if (delta === 0) return `장부 ${bookQty} · 맞음`
   const signed = delta > 0 ? `+${delta}` : String(delta)
-  return `장부 ${bookQty} · 차이 ${signed}`
+  return `장부 ${bookQty} · 차이 ${signed} · 확정 후 ${counted}`
 }
 
 export function inventoryWarehouseColumns(warehouses: NamedWarehouse[]): NamedWarehouse[] {
@@ -251,7 +267,7 @@ export function stockDirectInLead() {
 }
 
 export function stockIssueNoteLead() {
-  return '목적·반납 예정일·첨부는 선택입니다.'
+  return '목적·반납 예정일·첨부·메모는 선택입니다.'
 }
 
 export function assertDueReturnAt(value: string) {
@@ -269,7 +285,7 @@ export function assertInboundAt(value: string) {
 }
 
 export function stockOutboundLead() {
-  return '출고하면 현재고가 줄어듭니다. 사람 이름은 적지 않습니다.'
+  return '출고하면 현재고가 줄어듭니다. 사람 이름은 적지 않습니다. 메모·첨부는 선택입니다.'
 }
 
 export function stockReceiptLead(orderId?: string, remaining = 0, defectText = '', asAsset = false) {
@@ -333,12 +349,14 @@ export function orderRemainingCaption(
   return ` · 발주 ${orderId} 다 받았습니다`
 }
 
-export type NamedPartner = { id: string; name: string }
+export type NamedPartner = { id: string; name: string; phone?: string | null; memo?: string | null }
 
 export type PurchaseOrderRow = {
   orderId: string
   itemId: string
   itemName: string
+  itemUnit?: string
+  purchaseKind?: string
   orderedQty: number
   receivedQty: number
   rejectedQty: number
@@ -416,6 +434,8 @@ function orderRows(
             orderId: order.id,
             itemId: line.itemId,
             itemName: line.itemName || item?.name || line.itemId,
+            itemUnit: line.itemUnit || item?.unit || undefined,
+            purchaseKind: line.purchaseKind || undefined,
             orderedQty: line.qty,
             receivedQty: orderReceived(state, order.id, line.itemId),
             rejectedQty: orderRejected(state, order.id, line.itemId),
@@ -450,6 +470,32 @@ export function buildAssetOrderList(
   partners: NamedPartner[] = [],
 ): PurchaseOrderRow[] {
   return orderRows(items, state, isCompanyAssetItem, partners)
+}
+
+export function orderItemCaption(row: Pick<PurchaseOrderRow, 'itemName' | 'itemUnit' | 'purchaseKind'>) {
+  return [row.itemName, row.itemUnit, row.purchaseKind].filter(Boolean).join(' · ')
+}
+
+export function overdueSupplyOrders(rows: PurchaseOrderRow[], today: string): PurchaseOrderRow[] {
+  return rows
+    .filter(
+      (row) =>
+        row.status === 'confirmed' &&
+        row.remainingQty > 0 &&
+        /^\d{4}-\d{2}-\d{2}$/.test(row.dueDate) &&
+        row.dueDate < today,
+    )
+    .sort(
+      (a, b) =>
+        a.dueDate.localeCompare(b.dueDate) ||
+        a.orderId.localeCompare(b.orderId) ||
+        a.itemName.localeCompare(b.itemName, 'ko'),
+    )
+}
+
+export function overdueSupplyOrderCaption(row: PurchaseOrderRow) {
+  const order = publicStockOrderId(row.orderId)
+  return [order, row.itemName, `납기 ${row.dueDate}`].filter(Boolean).join(' · ')
 }
 
 export function todayYmd(now = new Date()): string {

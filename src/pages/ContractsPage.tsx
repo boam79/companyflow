@@ -80,7 +80,7 @@ export function ContractsPage() {
     useWorkAccess()
   const [rows, setRows] = useState<ContractDraft[]>([])
   const [partners, setPartners] = useState<{ id: string; name: string }[]>([])
-  const [orders, setOrders] = useState<{ id: string; partnerId?: string; orderDate?: string }[]>([])
+  const [orders, setOrders] = useState<{ id: string; partnerId?: string; partnerName?: string; orderDate?: string }[]>([])
   const [revisions, setRevisions] = useState<ContractRevision[]>([])
   const [query, setQuery] = useState('')
   const [lifeTab, setLifeTab] = useState<ContractPhase>('active')
@@ -163,8 +163,8 @@ export function ContractsPage() {
       if (ticket !== openTicket.current || sqlite.companyId !== nextId) return
       const [partnerRows, orderRows] = await Promise.all([
         sqlite.query<{ id: string; name: string }>(`select id, name from partners where ${ACTIVE_MASTER_WHERE} order by name`),
-        sqlite.query<{ id: string; partner_id?: string | null; order_date?: string | null }>(
-          'select id, partner_id, order_date from stock_orders order by created_at desc, id',
+        sqlite.query<{ id: string; partner_id?: string | null; order_date?: string | null; partner_name?: string | null }>(
+          'select id, partner_id, order_date, partner_name from stock_orders order by created_at desc, id',
         ),
       ])
       if (ticket !== openTicket.current || sqlite.companyId !== nextId) return
@@ -175,6 +175,7 @@ export function ContractsPage() {
         orderRows.map((row) => ({
           id: row.id,
           partnerId: row.partner_id ?? undefined,
+          partnerName: row.partner_name ?? undefined,
           orderDate: row.order_date ?? undefined,
         })),
       )
@@ -414,7 +415,7 @@ export function ContractsPage() {
   const saveBlocked = !ready || ocrBusy || Boolean(file && !ocrReviewed)
   const orderChoices = orders.map((row) => ({
     id: row.id,
-    partnerName: partners.find((partner) => partner.id === row.partnerId)?.name,
+    partnerName: row.partnerName || partners.find((partner) => partner.id === row.partnerId)?.name,
     orderDate: row.orderDate,
   }))
 

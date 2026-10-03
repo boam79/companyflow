@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyPurchaseRequest, assertOrderFitsRequest, requestAttachment, requestCaption, requestHasRemaining, requestListButtonLabel, requestProgress, requestRemainingQty, requestSavedNotice, requestSelectLabel, requestTotalAmount } from './request'
+import { applyPurchaseRequest, assertOrderFitsRequest, requestAttachment, requestCaption, requestHasRemaining, requestListButtonLabel, requestProgress, requestRemainingQty, requestSavedNotice, requestSelectLabel, requestTotalAmount, stampRequestLines } from './request'
 
 const PAPER = 'item-paper'
 const REQUEST = applyPurchaseRequest({
@@ -16,7 +16,7 @@ describe('구매요청', () => {
     expect(REQUEST.status).toBe('open')
     expect(requestTotalAmount(REQUEST.lines)).toBe(150000)
     expect(requestCaption(REQUEST, [{ id: PAPER, name: '샘플 복사용지' }])).toBe(
-      '견본 김대리 · 샘플총무 · 필요 2026-10-10 · 샘플 복사용지 10 · 150,000원',
+      '견본 김대리 · 샘플총무 · 필요 2026-10-10 · 샘플 비품 보충 · 샘플 복사용지 10 · 150,000원',
     )
     expect(requestSavedNotice(false)).toMatch(/구매요청을 저장했습니다/)
     expect(requestSavedNotice(false)).not.toMatch(/결재|반려|재요청/)
@@ -131,5 +131,28 @@ describe('구매요청', () => {
         bytes: new Uint8Array([0x61, 0x62, 0x63]),
       }),
     ).toThrow(/PDF/)
+  })
+
+  it('요청 줄은 확정 당시 품목명·단위를 남긴다', () => {
+    const stamped = stampRequestLines(
+      [{ itemId: PAPER, qty: 10, unitPrice: 15000 }],
+      [{ id: PAPER, name: '샘플 복사용지', unit: '박스', purchaseKind: 'supply' }],
+      [{ id: 'supply', name: '일반 비품' }],
+    )
+    expect(stamped[0]).toMatchObject({
+      itemName: '샘플 복사용지',
+      itemUnit: '박스',
+      purchaseKind: '일반 비품',
+    })
+    expect(
+      requestCaption(
+        applyPurchaseRequest({
+          id: 'REQ-SNAP',
+          requesterName: '견본 김대리',
+          lines: stamped,
+        }),
+        [{ id: PAPER, name: '새복사용지' }],
+      ),
+    ).toContain('샘플 복사용지 10')
   })
 })

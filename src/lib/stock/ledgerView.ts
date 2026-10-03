@@ -124,8 +124,19 @@ export function formatLedgerLink(
   if (line.dueReturnAt?.trim()) parts.push(`반납 예정 ${line.dueReturnAt.trim()}`)
   if (line.txnType === 'direct_in' && line.businessDate?.trim()) parts.push(`입고 ${line.businessDate.trim()}`)
   const recorder = publicRecorderName(line.recordedBy)
-  if (recorder && line.txnType === 'direct_in') parts.push(`등록 ${recorder}`)
-  if (recorder && line.txnType === 'issue' && recorder !== line.personName?.trim()) parts.push(`입력 ${recorder}`)
+  if (
+    recorder &&
+    (line.txnType === 'direct_in' || line.txnType === 'receipt' || line.txnType === 'convert_out')
+  ) {
+    parts.push(`등록 ${recorder}`)
+  }
+  if (
+    recorder &&
+    (line.txnType === 'issue' || line.txnType === 'outbound' || line.txnType === 'supplier_return') &&
+    recorder !== line.personName?.trim()
+  ) {
+    parts.push(`입력 ${recorder}`)
+  }
   if (line.memo?.trim()) parts.push(line.memo.trim())
   if (line.fileName?.trim()) parts.push(line.fileName.trim())
   if (line.txnType === 'transfer_in' || line.txnType === 'transfer_out') {

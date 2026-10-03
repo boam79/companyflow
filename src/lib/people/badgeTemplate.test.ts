@@ -60,6 +60,23 @@ describe('명찰 템플릿', () => {
       ],
     )
     expect(lines).toEqual(['총무', '김 담당', '주임'])
+    expect(
+      applyBadgeLines(
+        { name: '김담당', employeeNo: 'G-101' },
+        '총무',
+        [
+          { key: 'name', label: '성명' },
+          { key: 'employeeNo', label: '사번' },
+        ],
+      ),
+    ).toEqual(['김담당', 'G-101'])
+    expect(
+      applyBadgeLines(
+        { name: '김담당', employeeNo: 'pjm7908@hanmail.net' },
+        '총무',
+        [{ key: 'employeeNo', label: '사번' }],
+      ),
+    ).toEqual(['김담당', '총무'])
   })
 
   it('칸을 못 찾으면 기본 명찰 줄을 쓴다', () => {

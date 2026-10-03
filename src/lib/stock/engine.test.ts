@@ -201,6 +201,22 @@ describe('복사용지 재고 원장', () => {
       qty: 1,
     }).state
     expect(onHand(state, ITEM, MAIN)).toBe(3)
+    state = applyStockCommand(state, {
+      type: 'post_outbound',
+      operationId: 'op-out-note',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 1,
+      memo: '샘플 출고 메모',
+      recordedBy: '박재민',
+      fileName: '견본출고.png',
+    }).state
+    expect(state.ledger.at(-1)).toMatchObject({
+      txnType: 'outbound',
+      memo: '샘플 출고 메모',
+      recordedBy: '박재민',
+      fileName: '견본출고.png',
+    })
     expect(() =>
       applyStockCommand(state, {
         type: 'post_outbound',
@@ -210,6 +226,29 @@ describe('복사용지 재고 원장', () => {
         qty: 9,
       }),
     ).toThrow(/현재고를 초과해 출고할 수 없습니다/)
+  })
+
+  it('자산화는 등록자를 남긴다', () => {
+    let state = createStockState()
+    state = applyStockCommand(state, {
+      type: 'post_direct_in',
+      operationId: 'op-in-asset',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 3,
+    }).state
+    state = applyStockCommand(state, {
+      type: 'convert_to_asset',
+      operationId: 'op-convert',
+      itemId: ITEM,
+      warehouseId: MAIN,
+      qty: 1,
+      recordedBy: '박재민',
+    }).state
+    expect(state.ledger.at(-1)).toMatchObject({
+      txnType: 'convert_out',
+      recordedBy: '박재민',
+    })
   })
 
   it('이동 후에도 회사 합계는 같고 같은 operation_id 는 한 번만 반영된다', () => {

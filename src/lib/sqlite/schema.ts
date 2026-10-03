@@ -181,6 +181,9 @@ export const SCHEMA_PATCHES = [
   'alter table stock_order_lines add column item_name text',
   'alter table stock_order_lines add column item_unit text',
   'alter table stock_order_lines add column purchase_kind text',
+  'alter table purchase_request_lines add column item_name text',
+  'alter table purchase_request_lines add column item_unit text',
+  'alter table purchase_request_lines add column purchase_kind text',
 ]
 
 export const SCHEMA_VERSION = LOCAL_MIGRATIONS.length

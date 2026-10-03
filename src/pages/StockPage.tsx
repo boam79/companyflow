@@ -29,7 +29,7 @@ import {
 import { toArrayBuffer } from '../lib/contracts/book'
 import { onHand, orderNetReceived, orderRemaining, returnBalance, inboundReturnBalance, inboundSupplierSource, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { defaultStockPolicy, loadStockPolicy, showsOverflowReason } from '../lib/stock/policy'
-import { assertDueReturnAt, assertInboundAt, buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderQtyText, orderReceiptProgress, overdueIssueReturns, publicStockOrderId, resolveIssueDepartment, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssueNoteLead, stockIssuePersonName, stockLastSaveLead, stockOnHandPreview, stockOnHandPreviewKind, stockOutboundLead, stockPageLead, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, supplyLowStock, todayYmd, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { assertDueReturnAt, assertInboundAt, buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderItemCaption, orderQtyText, orderReceiptProgress, overdueIssueReturns, overdueSupplyOrderCaption, overdueSupplyOrders, partnerSelectHint, publicStockOrderId, resolveIssueDepartment, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssueNoteLead, stockIssuePersonName, stockLastSaveLead, stockOnHandPreview, stockOnHandPreviewKind, stockOutboundLead, stockPageLead, stockQtyUnitHint, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, stockTransferOnHandPreview, supplyLowStock, todayYmd, transferWarehouseIds, supplyItems, supplyOrderCsv, warehouseOptionLabel, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, ledgerRelatedJumps, sessionRecorderName, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -44,7 +44,7 @@ import { showsWorkDbReopen, workOpenedNotice } from '../lib/data/storageStatus'
 import { publicErrorMessage } from '../lib/publicError'
 import { countHeading } from '../lib/company/nav'
 
-type NamedRow = { id: string; name: string }
+type NamedRow = { id: string; name: string; location_text?: string | null; phone?: string | null; memo?: string | null }
 type ActionType = StockCommand['type']
 type ExtraOrderLine = { key: string; itemId: string; qty: string }
 type ExtraRequestLine = { key: string; itemId: string; qty: string; unitPrice: string }
@@ -195,8 +195,8 @@ export function StockPage() {
     const [itemRows, partnerRows, warehouseRows, deptRows, employeeRows, nextState, nextRequests, nextPolicy] =
       await Promise.all([
       loadItems(sqlite),
-      sqlite.query<NamedRow>(`select id, name from partners where ${ACTIVE_MASTER_WHERE} order by name`),
-      sqlite.query<NamedRow>(`select id, name from warehouses where ${ACTIVE_MASTER_WHERE} order by name`),
+      sqlite.query<NamedRow>(`select id, name, phone, memo from partners where ${ACTIVE_MASTER_WHERE} order by name`),
+      sqlite.query<NamedRow>(`select id, name, location_text from warehouses where ${ACTIVE_MASTER_WHERE} order by name`),
       sqlite.query<NamedRow>(`select id, name from departments where ${ACTIVE_MASTER_WHERE} order by name`),
       sqlite.query<EmployeeRow>('select id, name, department_id from employees order by name'),
       loadStockState(sqlite),
@@ -533,6 +533,18 @@ export function StockPage() {
     return text ? { reason: text } : {}
   }
 
+  function ledgerActorSave() {
+    return { recordedBy: sessionRecorderName(user, guest) }
+  }
+
+  function ledgerMemoSave() {
+    return { memo: inboundMemo.trim() || undefined }
+  }
+
+  function ledgerFileSave() {
+    return pendingLedgerFile ?? {}
+  }
+
   function buildCommand(
     nextOperationId: string,
     nextItemId = itemId,
@@ -572,6 +584,7 @@ export function StockPage() {
           qty: quantity,
           ...(Number(defectQty) > 0 ? { defectQty: Number(defectQty) } : {}),
           ...overflowReasonField(),
+          ...ledgerActorSave(),
         }
       case 'post_supplier_return': {
         const inbound = state
@@ -586,6 +599,8 @@ export function StockPage() {
             qty: quantity,
             sourceOperationId: inbound.operationId,
             ...overflowReasonField(),
+            ...ledgerActorSave(),
+            ...ledgerMemoSave(),
           }
         }
         return {
@@ -596,6 +611,8 @@ export function StockPage() {
           warehouseId,
           qty: quantity,
           ...overflowReasonField(),
+          ...ledgerActorSave(),
+          ...ledgerMemoSave(),
         }
       }
       case 'post_direct_in':
@@ -613,6 +630,17 @@ export function StockPage() {
           ...(pendingLedgerFile ?? {}),
         }
       case 'post_outbound':
+        return {
+          type: action,
+          operationId: nextOperationId,
+          itemId: nextItemId,
+          warehouseId,
+          qty: quantity,
+          ...overflowReasonField(),
+          ...ledgerActorSave(),
+          ...ledgerMemoSave(),
+          ...ledgerFileSave(),
+        }
       case 'convert_to_asset':
         return {
           type: action,
@@ -621,6 +649,7 @@ export function StockPage() {
           warehouseId,
           qty: quantity,
           ...overflowReasonField(),
+          ...ledgerActorSave(),
         }
       case 'post_issue':
         return {
@@ -634,6 +663,7 @@ export function StockPage() {
           recordedBy: sessionRecorderName(user, guest),
           purpose: issuePurpose.trim() || undefined,
           dueReturnAt: assertDueReturnAt(issueDueReturnAt) || undefined,
+          memo: inboundMemo.trim() || undefined,
           ...(pendingLedgerFile ?? {}),
           ...overflowReasonField(),
         }
@@ -744,13 +774,20 @@ export function StockPage() {
           setInboundPurpose('')
           setInboundPartnerId('')
           setInboundAt(todayYmd())
+        }
+        if (
+          action === 'post_direct_in' ||
+          action === 'post_issue' ||
+          action === 'post_outbound' ||
+          action === 'post_supplier_return'
+        ) {
           setInboundMemo('')
         }
         if (action === 'post_issue') {
           setIssuePurpose('')
           setIssueDueReturnAt('')
         }
-        if (action === 'post_direct_in' || action === 'post_issue') {
+        if (action === 'post_direct_in' || action === 'post_issue' || action === 'post_outbound') {
           setPendingLedgerFile(null)
           setLedgerFileName('')
           if (ledgerFileInput.current) ledgerFileInput.current.value = ''
@@ -902,9 +939,11 @@ export function StockPage() {
   const showsWarehouse = inventoryShowsWarehouseField(action, warehouses.length)
   const showsTransfer = inventoryShowsTransferFields(action, warehouses.length)
   const adjustBookQty = state ? onHand(state, itemId, warehouseId) : 0
-  const previewKind = stockOnHandPreviewKind(action)
+  const previewKind =
+    action === 'post_receipt' && receiptAsAsset ? undefined : stockOnHandPreviewKind(action)
   const previewWarehouseId = action === 'transfer_stock' ? fromWarehouseId : warehouseId
   const previewOnHand = state && itemId && previewWarehouseId ? onHand(state, itemId, previewWarehouseId) : 0
+  const previewToOnHand = state && itemId && toWarehouseId ? onHand(state, itemId, toWarehouseId) : 0
   const returnRemain = returnBalance(state?.ledger ?? [], sourceOperationId)
   const inboundReturnSource = state
     ? inboundSupplierSource(state.ledger, sourceOperationId, itemId, selectedLine)
@@ -922,6 +961,7 @@ export function StockPage() {
   const purchaseOrders = [...supplyOrders, ...assetOrders].sort(
     (a, b) => a.orderId.localeCompare(b.orderId) || a.itemName.localeCompare(b.itemName, 'ko'),
   )
+  const overdueOrders = overdueSupplyOrders(purchaseOrders, todayYmd())
   const orderRows = state ? [...state.orders.values()] : []
   const overflowReasonNeeded = Boolean(
     state &&
@@ -1013,6 +1053,33 @@ export function StockPage() {
                   onClick={() => chooseOverdueIssue(row.line)}
                 >
                   {row.caption}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {overdueOrders.length ? (
+        <section className="rounded-lg border border-line bg-card p-4">
+          <h2 className="text-base font-semibold">{countHeading('납기 지남', overdueOrders.length)}</h2>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {overdueOrders.map((row) => (
+              <li key={`${row.orderId}:${row.itemId}`}>
+                <button
+                  type="button"
+                  className={`rounded border px-3 py-1.5 text-sm ${
+                    row.orderId === orderId && row.itemId === itemId
+                      ? 'border-accent bg-accent-soft'
+                      : 'border-line hover:bg-paper'
+                  }`}
+                  onClick={() => {
+                    setShowMoreActions(true)
+                    chooseOrder(row)
+                    setAction('post_receipt')
+                  }}
+                >
+                  {overdueSupplyOrderCaption(row)}
                 </button>
               </li>
             ))}
@@ -1422,7 +1489,7 @@ export function StockPage() {
                           <td className="whitespace-nowrap py-1.5 pr-3 font-medium">
                             {publicStockOrderId(row.orderId) || '—'}
                           </td>
-                          <td className="whitespace-nowrap py-1.5 pr-3">{row.itemName}</td>
+                          <td className="whitespace-nowrap py-1.5 pr-3">{orderItemCaption(row)}</td>
                           <td className="whitespace-nowrap py-1.5 pr-3">{row.supplierName || '—'}</td>
                           <td className="whitespace-nowrap py-1.5 pr-3">{row.orderDate || '—'}</td>
                           <td className="whitespace-nowrap py-1.5 pr-3">{row.dueDate || '—'}</td>
@@ -1506,19 +1573,28 @@ export function StockPage() {
             {showMoreActions ? '매일 명령만' : '발주·검수 더 보기'}
           </button>
           {action !== 'reverse_transaction' ? (
-            <label className="w-28 text-sm">
-              {action === 'adjust_stock' ? '실사 수량' : action === 'post_receipt' ? '정상' : '수량'}
-              <input
-                className="mt-1 w-full rounded border border-line px-3 py-2"
-                type="number"
-                min="0"
-                value={qty}
-                onChange={(e) => setQty(e.target.value)}
-              />
-            </label>
+            <div className="w-28 text-sm">
+              <label>
+                {action === 'adjust_stock' ? '실사 수량' : action === 'post_receipt' ? '정상' : '수량'}
+                <input
+                  className="mt-1 w-full rounded border border-line px-3 py-2"
+                  type="number"
+                  min="0"
+                  value={qty}
+                  onChange={(e) => setQty(e.target.value)}
+                />
+              </label>
+              {stockQtyUnitHint(selectedItem?.unit) ? (
+                <span className="mt-1 block text-xs text-muted">{stockQtyUnitHint(selectedItem?.unit)}</span>
+              ) : null}
+            </div>
           ) : null}
           {previewKind ? (
             <p className="sm:col-span-2 text-sm text-muted">{stockOnHandPreview(previewOnHand, qty, previewKind)}</p>
+          ) : action === 'transfer_stock' ? (
+            <p className="sm:col-span-2 text-sm text-muted">
+              {stockTransferOnHandPreview(previewOnHand, previewToOnHand, qty)}
+            </p>
           ) : null}
           {action === 'post_receipt' && !receiptAsAsset ? (
             <label className="w-28 text-sm">
@@ -1605,6 +1681,11 @@ export function StockPage() {
                   </option>
                 ))}
               </select>
+              {partnerSelectHint(partners.find((row) => row.id === orderPartnerId)) ? (
+                <span className="mt-1 block text-xs text-muted">
+                  {partnerSelectHint(partners.find((row) => row.id === orderPartnerId))}
+                </span>
+              ) : null}
             </label>
           ) : null}
           {action === 'draft_order' || action === 'confirm_order' ? (
@@ -1721,7 +1802,7 @@ export function StockPage() {
               >
                 {warehouses.map((row) => (
                   <option key={row.id} value={row.id}>
-                    {row.name}
+                    {warehouseOptionLabel({ name: row.name, locationText: row.location_text })}
                   </option>
                 ))}
               </select>
@@ -1744,7 +1825,7 @@ export function StockPage() {
                 >
                   {warehouses.map((row) => (
                     <option key={row.id} value={row.id}>
-                      {row.name}
+                      {warehouseOptionLabel({ name: row.name, locationText: row.location_text })}
                     </option>
                   ))}
                 </select>
@@ -1760,7 +1841,7 @@ export function StockPage() {
                     .filter((row) => row.id !== fromWarehouseId)
                     .map((row) => (
                       <option key={row.id} value={row.id}>
-                        {row.name}
+                        {warehouseOptionLabel({ name: row.name, locationText: row.location_text })}
                       </option>
                     ))}
                 </select>
@@ -1869,6 +1950,14 @@ export function StockPage() {
                 onChange={(e) => setIssueDueReturnAt(e.target.value)}
               />
             </label>
+            <label className="sm:col-span-2 text-sm">
+              메모
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={inboundMemo}
+                onChange={(e) => setInboundMemo(e.target.value)}
+              />
+            </label>
             <p className="sm:col-span-2 text-sm text-muted">{stockIssueNoteLead()}</p>
           </>
         ) : null}
@@ -1898,6 +1987,11 @@ export function StockPage() {
                   </option>
                 ))}
               </select>
+              {partnerSelectHint(partners.find((row) => row.id === inboundPartnerId)) ? (
+                <span className="mt-1 block text-xs text-muted">
+                  {partnerSelectHint(partners.find((row) => row.id === inboundPartnerId))}
+                </span>
+              ) : null}
             </label>
             <label className="text-sm">
               입고 사유
@@ -1917,13 +2011,15 @@ export function StockPage() {
             </label>
           </>
         ) : null}
-        {action === 'post_direct_in' || action === 'post_issue' ? (
+        {action === 'post_direct_in' || action === 'post_issue' || action === 'post_outbound' ? (
           <div className="sm:col-span-2 text-sm">
             {action === 'post_direct_in' ? '증빙' : '첨부'}
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <input
                 ref={ledgerFileInput}
-                aria-label={action === 'post_direct_in' ? '입고 증빙' : '반출 첨부'}
+                aria-label={
+                  action === 'post_direct_in' ? '입고 증빙' : action === 'post_outbound' ? '출고 첨부' : '반출 첨부'
+                }
                 type="file"
                 accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
                 className="sr-only"
@@ -1944,7 +2040,19 @@ export function StockPage() {
             </div>
           </div>
         ) : null}
-        {action === 'post_outbound' ? <p className="text-sm text-muted">{stockOutboundLead()}</p> : null}
+        {action === 'post_outbound' ? (
+          <>
+            <p className="sm:col-span-2 text-sm text-muted">{stockOutboundLead()}</p>
+            <label className="sm:col-span-2 text-sm">
+              메모
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={inboundMemo}
+                onChange={(e) => setInboundMemo(e.target.value)}
+              />
+            </label>
+          </>
+        ) : null}
         {action === 'post_receipt' ? (
           <p className="text-sm text-muted">
             {stockReceiptLead(orderId, receiptRemaining, defectQty, receiptAsAsset)}
@@ -1952,9 +2060,19 @@ export function StockPage() {
         ) : null}
         {action === 'convert_to_asset' ? <p className="text-sm text-muted">{stockConvertLead()}</p> : null}
         {action === 'post_supplier_return' ? (
-          <p className="text-sm text-muted">
-            {stockSupplierReturnLead(supplierReturnNet, inboundReturnSource ? 'inbound' : 'order')}
-          </p>
+          <>
+            <p className="sm:col-span-2 text-sm text-muted">
+              {stockSupplierReturnLead(supplierReturnNet, inboundReturnSource ? 'inbound' : 'order')}
+            </p>
+            <label className="sm:col-span-2 text-sm">
+              메모
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2"
+                value={inboundMemo}
+                onChange={(e) => setInboundMemo(e.target.value)}
+              />
+            </label>
+          </>
         ) : null}
         {action === 'transfer_stock' ? <p className="text-sm text-muted">{stockTransferLead()}</p> : null}
         {action === 'post_return' ? (

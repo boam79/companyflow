@@ -25,6 +25,13 @@ import {
   stockIssueNoteLead,
   stockOnHandPreview,
   stockOnHandPreviewKind,
+  stockTransferOnHandPreview,
+  warehouseOptionLabel,
+  partnerSelectHint,
+  stockQtyUnitHint,
+  orderItemCaption,
+  overdueSupplyOrders,
+  overdueSupplyOrderCaption,
   assertDueReturnAt,
   assertInboundAt,
   stockOutboundLead,
@@ -95,8 +102,8 @@ describe('비품 현재고', () => {
     expect(stockDraftOrderId()).toBe('')
     expect(stockAdjustReason()).toBe('')
     expect(stockAdjustLead(7, '7')).toBe('장부 7 · 맞음')
-    expect(stockAdjustLead(7, '6')).toBe('장부 7 · 차이 -1')
-    expect(stockAdjustLead(7, '9')).toBe('장부 7 · 차이 +2')
+    expect(stockAdjustLead(7, '6')).toBe('장부 7 · 차이 -1 · 확정 후 6')
+    expect(stockAdjustLead(7, '9')).toBe('장부 7 · 차이 +2 · 확정 후 9')
     expect(stockAdjustLead(7, '')).toBe('장부 7')
     expect(stockAdjustLead(7, '6')).not.toMatch(/실사 차이|operation_id|본사창고/)
     expect(defaultWarehouseId(WAREHOUSES)).toBe('wh-main')
@@ -661,13 +668,26 @@ describe('비품 발주 목록', () => {
     expect(stockOnHandPreviewKind('post_issue')).toBe('out')
     expect(stockOnHandPreviewKind('post_outbound')).toBe('out')
     expect(stockOnHandPreviewKind('post_supplier_return')).toBe('out')
-    expect(stockOnHandPreviewKind('transfer_stock')).toBe('out')
+    expect(stockOnHandPreviewKind('transfer_stock')).toBeUndefined()
     expect(stockOnHandPreviewKind('post_direct_in')).toBe('in')
+    expect(stockOnHandPreviewKind('post_receipt')).toBe('in')
+    expect(stockOnHandPreviewKind('post_return')).toBe('in')
     expect(stockOnHandPreviewKind('adjust_stock')).toBeUndefined()
     expect(stockOnHandPreview(7, '1', 'out')).toBe('현재고 7 · 확정 후 6')
     expect(stockOnHandPreview(7, '1', 'in')).toBe('현재고 7 · 확정 후 8')
     expect(stockOnHandPreview(7, '2', 'out')).toBe('현재고 7 · 확정 후 5')
     expect(stockOnHandPreview(7, '', 'out')).toBe('현재고 7')
+    expect(stockTransferOnHandPreview(7, 0, '2')).toBe(
+      '보내는 현재고 7 · 확정 후 5 · 받는 현재고 0 · 확정 후 2',
+    )
+    expect(stockTransferOnHandPreview(7, 0, '')).toBe('보내는 현재고 7 · 받는 현재고 0')
+    expect(warehouseOptionLabel({ name: '샘플창고', locationText: '3층' })).toBe('샘플창고 · 3층')
+    expect(warehouseOptionLabel({ name: '샘플창고' })).toBe('샘플창고')
+    expect(partnerSelectHint({ phone: '02-000-0000', memo: '샘플 공급사' })).toBe('02-000-0000 · 샘플 공급사')
+    expect(stockQtyUnitHint('박스')).toBe('박스')
+    expect(orderItemCaption({ itemName: '샘플 복사용지', itemUnit: '박스', purchaseKind: '일반 비품' })).toBe(
+      '샘플 복사용지 · 박스 · 일반 비품',
+    )
   })
 
   it('발주 목록은 확정 당시 품목명·공급사명을 쓴다', () => {
@@ -697,5 +717,30 @@ describe('비품 발주 목록', () => {
       itemName: '옛복사용지',
       supplierName: '옛문구',
     })
+  })
+
+  it('납기가 지난 미수령 발주를 모은다', () => {
+    const due = {
+      orderId: 'ORD-DEMO-01',
+      itemId: PAPER_ITEM.id,
+      itemName: '샘플 복사용지',
+      orderedQty: 2,
+      receivedQty: 0,
+      rejectedQty: 0,
+      returnedQty: 0,
+      remainingQty: 2,
+      status: 'confirmed' as const,
+      supplierName: '견본임대',
+      dueDate: '2026-01-01',
+      orderDate: '2026-09-01',
+      fileName: '',
+      currency: 'KRW',
+      currencyName: '원',
+    }
+    const received = { ...due, remainingQty: 0, receivedQty: 2 }
+    const later = { ...due, orderId: 'ORD-DEMO-02', dueDate: '2026-12-31' }
+    expect(overdueSupplyOrders([due, received, later], '2026-10-03')).toEqual([due])
+    expect(overdueSupplyOrderCaption(due)).toBe('ORD-DEMO-01 · 샘플 복사용지 · 납기 2026-01-01')
+    expect(overdueSupplyOrders([due], '2026-01-01')).toEqual([])
   })
 })

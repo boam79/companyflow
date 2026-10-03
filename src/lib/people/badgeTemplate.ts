@@ -1,4 +1,5 @@
 import { badgeLines } from './employment'
+import { masterOptionalText } from '../master/commands'
 import { bytesToBase64, base64ToBytes, hashFileBytes, toArrayBuffer } from '../contracts/book'
 
 export const MAX_BADGE_TEMPLATE_BYTES = 8 * 1024 * 1024
@@ -85,7 +86,7 @@ export function detectBadgeFields(text: string): BadgeField[] {
 }
 
 export function applyBadgeLines(
-  employee: { name: string; badgeName?: string; title?: string },
+  employee: { name: string; badgeName?: string; title?: string; employeeNo?: string },
   departmentName: string | undefined,
   fields: BadgeField[],
 ): string[] {
@@ -94,7 +95,7 @@ export function applyBadgeLines(
     name: employee.badgeName || employee.name,
     department: departmentName,
     title: employee.title,
-    employeeNo: undefined,
+    employeeNo: masterOptionalText(employee.employeeNo),
     company: undefined,
   }
   const lines = fields

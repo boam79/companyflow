@@ -28,6 +28,11 @@ export type StockCommand =
       directAsset?: boolean
       defectQty?: number
       reason?: string
+      memo?: string
+      fileName?: string
+      fileMime?: string
+      fileBase64?: string
+      recordedBy?: string
     }
   | {
       type: 'post_direct_in'
@@ -57,6 +62,7 @@ export type StockCommand =
       reason?: string
       purpose?: string
       dueReturnAt?: string
+      memo?: string
       fileName?: string
       fileMime?: string
       fileBase64?: string
@@ -68,6 +74,11 @@ export type StockCommand =
       warehouseId: string
       qty: number
       reason?: string
+      memo?: string
+      fileName?: string
+      fileMime?: string
+      fileBase64?: string
+      recordedBy?: string
     }
   | {
       type: 'post_return'
@@ -76,6 +87,8 @@ export type StockCommand =
       warehouseId: string
       qty: number
       sourceOperationId: string
+      memo?: string
+      recordedBy?: string
     }
   | {
       type: 'post_supplier_return'
@@ -86,6 +99,11 @@ export type StockCommand =
       warehouseId: string
       qty: number
       reason?: string
+      memo?: string
+      fileName?: string
+      fileMime?: string
+      fileBase64?: string
+      recordedBy?: string
     }
   | {
       type: 'transfer_stock'
@@ -111,6 +129,7 @@ export type StockCommand =
       warehouseId: string
       qty: number
       reason?: string
+      recordedBy?: string
     }
   | {
       type: 'reverse_transaction'
@@ -469,6 +488,8 @@ export function applyStockCommand(
         qtyDelta: command.qty,
         orderId: command.orderId,
         reason: command.reason?.trim() || (command.directAsset ? '직접 자산화' : undefined),
+        ...ledgerActorFields(command),
+        ...ledgerNoteFields(command),
       })
       if (defectQty > 0) {
         next.ledger.push({
@@ -492,6 +513,7 @@ export function applyStockCommand(
           orderId: command.orderId,
           sourceOperationId: command.operationId,
           reason: '직접 자산화',
+          ...ledgerActorFields(command),
         })
       }
       break
@@ -554,6 +576,8 @@ export function applyStockCommand(
         warehouseId: command.warehouseId,
         qtyDelta: -command.qty,
         reason: command.reason?.trim() || undefined,
+        ...ledgerActorFields(command),
+        ...ledgerNoteFields(command),
       })
       break
     }
@@ -573,6 +597,8 @@ export function applyStockCommand(
         qtyDelta: command.qty,
         sourceOperationId: command.sourceOperationId,
         ...ledgerCatalogFields(source ?? {}),
+        ...ledgerActorFields(command),
+        ...ledgerNoteFields(command),
       })
       break
     }
@@ -599,6 +625,8 @@ export function applyStockCommand(
           partnerId: inbound.partnerId,
           reason: command.reason?.trim() || undefined,
           ...ledgerCatalogFields({ ...inbound, warehouseName: undefined }),
+          ...ledgerActorFields(command),
+          ...ledgerNoteFields(command),
         })
         break
       }
@@ -628,6 +656,8 @@ export function applyStockCommand(
         qtyDelta: -command.qty,
         orderId,
         reason: command.reason?.trim() || undefined,
+        ...ledgerActorFields(command),
+        ...ledgerNoteFields(command),
       })
       break
     }
@@ -697,6 +727,7 @@ export function applyStockCommand(
         warehouseId: command.warehouseId,
         qtyDelta: -command.qty,
         reason: command.reason?.trim() || '재고 자산화',
+        ...ledgerActorFields(command),
       })
       break
     }
