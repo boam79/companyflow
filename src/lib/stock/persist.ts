@@ -67,12 +67,16 @@ export type OrderRow = {
   file_base64?: string | null
   currency?: string | null
   request_id?: string | null
+  partner_name?: string | null
 }
 
 export type OrderLineRow = {
   order_id: string
   item_id: string
   qty: number
+  item_name?: string | null
+  item_unit?: string | null
+  purchase_kind?: string | null
 }
 
 type StockDb = Pick<CompanySqlite, 'query' | 'batch'>
@@ -131,6 +135,39 @@ export function stampNewLedgerLines(prev: StockState, next: StockState, catalog:
   }
 }
 
+export function stampOrderCatalog(order: StockOrder, catalog: LedgerCatalog): StockOrder {
+  const partner = order.partnerId
+    ? catalog.partners.find((row) => row.id === order.partnerId)
+    : undefined
+  const lines = stockOrderLines(order).map((line) => {
+    const item = catalog.items.find((row) => row.id === line.itemId)
+    const kind = item ? purchaseKindLabel(item.purchaseKind, catalog.purchaseKinds) : undefined
+    return {
+      ...line,
+      ...ledgerCatalogFields({
+        itemName: line.itemName || item?.name,
+        itemUnit: line.itemUnit || item?.unit || (item ? '개' : undefined),
+        purchaseKind: line.purchaseKind || kind,
+      }),
+    }
+  })
+  const first = lines[0]
+  return {
+    ...order,
+    ...(first ? { itemId: first.itemId, qty: first.qty } : {}),
+    ...(lines.length ? { lines } : {}),
+    ...ledgerCatalogFields({ partnerName: order.partnerName || partner?.name }),
+  }
+}
+
+export function stampOrderInState(state: StockState, orderId: string, catalog: LedgerCatalog): StockState {
+  const order = state.orders.get(orderId)
+  if (!order) return state
+  const next = new Map(state.orders)
+  next.set(orderId, stampOrderCatalog(order, catalog))
+  return { ...state, orders: next }
+}
+
 export function ledgerInsert(line: LedgerLine, createdAt: string): SqlStatement {
   return {
     sql: `insert into stock_ledger(
@@ -185,8 +222,8 @@ export function statementsForCommand(
       statements.push({
         sql: `insert or replace into stock_orders(
             id, item_id, qty, status, partner_id, due_date, order_date, currency,
-            file_name, file_mime, file_base64, request_id, operation_id, created_at)
-          values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            file_name, file_mime, file_base64, request_id, partner_name, operation_id, created_at)
+          values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         params: [
           order.id,
           order.itemId,
@@ -200,6 +237,7 @@ export function statementsForCommand(
           order.fileMime ?? null,
           order.fileBase64 ?? null,
           order.requestId ?? null,
+          order.partnerName ?? null,
           command.operationId,
           createdAt,
         ],
@@ -210,8 +248,8 @@ export function statementsForCommand(
       })
       for (const line of stockOrderLines(order)) {
         statements.push({
-          sql: 'insert into stock_order_lines(order_id, item_id, qty) values(?, ?, ?)',
-          params: [order.id, line.itemId, line.qty],
+          sql: 'insert into stock_order_lines(order_id, item_id, qty, item_name, item_unit, purchase_kind) values(?, ?, ?, ?, ?, ?)',
+          params: [order.id, line.itemId, line.qty, line.itemName ?? null, line.itemUnit ?? null, line.purchaseKind ?? null],
         })
       }
     }
@@ -300,7 +338,13 @@ export function stateFromRows(
   const linesByOrder = new Map<string, StockOrderLine[]>()
   for (const row of lineRows) {
     const list = linesByOrder.get(row.order_id) ?? []
-    list.push({ itemId: row.item_id, qty: row.qty })
+    list.push({
+      itemId: row.item_id,
+      qty: row.qty,
+      ...(row.item_name ? { itemName: row.item_name } : {}),
+      ...(row.item_unit ? { itemUnit: row.item_unit } : {}),
+      ...(row.purchase_kind ? { purchaseKind: row.purchase_kind } : {}),
+    })
     linesByOrder.set(row.order_id, list)
   }
   for (const order of orders) {
@@ -312,6 +356,7 @@ export function stateFromRows(
       ...(lines?.length ? { lines } : {}),
       status: order.status,
       partnerId: order.partner_id ?? undefined,
+      partnerName: order.partner_name ?? undefined,
       dueDate: order.due_date ?? undefined,
       orderDate: order.order_date ?? undefined,
       fileName: order.file_name ?? undefined,
@@ -363,7 +408,7 @@ export async function loadStockState(db: Pick<CompanySqlite, 'query'>): Promise<
   const [orders, ledger, processed, lineRows] = await Promise.all([
     db.query<OrderRow>(
       `select id, item_id, qty, status, partner_id, due_date, order_date, currency,
-        file_name, file_mime, file_base64, request_id, operation_id from stock_orders`,
+        file_name, file_mime, file_base64, request_id, partner_name, operation_id from stock_orders`,
     ),
     db.query<LedgerRow>(
       `select id, operation_id, txn_type, item_id, warehouse_id, qty_delta,
@@ -374,7 +419,9 @@ export async function loadStockState(db: Pick<CompanySqlite, 'query'>): Promise<
        from stock_ledger order by created_at, id`,
     ),
     db.query<{ operation_id: string }>('select operation_id from processed_operations'),
-    db.query<OrderLineRow>('select order_id, item_id, qty from stock_order_lines order by order_id, item_id'),
+    db.query<OrderLineRow>(
+      'select order_id, item_id, qty, item_name, item_unit, purchase_kind from stock_order_lines order by order_id, item_id',
+    ),
   ])
   return stateFromRows(
     orders,
@@ -479,7 +526,10 @@ export async function executeStockCommand(
     partners,
     purchaseKinds,
   }
-  const stamped = stampNewLedgerLines(prev, result.state, catalog)
+  let stamped = stampNewLedgerLines(prev, result.state, catalog)
+  if (nextCommand.type === 'draft_order' || nextCommand.type === 'confirm_order') {
+    stamped = stampOrderInState(stamped, nextCommand.orderId, catalog)
+  }
   const statements: SqlStatement[] = [
     ...createdItems.map((item) => supplyItemInsert(item, createdAt)),
     {

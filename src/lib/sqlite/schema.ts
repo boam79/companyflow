@@ -177,6 +177,10 @@ export const SCHEMA_PATCHES = [
   'alter table stock_ledger add column purchase_kind text',
   'alter table stock_ledger add column warehouse_name text',
   'alter table stock_ledger add column partner_name text',
+  'alter table stock_orders add column partner_name text',
+  'alter table stock_order_lines add column item_name text',
+  'alter table stock_order_lines add column item_unit text',
+  'alter table stock_order_lines add column purchase_kind text',
 ]
 
 export const SCHEMA_VERSION = LOCAL_MIGRATIONS.length

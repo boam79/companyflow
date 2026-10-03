@@ -60,6 +60,7 @@ type NamedRow = {
   has_file?: number | null
   location_text?: string | null
   employee_no?: string | null
+  hired_at?: string | null
 }
 type FieldRow = { entity: string; key: string; label: string }
 type TabId = MasterTable | 'fields'
@@ -162,6 +163,8 @@ export function MasterDataPage() {
   const [selectedNamedId, setSelectedNamedId] = useState('')
   const [warehouseLocation, setWarehouseLocation] = useState('')
   const [employeeNo, setEmployeeNo] = useState('')
+  const [employeeTitle, setEmployeeTitle] = useState('')
+  const [employeeHiredAt, setEmployeeHiredAt] = useState('')
   const [partnerFileName, setPartnerFileName] = useState('')
   const [partnerHasFile, setPartnerHasFile] = useState(false)
   const [pendingPartnerFile, setPendingPartnerFile] = useState<{
@@ -242,7 +245,7 @@ export function MasterDataPage() {
     const named =
       nextTab === 'employees'
         ? await sqlite.query<NamedRow>(
-            'select id, name, department_id, title, left_at, employee_no from employees order by name',
+            'select id, name, department_id, title, hired_at, left_at, employee_no from employees order by name',
           )
         : nextTab === 'items'
           ? await sqlite.query<NamedRow>(
@@ -322,6 +325,8 @@ export function MasterDataPage() {
           fileBase64: tab === 'partners' ? pendingPartnerFile?.fileBase64 : undefined,
           locationText: tab === 'warehouses' ? warehouseLocation : undefined,
           employeeNo: tab === 'employees' ? employeeNo : undefined,
+          title: tab === 'employees' ? employeeTitle : undefined,
+          hiredAt: tab === 'employees' ? employeeHiredAt : undefined,
         }
         const stmt = masterInsertStatement(tab, row)
         const result = await sqlite.runOnce(operationId, async () => {
@@ -341,6 +346,8 @@ export function MasterDataPage() {
       setSelectedNamedId('')
       setWarehouseLocation('')
       setEmployeeNo('')
+      setEmployeeTitle('')
+      setEmployeeHiredAt('')
       resetPartnerForm()
       await reload()
     } catch (error) {
@@ -408,6 +415,8 @@ export function MasterDataPage() {
         name,
         departmentId,
         employeeNo,
+        title: employeeTitle,
+        hiredAt: employeeHiredAt,
       })
       const result = await sqlite.runOnce(operationId, async () => {
         await sqlite.exec(stmt.sql, stmt.params)
@@ -621,14 +630,16 @@ export function MasterDataPage() {
             { key: 'department', label: '부서', muted: true },
             { key: 'title', label: '직위', muted: true },
             { key: 'employeeNo', label: '직원번호', muted: true },
+            { key: 'hiredAt', label: '입사일', muted: true },
             { key: 'status', label: '상태', muted: true },
           ],
           rows: rows.map((row) => ({
             id: row.id,
             name: row.name,
             department: departments.find((dept) => dept.id === row.department_id)?.name ?? '',
-            title: row.title?.trim() ?? '',
+            title: masterOptionalText(row.title ?? undefined) ?? '',
             employeeNo: masterOptionalText(row.employee_no ?? undefined) ?? '',
+            hiredAt: /^\d{4}-\d{2}-\d{2}$/.test(row.hired_at ?? '') ? (row.hired_at ?? '') : '',
             status: row.left_at ? '퇴사' : '재직',
           })),
         }
@@ -768,6 +779,8 @@ export function MasterDataPage() {
               setSelectedNamedId('')
               setWarehouseLocation('')
               setEmployeeNo('')
+              setEmployeeTitle('')
+              setEmployeeHiredAt('')
               resetPartnerForm()
               setTab(item.id)
             }}
@@ -1042,6 +1055,23 @@ export function MasterDataPage() {
                 onChange={(e) => setEmployeeNo(e.target.value)}
               />
             </label>
+            <label className="text-sm">
+              직위
+              <input
+                className="mt-1 w-full rounded border border-line px-3 py-2 text-sm"
+                value={employeeTitle}
+                onChange={(e) => setEmployeeTitle(e.target.value)}
+              />
+            </label>
+            <label className="text-sm">
+              입사일
+              <input
+                type="date"
+                className="mt-1 w-full rounded border border-line px-3 py-2 text-sm"
+                value={employeeHiredAt}
+                onChange={(e) => setEmployeeHiredAt(e.target.value)}
+              />
+            </label>
           </>
         ) : null}
         {tab === 'warehouses' ? (
@@ -1174,6 +1204,8 @@ export function MasterDataPage() {
                           setName(row?.name ?? '')
                           setDepartmentId(row?.department_id ?? departmentId)
                           setEmployeeNo(row?.employee_no ?? '')
+                          setEmployeeTitle(row?.title ?? '')
+                          setEmployeeHiredAt(row?.hired_at ?? '')
                           setMessage('')
                           setNotice('')
                         }

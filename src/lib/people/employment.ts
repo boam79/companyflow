@@ -55,6 +55,7 @@ export function visiblePeoplePanels(phase: RosterPhase) {
 export function rosterCaption(employee: EmployeeRecord, checks: OnboardingCheck[]): string {
   const phase = rosterPhase(employee, checks)
   const issued = hireIssuedCount(checks)
+  const title = masterOptionalText(employee.title)
   const number = masterOptionalText(employee.employeeNo)
   const base =
     phase === 'left'
@@ -64,7 +65,7 @@ export function rosterCaption(employee: EmployeeRecord, checks: OnboardingCheck[
         : phase === 'joining'
           ? `입사 중 · ${issued}/3 지급`
           : `재직 · ${employee.hiredAt}`
-  return number ? `${base} · ${number}` : base
+  return [base, title, number].filter(Boolean).join(' · ')
 }
 
 export type HireProcessStep = {

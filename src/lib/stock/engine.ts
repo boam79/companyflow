@@ -227,6 +227,9 @@ export function ledgerNoteFields(input: {
 export type StockOrderLine = {
   itemId: string
   qty: number
+  itemName?: string
+  itemUnit?: string
+  purchaseKind?: string
 }
 
 export type StockOrder = {
@@ -236,6 +239,7 @@ export type StockOrder = {
   lines?: StockOrderLine[]
   status: 'draft' | 'confirmed'
   partnerId?: string
+  partnerName?: string
   dueDate?: string
   orderDate?: string
   fileName?: string

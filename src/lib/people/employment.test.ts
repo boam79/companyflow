@@ -106,6 +106,12 @@ describe('입퇴사', () => {
       rosterCaption({ ...employed, employeeNo: 'G-001' }, onboardingView('emp-lee', checks)),
     ).toBe('재직 · 2025-07-14 · G-001')
     expect(
+      rosterCaption(
+        { ...employed, title: '주임', employeeNo: 'G-001' },
+        onboardingView('emp-lee', checks),
+      ),
+    ).toBe('재직 · 2025-07-14 · 주임 · G-001')
+    expect(
       rosterCaption({ ...employed, employeeNo: 'pjm7908@hanmail.net' }, onboardingView('emp-lee', checks)),
     ).toBe('재직 · 2025-07-14')
     expect(visiblePeoplePanels('joining')).toEqual({ hire: true, documents: true, leave: false })

@@ -37,6 +37,26 @@ export function stockPageLead() {
   return '입고하면 현재고가 늘고 반출하면 줄어듭니다. 자리의 물건은 자산 메뉴입니다.'
 }
 
+export function stockOnHandPreviewKind(action: string): 'in' | 'out' | undefined {
+  if (action === 'post_direct_in') return 'in'
+  if (
+    action === 'post_issue' ||
+    action === 'post_outbound' ||
+    action === 'post_supplier_return' ||
+    action === 'transfer_stock'
+  ) {
+    return 'out'
+  }
+  return undefined
+}
+
+export function stockOnHandPreview(onHandQty: number, qtyText: string, direction: 'in' | 'out') {
+  const qty = Number(qtyText)
+  if (!Number.isFinite(qty) || qty <= 0) return `현재고 ${onHandQty}`
+  const next = direction === 'in' ? onHandQty + qty : onHandQty - qty
+  return `현재고 ${onHandQty} · 확정 후 ${next}`
+}
+
 export function stockInboundItemHint(item?: Pick<ItemRecord, 'unit'> | null) {
   const unit = item?.unit?.trim()
   const base = '없는 이름은 입고할 때 비품으로 등록됩니다. 자리의 물건은 자산 메뉴입니다.'
@@ -395,7 +415,7 @@ function orderRows(
           {
             orderId: order.id,
             itemId: line.itemId,
-            itemName: item?.name ?? line.itemId,
+            itemName: line.itemName || item?.name || line.itemId,
             orderedQty: line.qty,
             receivedQty: orderReceived(state, order.id, line.itemId),
             rejectedQty: orderRejected(state, order.id, line.itemId),
@@ -403,7 +423,7 @@ function orderRows(
             remainingQty: orderRemaining(state, order.id, line.itemId),
             status: order.status,
             ...(partnerId ? { partnerId } : {}),
-            supplierName: partners.find((row) => row.id === partnerId)?.name ?? '',
+            supplierName: order.partnerName || partners.find((row) => row.id === partnerId)?.name || '',
             dueDate: order.dueDate ?? '',
             orderDate: order.orderDate ?? '',
             fileName: order.fileName ?? '',

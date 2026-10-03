@@ -11,6 +11,7 @@ import {
   ledgerAttachment,
   ledgerInsert,
   stampLedgerCatalog,
+  stampOrderCatalog,
   statementsForCommand,
   stateFromRows,
 } from './persist'
@@ -208,6 +209,72 @@ describe('재고 영속 묶음', () => {
     expect(stmt.params).toContain('견본문구')
   })
 
+  it('발주는 확정 당시 품목명·단위·공급사명을 남긴다', () => {
+    const catalog = {
+      items: [{ id: ITEM, name: '복사용지', unit: '박스', purchaseKind: 'supply' }],
+      warehouses: [{ id: MAIN, name: '본사창고' }],
+      partners: [{ id: 'partner-guest', name: '견본문구' }],
+      purchaseKinds: [{ id: 'supply', name: '일반 비품' }],
+    }
+    const stamped = stampOrderCatalog(
+      {
+        id: 'ord-1',
+        itemId: ITEM,
+        qty: 2,
+        status: 'confirmed',
+        partnerId: 'partner-guest',
+        lines: [{ itemId: ITEM, qty: 2 }],
+      },
+      catalog,
+    )
+    expect(stamped).toMatchObject({
+      partnerName: '견본문구',
+      lines: [{ itemId: ITEM, qty: 2, itemName: '복사용지', itemUnit: '박스', purchaseKind: '일반 비품' }],
+    })
+    expect(
+      stampOrderCatalog(
+        { ...stamped, partnerName: '옛문구', lines: stamped.lines?.map((line) => ({ ...line, itemName: '옛복사용지' })) },
+        {
+          ...catalog,
+          items: [{ id: ITEM, name: '새복사용지', unit: '권', purchaseKind: 'material' }],
+          partners: [{ id: 'partner-guest', name: '새문구' }],
+        },
+      ),
+    ).toMatchObject({
+      partnerName: '옛문구',
+      lines: [{ itemName: '옛복사용지', itemUnit: '박스', purchaseKind: '일반 비품' }],
+    })
+    const restored = stateFromRows(
+      [
+        {
+          id: 'ord-1',
+          item_id: ITEM,
+          qty: 2,
+          status: 'confirmed',
+          operation_id: 'op-ord',
+          partner_id: 'partner-guest',
+          partner_name: '견본문구',
+        },
+      ],
+      [],
+      ['op-ord'],
+      [
+        {
+          order_id: 'ord-1',
+          item_id: ITEM,
+          qty: 2,
+          item_name: '복사용지',
+          item_unit: '박스',
+          purchase_kind: '일반 비품',
+        },
+      ],
+    )
+    expect(restored.orders.get('ord-1')).toMatchObject({
+      partnerName: '견본문구',
+      lines: [{ itemName: '복사용지', itemUnit: '박스', purchaseKind: '일반 비품' }],
+    })
+  })
+
   it('자산화는 원장 출고와 자산 행을 한 묶음으로 만든다', () => {
     let state = createStockState()
     state = applyStockCommand(state, {
@@ -305,6 +372,7 @@ describe('재고 영속 묶음', () => {
       '2026-09-27',
       '2026-09-20',
       'KRW',
+      null,
       null,
       null,
       null,

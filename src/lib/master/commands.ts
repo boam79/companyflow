@@ -212,6 +212,13 @@ export function masterOptionalText(raw?: string) {
   return text
 }
 
+export function masterOptionalDate(raw?: string) {
+  const text = (raw ?? '').trim()
+  if (!text) return undefined
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) throw new Error('입사일은 날짜로 넣으세요.')
+  return text
+}
+
 export function masterInsertStatement(
   table: string,
   row: {
@@ -232,13 +239,23 @@ export function masterInsertStatement(
     fileBase64?: string
     locationText?: string
     employeeNo?: string
+    title?: string
+    hiredAt?: string
   },
 ): { sql: string; params: unknown[] } {
   assertMasterTable(table)
   if (table === 'employees') {
     return {
-      sql: 'insert into employees(id, name, department_id, employee_no, created_at) values(?, ?, ?, ?, ?)',
-      params: [row.id, row.name, row.departmentId ?? null, masterOptionalText(row.employeeNo) ?? null, row.createdAt],
+      sql: 'insert into employees(id, name, department_id, employee_no, title, hired_at, created_at) values(?, ?, ?, ?, ?, ?, ?)',
+      params: [
+        row.id,
+        row.name,
+        row.departmentId ?? null,
+        masterOptionalText(row.employeeNo) ?? null,
+        masterOptionalText(row.title) ?? null,
+        masterOptionalDate(row.hiredAt) ?? null,
+        row.createdAt,
+      ],
     }
   }
   if (table === 'items') {
@@ -401,13 +418,22 @@ export function employeeUpdateStatement(row: {
   name: string
   departmentId?: string
   employeeNo?: string
+  title?: string
+  hiredAt?: string
 }) {
   if (!row.id.trim()) throw new Error('고칠 직원을 고르세요.')
   const name = normalizeHangulField(row.name)
   if (!name) throw new Error('직원 이름을 입력하세요.')
   return {
-    sql: 'update employees set name = ?, department_id = ?, employee_no = ? where id = ?',
-    params: [name, row.departmentId?.trim() || null, masterOptionalText(row.employeeNo) ?? null, row.id],
+    sql: 'update employees set name = ?, department_id = ?, employee_no = ?, title = ?, hired_at = ? where id = ?',
+    params: [
+      name,
+      row.departmentId?.trim() || null,
+      masterOptionalText(row.employeeNo) ?? null,
+      masterOptionalText(row.title) ?? null,
+      masterOptionalDate(row.hiredAt) ?? null,
+      row.id,
+    ],
   }
 }
 

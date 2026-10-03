@@ -24,6 +24,7 @@ import {
   masterSavedNotice,
   masterDisabledNotice,
   masterOptionalText,
+  masterOptionalDate,
   warehouseUpdateStatement,
   employeeUpdateStatement,
 } from './commands'
@@ -38,7 +39,7 @@ describe('기준정보 SQL 명령', () => {
       })
       expect(stmt.sql.startsWith(`insert into ${table}`)).toBe(true)
       if (table === 'employees') {
-        expect(stmt.params).toEqual(['id-1', '총무', null, null, '2026-09-16T00:00:00.000Z'])
+        expect(stmt.params).toEqual(['id-1', '총무', null, null, null, null, '2026-09-16T00:00:00.000Z'])
       } else if (table === 'items') {
         expect(stmt.params).toEqual(['id-1', '총무', null, '개', 0, 'supply', null, '2026-09-16T00:00:00.000Z'])
       } else if (table === 'partners') {
@@ -271,6 +272,9 @@ describe('기준정보 SQL 명령', () => {
     expect(masterOptionalText(' 샘플 3층 ')).toBe('샘플 3층')
     expect(masterOptionalText('aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee')).toBeUndefined()
     expect(masterOptionalText('guest:wh-main')).toBeUndefined()
+    expect(masterOptionalDate('2026-10-01')).toBe('2026-10-01')
+    expect(masterOptionalDate('')).toBeUndefined()
+    expect(() => masterOptionalDate('2026/10/01')).toThrow(/입사일/)
     expect(
       masterInsertStatement('warehouses', {
         id: 'wh-q',
@@ -292,8 +296,10 @@ describe('기준정보 SQL 명령', () => {
         createdAt: 't',
         departmentId: 'dept-guest-admin',
         employeeNo: 'G-001',
+        title: '대리',
+        hiredAt: '2026-10-01',
       }).params,
-    ).toEqual(['emp-1', '견본 테스트', 'dept-guest-admin', 'G-001', 't'])
+    ).toEqual(['emp-1', '견본 테스트', 'dept-guest-admin', 'G-001', '대리', '2026-10-01', 't'])
     expect(masterOptionalText('pjm7908@hanmail.net')).toBeUndefined()
     expect(
       employeeUpdateStatement({
@@ -301,7 +307,9 @@ describe('기준정보 SQL 명령', () => {
         name: '견본 테스트',
         departmentId: 'dept-guest-admin',
         employeeNo: 'G-001',
+        title: '대리',
+        hiredAt: '2026-10-01',
       }).params,
-    ).toEqual(['견본 테스트', 'dept-guest-admin', 'G-001', 'emp-1'])
+    ).toEqual(['견본 테스트', 'dept-guest-admin', 'G-001', '대리', '2026-10-01', 'emp-1'])
   })
 })

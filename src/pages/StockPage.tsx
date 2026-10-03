@@ -29,7 +29,7 @@ import {
 import { toArrayBuffer } from '../lib/contracts/book'
 import { onHand, orderNetReceived, orderRemaining, returnBalance, inboundReturnBalance, inboundSupplierSource, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { defaultStockPolicy, loadStockPolicy, showsOverflowReason } from '../lib/stock/policy'
-import { assertDueReturnAt, assertInboundAt, buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderQtyText, orderReceiptProgress, overdueIssueReturns, publicStockOrderId, resolveIssueDepartment, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssueNoteLead, stockIssuePersonName, stockLastSaveLead, stockOutboundLead, stockPageLead, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, supplyLowStock, todayYmd, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { assertDueReturnAt, assertInboundAt, buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderQtyText, orderReceiptProgress, overdueIssueReturns, publicStockOrderId, resolveIssueDepartment, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssueNoteLead, stockIssuePersonName, stockLastSaveLead, stockOnHandPreview, stockOnHandPreviewKind, stockOutboundLead, stockPageLead, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, supplyLowStock, todayYmd, transferWarehouseIds, supplyItems, supplyOrderCsv, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, ledgerRelatedJumps, sessionRecorderName, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -902,6 +902,9 @@ export function StockPage() {
   const showsWarehouse = inventoryShowsWarehouseField(action, warehouses.length)
   const showsTransfer = inventoryShowsTransferFields(action, warehouses.length)
   const adjustBookQty = state ? onHand(state, itemId, warehouseId) : 0
+  const previewKind = stockOnHandPreviewKind(action)
+  const previewWarehouseId = action === 'transfer_stock' ? fromWarehouseId : warehouseId
+  const previewOnHand = state && itemId && previewWarehouseId ? onHand(state, itemId, previewWarehouseId) : 0
   const returnRemain = returnBalance(state?.ledger ?? [], sourceOperationId)
   const inboundReturnSource = state
     ? inboundSupplierSource(state.ledger, sourceOperationId, itemId, selectedLine)
@@ -1513,6 +1516,9 @@ export function StockPage() {
                 onChange={(e) => setQty(e.target.value)}
               />
             </label>
+          ) : null}
+          {previewKind ? (
+            <p className="sm:col-span-2 text-sm text-muted">{stockOnHandPreview(previewOnHand, qty, previewKind)}</p>
           ) : null}
           {action === 'post_receipt' && !receiptAsAsset ? (
             <label className="w-28 text-sm">

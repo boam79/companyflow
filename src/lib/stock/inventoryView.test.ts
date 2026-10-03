@@ -23,6 +23,8 @@ import {
   stockAdjustLead,
   stockDirectInLead,
   stockIssueNoteLead,
+  stockOnHandPreview,
+  stockOnHandPreviewKind,
   assertDueReturnAt,
   assertInboundAt,
   stockOutboundLead,
@@ -653,5 +655,47 @@ describe('비품 발주 목록', () => {
       },
     ])
     expect(csv).not.toMatch(/guest:/)
+  })
+
+  it('입출고는 현재고와 확정 후를 보여 준다', () => {
+    expect(stockOnHandPreviewKind('post_issue')).toBe('out')
+    expect(stockOnHandPreviewKind('post_outbound')).toBe('out')
+    expect(stockOnHandPreviewKind('post_supplier_return')).toBe('out')
+    expect(stockOnHandPreviewKind('transfer_stock')).toBe('out')
+    expect(stockOnHandPreviewKind('post_direct_in')).toBe('in')
+    expect(stockOnHandPreviewKind('adjust_stock')).toBeUndefined()
+    expect(stockOnHandPreview(7, '1', 'out')).toBe('현재고 7 · 확정 후 6')
+    expect(stockOnHandPreview(7, '1', 'in')).toBe('현재고 7 · 확정 후 8')
+    expect(stockOnHandPreview(7, '2', 'out')).toBe('현재고 7 · 확정 후 5')
+    expect(stockOnHandPreview(7, '', 'out')).toBe('현재고 7')
+  })
+
+  it('발주 목록은 확정 당시 품목명·공급사명을 쓴다', () => {
+    let state = applyStockCommand(createStockState(), {
+      type: 'confirm_order',
+      operationId: 'op-snap',
+      orderId: 'ord-snap',
+      itemId: PAPER_ITEM.id,
+      qty: 2,
+      partnerId: 'partner-guest',
+    }).state
+    const order = state.orders.get('ord-snap')
+    if (!order) throw new Error('발주가 없습니다.')
+    state = {
+      ...state,
+      orders: new Map(state.orders).set('ord-snap', {
+        ...order,
+        partnerName: '옛문구',
+        lines: [{ itemId: PAPER_ITEM.id, qty: 2, itemName: '옛복사용지', itemUnit: '박스' }],
+      }),
+    }
+    expect(
+      buildSupplyOrderList([{ ...PAPER_ITEM, name: '새복사용지' }], state, [
+        { id: 'partner-guest', name: '새문구' },
+      ])[0],
+    ).toMatchObject({
+      itemName: '옛복사용지',
+      supplierName: '옛문구',
+    })
   })
 })
