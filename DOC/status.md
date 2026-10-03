@@ -103,10 +103,11 @@ Supabase 프로젝트: `companyflow` / `vswvkypdjizldieenapx` (ACTIVE_HEALTHY, a
 
 ## MCP에서 확인한 것
 
-- Vercel: `prj_KXGPhwGOtB8IQ2pAsnuTOZ0l3isR` / team `team_U7AuO5lMD3rtoAwkrj410jpx`. 도메인 `companyflow-opal.vercel.app`. 원입고 반품 READY `dpl_21Ai5qL6yF5hRGGnkX68kxNkCcZz` 번들 `index-CCViAxMb.js`. 단위 314. HTTPS E2E 57.
+- Vercel: `prj_KXGPhwGOtB8IQ2pAsnuTOZ0l3isR` / team `team_U7AuO5lMD3rtoAwkrj410jpx`. 도메인 `companyflow-opal.vercel.app`. 반납 기한 READY `dpl_gbBAwWWCRzauK3aZCLSDonvsxTkV` 번들 `index-kfLBAHgQ.js`. 단위 315. HTTPS E2E 58.
 - Supabase 활성: `companyflow`, `boardroom`. 정지: `boam79_patient_data`, `qr-asset-manager`, `policyfund-ai-v2`.
 - `confirm_company_device` RPC 추가. 초기 설정 성공 후 원본 장치를 confirmed 로 올린다.
 
+- 2026-10-03: 반출 반납 예정일이 지나면 `/stock` 반납 기한만 보여 준다. 단위 315. HTTPS E2E 58. READY `dpl_gbBAwWWCRzauK3aZCLSDonvsxTkV` 번들 `index-kfLBAHgQ.js`. 홈 카드·`/reports`·PUR-02는 두지 않음.
 - 2026-10-03: 직접 입고분 공급사 반품은 원입고 잔량만 받고 가짜 발주를 만들지 않는다. 단위 314. HTTPS E2E 57. READY `dpl_21Ai5qL6yF5hRGGnkX68kxNkCcZz` 번들 `index-CCViAxMb.js`. 단가·가짜 발주·`/reports`·PUR-02는 두지 않음.
 - 2026-10-03: 직접 입고 증빙·메모와 반출 첨부는 선택이다. 단위 312. HTTPS E2E 56. READY `dpl_6Mont82Kc6xTHynSu38hrkgCbNkm` 번들 `index-Dz4c12HB.js`. 단가·가짜 발주·`/reports`·PUR-02는 두지 않음.
 - 2026-10-03: 직접 입고 입고일은 원장에 남기고 칸 기본은 오늘이다. 단위 312. HTTPS E2E 56. READY `dpl_EQJD9FSS4Q5FZ75oKEE9eHt8gyCs` 번들 `index-D789U6Lq.js`. 단가·가짜 발주·`/reports`·PUR-02는 두지 않음.
@@ -285,6 +286,7 @@ PRD 11.1·기능 ID·AC와 코드를 맞춰 본 결과다. T7·T8·T9는 2026-09
 
 - 반출 반납 예정일이 지난 건은 `/stock` 반납 기한에 둔다. 줄을 고르면 반납 칸을 연다
 - 건수 0·홈 카드·UUID는 두지 않는다. `/reports`·PUR-02는 되돌리지 않음
+- 단위 315. HTTPS E2E 58. READY `dpl_gbBAwWWCRzauK3aZCLSDonvsxTkV` 번들 `index-kfLBAHgQ.js`
 
 ### AST-01 자산 정보·QR (2026-10-03)
 
