@@ -1158,7 +1158,7 @@ export function MasterDataPage() {
           </div>
           <input
             className="mb-2 w-full rounded border border-line px-2 py-1.5 text-sm"
-            placeholder="이름·코드·위치"
+            placeholder="이름·코드·위치·번호"
             value={masterQuery}
             onChange={(event) => setMasterQuery(event.target.value)}
           />

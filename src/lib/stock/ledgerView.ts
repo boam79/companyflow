@@ -280,6 +280,7 @@ export function ledgerJumpCaption(line: LedgerLine): string {
     publicRecorderName(line.memo),
     publicRecorderName(line.partnerName),
     publicRecorderName(line.warehouseName),
+    /^\d{4}-\d{2}-\d{2}$/.test(line.dueReturnAt ?? '') ? `반납 예정 ${line.dueReturnAt}` : '',
     publicRecorderName(line.fileName),
   ]
     .filter(Boolean)

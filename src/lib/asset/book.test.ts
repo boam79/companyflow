@@ -59,8 +59,9 @@ describe('재고 자산화', () => {
           },
         ],
         [{ id: 'item-desk', name: '샘플 책상' }],
+        [{ id: MAIN, name: '샘플창고' }],
       ),
-    ).toContain('AST-DEMO-DSK-01,샘플 책상,견본 책상,DEMO-DSK-01,샘플 1층 로비,샘플총무,견본 김대리,ORD-DEMO-01,2026-08-01,사용')
+    ).toContain('AST-DEMO-DSK-01,샘플 책상,견본 책상,DEMO-DSK-01,샘플 1층 로비,샘플창고,샘플총무,견본 김대리,ORD-DEMO-01,2026-08-01,사용')
     expect(
       assetListCsv(
         [
@@ -114,13 +115,14 @@ describe('재고 자산화', () => {
           status: 'returned',
           sourceOperationId: 'guest:desk-1',
           serialNo: 'DEMO-DSK-01',
+          departmentName: '샘플총무',
           ownerName: '견본 김대리',
           acquiredAt: '2026-08-01',
         },
         [{ id: 'item-desk', name: '샘플 책상' }],
         [{ id: MAIN, name: '샘플창고' }],
       ),
-    ).toBe('AST-DEMO-DSK-01 · 샘플 책상 · DEMO-DSK-01 · 샘플창고 · 견본 김대리 · 2026-08-01 · 반품')
+    ).toBe('AST-DEMO-DSK-01 · 샘플 책상 · DEMO-DSK-01 · 샘플창고 · 샘플총무 · 견본 김대리 · 2026-08-01 · 반품')
   })
 
   it('보관 자산을 직원에게 배정하면 상태가 배정이 된다', () => {

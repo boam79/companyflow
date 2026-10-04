@@ -138,8 +138,9 @@ describe('계약 초안', () => {
         orderId: 'ORD-DEMO-01',
         partnerName: '견본임대',
         currency: 'USD',
+        endAt: '2026-12-31',
       }),
-    ).toBe('거래처 견본임대 · 담당 견본 김대리 · 발주 ORD-DEMO-01 · 달러')
+    ).toBe('거래처 견본임대 · 담당 견본 김대리 · 발주 ORD-DEMO-01 · 달러 · 종료 2026-12-31')
     expect(contractListMeta({ ownerName: 'guest:emp', orderId: 'sample:ord', partnerName: 'guest:p' })).toBe('')
     expect(contractDueCaption('2026-11-02', '2026-10-04')).toBe('만료 예정 · 29일 전')
     expect(contractDueCaption('2026-10-04', '2026-10-04')).toBe('만료 예정 · 오늘 종료')

@@ -626,7 +626,16 @@ export function overdueSupplyOrderCaption(row: PurchaseOrderRow, today?: string)
 export function filterOrders<
   T extends Pick<
     PurchaseOrderRow,
-    'orderId' | 'itemName' | 'itemUnit' | 'purchaseKind' | 'requestId' | 'supplierName' | 'fileName' | 'currencyName'
+    | 'orderId'
+    | 'itemName'
+    | 'itemUnit'
+    | 'purchaseKind'
+    | 'requestId'
+    | 'supplierName'
+    | 'fileName'
+    | 'currencyName'
+    | 'dueDate'
+    | 'orderDate'
   >,
 >(rows: T[], query: string): T[] {
   const needle = query.trim().toLowerCase()
@@ -641,6 +650,8 @@ export function filterOrders<
       row.supplierName,
       row.fileName,
       row.currencyName,
+      row.dueDate,
+      row.orderDate,
     ]
       .filter(Boolean)
       .some((value) => String(value).toLowerCase().includes(needle)),

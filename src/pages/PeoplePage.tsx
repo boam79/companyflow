@@ -696,6 +696,7 @@ export function PeoplePage() {
                       employee?.name ?? '',
                       today,
                       departments.find((dept) => dept.id === employee?.departmentId)?.name,
+                      employee?.employeeNo,
                     )}
                   </button>
                 </li>

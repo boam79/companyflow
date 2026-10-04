@@ -1,5 +1,6 @@
 import { assertContractFile, base64ToBytes, bytesToBase64 } from '../contracts/book'
 import { ymdDiffDays } from '../contracts/watch'
+import { masterOptionalText } from '../master/commands'
 
 export type HireWorkflowRecord = {
   employeeId: string
@@ -134,8 +135,16 @@ export function overdueHireCaption(
   employeeName: string,
   today: string,
   departmentName?: string,
+  employeeNo?: string,
 ) {
-  return [employeeName, departmentName?.trim(), hireWorkflowCaption(row, today)].filter(Boolean).join(' · ')
+  return [
+    employeeName,
+    departmentName?.trim(),
+    masterOptionalText(employeeNo),
+    hireWorkflowCaption(row, today),
+  ]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 export function hireWorkflowCaption(

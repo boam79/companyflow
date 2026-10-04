@@ -607,7 +607,7 @@ export function AssetsPage() {
           <>
           <input
             className="mt-2 w-full rounded border border-line px-2 py-1.5 text-sm"
-            placeholder="번호·품목·모델·위치·담당"
+            placeholder="번호·품목·모델·위치·담당·상태"
             value={assetQuery}
             onChange={(event) => setAssetQuery(event.target.value)}
           />

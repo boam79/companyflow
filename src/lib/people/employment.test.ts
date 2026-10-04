@@ -144,6 +144,7 @@ describe('입퇴사', () => {
     ])
     expect(rosterPhase(employee, checks)).toBe('joining')
     expect(hireProcessSummary(employee, checks)).toBe('입사 중 · 2/4 · 2026-09-16')
+    expect(hireProcessSummary({ ...employee, employeeNo: 'G-101' }, checks)).toBe('입사 중 · 2/4 · 2026-09-16 · G-101')
     const complete = applyIssueCheck(applyIssueCheck(checks, 'badge', '2026-09-16'), 'uniform', '2026-09-16')
     expect(rosterPhase(employee, complete)).toBe('employed')
     expect(rosterPhase(employee, applyReturnCheck(complete, 'badge', '2026-09-20'))).toBe('employed')

@@ -92,11 +92,11 @@ export function hireProcessSummary(employee: EmployeeRecord, checks: OnboardingC
   const steps = hireProcessSteps(employee, checks)
   const done = steps.filter((step) => step.done).length
   const hired = /^\d{4}-\d{2}-\d{2}$/.test(employee.hiredAt ?? '') ? employee.hiredAt : ''
-  if (employee.leftAt) return ['퇴사 · 입사 프로세스 종료', hired].filter(Boolean).join(' · ')
+  if (employee.leftAt) return ['퇴사 · 입사 프로세스 종료', hired, masterOptionalText(employee.employeeNo)].filter(Boolean).join(' · ')
   if (rosterPhase(employee, checks) === 'employed') {
-    return ['입사 완료 · 3/3 지급', hired].filter(Boolean).join(' · ')
+    return ['입사 완료 · 3/3 지급', hired, masterOptionalText(employee.employeeNo)].filter(Boolean).join(' · ')
   }
-  return ['입사 중 · ' + `${done}/4`, hired].filter(Boolean).join(' · ')
+  return ['입사 중 · ' + `${done}/4`, hired, masterOptionalText(employee.employeeNo)].filter(Boolean).join(' · ')
 }
 
 export function groupRoster(employees: EmployeeRecord[], checkRows: CheckRow[]) {

@@ -117,16 +117,19 @@ export function contractListMeta(row: {
   orderId?: string
   partnerName?: string
   currency?: string
+  endAt?: string
 }) {
   const partner = publicContractRef(row.partnerName)
   const owner = publicContractRef(row.ownerName)
   const order = publicContractRef(row.orderId)
   const currency = contractCurrencyName(row.currency)
+  const end = /^\d{4}-\d{2}-\d{2}$/.test(row.endAt ?? '') ? `종료 ${row.endAt}` : ''
   return [
     partner ? `거래처 ${partner}` : '',
     owner ? `담당 ${owner}` : '',
     order ? `발주 ${order}` : '',
     currency,
+    end,
   ]
     .filter(Boolean)
     .join(' · ')

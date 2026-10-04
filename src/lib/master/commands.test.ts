@@ -300,6 +300,15 @@ describe('기준정보 SQL 명령', () => {
         '1층',
       ).map((row) => row.name),
     ).toEqual(['샘플창고'])
+    expect(
+      filterMasterRows(
+        [
+          { id: 'emp-a', name: '견본 김대리', employeeNo: 'G-101' },
+          { id: 'emp-b', name: '데모 이사원', employeeNo: 'G-102' },
+        ],
+        'G-101',
+      ).map((row) => row.name),
+    ).toEqual(['견본 김대리'])
     expect(masterSavedNotice('부서', 'applied')).toBe('저장했습니다. (부서)')
     expect(masterSavedNotice('부서', 'duplicate')).toBe('같은 내용은 한 번만 반영됩니다.')
     expect(masterDisabledNotice('창고', 'applied')).toBe('사용 안 함으로 바꿨습니다. (창고)')

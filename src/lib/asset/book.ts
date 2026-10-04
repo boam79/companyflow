@@ -57,6 +57,7 @@ export function assetClosedCaption(
     publicRecorderName(asset.serialNo),
     publicRecorderName(asset.locationText),
     publicRecorderName(warehouses.find((warehouse) => warehouse.id === asset.warehouseId)?.name),
+    publicRecorderName(asset.departmentName),
     publicRecorderName(asset.ownerName),
     asset.acquiredAt ?? '',
     assetStatusLabel(asset.status),
@@ -98,7 +99,7 @@ export function assetListCsv(
   warehouses: { id: string; name: string }[] = [],
 ): string {
   return csvTable(
-    ['자산번호', '품목', '모델', '일련번호', '위치', '부서', '담당', '구매원본', '취득', '상태'],
+    ['자산번호', '품목', '모델', '일련번호', '위치', '창고', '부서', '담당', '구매원본', '취득', '상태'],
     assets.map((asset) => {
       const itemName = items.find((item) => item.id === asset.itemId)?.name ?? ''
       const warehouse = warehouses.find((row) => row.id === asset.warehouseId)?.name ?? ''
@@ -107,7 +108,8 @@ export function assetListCsv(
         itemName,
         publicRecorderName(asset.model),
         publicRecorderName(asset.serialNo),
-        publicRecorderName(asset.locationText) || publicRecorderName(warehouse),
+        publicRecorderName(asset.locationText),
+        publicRecorderName(warehouse),
         publicRecorderName(asset.departmentName),
         publicRecorderName(asset.ownerName),
         publicOrderRef(asset.sourceOrderId),

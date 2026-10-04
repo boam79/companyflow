@@ -911,5 +911,6 @@ describe('비품 발주 목록', () => {
     )
     expect(overdueSupplyOrders([due], '2026-01-01')).toEqual([])
     expect(filterOrders([due, later], 'ORD-DEMO-01').map((row) => row.orderId)).toEqual(['ORD-DEMO-01'])
+    expect(filterOrders([due, later], '2026-01-01').map((row) => row.orderId)).toEqual(['ORD-DEMO-01'])
   })
 })

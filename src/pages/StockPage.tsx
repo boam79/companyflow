@@ -1178,7 +1178,7 @@ export function StockPage() {
           <>
           <input
             className="mt-2 w-full rounded border border-line px-2 py-1.5 text-sm"
-            placeholder="요청번호·요청자·품목"
+            placeholder="요청번호·요청자·품목·목적"
             value={requestQuery}
             onChange={(event) => setRequestQuery(event.target.value)}
           />
@@ -1603,7 +1603,7 @@ export function StockPage() {
               </div>
               <input
                 className="w-full rounded border border-line px-2 py-1.5 text-sm"
-                placeholder="발주번호·품목·공급사"
+                placeholder="발주번호·품목·공급사·요청"
                 value={orderQuery}
                 onChange={(event) => setOrderQuery(event.target.value)}
               />
@@ -1672,7 +1672,7 @@ export function StockPage() {
         ) : null}
         <input
           className="mt-3 w-full rounded border border-line px-2 py-1.5 text-sm"
-          placeholder="구분·품목·성명·창고"
+          placeholder="구분·품목·성명·창고·목적"
           value={ledgerQuery}
           onChange={(event) => setLedgerQuery(event.target.value)}
         />
