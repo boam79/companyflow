@@ -30,7 +30,7 @@ test('게스트 기준정보 부서·창고·직원은 샘플만 둔다', async 
   await expect(page.getByText('샘플창고')).toBeVisible()
   await expect(page.getByText('본사창고')).toHaveCount(0)
   await page.getByRole('button', { name: '직원', exact: true }).click()
-  await expect(page.getByText('견본 김대리')).toBeVisible()
+  await expect(page.getByRole('cell', { name: '견본 김대리' })).toBeVisible()
   await expect(page.getByText('김담당')).toHaveCount(0)
 })
 
@@ -468,7 +468,7 @@ test('게스트 구매요청은 바로 저장하고 발주 잔량을 지킨다',
   await page.getByRole('button', { name: '요청 저장' }).click()
   await expect(page.getByText('구매요청을 저장했습니다.')).toBeVisible()
   await expect(page.getByRole('button', { name: '견본요청.png', exact: true })).toBeVisible()
-  await page.getByRole('button', { name: /REQ-DEMO-01.*미발주/ }).click()
+  await page.getByRole('button', { name: /REQ-DEMO-01 · 필요 2026-01-01.*견본요청\.pdf · 미발주 10/ }).click()
   await expect(page.getByLabel('연결 요청')).toHaveValue('REQ-DEMO-01')
   await page.getByLabel('발주 번호').fill('ORD-REQ-01')
   await page.getByLabel('수량', { exact: true }).fill('11')
