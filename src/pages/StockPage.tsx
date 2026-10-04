@@ -19,6 +19,7 @@ import {
   requestAmountText,
   requestAttachment,
   overduePurchaseRequestCaption,
+  purchaseRequestCsv,
   overduePurchaseRequests,
   requestHasRemaining,
   requestListButtonLabel,
@@ -31,7 +32,7 @@ import {
 import { toArrayBuffer } from '../lib/contracts/book'
 import { onHand, orderNetReceived, orderRemaining, returnBalance, inboundReturnBalance, inboundSupplierSource, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { defaultStockPolicy, loadStockPolicy, showsOverflowReason } from '../lib/stock/policy'
-import { assertDueReturnAt, assertInboundAt, buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderInspectCaption, orderItemCaption, orderQtyText, orderReceiptProgress, overdueIssueReturns, overdueSupplyOrderCaption, overdueSupplyOrders, partnerSelectHint, publicStockOrderId, resolveIssueDepartment, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssueNoteLead, stockIssuePersonName, stockLastSaveLead, stockOnHandPreview, stockOnHandPreviewKind, stockOutboundLead, stockPageLead, stockQtyUnitHint, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, stockTransferOnHandPreview, supplyLowStock, todayYmd, transferWarehouseIds, supplyItems, supplyOrderCsv, warehouseOptionLabel, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { assertDueReturnAt, assertInboundAt, buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryItemCaption, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderInspectCaption, orderItemCaption, orderQtyText, orderReceiptProgress, overdueIssueReturns, overdueSupplyOrderCaption, overdueSupplyOrders, partnerSelectHint, publicStockOrderId, resolveIssueDepartment, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssueNoteLead, stockIssuePersonName, stockLastSaveLead, stockOnHandPreview, stockOnHandPreviewKind, stockOutboundLead, stockPageLead, stockQtyUnitHint, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, stockTransferOnHandPreview, supplyLowStock, todayYmd, transferWarehouseIds, supplyItems, supplyOrderCsv, warehouseOptionLabel, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { isSupplyLedgerLine, ledgerRelatedJumps, sessionRecorderName, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -67,6 +68,19 @@ function downloadSupplyOrderCsv(rows: PurchaseOrderRow[]) {
   const link = document.createElement('a')
   link.href = url
   link.download = '발주.csv'
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+function downloadPurchaseRequestCsv(
+  rows: PurchaseRequest[],
+  orders: { id: string; itemId: string; qty: number; lines?: { itemId: string; qty: number }[]; requestId?: string }[],
+) {
+  const blob = new Blob([purchaseRequestCsv(rows, orders)], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = '구매요청.csv'
   link.click()
   URL.revokeObjectURL(url)
 }
@@ -1144,7 +1158,7 @@ export function StockPage() {
                   }`}
                   onClick={() => fillOrderFromRequest(row)}
                 >
-                  {overduePurchaseRequestCaption(row)}
+                  {overduePurchaseRequestCaption(row, orderRows)}
                 </button>
               </li>
             ))}
@@ -1153,7 +1167,18 @@ export function StockPage() {
       ) : null}
 
       <section className="rounded-lg border border-line bg-card p-4">
-        <h2 className="text-base font-semibold">{countHeading('구매요청', requests.length)}</h2>
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <h2 className="text-base font-semibold">{countHeading('구매요청', requests.length)}</h2>
+          {requests.length ? (
+            <button
+              type="button"
+              className="rounded border border-line px-2 py-1 text-xs font-semibold"
+              onClick={() => downloadPurchaseRequestCsv(requests, orderRows)}
+            >
+              요청 목록 받기
+            </button>
+          ) : null}
+        </div>
         {requests.length ? (
           <ul className="mt-2 flex flex-wrap gap-2">
             {requests.map((row) => (
@@ -1445,7 +1470,7 @@ export function StockPage() {
                       }`}
                       onClick={() => chooseItem(row.itemId)}
                     >
-                      <td className="py-1.5 pr-3 font-medium">{row.itemName}</td>
+                      <td className="py-1.5 pr-3 font-medium">{inventoryItemCaption(row)}</td>
                       {warehouseColumns.map((warehouse, index) => {
                         const qtyAtWarehouse = row.quantities[index] ?? 0
                         const warehouseActive = active && warehouse.id === warehouseId

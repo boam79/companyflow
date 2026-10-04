@@ -132,8 +132,9 @@ export function overdueHireCaption(
   row: { ownerName?: string; dueAt?: string; fileName?: string },
   employeeName: string,
   today: string,
+  departmentName?: string,
 ) {
-  return [employeeName, hireWorkflowCaption(row, today)].filter(Boolean).join(' · ')
+  return [employeeName, departmentName?.trim(), hireWorkflowCaption(row, today)].filter(Boolean).join(' · ')
 }
 
 export function hireWorkflowCaption(

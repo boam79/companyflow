@@ -674,7 +674,12 @@ export function PeoplePage() {
                       setBadgeEmployeeId(row.employeeId)
                     }}
                   >
-                    {overdueHireCaption(row, employee?.name ?? '', today)}
+                    {overdueHireCaption(
+                      row,
+                      employee?.name ?? '',
+                      today,
+                      departments.find((dept) => dept.id === employee?.departmentId)?.name,
+                    )}
                   </button>
                 </li>
               )

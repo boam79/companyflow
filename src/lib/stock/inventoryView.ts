@@ -11,6 +11,7 @@ export type LowStock = {
   minStock: number
   managed?: boolean
   unit?: string
+  code?: string
 }
 
 export function lowStock(rows: LowStock[]): LowStock[] {
@@ -22,8 +23,14 @@ export function lowStock(rows: LowStock[]): LowStock[] {
 export type SupplyInventoryRow = {
   itemId: string
   itemName: string
+  itemCode?: string
+  itemUnit?: string
   quantities: number[]
   total: number
+}
+
+export function inventoryItemCaption(row: Pick<SupplyInventoryRow, 'itemName' | 'itemCode' | 'itemUnit'>) {
+  return [row.itemName, publicCaptionPart(row.itemCode), publicCaptionPart(row.itemUnit)].filter(Boolean).join(' · ')
 }
 
 export function supplyItems(items: ItemRecord[]): ItemRecord[] {
@@ -235,7 +242,7 @@ export function overdueIssueReturnLine(
   personName: string | undefined,
   itemName: string,
   dueReturnAt?: string,
-  extra?: { departmentName?: string; purpose?: string },
+  extra?: { departmentName?: string; purpose?: string; memo?: string; fileName?: string },
 ) {
   const due = dueReturnAt?.trim() ?? ''
   const late = due && /^\d{4}-\d{2}-\d{2}$/.test(due) ? `기한 지남 ${due}` : '기한 지남'
@@ -244,6 +251,8 @@ export function overdueIssueReturnLine(
     publicCaptionPart(extra?.departmentName),
     publicItemLabel(itemName),
     publicCaptionPart(extra?.purpose),
+    publicCaptionPart(extra?.memo),
+    publicCaptionPart(extra?.fileName),
     late,
   ]
     .filter(Boolean)
@@ -270,6 +279,8 @@ export function overdueIssueReturns(ledger: LedgerLine[], items: ItemRecord[], t
           caption: overdueIssueReturnLine(line.personName, itemName, due, {
             departmentName: line.departmentName,
             purpose: line.purpose,
+            memo: line.memo,
+            fileName: line.fileName,
           }),
         },
       ]
@@ -349,6 +360,8 @@ export function buildSupplyInventory(
   return supplyItems(items).map((item) => ({
     itemId: item.id,
     itemName: item.name,
+    ...(item.code?.trim() ? { itemCode: item.code.trim() } : {}),
+    ...(item.unit?.trim() ? { itemUnit: item.unit.trim() } : {}),
     quantities: warehouses.map((warehouse) => onHand(state, item.id, warehouse.id)),
     total: companyOnHand(state, item.id),
   }))
@@ -363,14 +376,17 @@ export function supplyLowStock(items: ItemRecord[], state: StockState): LowStock
       minStock: item.minStock ?? 0,
       managed: item.stockManaged,
       unit: item.unit,
+      code: item.code,
     })),
   )
 }
 
-export function lowStockLine(row: Pick<LowStock, 'itemName' | 'onHand' | 'minStock' | 'unit'>) {
+export function lowStockLine(row: Pick<LowStock, 'itemName' | 'onHand' | 'minStock' | 'unit' | 'code'>) {
   const unit = row.unit?.trim()
-  return unit
-    ? `${row.itemName} ${row.onHand} / 최소 ${row.minStock} · ${unit}`
+  const code = publicCaptionPart(row.code)
+  const suffix = [unit, code].filter(Boolean).join(' · ')
+  return suffix
+    ? `${row.itemName} ${row.onHand} / 최소 ${row.minStock} · ${suffix}`
     : `${row.itemName} ${row.onHand} / 최소 ${row.minStock}`
 }
 
@@ -541,7 +557,8 @@ export function overdueSupplyOrders(rows: PurchaseOrderRow[], today: string): Pu
 
 export function overdueSupplyOrderCaption(row: PurchaseOrderRow) {
   const order = publicStockOrderId(row.orderId)
-  return [order, row.supplierName, orderItemCaption(row), row.requestId, row.fileName, `납기 ${row.dueDate}`]
+  const remain = row.remainingQty > 0 ? `미수령 ${row.remainingQty}` : ''
+  return [order, row.supplierName, orderItemCaption(row), row.requestId, row.fileName, `납기 ${row.dueDate}`, remain]
     .filter(Boolean)
     .join(' · ')
 }

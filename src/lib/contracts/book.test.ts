@@ -6,6 +6,7 @@ import {
   bytesToBase64,
   contractAmountText,
   contractLife,
+  contractDueCaption,
   contractListMeta,
   contractPeriod,
   defaultContractTab,
@@ -127,6 +128,9 @@ describe('계약 초안', () => {
       '담당 견본 김대리 · 발주 ORD-DEMO-01',
     )
     expect(contractListMeta({ ownerName: 'guest:emp', orderId: 'sample:ord' })).toBe('')
+    expect(contractDueCaption('2026-11-02', '2026-10-04')).toBe('만료 예정 · 29일 전')
+    expect(contractDueCaption('2026-10-04', '2026-10-04')).toBe('만료 예정 · 오늘 종료')
+    expect(contractDueCaption('2026-09-01', '2026-10-04')).toBe('만료')
     expect(contractLife('2026-02-28', '2026-09-19')).toBe('종료')
     expect(contractLife('2026-12-31', '2026-09-19')).toBe('진행')
   })

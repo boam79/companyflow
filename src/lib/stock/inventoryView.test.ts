@@ -30,6 +30,7 @@ import {
   partnerSelectHint,
   stockQtyUnitHint,
   orderItemCaption,
+  inventoryItemCaption,
   overdueSupplyOrders,
   overdueSupplyOrderCaption,
   assertDueReturnAt,
@@ -223,6 +224,12 @@ describe('비품 현재고', () => {
     expect(lowStockLine({ itemName: '복사용지', onHand: 7, minStock: 10, unit: '박스' })).toBe(
       '복사용지 7 / 최소 10 · 박스',
     )
+    expect(lowStockLine({ itemName: '복사용지', onHand: 7, minStock: 10, unit: '박스', code: 'DEMO-PAPER' })).toBe(
+      '복사용지 7 / 최소 10 · 박스 · DEMO-PAPER',
+    )
+    expect(inventoryItemCaption({ itemName: '샘플 복사용지', itemCode: 'DEMO-PAPER', itemUnit: '박스' })).toBe(
+      '샘플 복사용지 · DEMO-PAPER · 박스',
+    )
     expect(
       supplyLowStock([{ ...PAPER_ITEM, minStock: 10 }, ...COMPANY_ASSET_ITEMS.map((item) => ({ ...item, minStock: 2 }))], state).map(
         (row) => [row.itemName, row.onHand, row.minStock],
@@ -266,6 +273,12 @@ describe('비품 현재고', () => {
         purpose: '샘플 청소',
       }),
     ).toBe('견본 김대리 · 샘플총무 · 복사용지 · 샘플 청소 · 기한 지남 2026-01-01')
+    expect(
+      overdueIssueReturnLine('견본 김대리', '복사용지', '2026-01-01', {
+        departmentName: '샘플총무',
+        memo: '샘플 반출 메모',
+      }),
+    ).toBe('견본 김대리 · 샘플총무 · 복사용지 · 샘플 반출 메모 · 기한 지남 2026-01-01')
     expect(overdueIssueReturnLine('aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', '복사용지', '2026-01-01')).toBe(
       '복사용지 · 기한 지남 2026-01-01',
     )
@@ -767,7 +780,7 @@ describe('비품 발주 목록', () => {
     const later = { ...due, orderId: 'ORD-DEMO-02', dueDate: '2026-12-31' }
     expect(overdueSupplyOrders([due, received, later], '2026-10-03')).toEqual([due])
     expect(overdueSupplyOrderCaption(due)).toBe(
-      'ORD-DEMO-01 · 견본임대 · 샘플 복사용지 · 견본발주.pdf · 납기 2026-01-01',
+      'ORD-DEMO-01 · 견본임대 · 샘플 복사용지 · 견본발주.pdf · 납기 2026-01-01 · 미수령 2',
     )
     expect(overdueSupplyOrders([due], '2026-01-01')).toEqual([])
   })

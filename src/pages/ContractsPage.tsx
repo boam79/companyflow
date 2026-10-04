@@ -8,6 +8,7 @@ import {
   contractOrderLabel,
   contractPeriod,
   contractListMeta,
+  contractDueCaption,
   contractPhase,
   contractPhaseCaption,
   defaultContractTab,
@@ -568,6 +569,7 @@ export function ContractsPage() {
                   {contractPeriod(row)} · {contractAmountText(row.amount, grouping, row.currency)}
                   {row.hasOriginal ? ` · ${row.fileName}` : ' · 원본 없음'}
                   {contractListMeta(row) ? ` · ${contractListMeta(row)}` : ''}
+                  {contractDueCaption(row.endAt, today) ? ` · ${contractDueCaption(row.endAt, today)}` : ''}
                   {row.ocrStatus === 'reviewed' ? ' · OCR 확인' : ''}
                 </span>
               </button>

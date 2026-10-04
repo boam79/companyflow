@@ -59,7 +59,7 @@ test('게스트 반출은 견본 이름으로 저장하고 중앙 쓰기를 하�
   await expect(page.getByText('저장했습니다. (반납)')).toBeVisible()
   await page.getByRole('cell', { name: '반납 입고' }).click()
   await expect(page.getByRole('button', { name: '원거래로' })).toBeVisible()
-  await expect(page.getByText('반출 · 견본 김대리 · 샘플 복사용지 · 1')).toBeVisible()
+  await expect(page.getByText('반출 · 견본 김대리 · 샘플 복사용지 · 1 · 샘플창고')).toBeVisible()
   await page.getByRole('button', { name: '원거래로' }).click()
   await expect(page.getByRole('button', { name: '반납으로' })).toBeVisible()
   await expect(page.getByText('거래 번호')).toHaveCount(0)

@@ -42,6 +42,23 @@ export function watchContracts(
   return watched.sort((a, b) => (a.endAt ?? '').localeCompare(b.endAt ?? ''))
 }
 
+export function ymdDiffDays(from: string, to: string) {
+  const start = Date.parse(`${from}T00:00:00`)
+  const end = Date.parse(`${to}T00:00:00`)
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return 0
+  return Math.round((end - start) / 86_400_000)
+}
+
+export function contractDueCaption(endAt: string | undefined, today: string) {
+  const watch = contractWatchLabel(endAt, today)
+  if (!watch || !endAt) return ''
+  if (watch === '만료') return '만료'
+  const days = ymdDiffDays(today, endAt)
+  if (days === 0) return '만료 예정 · 오늘 종료'
+  if (days > 0) return `만료 예정 · ${days}일 전`
+  return '만료 예정'
+}
+
 export function contractDueNotice(count: number) {
   return count ? `기한 알림 ${count}건이 ${CONTRACT_WATCH_DAYS}일 안에 끝납니다.` : ''
 }

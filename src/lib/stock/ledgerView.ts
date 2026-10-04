@@ -251,6 +251,8 @@ export function ledgerJumpCaption(line: LedgerLine): string {
   if (itemName && !isOpaqueLedgerRef(itemName) && !/^(guest:|item-)/i.test(itemName)) parts.push(itemName)
   const qty = Math.abs(line.qtyDelta)
   if (qty > 0) parts.push(String(qty))
+  const warehouse = line.warehouseName?.trim()
+  if (warehouse && !isOpaqueLedgerRef(warehouse) && !/^(guest:|wh-)/i.test(warehouse)) parts.push(warehouse)
   return parts.join(' · ')
 }
 

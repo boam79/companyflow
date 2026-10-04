@@ -1,7 +1,9 @@
 import { formatCompanyMoney } from '../company/displayCurrency'
 import { contractFileLimitBytes, DEFAULT_CONTRACT_MAX_MB } from './limits'
 import { parseOcrFieldsJson, type OcrFieldRecord } from './ocr'
-import { contractWatchLabel } from './watch'
+import { contractDueCaption, contractWatchLabel } from './watch'
+
+export { contractDueCaption }
 
 export type ContractStatus = 'draft'
 

@@ -310,11 +310,15 @@ export function overduePurchaseRequests(
     )
 }
 
-export function overduePurchaseRequestCaption(row: PurchaseRequest) {
+export function overduePurchaseRequestCaption(
+  row: PurchaseRequest,
+  orders: Pick<StockOrder, 'id' | 'itemId' | 'qty' | 'lines' | 'requestId'>[] = [],
+) {
   const itemPart = row.lines
     .map((line) => [line.itemName, line.itemUnit, line.purchaseKind].filter(Boolean).join(' · '))
     .filter(Boolean)
     .join(', ')
+  const left = row.lines.reduce((sum, line) => sum + requestRemainingQty(row, orders, line.itemId), 0)
   return [
     row.id,
     row.neededAt ? `필요 ${row.neededAt}` : '',
@@ -323,6 +327,7 @@ export function overduePurchaseRequestCaption(row: PurchaseRequest) {
     row.purpose,
     itemPart,
     row.fileName,
+    left > 0 ? `미발주 ${left}` : '',
   ]
     .filter(Boolean)
     .join(' · ')
@@ -487,4 +492,37 @@ export async function loadRequestOriginal(
     fileMime: row.file_mime || 'application/octet-stream',
     bytes: base64ToBytes(row.file_base64),
   }
+}
+
+function csvCell(value: string | number) {
+  const text = String(value)
+  if (/[",\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`
+  return text
+}
+
+export function purchaseRequestCsv(
+  rows: PurchaseRequest[],
+  orders: Pick<StockOrder, 'id' | 'itemId' | 'qty' | 'lines' | 'requestId'>[] = [],
+): string {
+  const header = ['요청번호', '요청자', '부서', '필요일', '목적', '품목', '단위', '구매구분', '수량', '상태', '첨부']
+  const lines = rows.flatMap((row) => {
+    const status = requestProgress(row, orders)
+    const body = row.lines.length ? row.lines : [{ itemId: '', qty: 0 }]
+    return body.map((line) =>
+      [
+        csvCell(row.id),
+        csvCell(row.requesterName),
+        csvCell(row.departmentName ?? ''),
+        csvCell(row.neededAt ?? ''),
+        csvCell(row.purpose ?? ''),
+        csvCell(line.itemName ?? ''),
+        csvCell(line.itemUnit ?? ''),
+        csvCell(line.purchaseKind ?? ''),
+        line.qty,
+        csvCell(status),
+        csvCell(row.fileName ?? ''),
+      ].join(','),
+    )
+  })
+  return `\uFEFF${[header.join(','), ...lines].join('\n')}\n`
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyPurchaseRequest, assertOrderFitsRequest, overduePurchaseRequestCaption, overduePurchaseRequests, requestAttachment, requestCaption, requestHasRemaining, requestListButtonLabel, requestProgress, requestRemainingQty, requestSavedNotice, requestSelectLabel, requestTotalAmount, stampRequestLines } from './request'
+import { applyPurchaseRequest, assertOrderFitsRequest, overduePurchaseRequestCaption, overduePurchaseRequests, purchaseRequestCsv, requestAttachment, requestCaption, requestHasRemaining, requestListButtonLabel, requestProgress, requestRemainingQty, requestSavedNotice, requestSelectLabel, requestTotalAmount, stampRequestLines } from './request'
 
 const PAPER = 'item-paper'
 const REQUEST = applyPurchaseRequest({
@@ -167,7 +167,7 @@ describe('구매요청', () => {
       ),
     ).toEqual([])
     expect(overduePurchaseRequestCaption(REQUEST)).toBe(
-      'REQ-DEMO-01 · 필요 2026-10-10 · 견본 김대리 · 샘플총무 · 샘플 비품 보충',
+      'REQ-DEMO-01 · 필요 2026-10-10 · 견본 김대리 · 샘플총무 · 샘플 비품 보충 · 미발주 10',
     )
     expect(
       overduePurchaseRequestCaption({
@@ -180,8 +180,13 @@ describe('구매요청', () => {
         ),
       }),
     ).toBe(
-      'REQ-DEMO-01 · 필요 2026-10-10 · 견본 김대리 · 샘플총무 · 샘플 비품 보충 · 샘플 복사용지 · 박스 · 일반 비품 · 견본요청.pdf',
+      'REQ-DEMO-01 · 필요 2026-10-10 · 견본 김대리 · 샘플총무 · 샘플 비품 보충 · 샘플 복사용지 · 박스 · 일반 비품 · 견본요청.pdf · 미발주 10',
     )
     expect(overduePurchaseRequestCaption(REQUEST)).not.toMatch(/필요일 지남 0/)
+    expect(purchaseRequestCsv([REQUEST])).toContain(
+      '요청번호,요청자,부서,필요일,목적,품목,단위,구매구분,수량,상태,첨부',
+    )
+    expect(purchaseRequestCsv([REQUEST])).toContain('REQ-DEMO-01,견본 김대리,샘플총무,2026-10-10,샘플 비품 보충,,,,10,미발주,')
+    expect(purchaseRequestCsv([REQUEST])).not.toMatch(/15000|단가/)
   })
 })
