@@ -31,6 +31,7 @@ import {
   stockQtyUnitHint,
   orderItemCaption,
   inventoryItemCaption,
+  filterInventory,
   overdueSupplyOrders,
   overdueSupplyOrderCaption,
   assertDueReturnAt,
@@ -249,8 +250,28 @@ describe('비품 현재고', () => {
         itemCode: 'DEMO-PAPER',
         itemUnit: '박스',
         purchaseKind: '일반 비품',
+        minStock: 10,
       }),
-    ).toBe('샘플 복사용지 · DEMO-PAPER · 박스 · 일반 비품')
+    ).toBe('샘플 복사용지 · DEMO-PAPER · 박스 · 일반 비품 · 최소 10')
+    expect(
+      filterInventory(
+        [
+          {
+            itemName: '샘플 복사용지',
+            itemCode: 'DEMO-PAPER',
+            itemUnit: '박스',
+            purchaseKind: '일반 비품',
+          },
+          {
+            itemName: '견본 볼펜',
+            itemCode: 'DEMO-PEN',
+            itemUnit: '자루',
+            purchaseKind: '자재',
+          },
+        ],
+        'DEMO-PAPER',
+      ).map((row) => row.itemName),
+    ).toEqual(['샘플 복사용지'])
     expect(
       supplyInventoryCsv(
         [
@@ -266,11 +287,31 @@ describe('비품 현재고', () => {
           },
         ],
         [
-          { id: 'wh-main', name: '샘플창고' },
-          { id: 'wh-sub', name: '견본창고' },
+          { id: 'wh-main', name: '샘플창고', locationText: '1층' },
+          { id: 'wh-sub', name: '견본창고', locationText: '2층' },
         ],
       ),
     ).toContain('샘플 복사용지,DEMO-PAPER,박스,일반 비품,10,7,0,7')
+    expect(
+      supplyInventoryCsv(
+        [
+          {
+            itemId: 'item-paper',
+            itemName: '샘플 복사용지',
+            itemCode: 'DEMO-PAPER',
+            itemUnit: '박스',
+            purchaseKind: '일반 비품',
+            minStock: 10,
+            quantities: [7, 0],
+            total: 7,
+          },
+        ],
+        [
+          { id: 'wh-main', name: '샘플창고', locationText: '1층' },
+          { id: 'wh-sub', name: '견본창고', locationText: '2층' },
+        ],
+      ),
+    ).toContain('샘플창고 · 1층,견본창고 · 2층')
     expect(
       supplyInventoryCsv(
         [

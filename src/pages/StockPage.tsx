@@ -33,7 +33,7 @@ import { toArrayBuffer } from '../lib/contracts/book'
 import { downloadCsvFile } from '../lib/csv'
 import { onHand, orderNetReceived, orderRemaining, returnBalance, inboundReturnBalance, inboundSupplierSource, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { defaultStockPolicy, loadStockPolicy, showsOverflowReason } from '../lib/stock/policy'
-import { assertDueReturnAt, assertInboundAt, buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryItemCaption, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderInspectCaption, orderItemCaption, orderQtyText, orderReceiptProgress, overdueIssueReturns, overdueSupplyOrderCaption, overdueSupplyOrders, partnerSelectHint, publicStockOrderId, resolveIssueDepartment, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssueNoteLead, stockIssuePersonName, stockLastSaveLead, stockOnHandPreview, stockOnHandPreviewKind, stockOutboundLead, stockPageLead, stockQtyUnitHint, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, stockTransferOnHandPreview, supplyInventoryCsv, supplyLowStock, todayYmd, transferWarehouseIds, supplyItems, supplyOrderCsv, warehouseOptionLabel, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { assertDueReturnAt, assertInboundAt, buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, filterInventory, inventoryItemCaption, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderInspectCaption, orderItemCaption, orderQtyText, orderReceiptProgress, overdueIssueReturns, overdueSupplyOrderCaption, overdueSupplyOrders, partnerSelectHint, publicStockOrderId, resolveIssueDepartment, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssueNoteLead, stockIssuePersonName, stockLastSaveLead, stockOnHandPreview, stockOnHandPreviewKind, stockOutboundLead, stockPageLead, stockQtyUnitHint, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, stockTransferOnHandPreview, supplyInventoryCsv, supplyLowStock, todayYmd, transferWarehouseIds, supplyItems, supplyOrderCsv, warehouseOptionLabel, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { buildSupplyLedgerView, filterLedgerView, isSupplyLedgerLine, ledgerRelatedJumps, sessionRecorderName, supplyLedgerCsv, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -120,6 +120,7 @@ export function StockPage() {
   const [operationId, setOperationId] = useState('')
   const [orderId, setOrderId] = useState(stockDraftOrderId)
   const [itemId, setItemId] = useState('')
+  const [inventoryQuery, setInventoryQuery] = useState('')
   const [warehouseId, setWarehouseId] = useState('')
   const [fromWarehouseId, setFromWarehouseId] = useState('')
   const [toWarehouseId, setToWarehouseId] = useState('')
@@ -971,6 +972,7 @@ export function StockPage() {
         : stockItems
   const inventory =
     state && stockItems.length && warehouses.length ? buildSupplyInventory(stockItems, warehouses, state) : []
+  const visibleInventory = filterInventory(inventory, inventoryQuery)
   const selectedInventory = inventory.find((row) => row.itemId === itemId) ?? inventory[0]
   const warehouseColumns = inventoryWarehouseColumns(warehouses)
   const relatedJumps = ledgerRelatedJumps(state?.ledger ?? [], selectedLine)
@@ -1441,6 +1443,14 @@ export function StockPage() {
           </div>
         </div>
         {inventory.length ? (
+          <>
+          <input
+            className="mt-3 w-full rounded border border-line px-2 py-1.5 text-sm"
+            placeholder="품목·코드·단위·구매구분"
+            value={inventoryQuery}
+            onChange={(event) => setInventoryQuery(event.target.value)}
+          />
+          {visibleInventory.length ? (
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
@@ -1460,7 +1470,7 @@ export function StockPage() {
                 </tr>
               </thead>
               <tbody>
-                {inventory.map((row) => {
+                {visibleInventory.map((row) => {
                   const active = row.itemId === itemId
                   return (
                     <tr
@@ -1498,6 +1508,10 @@ export function StockPage() {
               </tbody>
             </table>
           </div>
+          ) : (
+            <p className="mt-2 text-sm text-muted">검색한 비품이 없습니다.</p>
+          )}
+          </>
         ) : (
           <p className="mt-2 text-sm text-muted">
             {ready ? stockEmptyItemsLead() : '회사 DB를 여는 중입니다.'}

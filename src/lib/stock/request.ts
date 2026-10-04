@@ -521,7 +521,7 @@ export function purchaseRequestCsv(
   rows: PurchaseRequest[],
   orders: Pick<StockOrder, 'id' | 'itemId' | 'qty' | 'lines' | 'requestId'>[] = [],
 ): string {
-  const header = ['요청번호', '요청자', '부서', '필요일', '목적', '품목', '단위', '구매구분', '수량', '상태', '첨부']
+  const header = ['요청번호', '요청자', '부서', '필요일', '목적', '품목', '단위', '구매구분', '수량', '미발주', '상태', '첨부']
   const lines = rows.flatMap((row) => {
     const status = requestProgress(row, orders)
     const body = row.lines.length ? row.lines : [{ itemId: '', qty: 0 }]
@@ -536,6 +536,7 @@ export function purchaseRequestCsv(
         csvCell(line.itemUnit ?? ''),
         csvCell(line.purchaseKind ?? ''),
         line.qty,
+        requestRemainingQty(row, orders, line.itemId ?? ''),
         csvCell(status),
         csvCell(row.fileName ?? ''),
       ].join(','),

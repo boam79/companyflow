@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { applyStockCommand, companyOnHand, createStockState, onHand } from '../stock/engine'
-import { applyAssignAsset, applyReturnAsset, assetIdsForConvert, assetListCsv, assetNumber, assetStatusLabel, assetsFromConvert } from './book'
+import { applyAssignAsset, applyReturnAsset, assetIdsForConvert, assetListCsv, assetNumber, assetStatusLabel, assetsFromConvert, filterAssets } from './book'
 
 const ITEM = 'item-paper'
 const MAIN = 'wh-main'
@@ -76,6 +76,35 @@ describe('재고 자산화', () => {
         [{ id: 'item-desk', name: '샘플 책상' }],
       ),
     ).not.toMatch(/단가|guest:desk|item-desk/)
+    expect(
+      filterAssets(
+        [
+          {
+            id: 'guest:desk-1',
+            itemId: 'item-desk',
+            warehouseId: MAIN,
+            status: 'in_storage',
+            sourceOperationId: 'guest:desk-1',
+            serialNo: 'DEMO-DSK-01',
+            ownerName: '견본 김대리',
+          },
+          {
+            id: 'guest:pc-1',
+            itemId: 'item-computer',
+            warehouseId: MAIN,
+            status: 'in_storage',
+            sourceOperationId: 'guest:pc-1',
+            serialNo: 'DEMO-PC-01',
+            ownerName: '데모 이사원',
+          },
+        ],
+        'DEMO-DSK-01',
+        [
+          { id: 'item-desk', name: '샘플 책상' },
+          { id: 'item-computer', name: '샘플 컴퓨터' },
+        ],
+      ).map((row) => row.serialNo),
+    ).toEqual(['DEMO-DSK-01'])
   })
 
   it('보관 자산을 직원에게 배정하면 상태가 배정이 된다', () => {

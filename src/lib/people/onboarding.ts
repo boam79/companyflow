@@ -87,7 +87,11 @@ export function leaveRowLabel(row: OnboardingCheck, left: boolean): string {
 export function leaveSummary(checks: OnboardingCheck[], left: boolean): string {
   const held = outstandingOnboarding(checks)
   if (held.length) {
-    return [`미회수 ${held.length}`, ...held.map((row) => row.name), '퇴사 전 회수'].filter(Boolean).join(' · ')
+    return [
+      `미회수 ${held.length}`,
+      ...held.flatMap((row) => [row.name, hireIssuedCaption(row)].filter(Boolean)),
+      '퇴사 전 회수',
+    ].join(' · ')
   }
   if (left) return '회수 완료 · 퇴사 기록됨'
   return '입사 지급이 없습니다.'

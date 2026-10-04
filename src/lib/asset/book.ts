@@ -45,6 +45,33 @@ export function assetStatusLabel(status: AssetStatus) {
   return '사용'
 }
 
+export function filterAssets(
+  assets: AssetRecord[],
+  query: string,
+  items: { id: string; name: string }[] = [],
+  warehouses: { id: string; name: string }[] = [],
+): AssetRecord[] {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return assets
+  return assets.filter((asset) =>
+    [
+      assetNumber(asset.id, asset.serialNo),
+      items.find((item) => item.id === asset.itemId)?.name ?? '',
+      publicRecorderName(asset.model),
+      publicRecorderName(asset.serialNo),
+      publicRecorderName(asset.locationText),
+      publicRecorderName(warehouses.find((warehouse) => warehouse.id === asset.warehouseId)?.name),
+      publicRecorderName(asset.departmentName),
+      publicRecorderName(asset.ownerName),
+      publicOrderRef(asset.sourceOrderId),
+      asset.acquiredAt ?? '',
+      assetStatusLabel(asset.status),
+    ]
+      .filter(Boolean)
+      .some((value) => value.toLowerCase().includes(needle)),
+  )
+}
+
 export function assetListCsv(
   assets: AssetRecord[],
   items: { id: string; name: string }[],

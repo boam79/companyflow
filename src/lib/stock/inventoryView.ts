@@ -35,16 +35,29 @@ export type SupplyInventoryRow = {
 }
 
 export function inventoryItemCaption(
-  row: Pick<SupplyInventoryRow, 'itemName' | 'itemCode' | 'itemUnit' | 'purchaseKind'>,
+  row: Pick<SupplyInventoryRow, 'itemName' | 'itemCode' | 'itemUnit' | 'purchaseKind' | 'minStock'>,
 ) {
   return [
     row.itemName,
     publicCaptionPart(row.itemCode),
     publicCaptionPart(row.itemUnit),
     publicCaptionPart(row.purchaseKind),
+    row.minStock && row.minStock > 0 ? `최소 ${row.minStock}` : '',
   ]
     .filter(Boolean)
     .join(' · ')
+}
+
+export function filterInventory<
+  T extends Pick<SupplyInventoryRow, 'itemName' | 'itemCode' | 'itemUnit' | 'purchaseKind'>,
+>(rows: T[], query: string): T[] {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return rows
+  return rows.filter((row) =>
+    [row.itemName, row.itemCode, row.itemUnit, row.purchaseKind]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(needle)),
+  )
 }
 
 export function supplyItems(items: ItemRecord[]): ItemRecord[] {
@@ -626,7 +639,7 @@ export function supplyOrderCsv(rows: PurchaseOrderRow[]): string {
 
 export function supplyInventoryCsv(rows: SupplyInventoryRow[], warehouses: NamedWarehouse[]): string {
   return csvTable(
-    ['품목', '코드', '단위', '구매구분', '최소', ...warehouses.map((warehouse) => warehouse.name), '합계'],
+    ['품목', '코드', '단위', '구매구분', '최소', ...warehouses.map((warehouse) => warehouseOptionLabel(warehouse)), '합계'],
     rows.map((row) => [
       row.itemName,
       row.itemCode ?? '',

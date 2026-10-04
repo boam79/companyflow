@@ -27,6 +27,7 @@ import {
   assertPurchaseKind,
   ACTIVE_MASTER_WHERE,
   masterSavedNotice,
+  masterListCsv,
   masterDisabledNotice,
   masterOptionalText,
   type MasterFieldEntity,
@@ -34,6 +35,7 @@ import {
   type PurchaseKindRow,
 } from '../lib/master/commands'
 import { toArrayBuffer } from '../lib/contracts/book'
+import { downloadCsvFile } from '../lib/csv'
 import { canWriteOpenedCompany, mayOpenCompanyWork, workSessionKind } from '../lib/company/workGate'
 import { useWorkAccess } from '../lib/guest/workAccess'
 import { assertGuestOpensMemory } from '../lib/guest/seed'
@@ -1138,9 +1140,18 @@ export function MasterDataPage() {
       <section className="max-h-[calc(100svh-10rem)] overflow-auto rounded-lg border border-line bg-card p-4">
       {tab === listTab && (tab === 'fields' ? fields.length : rows.length) ? (
         <>
-          <h2 className="mb-2 text-base font-semibold">
+          <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
+          <h2 className="text-base font-semibold">
             {countHeading(tabLabel, tab === 'fields' ? fields.length : rows.length)}
           </h2>
+          <button
+            type="button"
+            className="rounded border border-line px-2 py-1 text-xs font-semibold"
+            onClick={() => downloadCsvFile(`${tabLabel}.csv`, masterListCsv(table.columns, table.rows))}
+          >
+            기준정보 목록 받기
+          </button>
+          </div>
           <MasterTable
             columns={table.columns}
             rows={table.rows}

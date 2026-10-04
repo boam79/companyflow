@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { WorkGateNotice } from '../components/WorkGateNotice'
 import { WorkCompanyControl } from '../components/WorkCompanyControl'
-import { assetIsOpen, assetListCsv, assetNumber, loadAssets, type AssetRecord } from '../lib/asset/book'
+import { assetIsOpen, assetListCsv, assetNumber, assetStatusLabel, filterAssets, loadAssets, type AssetRecord } from '../lib/asset/book'
 import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
 import {
   assetLifeAttachment,
@@ -76,6 +76,7 @@ export function AssetsPage() {
   const [boundQr, setBoundQr] = useState<PrintedQr | null>(null)
   const [blankCount, setBlankCount] = useState(4)
   const [selectedId, setSelectedId] = useState('')
+  const [assetQuery, setAssetQuery] = useState('')
   const [events, setEvents] = useState<AssetLifeEvent[]>([])
   const [today, setToday] = useState(() => formatCompanyDate(new Date(), 'Asia/Seoul'))
   const [lifeForm, setLifeForm] = useState(() => emptyLifeForm(formatCompanyDate(new Date(), 'Asia/Seoul')))
@@ -406,6 +407,7 @@ export function AssetsPage() {
     (asset) =>
       assetIsOpen(asset.status) && isCompanyAssetItem(items.find((item) => item.id === asset.itemId)),
   )
+  const visibleAssets = filterAssets(companyAssets, assetQuery, items, warehouses)
   const disposedAssets = assets.filter(
     (asset) => asset.status === 'disposed' && isCompanyAssetItem(items.find((item) => item.id === asset.itemId)),
   )
@@ -602,6 +604,14 @@ export function AssetsPage() {
           ) : null}
         </div>
         {companyAssets.length ? (
+          <>
+          <input
+            className="mt-2 w-full rounded border border-line px-2 py-1.5 text-sm"
+            placeholder="번호·품목·모델·위치·담당"
+            value={assetQuery}
+            onChange={(event) => setAssetQuery(event.target.value)}
+          />
+          {visibleAssets.length ? (
           <div className="mt-2 max-h-[calc(100svh-18rem)] overflow-auto">
             <table className="w-full text-left text-sm">
               <thead>
@@ -613,11 +623,12 @@ export function AssetsPage() {
                   <th className="py-1.5 pr-3 font-medium">부서</th>
                   <th className="py-1.5 pr-3 font-medium">담당</th>
                   <th className="py-1.5 pr-3 font-medium">구매 원본</th>
-                  <th className="py-1.5 font-medium">취득</th>
+                  <th className="py-1.5 pr-3 font-medium">취득</th>
+                  <th className="py-1.5 font-medium">상태</th>
                 </tr>
               </thead>
               <tbody>
-                {companyAssets.map((asset) => {
+                {visibleAssets.map((asset) => {
                   const item = items.find((row) => row.id === asset.itemId)
                   const location =
                     asset.locationText ||
@@ -652,12 +663,17 @@ export function AssetsPage() {
                       <td className="py-2 pr-4">{asset.ownerName || '—'}</td>
                       <td className="py-2 pr-4 text-muted">{publicOrderRef(asset.sourceOrderId) || '—'}</td>
                       <td className="whitespace-nowrap py-2 text-muted">{asset.acquiredAt || '—'}</td>
+                      <td className="whitespace-nowrap py-2 text-muted">{assetStatusLabel(asset.status)}</td>
                     </tr>
                   )
                 })}
               </tbody>
             </table>
           </div>
+          ) : (
+            <p className="mt-2 text-sm text-muted">검색한 자산이 없습니다.</p>
+          )}
+          </>
         ) : (
           <p className="mt-2 text-sm text-muted">
             {ready ? assetsEmptyLead() : '회사 DB를 여는 중입니다.'}

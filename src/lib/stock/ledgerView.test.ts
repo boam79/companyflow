@@ -450,6 +450,7 @@ describe('입출고 수불부', () => {
     expect(stockEmptyLedgerLead()).not.toMatch(/아직/)
     expect(stockEmptyLedgerFilterLead()).toContain('이 구분의 입출고가 없습니다')
     const csv = supplyLedgerCsv(rows)
+    expect(csv).toContain('일자,구분,품목,단위,구매구분,입고,출고,창고,성명,부서,공급사,목적,메모,첨부')
     expect(csv).toContain('입고')
     expect(csv).toContain('반출')
     expect(csv).not.toMatch(/단가|item-paper|operation_id/)

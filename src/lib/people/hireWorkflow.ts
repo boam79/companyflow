@@ -1,4 +1,5 @@
 import { assertContractFile, base64ToBytes, bytesToBase64 } from '../contracts/book'
+import { ymdDiffDays } from '../contracts/watch'
 
 export type HireWorkflowRecord = {
   employeeId: string
@@ -145,7 +146,11 @@ export function hireWorkflowCaption(
   if (row.ownerName?.trim()) parts.push(`담당 ${row.ownerName.trim()}`)
   if (row.dueAt?.trim()) {
     parts.push(`기한 ${row.dueAt.trim()}`)
-    if (row.dueAt.trim() < today) parts.push('기한 지남')
+    if (row.dueAt.trim() < today) {
+      const past = ymdDiffDays(row.dueAt.trim(), today)
+      parts.push('기한 지남')
+      if (past > 0) parts.push(`${past}일`)
+    }
   }
   if (row.fileName?.trim()) parts.push(row.fileName.trim())
   if (!parts.length) return '담당·기한을 저장하세요'

@@ -22,6 +22,7 @@ import {
   assertItemSupplier,
   masterDeactivateStatement,
   masterSavedNotice,
+  masterListCsv,
   masterDisabledNotice,
   masterOptionalText,
   masterOptionalDate,
@@ -262,6 +263,33 @@ describe('기준정보 SQL 명령', () => {
   })
 
   it('저장 안내는 영어 상태를 두지 않는다', () => {
+    expect(
+      masterListCsv(
+        [
+          { key: 'name', label: '이름' },
+          { key: 'location', label: '위치' },
+        ],
+        [{ name: '샘플창고', location: '1층' }],
+      ),
+    ).toContain('이름,위치')
+    expect(
+      masterListCsv(
+        [
+          { key: 'name', label: '이름' },
+          { key: 'location', label: '위치' },
+        ],
+        [{ name: '샘플창고', location: '1층' }],
+      ),
+    ).toContain('샘플창고,1층')
+    expect(
+      masterListCsv(
+        [
+          { key: 'name', label: '이름' },
+          { key: 'location', label: '위치' },
+        ],
+        [{ name: '샘플창고', location: '1층' }],
+      ),
+    ).not.toMatch(/단가|uuid|email/i)
     expect(masterSavedNotice('부서', 'applied')).toBe('저장했습니다. (부서)')
     expect(masterSavedNotice('부서', 'duplicate')).toBe('같은 내용은 한 번만 반영됩니다.')
     expect(masterDisabledNotice('창고', 'applied')).toBe('사용 안 함으로 바꿨습니다. (창고)')

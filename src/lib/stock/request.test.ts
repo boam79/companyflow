@@ -184,9 +184,9 @@ describe('구매요청', () => {
     )
     expect(overduePurchaseRequestCaption(REQUEST)).not.toMatch(/필요일 지남 0/)
     expect(purchaseRequestCsv([REQUEST])).toContain(
-      '요청번호,요청자,부서,필요일,목적,품목,단위,구매구분,수량,상태,첨부',
+      '요청번호,요청자,부서,필요일,목적,품목,단위,구매구분,수량,미발주,상태,첨부',
     )
-    expect(purchaseRequestCsv([REQUEST])).toContain('REQ-DEMO-01,견본 김대리,샘플총무,2026-10-10,샘플 비품 보충,,,,10,미발주,')
+    expect(purchaseRequestCsv([REQUEST])).toContain('REQ-DEMO-01,견본 김대리,샘플총무,2026-10-10,샘플 비품 보충,,,,10,10,미발주,')
     expect(purchaseRequestCsv([REQUEST])).not.toMatch(/15000|단가/)
   })
 })

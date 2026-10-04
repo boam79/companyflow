@@ -1,5 +1,6 @@
 import { normalizeHangulField } from '../asset/life'
 import { assertContractFile, bytesToBase64 } from '../contracts/book'
+import { csvTable } from '../csv'
 
 export const MASTER_TABLES = [
   'departments',
@@ -440,6 +441,13 @@ export function employeeUpdateStatement(row: {
 export function masterSavedNotice(label: string, status: 'applied' | 'duplicate') {
   if (status === 'duplicate') return '같은 내용은 한 번만 반영됩니다.'
   return `저장했습니다. (${label})`
+}
+
+export function masterListCsv(columns: { key: string; label: string }[], rows: Record<string, string>[]): string {
+  return csvTable(
+    columns.map((column) => column.label),
+    rows.map((row) => columns.map((column) => row[column.key] ?? '')),
+  )
 }
 
 export function masterDisabledNotice(label: string, status: 'applied' | 'duplicate') {

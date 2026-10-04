@@ -307,12 +307,13 @@ export function stockEmptyLedgerFilterLead() {
 
 export function supplyLedgerCsv(rows: LedgerViewRow[]): string {
   return csvTable(
-    ['일자', '구분', '품목', '단위', '입고', '출고', '창고', '성명', '부서', '공급사', '목적', '메모', '첨부'],
+    ['일자', '구분', '품목', '단위', '구매구분', '입고', '출고', '창고', '성명', '부서', '공급사', '목적', '메모', '첨부'],
     rows.map((row) => [
       row.line.businessDate?.trim() || row.line.createdAt?.slice(0, 10) || '',
       row.label,
       publicRecorderName(row.line.itemName),
       publicRecorderName(row.line.itemUnit),
+      publicRecorderName(row.line.purchaseKind),
       row.inbound ?? '',
       row.outbound ?? '',
       publicRecorderName(row.line.warehouseName),
