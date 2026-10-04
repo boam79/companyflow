@@ -59,7 +59,7 @@ test('게스트 반출은 견본 이름으로 저장하고 중앙 쓰기를 하�
   await expect(page.getByText('저장했습니다. (반납)')).toBeVisible()
   await page.getByRole('cell', { name: '반납 입고' }).click()
   await expect(page.getByRole('button', { name: '원거래로' })).toBeVisible()
-  await expect(page.getByText('반출 · 견본 김대리 · 샘플 복사용지 · 1 · 샘플창고')).toBeVisible()
+  await expect(page.getByText('반출 · 견본 김대리 · 샘플품질 · 샘플 복사용지 · 1 · 박스 · 샘플 청소 · 샘플창고')).toBeVisible()
   await page.getByRole('button', { name: '원거래로' }).click()
   await expect(page.getByRole('button', { name: '반납으로' })).toBeVisible()
   await expect(page.getByText('거래 번호')).toHaveCount(0)
@@ -151,6 +151,7 @@ test('게스트 자산은 이관하고 빈 QR을 만든다', async ({ page }) =>
   await page.goto('/guest/assets')
   await expect(page.getByRole('heading', { name: '자산', exact: true })).toBeVisible({ timeout: 20000 })
   await page.getByRole('cell', { name: '샘플 책상' }).click()
+  await expect(page.getByRole('button', { name: '자산 목록 받기' })).toBeVisible()
   await expect(page.getByRole('columnheader', { name: '구매 원본' })).toBeVisible()
   await expect(page.getByRole('button', { name: '이력 첨부' })).toBeVisible()
   await page.getByLabel('이력 원본').setInputFiles({

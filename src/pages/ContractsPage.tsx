@@ -9,6 +9,7 @@ import {
   contractPeriod,
   contractListMeta,
   contractDueCaption,
+  contractListCsv,
   contractPhase,
   contractPhaseCaption,
   defaultContractTab,
@@ -31,6 +32,7 @@ import {
   type ContractRevision,
   type SimilarChoice,
 } from '../lib/contracts/book'
+import { downloadCsvFile } from '../lib/csv'
 import { contractDueNotice } from '../lib/contracts/watch'
 import { applyOcrCandidates, formValueForOcrField, reviewedOcrFields } from '../lib/contracts/parseFields'
 import {
@@ -497,6 +499,15 @@ export function ContractsPage() {
           >
             새 초안
           </button>
+          {rows.length ? (
+            <button
+              type="button"
+              className="rounded border border-line px-3 py-2 text-sm"
+              onClick={() => downloadCsvFile('계약.csv', contractListCsv(rows, today))}
+            >
+              계약 목록 받기
+            </button>
+          ) : null}
         </div>
       </div>
       {ocrMessage ? <p className="text-sm text-accent">{ocrMessage}</p> : null}
@@ -541,7 +552,7 @@ export function ContractsPage() {
           <div className="shrink-0 border-b border-line p-3">
             <input
               className="w-full rounded border border-line px-3 py-2 text-sm"
-              placeholder="번호·계약·상대방·담당자"
+              placeholder="번호·계약·상대방·담당자·거래처"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />

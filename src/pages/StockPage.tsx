@@ -30,11 +30,12 @@ import {
   type PurchaseRequest,
 } from '../lib/stock/request'
 import { toArrayBuffer } from '../lib/contracts/book'
+import { downloadCsvFile } from '../lib/csv'
 import { onHand, orderNetReceived, orderRemaining, returnBalance, inboundReturnBalance, inboundSupplierSource, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { defaultStockPolicy, loadStockPolicy, showsOverflowReason } from '../lib/stock/policy'
-import { assertDueReturnAt, assertInboundAt, buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryItemCaption, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderInspectCaption, orderItemCaption, orderQtyText, orderReceiptProgress, overdueIssueReturns, overdueSupplyOrderCaption, overdueSupplyOrders, partnerSelectHint, publicStockOrderId, resolveIssueDepartment, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssueNoteLead, stockIssuePersonName, stockLastSaveLead, stockOnHandPreview, stockOnHandPreviewKind, stockOutboundLead, stockPageLead, stockQtyUnitHint, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, stockTransferOnHandPreview, supplyLowStock, todayYmd, transferWarehouseIds, supplyItems, supplyOrderCsv, warehouseOptionLabel, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { assertDueReturnAt, assertInboundAt, buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, inventoryItemCaption, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderInspectCaption, orderItemCaption, orderQtyText, orderReceiptProgress, overdueIssueReturns, overdueSupplyOrderCaption, overdueSupplyOrders, partnerSelectHint, publicStockOrderId, resolveIssueDepartment, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssueNoteLead, stockIssuePersonName, stockLastSaveLead, stockOnHandPreview, stockOnHandPreviewKind, stockOutboundLead, stockPageLead, stockQtyUnitHint, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, stockTransferOnHandPreview, supplyInventoryCsv, supplyLowStock, todayYmd, transferWarehouseIds, supplyItems, supplyOrderCsv, warehouseOptionLabel, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
-import { isSupplyLedgerLine, ledgerRelatedJumps, sessionRecorderName, type LedgerFilter } from '../lib/stock/ledgerView'
+import { buildSupplyLedgerView, filterLedgerView, isSupplyLedgerLine, ledgerRelatedJumps, sessionRecorderName, supplyLedgerCsv, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
 import { loadDisplayCurrency, formatCompanyDate, loadDisplayTimezone } from '../lib/company/displayCurrency'
 import { showModuleLink } from '../lib/company/modules'
@@ -63,26 +64,14 @@ type EmployeeRow = { id: string; name: string; department_id?: string | null }
 const ACTIONS = [...DAILY_STOCK_ACTIONS, ...MORE_STOCK_ACTIONS]
 
 function downloadSupplyOrderCsv(rows: PurchaseOrderRow[]) {
-  const blob = new Blob([supplyOrderCsv(rows)], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = '발주.csv'
-  link.click()
-  URL.revokeObjectURL(url)
+  downloadCsvFile('발주.csv', supplyOrderCsv(rows))
 }
 
 function downloadPurchaseRequestCsv(
   rows: PurchaseRequest[],
   orders: { id: string; itemId: string; qty: number; lines?: { itemId: string; qty: number }[]; requestId?: string }[],
 ) {
-  const blob = new Blob([purchaseRequestCsv(rows, orders)], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = '구매요청.csv'
-  link.click()
-  URL.revokeObjectURL(url)
+  downloadCsvFile('구매요청.csv', purchaseRequestCsv(rows, orders))
 }
 
 export function StockPage() {
@@ -1434,11 +1423,22 @@ export function StockPage() {
               </p>
             ) : null}
           </div>
-          {assetsLink ? (
-            <Link className="text-sm text-accent underline" to={href('/assets')}>
-              {stockAssetsLinkLabel()}
-            </Link>
-          ) : null}
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {inventory.length ? (
+              <button
+                type="button"
+                className="rounded border border-line px-2 py-1 text-xs font-semibold"
+                onClick={() => downloadCsvFile('재고현황.csv', supplyInventoryCsv(inventory, warehouses))}
+              >
+                재고현황 목록 받기
+              </button>
+            ) : null}
+            {assetsLink ? (
+              <Link className="text-sm text-accent underline" to={href('/assets')}>
+                {stockAssetsLinkLabel()}
+              </Link>
+            ) : null}
+          </div>
         </div>
         {inventory.length ? (
           <div className="mt-3 overflow-x-auto">
@@ -1511,7 +1511,31 @@ export function StockPage() {
             <h2 className="text-base font-semibold">수불부</h2>
             <p className="mt-1 text-sm text-muted">들어온 수량과 나간 수량을 이어 보여 줍니다.</p>
           </div>
-          <div className="flex rounded border border-line text-sm">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {(state?.ledger.length ?? 0) ? (
+              <button
+                type="button"
+                className="rounded border border-line px-2 py-1 text-xs font-semibold"
+                onClick={() =>
+                  downloadCsvFile(
+                    '수불부.csv',
+                    supplyLedgerCsv(
+                      filterLedgerView(
+                        buildSupplyLedgerView({
+                          processed: new Map(),
+                          orders: new Map(),
+                          ledger: state?.ledger ?? [],
+                        }),
+                        ledgerFilter,
+                      ),
+                    ),
+                  )
+                }
+              >
+                수불부 목록 받기
+              </button>
+            ) : null}
+            <div className="flex rounded border border-line text-sm">
             {(
               [
                 ['all', '전체'],
@@ -1531,6 +1555,7 @@ export function StockPage() {
                 {label}
               </button>
             ))}
+            </div>
           </div>
         </div>
         {purchaseOrders.length ? (

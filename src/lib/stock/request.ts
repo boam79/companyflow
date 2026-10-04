@@ -242,6 +242,13 @@ export function requestCaption(
     .join(' · ')
 }
 
+export function requestRemainingTotal(
+  row: PurchaseRequest,
+  orders: Pick<StockOrder, 'id' | 'itemId' | 'qty' | 'lines' | 'requestId'>[],
+) {
+  return row.lines.reduce((sum, line) => sum + requestRemainingQty(row, orders, line.itemId), 0)
+}
+
 export function requestProgress(
   row: PurchaseRequest,
   orders: Pick<StockOrder, 'id' | 'itemId' | 'qty' | 'lines' | 'requestId'>[],
@@ -284,12 +291,22 @@ export function requestSavedNotice(duplicate: boolean) {
   return '구매요청을 저장했습니다. 바로 발주에 연결할 수 있습니다.'
 }
 
+export function requestProgressCaption(
+  row: PurchaseRequest,
+  orders: Pick<StockOrder, 'id' | 'itemId' | 'qty' | 'lines' | 'requestId'>[],
+) {
+  const progress = requestProgress(row, orders)
+  const left = requestRemainingTotal(row, orders)
+  if (progress === '발주완료' || left <= 0) return progress
+  return `${progress} ${left}`
+}
+
 export function requestListButtonLabel(
   row: PurchaseRequest,
   orders: Pick<StockOrder, 'id' | 'itemId' | 'qty' | 'lines' | 'requestId'>[],
   items: Pick<ItemRecord, 'id' | 'name'>[],
 ) {
-  return `${row.id} · ${requestCaption(row, items)} · ${requestProgress(row, orders)}`
+  return `${row.id} · ${requestCaption(row, items)} · ${requestProgressCaption(row, orders)}`
 }
 
 export function overduePurchaseRequests(
@@ -318,7 +335,7 @@ export function overduePurchaseRequestCaption(
     .map((line) => [line.itemName, line.itemUnit, line.purchaseKind].filter(Boolean).join(' · '))
     .filter(Boolean)
     .join(', ')
-  const left = row.lines.reduce((sum, line) => sum + requestRemainingQty(row, orders, line.itemId), 0)
+  const left = requestRemainingTotal(row, orders)
   return [
     row.id,
     row.neededAt ? `필요 ${row.neededAt}` : '',

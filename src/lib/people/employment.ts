@@ -7,6 +7,7 @@ import {
   type OnboardingKey,
 } from './onboarding'
 import { masterOptionalText } from '../master/commands'
+import { csvTable } from '../csv'
 
 export type EmployeeRecord = {
   id: string
@@ -62,6 +63,7 @@ export function rosterCaption(
   const title = masterOptionalText(employee.title)
   const dept = masterOptionalText(departmentName)
   const number = masterOptionalText(employee.employeeNo)
+  const hired = /^\d{4}-\d{2}-\d{2}$/.test(employee.hiredAt ?? '') ? employee.hiredAt : ''
   const base =
     phase === 'left'
       ? `퇴사 ${employee.leftAt}`
@@ -70,7 +72,7 @@ export function rosterCaption(
         : phase === 'joining'
           ? `입사 중 · ${issued}/3 지급`
           : `재직 · ${employee.hiredAt}`
-  return [base, title, dept, number].filter(Boolean).join(' · ')
+  return [base, phase === 'joining' ? hired : '', title, dept, number].filter(Boolean).join(' · ')
 }
 
 export type HireProcessStep = {
@@ -89,9 +91,12 @@ export function hireProcessSteps(employee: EmployeeRecord, checks: OnboardingChe
 export function hireProcessSummary(employee: EmployeeRecord, checks: OnboardingCheck[]): string {
   const steps = hireProcessSteps(employee, checks)
   const done = steps.filter((step) => step.done).length
-  if (employee.leftAt) return '퇴사 · 입사 프로세스 종료'
-  if (rosterPhase(employee, checks) === 'employed') return '입사 완료 · 3/3 지급'
-  return `입사 중 · ${done}/4`
+  const hired = /^\d{4}-\d{2}-\d{2}$/.test(employee.hiredAt ?? '') ? employee.hiredAt : ''
+  if (employee.leftAt) return ['퇴사 · 입사 프로세스 종료', hired].filter(Boolean).join(' · ')
+  if (rosterPhase(employee, checks) === 'employed') {
+    return ['입사 완료 · 3/3 지급', hired].filter(Boolean).join(' · ')
+  }
+  return ['입사 중 · ' + `${done}/4`, hired].filter(Boolean).join(' · ')
 }
 
 export function groupRoster(employees: EmployeeRecord[], checkRows: CheckRow[]) {
@@ -105,6 +110,49 @@ export function groupRoster(employees: EmployeeRecord[], checkRows: CheckRow[]) 
 
 export function filledRosterSections<T extends { employees: unknown[] }>(sections: T[]): T[] {
   return sections.filter((section) => section.employees.length > 0)
+}
+
+export function filterPeople<T extends { name: string; title?: string; employeeNo?: string; departmentId?: string }>(
+  rows: T[],
+  query: string,
+  departments: { id: string; name: string }[] = [],
+): T[] {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return rows
+  return rows.filter((row) =>
+    [
+      row.name,
+      masterOptionalText(row.title) ?? '',
+      masterOptionalText(row.employeeNo) ?? '',
+      departments.find((dept) => dept.id === row.departmentId)?.name ?? '',
+    ]
+      .filter(Boolean)
+      .some((value) => value.toLowerCase().includes(needle)),
+  )
+}
+
+export function peopleRosterCsv(
+  employees: EmployeeRecord[],
+  checks: CheckRow[],
+  departments: { id: string; name: string }[] = [],
+): string {
+  return csvTable(
+    ['이름', '직위', '부서', '직원번호', '입사일', '퇴사일', '상태'],
+    employees.map((row) => {
+      const phase = rosterPhase(row, onboardingView(row.id, checks))
+      const status = ROSTER_SECTIONS.find((section) => section.phase === phase)?.label ?? ''
+      const dept = departments.find((dept) => dept.id === row.departmentId)?.name ?? ''
+      return [
+        row.name,
+        masterOptionalText(row.title) ?? '',
+        masterOptionalText(dept) ?? '',
+        masterOptionalText(row.employeeNo) ?? '',
+        row.hiredAt ?? '',
+        row.leftAt ?? '',
+        status,
+      ]
+    }),
+  )
 }
 
 export function rosterTabColumns(count: number) {
@@ -168,12 +216,15 @@ export function applyLeave(employee: EmployeeRecord, leftAt: string): EmployeeRe
 }
 
 export function badgeLines(
-  employee: Pick<EmployeeRecord, 'name' | 'badgeName' | 'title'>,
+  employee: Pick<EmployeeRecord, 'name' | 'badgeName' | 'title' | 'employeeNo'>,
   departmentName?: string,
 ): string[] {
-  return [employee.badgeName || employee.name, departmentName, employee.title].filter(
-    (line): line is string => Boolean(line?.trim()),
-  )
+  return [
+    employee.badgeName || employee.name,
+    departmentName,
+    employee.title,
+    masterOptionalText(employee.employeeNo),
+  ].filter((line): line is string => Boolean(line?.trim()))
 }
 
 export async function loadEmployees(

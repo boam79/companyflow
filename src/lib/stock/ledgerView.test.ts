@@ -3,7 +3,7 @@ import {
   applyStockCommand,
   createStockState,
 } from './engine'
-import { buildLedgerView, buildSupplyLedgerView, filterLedgerView, formatLedgerLink, ledgerItemCaption, ledgerRelatedJumps, publicItemLabel, publicRecorderName, rowsAreRelated, sessionRecorderName, stockEmptyLedgerFilterLead, stockEmptyLedgerLead } from './ledgerView'
+import { buildLedgerView, buildSupplyLedgerView, filterLedgerView, formatLedgerLink, ledgerItemCaption, ledgerJumpCaption, ledgerRelatedJumps, publicItemLabel, publicRecorderName, rowsAreRelated, sessionRecorderName, stockEmptyLedgerFilterLead, stockEmptyLedgerLead, supplyLedgerCsv } from './ledgerView'
 
 const ITEM = 'item-paper'
 const MAIN = 'wh-main'
@@ -68,6 +68,23 @@ describe('입출고 수불부', () => {
     const fromReturn = ledgerRelatedJumps(state.ledger, rows[3].line)
     expect(fromReturn.map((jump) => [jump.button, jump.caption])).toEqual([['원거래로', '반출 · 김담당 · 3']])
     expect(fromReturn[0].caption).not.toMatch(/op-issue|aaaaaaaa|[0-9a-f]{8}-/)
+    expect(
+      ledgerJumpCaption({
+        id: 'l-jump',
+        operationId: 'op-issue',
+        txnType: 'issue',
+        itemId: ITEM,
+        warehouseId: MAIN,
+        qtyDelta: -1,
+        personName: '견본 김대리',
+        departmentName: '샘플품질',
+        itemName: '샘플 복사용지',
+        itemUnit: '박스',
+        purpose: '샘플 청소',
+        partnerName: '견본문구',
+        warehouseName: '샘플창고',
+      }),
+    ).toBe('반출 · 견본 김대리 · 샘플품질 · 샘플 복사용지 · 1 · 박스 · 샘플 청소 · 견본문구 · 샘플창고')
     const fromIssue = ledgerRelatedJumps(state.ledger, rows[2].line)
     expect(fromIssue.map((jump) => jump.button)).toEqual(['반납으로'])
     expect(ledgerRelatedJumps(state.ledger, rows[0].line)).toEqual([])
@@ -432,5 +449,9 @@ describe('입출고 수불부', () => {
     expect(rows.some((row) => /자산화|본사창고|부속창고/.test(`${row.label}${row.link}`))).toBe(false)
     expect(stockEmptyLedgerLead()).not.toMatch(/아직/)
     expect(stockEmptyLedgerFilterLead()).toContain('이 구분의 입출고가 없습니다')
+    const csv = supplyLedgerCsv(rows)
+    expect(csv).toContain('입고')
+    expect(csv).toContain('반출')
+    expect(csv).not.toMatch(/단가|item-paper|operation_id/)
   })
 })

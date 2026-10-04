@@ -103,8 +103,8 @@ describe('구매요청', () => {
         { id: PAPER, name: '샘플 복사용지' },
       ]),
     ).not.toMatch(/잔량 0|미발주 0/)
-    expect(requestListButtonLabel(REQUEST, [], [{ id: PAPER, name: '샘플 복사용지' }])).toMatch(/미발주$/)
-    expect(requestListButtonLabel(REQUEST, orders, [{ id: PAPER, name: '샘플 복사용지' }])).toMatch(/부분발주$/)
+    expect(requestListButtonLabel(REQUEST, [], [{ id: PAPER, name: '샘플 복사용지' }])).toMatch(/미발주 10$/)
+    expect(requestListButtonLabel(REQUEST, orders, [{ id: PAPER, name: '샘플 복사용지' }])).toMatch(/부분발주 4$/)
     expect(requestListButtonLabel(REQUEST, [], [{ id: PAPER, name: '샘플 복사용지' }])).not.toMatch(/잔량 0|미발주 0/)
   })
 

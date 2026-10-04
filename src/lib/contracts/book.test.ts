@@ -22,6 +22,7 @@ import {
   revisionCaption,
   draftSavedNotice,
   emptyContractTabCopy,
+  contractListCsv,
 } from './book'
 import { DISABLED_OCR, assertOcrCannotConfirm } from './ocr'
 
@@ -127,12 +128,33 @@ describe('계약 초안', () => {
     expect(contractListMeta({ ownerName: '견본 김대리', orderId: 'ORD-DEMO-01' })).toBe(
       '담당 견본 김대리 · 발주 ORD-DEMO-01',
     )
-    expect(contractListMeta({ ownerName: 'guest:emp', orderId: 'sample:ord' })).toBe('')
+    expect(
+      contractListMeta({ ownerName: '견본 김대리', orderId: 'ORD-DEMO-01', partnerName: '견본임대' }),
+    ).toBe('거래처 견본임대 · 담당 견본 김대리 · 발주 ORD-DEMO-01')
+    expect(contractListMeta({ ownerName: 'guest:emp', orderId: 'sample:ord', partnerName: 'guest:p' })).toBe('')
     expect(contractDueCaption('2026-11-02', '2026-10-04')).toBe('만료 예정 · 29일 전')
     expect(contractDueCaption('2026-10-04', '2026-10-04')).toBe('만료 예정 · 오늘 종료')
-    expect(contractDueCaption('2026-09-01', '2026-10-04')).toBe('만료')
+    expect(contractDueCaption('2026-09-01', '2026-10-04')).toBe('만료 · 33일 지남')
+    expect(filterContracts(rows, '2024-01-01')).toHaveLength(1)
     expect(contractLife('2026-02-28', '2026-09-19')).toBe('종료')
     expect(contractLife('2026-12-31', '2026-09-19')).toBe('진행')
+    const csv = contractListCsv(
+      [
+        {
+          ...rows[0],
+          partnerName: '견본임대',
+          ownerName: '견본 김대리',
+          orderId: 'ORD-DEMO-01',
+          startAt: '2024-01-01',
+          endAt: '2026-02-28',
+          amount: 1_000_000,
+          currency: 'USD',
+        },
+      ],
+      '2026-10-04',
+    )
+    expect(csv).toContain('본사 임대,한국임대,견본임대,견본 김대리,ORD-DEMO-01,2024-01-01,2026-02-28,1000000,USD,만료')
+    expect(csv).not.toMatch(/단가|guest:|con-1/)
   })
 
   it('목록은 계약중·만료 예정·만료로 나눈다', () => {

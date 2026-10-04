@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { WorkGateNotice } from '../components/WorkGateNotice'
 import { WorkCompanyControl } from '../components/WorkCompanyControl'
-import { assetIsOpen, assetNumber, loadAssets, type AssetRecord } from '../lib/asset/book'
+import { assetIsOpen, assetListCsv, assetNumber, loadAssets, type AssetRecord } from '../lib/asset/book'
 import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
 import {
   assetLifeAttachment,
@@ -37,6 +37,7 @@ import { assetsEmptyLead, assetsInboxHeading, assetsListHeading, assetsMissingQr
 import { countHeading, showsEmptyPickHint } from '../lib/company/nav'
 import { publicErrorMessage } from '../lib/publicError'
 import { toArrayBuffer } from '../lib/contracts/book'
+import { downloadCsvFile } from '../lib/csv'
 
 type NamedRow = { id: string; name: string }
 type PrintedQr = { id: string; url: string; dataUrl: string }
@@ -588,7 +589,18 @@ export function AssetsPage() {
       >
       <div className="flex min-h-0 flex-col gap-3">
       <section className="rounded-lg border border-line bg-card p-4">
-        <h2 className="text-base font-semibold">{assetsListHeading(companyAssets.length)}</h2>
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <h2 className="text-base font-semibold">{assetsListHeading(companyAssets.length)}</h2>
+          {companyAssets.length ? (
+            <button
+              type="button"
+              className="rounded border border-line px-2 py-1 text-xs font-semibold"
+              onClick={() => downloadCsvFile('자산.csv', assetListCsv(companyAssets, items, warehouses))}
+            >
+              자산 목록 받기
+            </button>
+          ) : null}
+        </div>
         {companyAssets.length ? (
           <div className="mt-2 max-h-[calc(100svh-18rem)] overflow-auto">
             <table className="w-full text-left text-sm">

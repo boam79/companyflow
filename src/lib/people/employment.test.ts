@@ -15,6 +15,8 @@ import {
   rosterCaption,
   rosterPhase,
   visiblePeoplePanels,
+  filterPeople,
+  peopleRosterCsv,
 } from './employment'
 import { applyIssueCheck, applyReturnCheck, assertOffboardingClear, onboardingView } from './onboarding'
 
@@ -31,6 +33,17 @@ describe('입퇴사', () => {
       badgeDepartment: '마케팅팀',
     })
     expect(badgeLines(hired, hired.badgeDepartment)).toEqual(['김 담당', '마케팅팀', '주임'])
+    expect(badgeLines({ ...hired, employeeNo: 'G-101' }, hired.badgeDepartment)).toEqual([
+      '김 담당',
+      '마케팅팀',
+      '주임',
+      'G-101',
+    ])
+    expect(badgeLines({ ...hired, employeeNo: 'pjm7908@hanmail.net' }, hired.badgeDepartment)).toEqual([
+      '김 담당',
+      '마케팅팀',
+      '주임',
+    ])
   })
 
   it('회사 재고는 퇴사 프로세스가 아니다', () => {
@@ -98,7 +111,7 @@ describe('입퇴사', () => {
       ['employed', '재직', ['이수진']],
       ['left', '퇴사', ['오세훈']],
     ])
-    expect(rosterCaption(joining, onboardingView('emp-kim', checks))).toBe('입사 중 · 1/3 지급')
+    expect(rosterCaption(joining, onboardingView('emp-kim', checks))).toBe('입사 중 · 1/3 지급 · 2026-09-16')
     expect(rosterCaption(before, onboardingView('emp-new', []))).toBe('입사 전 · 0/3 지급')
     expect(rosterCaption(employed, onboardingView('emp-lee', checks))).toBe('재직 · 2025-07-14')
     expect(rosterCaption(left, onboardingView('emp-oh', []))).toBe('퇴사 2026-08-31')
@@ -130,11 +143,11 @@ describe('입퇴사', () => {
       ['노트북 지급', true],
     ])
     expect(rosterPhase(employee, checks)).toBe('joining')
-    expect(hireProcessSummary(employee, checks)).toBe('입사 중 · 2/4')
+    expect(hireProcessSummary(employee, checks)).toBe('입사 중 · 2/4 · 2026-09-16')
     const complete = applyIssueCheck(applyIssueCheck(checks, 'badge', '2026-09-16'), 'uniform', '2026-09-16')
     expect(rosterPhase(employee, complete)).toBe('employed')
     expect(rosterPhase(employee, applyReturnCheck(complete, 'badge', '2026-09-20'))).toBe('employed')
-    expect(hireProcessSummary(employee, complete)).toBe('입사 완료 · 3/3 지급')
+    expect(hireProcessSummary(employee, complete)).toBe('입사 완료 · 3/3 지급 · 2026-09-16')
     expect(hireProcessSummary({ id: 'emp-new', name: '신입' }, onboardingView('emp-new', []))).toBe('입사 중 · 0/4')
   })
 
@@ -201,5 +214,20 @@ describe('입퇴사', () => {
     expect(first.status).toBe('applied')
     expect(statements.some((row) => row.sql.includes('insert into employment_events'))).toBe(false)
     expect(statements.some((row) => row.sql.includes('update employees'))).toBe(true)
+  })
+
+  it('명단 검색과 CSV는 직원번호·부서를 붙이고 이메일은 빼다', () => {
+    const employees = [
+      { id: 'emp-a', name: '견본 김대리', title: '대리', employeeNo: 'G-101', departmentId: 'dept-admin', hiredAt: '2026-08-01' },
+      { id: 'emp-b', name: '데모 이사원', title: '사원', departmentId: 'dept-sales', hiredAt: '2026-09-01' },
+    ]
+    const departments = [
+      { id: 'dept-admin', name: '샘플총무' },
+      { id: 'dept-sales', name: '샘플영업' },
+    ]
+    expect(filterPeople(employees, 'G-101', departments).map((row) => row.name)).toEqual(['견본 김대리'])
+    expect(filterPeople(employees, '샘플영업', departments).map((row) => row.name)).toEqual(['데모 이사원'])
+    expect(peopleRosterCsv(employees, [], departments)).toContain('견본 김대리,대리,샘플총무,G-101,2026-08-01,,입사 중')
+    expect(peopleRosterCsv(employees, [], departments)).not.toMatch(/단가|emp-a|@/)
   })
 })

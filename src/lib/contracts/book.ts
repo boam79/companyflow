@@ -1,4 +1,5 @@
 import { formatCompanyMoney } from '../company/displayCurrency'
+import { csvTable } from '../csv'
 import { contractFileLimitBytes, DEFAULT_CONTRACT_MAX_MB } from './limits'
 import { parseOcrFieldsJson, type OcrFieldRecord } from './ocr'
 import { contractDueCaption, contractWatchLabel } from './watch'
@@ -104,10 +105,33 @@ function publicContractRef(value?: string) {
   return text
 }
 
-export function contractListMeta(row: { ownerName?: string; orderId?: string }) {
+export function contractListMeta(row: { ownerName?: string; orderId?: string; partnerName?: string }) {
+  const partner = publicContractRef(row.partnerName)
   const owner = publicContractRef(row.ownerName)
   const order = publicContractRef(row.orderId)
-  return [owner ? `담당 ${owner}` : '', order ? `발주 ${order}` : ''].filter(Boolean).join(' · ')
+  return [partner ? `거래처 ${partner}` : '', owner ? `담당 ${owner}` : '', order ? `발주 ${order}` : '']
+    .filter(Boolean)
+    .join(' · ')
+}
+
+export function contractListCsv(rows: ContractDraft[], today?: string): string {
+  return csvTable(
+    ['계약번호', '계약명', '상대방', '거래처', '담당', '발주', '시작', '종료', '금액', '통화', '상태', '첨부'],
+    rows.map((row) => [
+      publicContractRef(row.contractNo),
+      row.title,
+      row.counterparty,
+      publicContractRef(row.partnerName),
+      publicContractRef(row.ownerName),
+      publicContractRef(row.orderId),
+      row.startAt ?? '',
+      row.endAt ?? '',
+      row.amount ?? '',
+      row.currency,
+      contractPhaseCaption(contractPhase(row.endAt, today)),
+      publicContractRef(row.fileName),
+    ]),
+  )
 }
 
 export function contractAmountText(amount?: number, grouping = true, currency = 'KRW') {
@@ -126,7 +150,7 @@ export function filterContracts(rows: ContractDraft[], query: string) {
   const needle = query.trim().toLowerCase()
   if (!needle) return rows
   return rows.filter((row) =>
-    [row.title, row.contractNo, row.counterparty, row.ownerName, row.fileName, row.partnerName, row.orderId]
+    [row.title, row.contractNo, row.counterparty, row.ownerName, row.fileName, row.partnerName, row.orderId, row.startAt, row.endAt]
       .filter(Boolean)
       .some((value) => value!.toLowerCase().includes(needle)),
   )

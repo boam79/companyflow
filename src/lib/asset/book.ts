@@ -1,4 +1,6 @@
 import { assertAssignableCompanyAsset, loadItems } from '../master/book'
+import { csvTable } from '../csv'
+import { publicOrderRef, publicRecorderName } from '../stock/ledgerView'
 import { newAssetQrToken } from './qr'
 
 export const ASSET_TABLE_SQL = [
@@ -35,6 +37,38 @@ export type AssetRecord = {
 
 export function assetIsOpen(status: AssetStatus) {
   return status !== 'disposed' && status !== 'returned'
+}
+
+export function assetStatusLabel(status: AssetStatus) {
+  if (status === 'disposed') return '폐기'
+  if (status === 'returned') return '반품'
+  return '사용'
+}
+
+export function assetListCsv(
+  assets: AssetRecord[],
+  items: { id: string; name: string }[],
+  warehouses: { id: string; name: string }[] = [],
+): string {
+  return csvTable(
+    ['자산번호', '품목', '모델', '일련번호', '위치', '부서', '담당', '구매원본', '취득', '상태'],
+    assets.map((asset) => {
+      const itemName = items.find((item) => item.id === asset.itemId)?.name ?? ''
+      const warehouse = warehouses.find((row) => row.id === asset.warehouseId)?.name ?? ''
+      return [
+        assetNumber(asset.id, asset.serialNo),
+        itemName,
+        publicRecorderName(asset.model),
+        publicRecorderName(asset.serialNo),
+        publicRecorderName(asset.locationText) || publicRecorderName(warehouse),
+        publicRecorderName(asset.departmentName),
+        publicRecorderName(asset.ownerName),
+        publicOrderRef(asset.sourceOrderId),
+        asset.acquiredAt ?? '',
+        assetStatusLabel(asset.status),
+      ]
+    }),
+  )
 }
 
 export function assetNumber(id: string, serialNo?: string): string {

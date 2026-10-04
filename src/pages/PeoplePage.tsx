@@ -10,6 +10,7 @@ import { readCompanyModule } from '../lib/company/moduleAccess'
 import { ModuleClosed } from '../components/ModuleClosed'
 import { ACTIVE_MASTER_WHERE } from '../lib/master/commands'
 import { toArrayBuffer } from '../lib/contracts/book'
+import { downloadCsvFile } from '../lib/csv'
 import {
   applyBadgeLines,
   executeSaveBadgeTemplate,
@@ -35,11 +36,13 @@ import {
   executeHire,
   executeLeave,
   filledRosterSections,
+  filterPeople,
   groupRoster,
   rosterTabColumns,
   hireProcessSteps,
   hireProcessSummary,
   loadEmployees,
+  peopleRosterCsv,
   rosterCaption,
   rosterPhase,
   visiblePeoplePanels,
@@ -128,6 +131,7 @@ export function PeoplePage() {
   const [previewStatus, setPreviewStatus] = useState<'idle' | 'loading' | 'ready' | 'unavailable'>('idle')
   const [badgeEmployeeId, setBadgeEmployeeId] = useState('')
   const [rosterTab, setRosterTab] = useState<RosterPhase>('joining')
+  const [peopleQuery, setPeopleQuery] = useState('')
   const [leaveAt, setLeaveAt] = useState(() => formatCompanyDate(new Date(), 'Asia/Seoul'))
   const [notify, setNotify] = useState<NotifySettings>({ adminEmail: '', slackWebhook: '' })
   const [saving, setSaving] = useState(false)
@@ -563,7 +567,11 @@ export function PeoplePage() {
 
   const roster = groupRoster(employees, checks)
   const filledRoster = filledRosterSections(roster)
-  const visibleEmployees = roster.find((section) => section.phase === rosterTab)?.employees ?? []
+  const visibleEmployees = filterPeople(
+    roster.find((section) => section.phase === rosterTab)?.employees ?? [],
+    peopleQuery,
+    departments,
+  )
   const joiningIds = new Set((roster.find((section) => section.phase === 'joining')?.employees ?? []).map((row) => row.id))
   const overdueHires = overdueHireRows(
     hireWorkflows.filter((row) => joiningIds.has(row.employeeId)),
@@ -651,6 +659,15 @@ export function PeoplePage() {
           <Link className="rounded border border-line px-3 py-2 text-sm" to={href('/master')}>
             기준정보
           </Link>
+          {employees.length ? (
+            <button
+              type="button"
+              className="rounded border border-line px-3 py-2 text-sm"
+              onClick={() => downloadCsvFile('명단.csv', peopleRosterCsv(employees, checks, departments))}
+            >
+              명단 받기
+            </button>
+          ) : null}
           {assetsLink ? (
             <Link className="rounded border border-line px-3 py-2 text-sm" to={href('/assets')}>
               회사 자산
@@ -727,6 +744,14 @@ export function PeoplePage() {
                   )
                 })}
               </div>
+              <div className="shrink-0 border-b border-line p-2">
+                <input
+                  className="w-full rounded border border-line px-2 py-1.5 text-sm"
+                  placeholder="이름·직위·직원번호·부서"
+                  value={peopleQuery}
+                  onChange={(event) => setPeopleQuery(event.target.value)}
+                />
+              </div>
               <div className="min-h-0 flex-1 overflow-y-auto">
                 {visibleEmployees.length ? (
                   visibleEmployees.map((employee) => {
@@ -757,7 +782,9 @@ export function PeoplePage() {
                     )
                   })
                 ) : (
-                  <p className="px-3 py-4 text-xs text-muted">{peopleEmptyLead()}</p>
+                  <p className="px-3 py-4 text-xs text-muted">
+                    {peopleQuery.trim() ? '검색한 사람이 없습니다.' : peopleEmptyLead()}
+                  </p>
                 )}
               </div>
             </nav>

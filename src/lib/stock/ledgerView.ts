@@ -1,3 +1,4 @@
+import { csvTable } from '../csv'
 import { countsTowardOnHand, type LedgerLine, type LedgerTxnType, type StockState } from './engine'
 
 export type LedgerFilter = 'all' | 'in' | 'out'
@@ -244,16 +245,19 @@ export type LedgerJump = {
 }
 
 export function ledgerJumpCaption(line: LedgerLine): string {
-  const parts = [TXN_LABELS[line.txnType]]
-  const person = line.personName?.trim()
-  if (person && !isOpaqueLedgerRef(person) && !/^(guest:)/i.test(person)) parts.push(person)
-  const itemName = line.itemName?.trim()
-  if (itemName && !isOpaqueLedgerRef(itemName) && !/^(guest:|item-)/i.test(itemName)) parts.push(itemName)
-  const qty = Math.abs(line.qtyDelta)
-  if (qty > 0) parts.push(String(qty))
-  const warehouse = line.warehouseName?.trim()
-  if (warehouse && !isOpaqueLedgerRef(warehouse) && !/^(guest:|wh-)/i.test(warehouse)) parts.push(warehouse)
-  return parts.join(' · ')
+  return [
+    TXN_LABELS[line.txnType],
+    publicRecorderName(line.personName),
+    publicRecorderName(line.departmentName),
+    publicRecorderName(line.itemName),
+    Math.abs(line.qtyDelta) > 0 ? String(Math.abs(line.qtyDelta)) : '',
+    publicRecorderName(line.itemUnit),
+    publicRecorderName(line.purpose),
+    publicRecorderName(line.partnerName),
+    publicRecorderName(line.warehouseName),
+  ]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 export function ledgerFollowButton(line: LedgerLine): string {
@@ -299,4 +303,25 @@ export function stockEmptyLedgerLead() {
 
 export function stockEmptyLedgerFilterLead() {
   return '이 구분의 입출고가 없습니다. 전체에서 입고·출고가 한 줄씩 이어집니다.'
+}
+
+export function supplyLedgerCsv(rows: LedgerViewRow[]): string {
+  return csvTable(
+    ['일자', '구분', '품목', '단위', '입고', '출고', '창고', '성명', '부서', '공급사', '목적', '메모', '첨부'],
+    rows.map((row) => [
+      row.line.businessDate?.trim() || row.line.createdAt?.slice(0, 10) || '',
+      row.label,
+      publicRecorderName(row.line.itemName),
+      publicRecorderName(row.line.itemUnit),
+      row.inbound ?? '',
+      row.outbound ?? '',
+      publicRecorderName(row.line.warehouseName),
+      publicRecorderName(row.line.personName),
+      publicRecorderName(row.line.departmentName),
+      publicRecorderName(row.line.partnerName),
+      publicRecorderName(row.line.purpose),
+      publicRecorderName(row.line.memo),
+      publicRecorderName(row.line.fileName),
+    ]),
+  )
 }

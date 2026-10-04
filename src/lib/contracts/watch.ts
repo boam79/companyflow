@@ -52,7 +52,10 @@ export function ymdDiffDays(from: string, to: string) {
 export function contractDueCaption(endAt: string | undefined, today: string) {
   const watch = contractWatchLabel(endAt, today)
   if (!watch || !endAt) return ''
-  if (watch === '만료') return '만료'
+  if (watch === '만료') {
+    const past = ymdDiffDays(endAt, today)
+    return past > 0 ? `만료 · ${past}일 지남` : '만료'
+  }
   const days = ymdDiffDays(today, endAt)
   if (days === 0) return '만료 예정 · 오늘 종료'
   if (days > 0) return `만료 예정 · ${days}일 전`

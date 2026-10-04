@@ -1,4 +1,6 @@
+import { csvTable } from '../csv'
 import { isCompanyAssetItem, isSupplyItem, type ItemRecord } from '../master/book'
+import { purchaseKindLabel } from '../master/commands'
 import { companyOnHand, onHand, orderReceived, orderRejected, orderRemaining, orderSupplierReturned, returnBalance, stockOrderLines, type LedgerLine, type StockOrder, type StockState } from './engine'
 import { publicItemLabel } from './ledgerView'
 
@@ -12,6 +14,7 @@ export type LowStock = {
   managed?: boolean
   unit?: string
   code?: string
+  purchaseKind?: string
 }
 
 export function lowStock(rows: LowStock[]): LowStock[] {
@@ -25,12 +28,23 @@ export type SupplyInventoryRow = {
   itemName: string
   itemCode?: string
   itemUnit?: string
+  purchaseKind?: string
+  minStock?: number
   quantities: number[]
   total: number
 }
 
-export function inventoryItemCaption(row: Pick<SupplyInventoryRow, 'itemName' | 'itemCode' | 'itemUnit'>) {
-  return [row.itemName, publicCaptionPart(row.itemCode), publicCaptionPart(row.itemUnit)].filter(Boolean).join(' · ')
+export function inventoryItemCaption(
+  row: Pick<SupplyInventoryRow, 'itemName' | 'itemCode' | 'itemUnit' | 'purchaseKind'>,
+) {
+  return [
+    row.itemName,
+    publicCaptionPart(row.itemCode),
+    publicCaptionPart(row.itemUnit),
+    publicCaptionPart(row.purchaseKind),
+  ]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 export function supplyItems(items: ItemRecord[]): ItemRecord[] {
@@ -242,10 +256,11 @@ export function overdueIssueReturnLine(
   personName: string | undefined,
   itemName: string,
   dueReturnAt?: string,
-  extra?: { departmentName?: string; purpose?: string; memo?: string; fileName?: string },
+  extra?: { departmentName?: string; purpose?: string; memo?: string; fileName?: string; remainingQty?: number },
 ) {
   const due = dueReturnAt?.trim() ?? ''
   const late = due && /^\d{4}-\d{2}-\d{2}$/.test(due) ? `기한 지남 ${due}` : '기한 지남'
+  const remaining = extra?.remainingQty != null && extra.remainingQty > 0 ? `미반납 ${extra.remainingQty}` : ''
   return [
     publicCaptionPart(personName),
     publicCaptionPart(extra?.departmentName),
@@ -254,6 +269,7 @@ export function overdueIssueReturnLine(
     publicCaptionPart(extra?.memo),
     publicCaptionPart(extra?.fileName),
     late,
+    remaining,
   ]
     .filter(Boolean)
     .join(' · ')
@@ -281,6 +297,7 @@ export function overdueIssueReturns(ledger: LedgerLine[], items: ItemRecord[], t
             purpose: line.purpose,
             memo: line.memo,
             fileName: line.fileName,
+            remainingQty: left,
           }),
         },
       ]
@@ -362,6 +379,8 @@ export function buildSupplyInventory(
     itemName: item.name,
     ...(item.code?.trim() ? { itemCode: item.code.trim() } : {}),
     ...(item.unit?.trim() ? { itemUnit: item.unit.trim() } : {}),
+    purchaseKind: purchaseKindLabel(item.purchaseKind),
+    minStock: item.minStock ?? 0,
     quantities: warehouses.map((warehouse) => onHand(state, item.id, warehouse.id)),
     total: companyOnHand(state, item.id),
   }))
@@ -377,14 +396,16 @@ export function supplyLowStock(items: ItemRecord[], state: StockState): LowStock
       managed: item.stockManaged,
       unit: item.unit,
       code: item.code,
+      purchaseKind: purchaseKindLabel(item.purchaseKind),
     })),
   )
 }
 
-export function lowStockLine(row: Pick<LowStock, 'itemName' | 'onHand' | 'minStock' | 'unit' | 'code'>) {
+export function lowStockLine(row: Pick<LowStock, 'itemName' | 'onHand' | 'minStock' | 'unit' | 'code' | 'purchaseKind'>) {
   const unit = row.unit?.trim()
   const code = publicCaptionPart(row.code)
-  const suffix = [unit, code].filter(Boolean).join(' · ')
+  const kind = publicCaptionPart(row.purchaseKind)
+  const suffix = [unit, code, kind].filter(Boolean).join(' · ')
   return suffix
     ? `${row.itemName} ${row.onHand} / 최소 ${row.minStock} · ${suffix}`
     : `${row.itemName} ${row.onHand} / 최소 ${row.minStock}`
@@ -558,7 +579,16 @@ export function overdueSupplyOrders(rows: PurchaseOrderRow[], today: string): Pu
 export function overdueSupplyOrderCaption(row: PurchaseOrderRow) {
   const order = publicStockOrderId(row.orderId)
   const remain = row.remainingQty > 0 ? `미수령 ${row.remainingQty}` : ''
-  return [order, row.supplierName, orderItemCaption(row), row.requestId, row.fileName, `납기 ${row.dueDate}`, remain]
+  return [
+    order,
+    row.supplierName,
+    orderItemCaption(row),
+    row.requestId,
+    row.fileName,
+    publicCaptionPart(row.currencyName),
+    `납기 ${row.dueDate}`,
+    remain,
+  ]
     .filter(Boolean)
     .join(' · ')
 }
@@ -570,35 +600,41 @@ export function todayYmd(now = new Date()): string {
   return `${year}-${month}-${day}`
 }
 
-function csvCell(value: string | number) {
-  const text = String(value)
-  if (/[",\n]/.test(text)) return `"${text.replace(/"/g, '""')}"`
-  return text
+export function supplyOrderCsv(rows: PurchaseOrderRow[]): string {
+  return csvTable(
+    ['발주번호', '품목', '단위', '구매구분', '연결요청', '공급사', '발주일', '납기', '첨부', '통화', '발주', '수령', '불량', '반품', '미수령', '상태'],
+    rows.map((row) => [
+      publicStockOrderId(row.orderId),
+      row.itemName,
+      row.itemUnit ?? '',
+      row.purchaseKind ?? '',
+      row.requestId ?? '',
+      row.supplierName,
+      row.orderDate,
+      row.dueDate,
+      row.fileName,
+      row.currencyName,
+      row.orderedQty,
+      row.receivedQty,
+      row.rejectedQty,
+      row.returnedQty,
+      row.remainingQty,
+      orderReceiptProgress(row),
+    ]),
+  )
 }
 
-export function supplyOrderCsv(rows: PurchaseOrderRow[]): string {
-  const lines = [
-    ['발주번호', '품목', '단위', '구매구분', '연결요청', '공급사', '발주일', '납기', '첨부', '통화', '발주', '수령', '불량', '반품', '미수령', '상태'].join(','),
-    ...rows.map((row) =>
-      [
-        csvCell(publicStockOrderId(row.orderId)),
-        csvCell(row.itemName),
-        csvCell(row.itemUnit ?? ''),
-        csvCell(row.purchaseKind ?? ''),
-        csvCell(row.requestId ?? ''),
-        csvCell(row.supplierName),
-        csvCell(row.orderDate),
-        csvCell(row.dueDate),
-        csvCell(row.fileName),
-        csvCell(row.currencyName),
-        row.orderedQty,
-        row.receivedQty,
-        row.rejectedQty,
-        row.returnedQty,
-        row.remainingQty,
-        orderReceiptProgress(row),
-      ].join(','),
-    ),
-  ]
-  return `\uFEFF${lines.join('\n')}\n`
+export function supplyInventoryCsv(rows: SupplyInventoryRow[], warehouses: NamedWarehouse[]): string {
+  return csvTable(
+    ['품목', '코드', '단위', '구매구분', '최소', ...warehouses.map((warehouse) => warehouse.name), '합계'],
+    rows.map((row) => [
+      row.itemName,
+      row.itemCode ?? '',
+      row.itemUnit ?? '',
+      row.purchaseKind ?? '',
+      row.minStock ?? 0,
+      ...warehouses.map((_, index) => row.quantities[index] ?? 0),
+      row.total,
+    ]),
+  )
 }

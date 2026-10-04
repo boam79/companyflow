@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { applyStockCommand, companyOnHand, createStockState, onHand } from '../stock/engine'
-import { applyAssignAsset, applyReturnAsset, assetIdsForConvert, assetNumber, assetsFromConvert } from './book'
+import { applyAssignAsset, applyReturnAsset, assetIdsForConvert, assetListCsv, assetNumber, assetStatusLabel, assetsFromConvert } from './book'
 
 const ITEM = 'item-paper'
 const MAIN = 'wh-main'
@@ -38,6 +38,44 @@ describe('재고 자산화', () => {
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     )
     expect(converted[1].qrToken).not.toBe(converted[0].qrToken)
+    expect(assetStatusLabel('in_storage')).toBe('사용')
+    expect(assetStatusLabel('returned')).toBe('반품')
+    expect(
+      assetListCsv(
+        [
+          {
+            id: 'guest:desk-1',
+            itemId: 'item-desk',
+            warehouseId: MAIN,
+            status: 'in_storage',
+            sourceOperationId: 'guest:desk-1',
+            model: '견본 책상',
+            serialNo: 'DEMO-DSK-01',
+            locationText: '샘플 1층 로비',
+            departmentName: '샘플총무',
+            ownerName: '견본 김대리',
+            acquiredAt: '2026-08-01',
+            sourceOrderId: 'ORD-DEMO-01',
+          },
+        ],
+        [{ id: 'item-desk', name: '샘플 책상' }],
+      ),
+    ).toContain('AST-DEMO-DSK-01,샘플 책상,견본 책상,DEMO-DSK-01,샘플 1층 로비,샘플총무,견본 김대리,ORD-DEMO-01,2026-08-01,사용')
+    expect(
+      assetListCsv(
+        [
+          {
+            id: 'guest:desk-1',
+            itemId: 'item-desk',
+            warehouseId: MAIN,
+            status: 'in_storage',
+            sourceOperationId: 'guest:desk-1',
+            serialNo: 'DEMO-DSK-01',
+          },
+        ],
+        [{ id: 'item-desk', name: '샘플 책상' }],
+      ),
+    ).not.toMatch(/단가|guest:desk|item-desk/)
   })
 
   it('보관 자산을 직원에게 배정하면 상태가 배정이 된다', () => {
