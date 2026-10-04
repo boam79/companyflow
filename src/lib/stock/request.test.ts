@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyPurchaseRequest, assertOrderFitsRequest, overduePurchaseRequestCaption, overduePurchaseRequests, purchaseRequestCsv, requestAttachment, requestCaption, requestHasRemaining, requestListButtonLabel, requestProgress, requestRemainingQty, requestSavedNotice, requestSelectLabel, requestTotalAmount, stampRequestLines } from './request'
+import { applyPurchaseRequest, assertOrderFitsRequest, filterRequests, overduePurchaseRequestCaption, overduePurchaseRequests, purchaseRequestCsv, requestAttachment, requestCaption, requestHasRemaining, requestListButtonLabel, requestProgress, requestRemainingQty, requestSavedNotice, requestSelectLabel, requestTotalAmount, stampRequestLines } from './request'
 
 const PAPER = 'item-paper'
 const REQUEST = applyPurchaseRequest({
@@ -89,7 +89,7 @@ describe('구매요청', () => {
     ).toThrow(/요청에 없는 품목/)
     expect(
       requestSelectLabel(REQUEST, orders, [{ id: PAPER, name: '샘플 복사용지' }]),
-    ).toBe('REQ-DEMO-01 · 견본 김대리 · 샘플 복사용지 미발주 4 · 부분발주')
+    ).toBe('REQ-DEMO-01 · 견본 김대리 · 샘플총무 · 필요 2026-10-10 · 샘플 복사용지 미발주 4 · 부분발주')
     expect(requestProgress(REQUEST, orders)).toBe('부분발주')
     expect(requestProgress(REQUEST, [])).toBe('미발주')
     expect(requestSelectLabel(REQUEST, [], [{ id: PAPER, name: '샘플 복사용지' }])).not.toMatch(/잔량 0/)
@@ -97,7 +97,7 @@ describe('구매요청', () => {
       requestSelectLabel(REQUEST, [{ id: 'ORD-FULL', itemId: PAPER, qty: 10, requestId: REQUEST.id }], [
         { id: PAPER, name: '샘플 복사용지' },
       ]),
-    ).toBe('REQ-DEMO-01 · 견본 김대리 · 발주완료')
+    ).toBe('REQ-DEMO-01 · 견본 김대리 · 샘플총무 · 필요 2026-10-10 · 발주완료')
     expect(
       requestSelectLabel(REQUEST, [{ id: 'ORD-FULL', itemId: PAPER, qty: 10, requestId: REQUEST.id }], [
         { id: PAPER, name: '샘플 복사용지' },
@@ -106,6 +106,8 @@ describe('구매요청', () => {
     expect(requestListButtonLabel(REQUEST, [], [{ id: PAPER, name: '샘플 복사용지' }])).toMatch(/미발주 10$/)
     expect(requestListButtonLabel(REQUEST, orders, [{ id: PAPER, name: '샘플 복사용지' }])).toMatch(/부분발주 4$/)
     expect(requestListButtonLabel(REQUEST, [], [{ id: PAPER, name: '샘플 복사용지' }])).not.toMatch(/잔량 0|미발주 0/)
+    expect(filterRequests([REQUEST], '샘플총무').map((row) => row.id)).toEqual(['REQ-DEMO-01'])
+    expect(filterRequests([REQUEST], '없는요청')).toEqual([])
   })
 
   it('요청 첨부는 PDF·PNG·JPEG만 받는다', () => {

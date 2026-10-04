@@ -121,6 +121,7 @@ describe('계약 초안', () => {
     ]
     expect(filterContracts(rows, 'CON-2024')).toHaveLength(1)
     expect(filterContracts(rows, 'kt').map((row) => row.title)).toEqual(['인터넷 전용회선'])
+    expect(filterContracts(rows, '원').map((row) => row.title)).toEqual(['본사 임대', '인터넷 전용회선'])
     expect(contractPeriod(rows[0])).toBe('2024-01-01 ~ 2026-02-28')
     expect(contractAmountText(rows[0].amount)).toBe('12,000,000원')
     expect(contractAmountText(12000000, false, 'USD')).toBe('12000000달러')
@@ -131,6 +132,14 @@ describe('계약 초안', () => {
     expect(
       contractListMeta({ ownerName: '견본 김대리', orderId: 'ORD-DEMO-01', partnerName: '견본임대' }),
     ).toBe('거래처 견본임대 · 담당 견본 김대리 · 발주 ORD-DEMO-01')
+    expect(
+      contractListMeta({
+        ownerName: '견본 김대리',
+        orderId: 'ORD-DEMO-01',
+        partnerName: '견본임대',
+        currency: 'USD',
+      }),
+    ).toBe('거래처 견본임대 · 담당 견본 김대리 · 발주 ORD-DEMO-01 · 달러')
     expect(contractListMeta({ ownerName: 'guest:emp', orderId: 'sample:ord', partnerName: 'guest:p' })).toBe('')
     expect(contractDueCaption('2026-11-02', '2026-10-04')).toBe('만료 예정 · 29일 전')
     expect(contractDueCaption('2026-10-04', '2026-10-04')).toBe('만료 예정 · 오늘 종료')
@@ -205,7 +214,7 @@ describe('계약 초안', () => {
     ).toContain('lease.pdf')
     expect(draftSavedNotice({ duplicate: false, revised: true, hasFile: false })).toContain('개정')
     expect(emptyContractTabCopy('due', '')).toBe('만료 예정 계약이 없습니다.')
-    expect(emptyContractTabCopy('active', '임대')).toBe('검색 결과가 없습니다.')
+    expect(emptyContractTabCopy('active', '임대')).toBe('검색한 계약이 없습니다.')
   })
 
   it('원본을 붙이면 확인한 뒤에만 초안을 만든다', () => {

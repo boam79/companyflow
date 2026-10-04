@@ -284,7 +284,34 @@ export function requestSelectLabel(
   items: Pick<ItemRecord, 'id' | 'name'>[],
 ) {
   const remain = requestRemainCaption(row, orders, items)
-  return [row.id, row.requesterName, remain, requestProgress(row, orders)].filter(Boolean).join(' · ')
+  return [
+    row.id,
+    row.requesterName,
+    row.departmentName,
+    row.neededAt ? `필요 ${row.neededAt}` : '',
+    remain,
+    requestProgress(row, orders),
+  ]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+export function filterRequests<T extends PurchaseRequest>(rows: T[], query: string): T[] {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return rows
+  return rows.filter((row) =>
+    [
+      row.id,
+      row.requesterName,
+      row.departmentName,
+      row.neededAt,
+      row.purpose,
+      row.fileName,
+      ...row.lines.flatMap((line) => [line.itemName, line.itemUnit, line.purchaseKind]),
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(needle)),
+  )
 }
 
 export function requestSavedNotice(duplicate: boolean) {

@@ -85,8 +85,12 @@ describe('입출고 수불부', () => {
         partnerName: '견본문구',
         warehouseName: '샘플창고',
         purchaseKind: '일반 비품',
+        memo: '견본 메모',
+        fileName: '견본반출.png',
       }),
-    ).toBe('반출 · 견본 김대리 · 샘플품질 · 샘플 복사용지 · 1 · 박스 · 일반 비품 · 샘플 청소 · 견본문구 · 샘플창고')
+    ).toBe(
+      '반출 · 견본 김대리 · 샘플품질 · 샘플 복사용지 · 1 · 박스 · 일반 비품 · 샘플 청소 · 견본 메모 · 견본문구 · 샘플창고 · 견본반출.png',
+    )
     const fromIssue = ledgerRelatedJumps(state.ledger, rows[2].line)
     expect(fromIssue.map((jump) => jump.button)).toEqual(['반납으로'])
     expect(ledgerRelatedJumps(state.ledger, rows[0].line)).toEqual([])

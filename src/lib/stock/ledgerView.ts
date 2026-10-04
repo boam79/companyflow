@@ -277,8 +277,10 @@ export function ledgerJumpCaption(line: LedgerLine): string {
     publicRecorderName(line.itemUnit),
     publicRecorderName(line.purchaseKind),
     publicRecorderName(line.purpose),
+    publicRecorderName(line.memo),
     publicRecorderName(line.partnerName),
     publicRecorderName(line.warehouseName),
+    publicRecorderName(line.fileName),
   ]
     .filter(Boolean)
     .join(' · ')

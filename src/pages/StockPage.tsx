@@ -26,6 +26,7 @@ import {
   requestRemainingQty,
   requestSavedNotice,
   requestSelectLabel,
+  filterRequests,
   requestTotalAmount,
   type PurchaseRequest,
 } from '../lib/stock/request'
@@ -156,6 +157,7 @@ export function StockPage() {
   const [ledgerFilter, setLedgerFilter] = useState<LedgerFilter>('all')
   const [ledgerQuery, setLedgerQuery] = useState('')
   const [orderQuery, setOrderQuery] = useState('')
+  const [requestQuery, setRequestQuery] = useState('')
   const [selectedLine, setSelectedLine] = useState<LedgerLine | null>(null)
   const opening = useRef(false)
 
@@ -1173,8 +1175,16 @@ export function StockPage() {
           ) : null}
         </div>
         {requests.length ? (
+          <>
+          <input
+            className="mt-2 w-full rounded border border-line px-2 py-1.5 text-sm"
+            placeholder="요청번호·요청자·품목"
+            value={requestQuery}
+            onChange={(event) => setRequestQuery(event.target.value)}
+          />
+          {filterRequests(requests, requestQuery).length ? (
           <ul className="mt-2 flex flex-wrap gap-2">
-            {requests.map((row) => (
+            {filterRequests(requests, requestQuery).map((row) => (
               <li key={row.id} className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
@@ -1197,6 +1207,10 @@ export function StockPage() {
               </li>
             ))}
           </ul>
+          ) : (
+            <p className="mt-2 text-sm text-muted">검색한 요청이 없습니다.</p>
+          )}
+          </>
         ) : null}
         <form
           className="mt-3 grid gap-3 sm:grid-cols-2"
@@ -1448,7 +1462,7 @@ export function StockPage() {
           <>
           <input
             className="mt-3 w-full rounded border border-line px-2 py-1.5 text-sm"
-            placeholder="품목·코드·단위·구매구분"
+            placeholder="품목·코드·단위·구매구분·최소"
             value={inventoryQuery}
             onChange={(event) => setInventoryQuery(event.target.value)}
           />

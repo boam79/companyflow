@@ -50,12 +50,18 @@ export function inventoryItemCaption(
 }
 
 export function filterInventory<
-  T extends Pick<SupplyInventoryRow, 'itemName' | 'itemCode' | 'itemUnit' | 'purchaseKind'>,
+  T extends Pick<SupplyInventoryRow, 'itemName' | 'itemCode' | 'itemUnit' | 'purchaseKind' | 'minStock'>,
 >(rows: T[], query: string): T[] {
   const needle = query.trim().toLowerCase()
   if (!needle) return rows
   return rows.filter((row) =>
-    [row.itemName, row.itemCode, row.itemUnit, row.purchaseKind]
+    [
+      row.itemName,
+      row.itemCode,
+      row.itemUnit,
+      row.purchaseKind,
+      row.minStock && row.minStock > 0 ? `최소 ${row.minStock}` : '',
+    ]
       .filter(Boolean)
       .some((value) => String(value).toLowerCase().includes(needle)),
   )

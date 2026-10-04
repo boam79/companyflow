@@ -686,7 +686,7 @@ export function AssetsPage() {
           <h2 className="text-base font-semibold">폐기 {disposedAssets.length}</h2>
           <ul className="mt-2 space-y-1 text-sm text-muted">
             {disposedAssets.map((asset) => (
-              <li key={asset.id}>{assetClosedCaption(asset, items)}</li>
+              <li key={asset.id}>{assetClosedCaption(asset, items, warehouses)}</li>
             ))}
           </ul>
         </section>
@@ -696,7 +696,7 @@ export function AssetsPage() {
           <h2 className="text-base font-semibold">공급사 반품 {returnedAssets.length}</h2>
           <ul className="mt-2 space-y-1 text-sm text-muted">
             {returnedAssets.map((asset) => (
-              <li key={asset.id}>{assetClosedCaption(asset, items)}</li>
+              <li key={asset.id}>{assetClosedCaption(asset, items, warehouses)}</li>
             ))}
           </ul>
         </section>

@@ -105,11 +105,29 @@ function publicContractRef(value?: string) {
   return text
 }
 
-export function contractListMeta(row: { ownerName?: string; orderId?: string; partnerName?: string }) {
+export function contractCurrencyName(code?: string) {
+  const text = code?.trim() ?? ''
+  if (text === 'USD') return '달러'
+  if (text === 'KRW') return '원'
+  return publicContractRef(text)
+}
+
+export function contractListMeta(row: {
+  ownerName?: string
+  orderId?: string
+  partnerName?: string
+  currency?: string
+}) {
   const partner = publicContractRef(row.partnerName)
   const owner = publicContractRef(row.ownerName)
   const order = publicContractRef(row.orderId)
-  return [partner ? `거래처 ${partner}` : '', owner ? `담당 ${owner}` : '', order ? `발주 ${order}` : '']
+  const currency = contractCurrencyName(row.currency)
+  return [
+    partner ? `거래처 ${partner}` : '',
+    owner ? `담당 ${owner}` : '',
+    order ? `발주 ${order}` : '',
+    currency,
+  ]
     .filter(Boolean)
     .join(' · ')
 }
@@ -150,7 +168,19 @@ export function filterContracts(rows: ContractDraft[], query: string) {
   const needle = query.trim().toLowerCase()
   if (!needle) return rows
   return rows.filter((row) =>
-    [row.title, row.contractNo, row.counterparty, row.ownerName, row.fileName, row.partnerName, row.orderId, row.startAt, row.endAt]
+    [
+      row.title,
+      row.contractNo,
+      row.counterparty,
+      row.ownerName,
+      row.fileName,
+      row.partnerName,
+      row.orderId,
+      row.startAt,
+      row.endAt,
+      row.currency,
+      contractCurrencyName(row.currency),
+    ]
       .filter(Boolean)
       .some((value) => value!.toLowerCase().includes(needle)),
   )
@@ -177,7 +207,7 @@ export function contractPhaseCaption(phase: ContractPhase) {
 }
 
 export function emptyContractTabCopy(phase: ContractPhase, query: string) {
-  if (query.trim()) return '검색 결과가 없습니다.'
+  if (query.trim()) return '검색한 계약이 없습니다.'
   if (phase === 'expired') return '만료된 계약이 없습니다.'
   if (phase === 'due') return '만료 예정 계약이 없습니다.'
   return '진행 중인 계약이 없습니다.'

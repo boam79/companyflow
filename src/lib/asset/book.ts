@@ -48,6 +48,7 @@ export function assetStatusLabel(status: AssetStatus) {
 export function assetClosedCaption(
   asset: AssetRecord,
   items: { id: string; name: string }[] = [],
+  warehouses: { id: string; name: string }[] = [],
 ): string {
   return [
     assetNumber(asset.id, asset.serialNo),
@@ -55,6 +56,7 @@ export function assetClosedCaption(
     publicRecorderName(asset.model),
     publicRecorderName(asset.serialNo),
     publicRecorderName(asset.locationText),
+    publicRecorderName(warehouses.find((warehouse) => warehouse.id === asset.warehouseId)?.name),
     publicRecorderName(asset.ownerName),
     asset.acquiredAt ?? '',
     assetStatusLabel(asset.status),

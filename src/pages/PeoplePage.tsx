@@ -747,7 +747,7 @@ export function PeoplePage() {
               <div className="shrink-0 border-b border-line p-2">
                 <input
                   className="w-full rounded border border-line px-2 py-1.5 text-sm"
-                  placeholder="이름·직위·직원번호·부서"
+                  placeholder="이름·직위·직원번호·부서·입사일"
                   value={peopleQuery}
                   onChange={(event) => setPeopleQuery(event.target.value)}
                 />

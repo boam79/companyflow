@@ -112,11 +112,16 @@ export function filledRosterSections<T extends { employees: unknown[] }>(section
   return sections.filter((section) => section.employees.length > 0)
 }
 
-export function filterPeople<T extends { name: string; title?: string; employeeNo?: string; departmentId?: string }>(
-  rows: T[],
-  query: string,
-  departments: { id: string; name: string }[] = [],
-): T[] {
+export function filterPeople<
+  T extends {
+    name: string
+    title?: string
+    employeeNo?: string
+    departmentId?: string
+    hiredAt?: string
+    leftAt?: string
+  },
+>(rows: T[], query: string, departments: { id: string; name: string }[] = []): T[] {
   const needle = query.trim().toLowerCase()
   if (!needle) return rows
   return rows.filter((row) =>
@@ -125,6 +130,8 @@ export function filterPeople<T extends { name: string; title?: string; employeeN
       masterOptionalText(row.title) ?? '',
       masterOptionalText(row.employeeNo) ?? '',
       departments.find((dept) => dept.id === row.departmentId)?.name ?? '',
+      row.hiredAt ?? '',
+      row.leftAt ?? '',
     ]
       .filter(Boolean)
       .some((value) => value.toLowerCase().includes(needle)),
@@ -137,9 +144,10 @@ export function peopleRosterCsv(
   departments: { id: string; name: string }[] = [],
 ): string {
   return csvTable(
-    ['이름', '직위', '부서', '직원번호', '입사일', '퇴사일', '상태'],
+    ['이름', '직위', '부서', '직원번호', '입사일', '퇴사일', '지급', '상태'],
     employees.map((row) => {
-      const phase = rosterPhase(row, onboardingView(row.id, checks))
+      const process = onboardingView(row.id, checks)
+      const phase = rosterPhase(row, process)
       const status = ROSTER_SECTIONS.find((section) => section.phase === phase)?.label ?? ''
       const dept = departments.find((dept) => dept.id === row.departmentId)?.name ?? ''
       return [
@@ -149,6 +157,7 @@ export function peopleRosterCsv(
         masterOptionalText(row.employeeNo) ?? '',
         row.hiredAt ?? '',
         row.leftAt ?? '',
+        hireIssuedCount(process),
         status,
       ]
     }),

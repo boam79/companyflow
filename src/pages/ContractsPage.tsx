@@ -552,7 +552,7 @@ export function ContractsPage() {
           <div className="shrink-0 border-b border-line p-3">
             <input
               className="w-full rounded border border-line px-3 py-2 text-sm"
-              placeholder="번호·계약·상대방·담당자·거래처"
+              placeholder="번호·계약·상대방·담당자·거래처·통화"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />

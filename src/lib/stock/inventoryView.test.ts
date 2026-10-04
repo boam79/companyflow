@@ -274,6 +274,26 @@ describe('비품 현재고', () => {
       ).map((row) => row.itemName),
     ).toEqual(['샘플 복사용지'])
     expect(
+      filterInventory(
+        [
+          {
+            itemName: '샘플 복사용지',
+            itemCode: 'DEMO-PAPER',
+            itemUnit: '박스',
+            purchaseKind: '일반 비품',
+            minStock: 10,
+          },
+          {
+            itemName: '견본 볼펜',
+            itemCode: 'DEMO-PEN',
+            itemUnit: '자루',
+            purchaseKind: '자재',
+          },
+        ],
+        '최소 10',
+      ).map((row) => row.itemName),
+    ).toEqual(['샘플 복사용지'])
+    expect(
       supplyInventoryCsv(
         [
           {
