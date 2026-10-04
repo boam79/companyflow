@@ -28,6 +28,7 @@ import {
   ACTIVE_MASTER_WHERE,
   masterSavedNotice,
   masterListCsv,
+  filterMasterRows,
   masterDisabledNotice,
   masterOptionalText,
   type MasterFieldEntity,
@@ -181,6 +182,7 @@ export function MasterDataPage() {
   const [message, setMessage] = useState('')
   const [notice, setNotice] = useState('')
   const [ready, setReady] = useState(() => sqlite.isOpen(sqlite.companyId))
+  const [masterQuery, setMasterQuery] = useState('')
   const [openFailed, setOpenFailed] = useState(false)
   const opening = useRef(false)
 
@@ -719,6 +721,7 @@ export function MasterDataPage() {
               columns: [{ key: 'name', label: '이름' }],
               rows: rows.map((row) => ({ id: row.id, name: row.name })),
             }
+  const visibleMasterRows = filterMasterRows(table.rows as TableRow[], masterQuery)
 
   return (
     <div className="flex flex-col gap-4">
@@ -784,6 +787,7 @@ export function MasterDataPage() {
               setEmployeeTitle('')
               setEmployeeHiredAt('')
               resetPartnerForm()
+              setMasterQuery('')
               setTab(item.id)
             }}
           >
@@ -1152,9 +1156,16 @@ export function MasterDataPage() {
             기준정보 목록 받기
           </button>
           </div>
+          <input
+            className="mb-2 w-full rounded border border-line px-2 py-1.5 text-sm"
+            placeholder="이름·코드·위치"
+            value={masterQuery}
+            onChange={(event) => setMasterQuery(event.target.value)}
+          />
+          {visibleMasterRows.length ? (
           <MasterTable
             columns={table.columns}
-            rows={table.rows}
+            rows={visibleMasterRows}
             selectedId={
               tab === 'items'
                 ? selectedItemId
@@ -1223,6 +1234,9 @@ export function MasterDataPage() {
                     : undefined
             }
           />
+          ) : (
+            <p className="text-sm text-muted">검색한 기준정보가 없습니다.</p>
+          )}
         </>
       ) : (
         <p className="text-sm text-muted">

@@ -3,7 +3,7 @@ import {
   applyStockCommand,
   createStockState,
 } from './engine'
-import { buildLedgerView, buildSupplyLedgerView, filterLedgerView, formatLedgerLink, ledgerItemCaption, ledgerJumpCaption, ledgerRelatedJumps, publicItemLabel, publicRecorderName, rowsAreRelated, sessionRecorderName, stockEmptyLedgerFilterLead, stockEmptyLedgerLead, supplyLedgerCsv } from './ledgerView'
+import { buildLedgerView, buildSupplyLedgerView, filterLedgerView, filterLedgerSearch, formatLedgerLink, ledgerItemCaption, ledgerJumpCaption, ledgerRelatedJumps, publicItemLabel, publicRecorderName, rowsAreRelated, sessionRecorderName, stockEmptyLedgerFilterLead, stockEmptyLedgerLead, supplyLedgerCsv } from './ledgerView'
 
 const ITEM = 'item-paper'
 const MAIN = 'wh-main'
@@ -65,6 +65,7 @@ describe('입출고 수불부', () => {
     expect(rowsAreRelated(rows[2].line, rows[3].line)).toBe(true)
     expect(filterLedgerView(rows, 'out')).toHaveLength(1)
     expect(filterLedgerView(rows, 'in')).toHaveLength(3)
+    expect(filterLedgerSearch(rows, '반출').map((row) => row.label)).toEqual(['반출'])
     const fromReturn = ledgerRelatedJumps(state.ledger, rows[3].line)
     expect(fromReturn.map((jump) => [jump.button, jump.caption])).toEqual([['원거래로', '반출 · 김담당 · 3']])
     expect(fromReturn[0].caption).not.toMatch(/op-issue|aaaaaaaa|[0-9a-f]{8}-/)
@@ -83,8 +84,9 @@ describe('입출고 수불부', () => {
         purpose: '샘플 청소',
         partnerName: '견본문구',
         warehouseName: '샘플창고',
+        purchaseKind: '일반 비품',
       }),
-    ).toBe('반출 · 견본 김대리 · 샘플품질 · 샘플 복사용지 · 1 · 박스 · 샘플 청소 · 견본문구 · 샘플창고')
+    ).toBe('반출 · 견본 김대리 · 샘플품질 · 샘플 복사용지 · 1 · 박스 · 일반 비품 · 샘플 청소 · 견본문구 · 샘플창고')
     const fromIssue = ledgerRelatedJumps(state.ledger, rows[2].line)
     expect(fromIssue.map((jump) => jump.button)).toEqual(['반납으로'])
     expect(ledgerRelatedJumps(state.ledger, rows[0].line)).toEqual([])

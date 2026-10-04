@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { applyStockCommand, companyOnHand, createStockState, onHand } from '../stock/engine'
-import { applyAssignAsset, applyReturnAsset, assetIdsForConvert, assetListCsv, assetNumber, assetStatusLabel, assetsFromConvert, filterAssets } from './book'
+import { applyAssignAsset, applyReturnAsset, assetClosedCaption, assetIdsForConvert, assetListCsv, assetNumber, assetStatusLabel, assetsFromConvert, filterAssets } from './book'
 
 const ITEM = 'item-paper'
 const MAIN = 'wh-main'
@@ -105,6 +105,21 @@ describe('재고 자산화', () => {
         ],
       ).map((row) => row.serialNo),
     ).toEqual(['DEMO-DSK-01'])
+    expect(
+      assetClosedCaption(
+        {
+          id: 'guest:desk-1',
+          itemId: 'item-desk',
+          warehouseId: MAIN,
+          status: 'returned',
+          sourceOperationId: 'guest:desk-1',
+          serialNo: 'DEMO-DSK-01',
+          ownerName: '견본 김대리',
+          acquiredAt: '2026-08-01',
+        },
+        [{ id: 'item-desk', name: '샘플 책상' }],
+      ),
+    ).toBe('AST-DEMO-DSK-01 · 샘플 책상 · DEMO-DSK-01 · 견본 김대리 · 2026-08-01 · 반품')
   })
 
   it('보관 자산을 직원에게 배정하면 상태가 배정이 된다', () => {

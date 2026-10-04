@@ -200,8 +200,9 @@ describe('계약 초안', () => {
         amount: 12_000_000,
         currency: 'KRW',
         createdAt: '2026-09-29T00:00:00.000Z',
+        fileName: 'lease.pdf',
       }),
-    ).toContain('2026-09-29')
+    ).toContain('lease.pdf')
     expect(draftSavedNotice({ duplicate: false, revised: true, hasFile: false })).toContain('개정')
     expect(emptyContractTabCopy('due', '')).toBe('만료 예정 계약이 없습니다.')
     expect(emptyContractTabCopy('active', '임대')).toBe('검색 결과가 없습니다.')

@@ -182,6 +182,23 @@ describe('구매요청', () => {
     ).toBe(
       'REQ-DEMO-01 · 필요 2026-10-10 · 견본 김대리 · 샘플총무 · 샘플 비품 보충 · 샘플 복사용지 · 박스 · 일반 비품 · 견본요청.pdf · 미발주 10',
     )
+    expect(
+      overduePurchaseRequestCaption(
+        {
+          ...REQUEST,
+          fileName: '견본요청.pdf',
+          lines: stampRequestLines(
+            REQUEST.lines,
+            [{ id: PAPER, name: '샘플 복사용지', unit: '박스', purchaseKind: 'supply' }],
+            [{ id: 'supply', name: '일반 비품' }],
+          ),
+        },
+        [],
+        '2026-10-11',
+      ),
+    ).toBe(
+      'REQ-DEMO-01 · 필요 2026-10-10 · 1일 · 견본 김대리 · 샘플총무 · 샘플 비품 보충 · 샘플 복사용지 · 박스 · 일반 비품 · 견본요청.pdf · 미발주 10',
+    )
     expect(overduePurchaseRequestCaption(REQUEST)).not.toMatch(/필요일 지남 0/)
     expect(purchaseRequestCsv([REQUEST])).toContain(
       '요청번호,요청자,부서,필요일,목적,품목,단위,구매구분,수량,미발주,상태,첨부',

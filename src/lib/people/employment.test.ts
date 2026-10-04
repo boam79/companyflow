@@ -114,7 +114,7 @@ describe('입퇴사', () => {
     expect(rosterCaption(joining, onboardingView('emp-kim', checks))).toBe('입사 중 · 1/3 지급 · 2026-09-16')
     expect(rosterCaption(before, onboardingView('emp-new', []))).toBe('입사 전 · 0/3 지급')
     expect(rosterCaption(employed, onboardingView('emp-lee', checks))).toBe('재직 · 2025-07-14')
-    expect(rosterCaption(left, onboardingView('emp-oh', []))).toBe('퇴사 2026-08-31')
+    expect(rosterCaption(left, onboardingView('emp-oh', []))).toBe('퇴사 2026-08-31 · 2022-06-01')
     expect(
       rosterCaption({ ...employed, employeeNo: 'G-001' }, onboardingView('emp-lee', checks)),
     ).toBe('재직 · 2025-07-14 · G-001')

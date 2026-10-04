@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { WorkGateNotice } from '../components/WorkGateNotice'
 import { WorkCompanyControl } from '../components/WorkCompanyControl'
-import { assetIsOpen, assetListCsv, assetNumber, assetStatusLabel, filterAssets, loadAssets, type AssetRecord } from '../lib/asset/book'
+import { assetClosedCaption, assetIsOpen, assetListCsv, assetNumber, assetStatusLabel, filterAssets, loadAssets, type AssetRecord } from '../lib/asset/book'
 import { preventImeEnterSubmit } from '../lib/asset/hangulIme'
 import {
   assetLifeAttachment,
@@ -686,10 +686,7 @@ export function AssetsPage() {
           <h2 className="text-base font-semibold">폐기 {disposedAssets.length}</h2>
           <ul className="mt-2 space-y-1 text-sm text-muted">
             {disposedAssets.map((asset) => (
-              <li key={asset.id}>
-                {assetNumber(asset.id, asset.serialNo)} · {items.find((row) => row.id === asset.itemId)?.name ?? asset.itemId}{' '}
-                · {asset.locationText || '위치 없음'}
-              </li>
+              <li key={asset.id}>{assetClosedCaption(asset, items)}</li>
             ))}
           </ul>
         </section>
@@ -699,9 +696,7 @@ export function AssetsPage() {
           <h2 className="text-base font-semibold">공급사 반품 {returnedAssets.length}</h2>
           <ul className="mt-2 space-y-1 text-sm text-muted">
             {returnedAssets.map((asset) => (
-              <li key={asset.id}>
-                {assetNumber(asset.id, asset.serialNo)} · {items.find((row) => row.id === asset.itemId)?.name ?? asset.itemId}
-              </li>
+              <li key={asset.id}>{assetClosedCaption(asset, items)}</li>
             ))}
           </ul>
         </section>

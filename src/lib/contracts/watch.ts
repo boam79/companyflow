@@ -49,6 +49,14 @@ export function ymdDiffDays(from: string, to: string) {
   return Math.round((end - start) / 86_400_000)
 }
 
+export function overdueDaysCaption(due: string | undefined, today?: string) {
+  const start = due?.trim() ?? ''
+  const end = today?.trim() ?? ''
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end) || start >= end) return ''
+  const past = ymdDiffDays(start, end)
+  return past > 0 ? `${past}일` : ''
+}
+
 export function contractDueCaption(endAt: string | undefined, today: string) {
   const watch = contractWatchLabel(endAt, today)
   if (!watch || !endAt) return ''

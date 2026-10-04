@@ -34,6 +34,7 @@ import {
   filterInventory,
   overdueSupplyOrders,
   overdueSupplyOrderCaption,
+  filterOrders,
   assertDueReturnAt,
   assertInboundAt,
   stockOutboundLead,
@@ -388,7 +389,7 @@ describe('비품 현재고', () => {
     expect(overdueIssueReturnLine('guest:emp', '', '2026-01-01')).toBe('비품 · 기한 지남 2026-01-01')
     expect(overdueIssueReturnLine('guest:emp', '', '2026-01-01')).not.toMatch(/guest:|기한 지남 0|operation_id/)
     expect(overdueIssueReturns(state.ledger, [PAPER_ITEM], '2026-10-03').map((row) => row.caption)).toEqual([
-      '견본 김대리 · 복사용지 · 기한 지남 2026-01-01 · 미반납 2',
+      '견본 김대리 · 복사용지 · 기한 지남 2026-01-01 · 275일 · 미반납 2',
     ])
     expect(
       overdueIssueReturns(
@@ -398,7 +399,7 @@ describe('비품 현재고', () => {
         [{ ...PAPER_ITEM, name: '새복사용지' }],
         '2026-10-03',
       ).map((row) => row.caption),
-    ).toEqual(['견본 김대리 · 옛복사용지 · 기한 지남 2026-01-01 · 미반납 2'])
+    ).toEqual(['견본 김대리 · 옛복사용지 · 기한 지남 2026-01-01 · 275일 · 미반납 2'])
     state = applyStockCommand(state, {
       type: 'post_return',
       operationId: 'op-back',
@@ -885,6 +886,10 @@ describe('비품 발주 목록', () => {
     expect(overdueSupplyOrderCaption(due)).toBe(
       'ORD-DEMO-01 · 견본임대 · 샘플 복사용지 · 견본발주.pdf · 원 · 납기 2026-01-01 · 미수령 2',
     )
+    expect(overdueSupplyOrderCaption(due, '2026-10-03')).toBe(
+      'ORD-DEMO-01 · 견본임대 · 샘플 복사용지 · 견본발주.pdf · 원 · 납기 2026-01-01 · 275일 · 미수령 2',
+    )
     expect(overdueSupplyOrders([due], '2026-01-01')).toEqual([])
+    expect(filterOrders([due, later], 'ORD-DEMO-01').map((row) => row.orderId)).toEqual(['ORD-DEMO-01'])
   })
 })

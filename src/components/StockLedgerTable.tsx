@@ -3,6 +3,7 @@ import {
   buildLedgerView,
   buildSupplyLedgerView,
   filterLedgerView,
+  filterLedgerSearch,
   ledgerItemCaption,
   publicRecorderName,
   rowsAreRelated,
@@ -32,6 +33,7 @@ export function StockLedgerTable(props: {
   departments?: NamedRow[]
   partners?: NamedRow[]
   filter: LedgerFilter
+  query?: string
   selected?: LedgerLine | null
   onSelect: (line: LedgerLine) => void
   onDownloadFile?: (line: LedgerLine) => void
@@ -45,7 +47,7 @@ export function StockLedgerTable(props: {
           names,
         )
       : buildLedgerView({ processed: new Map(), orders: new Map(), ledger: props.ledger }, names)
-  const rows = filterLedgerView(built, props.filter)
+  const rows = filterLedgerSearch(filterLedgerView(built, props.filter), props.query ?? '')
   const supply = props.variant === 'supply'
 
   if (!props.ledger.length) {
@@ -53,7 +55,11 @@ export function StockLedgerTable(props: {
   }
 
   if (!rows.length) {
-    return <p className="mt-4 text-sm text-muted">{stockEmptyLedgerFilterLead()}</p>
+    return (
+      <p className="mt-4 text-sm text-muted">
+        {props.query?.trim() ? '검색한 입출고가 없습니다.' : stockEmptyLedgerFilterLead()}
+      </p>
+    )
   }
 
   return (

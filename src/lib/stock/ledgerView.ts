@@ -238,6 +238,29 @@ export function filterLedgerView(rows: LedgerViewRow[], filter: LedgerFilter): L
   return rows
 }
 
+export function filterLedgerSearch(rows: LedgerViewRow[], query: string): LedgerViewRow[] {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return rows
+  return rows.filter((row) =>
+    [
+      row.label,
+      publicRecorderName(row.line.itemName),
+      publicRecorderName(row.line.itemUnit),
+      publicRecorderName(row.line.purchaseKind),
+      publicRecorderName(row.line.personName),
+      publicRecorderName(row.line.departmentName),
+      publicRecorderName(row.line.warehouseName),
+      publicRecorderName(row.line.partnerName),
+      publicRecorderName(row.line.purpose),
+      publicRecorderName(row.line.memo),
+      publicRecorderName(row.line.fileName),
+      row.link,
+    ]
+      .filter(Boolean)
+      .some((value) => value.toLowerCase().includes(needle)),
+  )
+}
+
 export type LedgerJump = {
   line: LedgerLine
   button: string
@@ -252,6 +275,7 @@ export function ledgerJumpCaption(line: LedgerLine): string {
     publicRecorderName(line.itemName),
     Math.abs(line.qtyDelta) > 0 ? String(Math.abs(line.qtyDelta)) : '',
     publicRecorderName(line.itemUnit),
+    publicRecorderName(line.purchaseKind),
     publicRecorderName(line.purpose),
     publicRecorderName(line.partnerName),
     publicRecorderName(line.warehouseName),

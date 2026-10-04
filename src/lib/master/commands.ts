@@ -450,6 +450,16 @@ export function masterListCsv(columns: { key: string; label: string }[], rows: R
   )
 }
 
+export function filterMasterRows<T extends { id: string }>(rows: readonly T[], query: string): T[] {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return [...rows]
+  return rows.filter((row) =>
+    Object.entries(row)
+      .filter(([key]) => key !== 'id')
+      .some(([, value]) => String(value ?? '').toLowerCase().includes(needle)),
+  )
+}
+
 export function masterDisabledNotice(label: string, status: 'applied' | 'duplicate') {
   if (status === 'duplicate') return '같은 내용은 한 번만 반영됩니다.'
   return `사용 안 함으로 바꿨습니다. (${label})`

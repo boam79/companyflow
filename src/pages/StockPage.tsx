@@ -33,7 +33,7 @@ import { toArrayBuffer } from '../lib/contracts/book'
 import { downloadCsvFile } from '../lib/csv'
 import { onHand, orderNetReceived, orderRemaining, returnBalance, inboundReturnBalance, inboundSupplierSource, stockOrderLines, type LedgerLine, type StockCommand, type StockOrderLine, type StockState } from '../lib/stock/engine'
 import { defaultStockPolicy, loadStockPolicy, showsOverflowReason } from '../lib/stock/policy'
-import { assertDueReturnAt, assertInboundAt, buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, filterInventory, inventoryItemCaption, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderInspectCaption, orderItemCaption, orderQtyText, orderReceiptProgress, overdueIssueReturns, overdueSupplyOrderCaption, overdueSupplyOrders, partnerSelectHint, publicStockOrderId, resolveIssueDepartment, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssueNoteLead, stockIssuePersonName, stockLastSaveLead, stockOnHandPreview, stockOnHandPreviewKind, stockOutboundLead, stockPageLead, stockQtyUnitHint, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, stockTransferOnHandPreview, supplyInventoryCsv, supplyLowStock, todayYmd, transferWarehouseIds, supplyItems, supplyOrderCsv, warehouseOptionLabel, type PurchaseOrderRow } from '../lib/stock/inventoryView'
+import { assertDueReturnAt, assertInboundAt, buildAssetOrderList, buildSupplyInventory, buildSupplyOrderList, ORDER_CURRENCIES, defaultWarehouseId, filterInventory, filterOrders, inventoryItemCaption, inventoryShowsTransferFields, inventoryShowsWarehouseField, inventoryWarehouseColumns, inventoryWarehouseQtyLabel, lowStockLine, orderInspectCaption, orderItemCaption, orderQtyText, orderReceiptProgress, overdueIssueReturns, overdueSupplyOrderCaption, overdueSupplyOrders, partnerSelectHint, publicStockOrderId, resolveIssueDepartment, resolveOrderPartnerId, stockAdjustLead, stockAdjustReason, stockAssetsLinkLabel, stockConvertLead, stockDirectInLead, stockDraftOrderId, stockEmptyItemsLead, stockInboundItemHint, stockIssueNoteLead, stockIssuePersonName, stockLastSaveLead, stockOnHandPreview, stockOnHandPreviewKind, stockOutboundLead, stockPageLead, stockQtyUnitHint, stockReceiptLead, stockReturnLead, stockSavedNotice, stockSupplierReturnLead, stockTransferLead, stockTransferOnHandPreview, supplyInventoryCsv, supplyLowStock, todayYmd, transferWarehouseIds, supplyItems, supplyOrderCsv, warehouseOptionLabel, type PurchaseOrderRow } from '../lib/stock/inventoryView'
 import { DAILY_STOCK_ACTIONS, MORE_STOCK_ACTIONS, stockActionChoices } from '../lib/stock/dailyActions'
 import { buildSupplyLedgerView, filterLedgerView, isSupplyLedgerLine, ledgerRelatedJumps, sessionRecorderName, supplyLedgerCsv, type LedgerFilter } from '../lib/stock/ledgerView'
 import { stockActionItemId, suggestNextStockForm, type NextStockForm } from '../lib/stock/nextAction'
@@ -154,6 +154,8 @@ export function StockPage() {
   const [openFailed, setOpenFailed] = useState(false)
   const [saving, setSaving] = useState(false)
   const [ledgerFilter, setLedgerFilter] = useState<LedgerFilter>('all')
+  const [ledgerQuery, setLedgerQuery] = useState('')
+  const [orderQuery, setOrderQuery] = useState('')
   const [selectedLine, setSelectedLine] = useState<LedgerLine | null>(null)
   const opening = useRef(false)
 
@@ -1128,7 +1130,7 @@ export function StockPage() {
                     setAction('post_receipt')
                   }}
                 >
-                  {overdueSupplyOrderCaption(row)}
+                  {overdueSupplyOrderCaption(row, today)}
                 </button>
               </li>
             ))}
@@ -1149,7 +1151,7 @@ export function StockPage() {
                   }`}
                   onClick={() => fillOrderFromRequest(row)}
                 >
-                  {overduePurchaseRequestCaption(row, orderRows)}
+                  {overduePurchaseRequestCaption(row, orderRows, today)}
                 </button>
               </li>
             ))}
@@ -1575,7 +1577,7 @@ export function StockPage() {
         {purchaseOrders.length ? (
           <details className="mt-3 text-sm">
             <summary className="cursor-pointer text-muted">발주 기록 {purchaseOrders.length}</summary>
-            <div className="mt-2 space-y-3">
+              <div className="mt-2 space-y-3">
               <div className="flex flex-wrap items-center justify-end gap-2">
                 <button
                   type="button"
@@ -1585,6 +1587,13 @@ export function StockPage() {
                   목록 받기
                 </button>
               </div>
+              <input
+                className="w-full rounded border border-line px-2 py-1.5 text-sm"
+                placeholder="발주번호·품목·공급사"
+                value={orderQuery}
+                onChange={(event) => setOrderQuery(event.target.value)}
+              />
+              {filterOrders(purchaseOrders, orderQuery).length ? (
               <div className="overflow-x-auto">
                 <table className="min-w-max w-full text-left text-sm">
                   <thead>
@@ -1606,7 +1615,7 @@ export function StockPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {purchaseOrders.map((row) => {
+                    {filterOrders(purchaseOrders, orderQuery).map((row) => {
                       const active = row.orderId === orderId && row.itemId === itemId
                       return (
                         <tr
@@ -1641,9 +1650,18 @@ export function StockPage() {
                   </tbody>
                 </table>
               </div>
+              ) : (
+                <p className="text-sm text-muted">검색한 발주가 없습니다.</p>
+              )}
             </div>
           </details>
         ) : null}
+        <input
+          className="mt-3 w-full rounded border border-line px-2 py-1.5 text-sm"
+          placeholder="구분·품목·성명·창고"
+          value={ledgerQuery}
+          onChange={(event) => setLedgerQuery(event.target.value)}
+        />
         <div className="mt-1 min-h-0 max-h-[calc(100svh-14rem)] overflow-auto">
         <StockLedgerTable
           ledger={state?.ledger ?? []}
@@ -1652,6 +1670,7 @@ export function StockPage() {
           departments={departments}
           partners={partners}
           filter={ledgerFilter}
+          query={ledgerQuery}
           selected={selectedLine}
           variant="supply"
           onSelect={selectLedgerLine}

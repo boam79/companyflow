@@ -45,6 +45,24 @@ export function assetStatusLabel(status: AssetStatus) {
   return '사용'
 }
 
+export function assetClosedCaption(
+  asset: AssetRecord,
+  items: { id: string; name: string }[] = [],
+): string {
+  return [
+    assetNumber(asset.id, asset.serialNo),
+    items.find((item) => item.id === asset.itemId)?.name ?? '',
+    publicRecorderName(asset.model),
+    publicRecorderName(asset.serialNo),
+    publicRecorderName(asset.locationText),
+    publicRecorderName(asset.ownerName),
+    asset.acquiredAt ?? '',
+    assetStatusLabel(asset.status),
+  ]
+    .filter(Boolean)
+    .join(' · ')
+}
+
 export function filterAssets(
   assets: AssetRecord[],
   query: string,

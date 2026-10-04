@@ -5,6 +5,7 @@ import type { ItemRecord } from '../master/book'
 import { loadItems } from '../master/book'
 import { purchaseKindLabel } from '../master/commands'
 import type { CompanySqlite } from '../sqlite/client'
+import { overdueDaysCaption } from '../contracts/watch'
 import { ledgerCatalogFields, stockOrderLines, type StockOrder, type StockOrderLine } from './engine'
 import { supplyItemInsert } from './typedItem'
 
@@ -330,6 +331,7 @@ export function overduePurchaseRequests(
 export function overduePurchaseRequestCaption(
   row: PurchaseRequest,
   orders: Pick<StockOrder, 'id' | 'itemId' | 'qty' | 'lines' | 'requestId'>[] = [],
+  today?: string,
 ) {
   const itemPart = row.lines
     .map((line) => [line.itemName, line.itemUnit, line.purchaseKind].filter(Boolean).join(' · '))
@@ -339,6 +341,7 @@ export function overduePurchaseRequestCaption(
   return [
     row.id,
     row.neededAt ? `필요 ${row.neededAt}` : '',
+    overdueDaysCaption(row.neededAt, today),
     row.requesterName,
     row.departmentName,
     row.purpose,

@@ -72,7 +72,7 @@ export function rosterCaption(
         : phase === 'joining'
           ? `입사 중 · ${issued}/3 지급`
           : `재직 · ${employee.hiredAt}`
-  return [base, phase === 'joining' ? hired : '', title, dept, number].filter(Boolean).join(' · ')
+  return [base, phase === 'joining' || phase === 'left' ? hired : '', title, dept, number].filter(Boolean).join(' · ')
 }
 
 export type HireProcessStep = {

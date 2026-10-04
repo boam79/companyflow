@@ -1,3 +1,4 @@
+import { overdueDaysCaption } from '../contracts/watch'
 import { csvTable } from '../csv'
 import { isCompanyAssetItem, isSupplyItem, type ItemRecord } from '../master/book'
 import { purchaseKindLabel } from '../master/commands'
@@ -269,7 +270,14 @@ export function overdueIssueReturnLine(
   personName: string | undefined,
   itemName: string,
   dueReturnAt?: string,
-  extra?: { departmentName?: string; purpose?: string; memo?: string; fileName?: string; remainingQty?: number },
+  extra?: {
+    departmentName?: string
+    purpose?: string
+    memo?: string
+    fileName?: string
+    remainingQty?: number
+    today?: string
+  },
 ) {
   const due = dueReturnAt?.trim() ?? ''
   const late = due && /^\d{4}-\d{2}-\d{2}$/.test(due) ? `기한 지남 ${due}` : '기한 지남'
@@ -282,6 +290,7 @@ export function overdueIssueReturnLine(
     publicCaptionPart(extra?.memo),
     publicCaptionPart(extra?.fileName),
     late,
+    overdueDaysCaption(due, extra?.today),
     remaining,
   ]
     .filter(Boolean)
@@ -311,6 +320,7 @@ export function overdueIssueReturns(ledger: LedgerLine[], items: ItemRecord[], t
             memo: line.memo,
             fileName: line.fileName,
             remainingQty: left,
+            today,
           }),
         },
       ]
@@ -589,7 +599,7 @@ export function overdueSupplyOrders(rows: PurchaseOrderRow[], today: string): Pu
     )
 }
 
-export function overdueSupplyOrderCaption(row: PurchaseOrderRow) {
+export function overdueSupplyOrderCaption(row: PurchaseOrderRow, today?: string) {
   const order = publicStockOrderId(row.orderId)
   const remain = row.remainingQty > 0 ? `미수령 ${row.remainingQty}` : ''
   return [
@@ -600,10 +610,35 @@ export function overdueSupplyOrderCaption(row: PurchaseOrderRow) {
     row.fileName,
     publicCaptionPart(row.currencyName),
     `납기 ${row.dueDate}`,
+    overdueDaysCaption(row.dueDate, today),
     remain,
   ]
     .filter(Boolean)
     .join(' · ')
+}
+
+export function filterOrders<
+  T extends Pick<
+    PurchaseOrderRow,
+    'orderId' | 'itemName' | 'itemUnit' | 'purchaseKind' | 'requestId' | 'supplierName' | 'fileName' | 'currencyName'
+  >,
+>(rows: T[], query: string): T[] {
+  const needle = query.trim().toLowerCase()
+  if (!needle) return rows
+  return rows.filter((row) =>
+    [
+      publicStockOrderId(row.orderId),
+      row.itemName,
+      row.itemUnit,
+      row.purchaseKind,
+      row.requestId,
+      row.supplierName,
+      row.fileName,
+      row.currencyName,
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(needle)),
+  )
 }
 
 export function todayYmd(now = new Date()): string {

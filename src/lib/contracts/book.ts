@@ -227,7 +227,14 @@ export function contractOrderLabel(row: { id: string; partnerName?: string; orde
 }
 
 export function revisionCaption(row: ContractRevision, grouping = true) {
-  return `${row.createdAt.slice(0, 10)} · ${contractPeriod(row)} · ${contractAmountText(row.amount, grouping, row.currency)}`
+  return [
+    row.createdAt.slice(0, 10),
+    contractPeriod(row),
+    contractAmountText(row.amount, grouping, row.currency),
+    publicContractRef(row.fileName),
+  ]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 export function draftSavedNotice(input: { duplicate: boolean; revised: boolean; hasFile: boolean }) {

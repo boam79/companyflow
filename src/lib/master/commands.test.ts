@@ -23,6 +23,7 @@ import {
   masterDeactivateStatement,
   masterSavedNotice,
   masterListCsv,
+  filterMasterRows,
   masterDisabledNotice,
   masterOptionalText,
   masterOptionalDate,
@@ -290,6 +291,15 @@ describe('기준정보 SQL 명령', () => {
         [{ name: '샘플창고', location: '1층' }],
       ),
     ).not.toMatch(/단가|uuid|email/i)
+    expect(
+      filterMasterRows(
+        [
+          { id: 'wh-main', name: '샘플창고', location: '1층' },
+          { id: 'wh-sub', name: '견본창고', location: '2층' },
+        ],
+        '1층',
+      ).map((row) => row.name),
+    ).toEqual(['샘플창고'])
     expect(masterSavedNotice('부서', 'applied')).toBe('저장했습니다. (부서)')
     expect(masterSavedNotice('부서', 'duplicate')).toBe('같은 내용은 한 번만 반영됩니다.')
     expect(masterDisabledNotice('창고', 'applied')).toBe('사용 안 함으로 바꿨습니다. (창고)')
