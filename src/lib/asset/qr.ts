@@ -75,7 +75,7 @@ export async function blankQrDataUrl(origin: string, labelId: string, guest = fa
 }
 
 export function assertPngDataUrl(url: string) {
-  if (!url.startsWith('data:image/png')) {
+  if (!/^data:image\/png;base64,[A-Za-z0-9+/]+=*$/.test(url) || url.length > 200_000) {
     throw new Error('QR 그림이 올바르지 않습니다.')
   }
   return url

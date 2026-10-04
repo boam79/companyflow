@@ -58,7 +58,9 @@ describe('빈 자산 QR', () => {
 
   it('QR 그림 파일을 만든다', async () => {
     const url = await blankQrDataUrl(ORIGIN, LABEL)
-    expect(url.startsWith('data:image/png')).toBe(true)
+    expect(url.startsWith('data:image/png;base64,')).toBe(true)
+    expect(() => assertPngDataUrl(url)).not.toThrow()
     expect(() => assertPngDataUrl('javascript:alert(1)')).toThrow(/그림/)
+    expect(() => assertPngDataUrl('data:image/png;base64,abc" onerror="alert(1)')).toThrow(/그림/)
   })
 })

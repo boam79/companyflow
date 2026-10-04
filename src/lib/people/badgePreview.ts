@@ -1,6 +1,7 @@
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist'
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { toArrayBuffer } from '../contracts/book'
+import { pdfJsSafeSource } from '../contracts/pdfjsSafe'
 import { previewableBadgePdfBytes } from './badgeTemplate'
 import { cropCanvasToContent } from './badgePreviewCrop'
 import { slotsForPage, nameplateOverlay, overlayPaintFromRuns, matchTemplateSpacing, type BadgeFillValues, type BadgeSlot, type OverlayBox, type OverlayPaint, type TextRun } from './badgeFill'
@@ -62,12 +63,7 @@ function runsFromPage(
 export async function renderBadgeTemplatePreview(bytes: Uint8Array): Promise<BadgePreviewPage[]> {
   const pdfBytes = previewableBadgePdfBytes(bytes)
   if (!pdfBytes || typeof document === 'undefined') return []
-  const task = getDocument({
-    data: toArrayBuffer(pdfBytes),
-    useWasm: false,
-    useWorkerFetch: false,
-    disableAutoFetch: true,
-  })
+  const task = getDocument(pdfJsSafeSource(toArrayBuffer(pdfBytes)))
   try {
     const pdf = await task.promise
     const pageCount = Math.min(pdf.numPages, 2)
@@ -169,12 +165,7 @@ export async function renderFilledNameplate(bytes: Uint8Array, values: BadgeFill
     throw new Error('명찰 템플릿 미리보기를 그릴 수 없습니다.')
   }
   const scale = 300 / 72
-  const task = getDocument({
-    data: toArrayBuffer(pdfBytes),
-    useWasm: false,
-    useWorkerFetch: false,
-    disableAutoFetch: true,
-  })
+  const task = getDocument(pdfJsSafeSource(toArrayBuffer(pdfBytes)))
   try {
     const pdf = await task.promise
     const page = await pdf.getPage(1)

@@ -26,6 +26,8 @@ describe('로그인 다음 주소', () => {
       '/Q/11111111-1111-4111-8111-111111111111',
       ' /q/11111111-1111-4111-8111-111111111111/ ',
       'javascript:alert(1)',
+      '\\evil.example',
+      '/\\evil.example',
       'https://companyflow-opal.vercel.app/q/11111111-1111-4111-8111-111111111111',
     ]
     for (const value of blocked) {

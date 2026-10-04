@@ -28,6 +28,8 @@ test('로그인 next 공격 값은 화면에 남지 않는다', async ({ page })
     '/settings',
     `/guest/q/${GUEST_BLANK_QR_ID}`,
     'javascript:alert(1)',
+    '\\evil.example',
+    '/\\evil.example',
     `/Q/${GUEST_BLANK_QR_ID}`,
     `/q/${GUEST_BLANK_QR_ID}/../ops`,
   ]

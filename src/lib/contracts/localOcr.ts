@@ -5,7 +5,7 @@ import { mimeFromName, sniffContractFileMime, toArrayBuffer } from './book'
 import { DEFAULT_CONTRACT_MAX_PAGES, contractMaxPages } from './limits'
 import { describeOcrResult, type OcrExtractResult } from './ocr'
 import { parseContractDocument, type OcrPageText } from './parseFields'
-import { PDFJS_SAFE_OPTIONS } from './pdfjsSafe'
+import { pdfJsSafeSource } from './pdfjsSafe'
 
 GlobalWorkerOptions.workerSrc = workerSrc
 
@@ -18,10 +18,7 @@ export async function textFromPdf(
   bytes: Uint8Array,
   maxPages = DEFAULT_CONTRACT_MAX_PAGES,
 ): Promise<{ text: string; pages: number; totalPages: number; pageTexts: OcrPageText[] }> {
-  const task = getDocument({
-    data: toArrayBuffer(bytes),
-    ...PDFJS_SAFE_OPTIONS,
-  })
+  const task = getDocument(pdfJsSafeSource(toArrayBuffer(bytes)))
   try {
     const pdf = await task.promise
     const pageCount = Math.min(pdf.numPages, contractMaxPages(maxPages))
@@ -48,10 +45,7 @@ export async function textFromPdf(
 
 async function rasterPdfPages(bytes: Uint8Array, maxPages = DEFAULT_CONTRACT_MAX_PAGES): Promise<Blob[]> {
   if (typeof document === 'undefined') return []
-  const task = getDocument({
-    data: toArrayBuffer(bytes),
-    ...PDFJS_SAFE_OPTIONS,
-  })
+  const task = getDocument(pdfJsSafeSource(toArrayBuffer(bytes)))
   try {
     const pdf = await task.promise
     const pageCount = Math.min(pdf.numPages, contractMaxPages(maxPages))

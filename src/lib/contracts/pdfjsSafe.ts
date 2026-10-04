@@ -5,3 +5,7 @@ export const PDFJS_SAFE_OPTIONS = {
   useWorkerFetch: false,
   disableAutoFetch: true,
 } as const
+
+export function pdfJsSafeSource(data: ArrayBuffer) {
+  return { data, ...PDFJS_SAFE_OPTIONS }
+}
