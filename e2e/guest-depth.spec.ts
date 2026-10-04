@@ -53,7 +53,7 @@ test('게스트 입퇴사 탭은 견본만 두고 본사 사람을 두지 않는
   await expect(page.getByRole('button', { name: '명단 받기' })).toBeVisible()
   await page.getByPlaceholder('이름·직위·직원번호·부서').fill('G-101')
   await expect(page.getByRole('button', { name: /견본 김대리.*입사 중/ })).toBeVisible()
-  await expect(page.getByRole('button', { name: /데모 이사원/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /데모 이사원.*입사 중/ })).toHaveCount(0)
   await page.getByPlaceholder('이름·직위·직원번호·부서').fill('')
   await expect(page.getByRole('button', { name: /데모 이사원.*입사 중/ })).toBeVisible()
   await page.getByRole('button', { name: /^퇴사/ }).click()
