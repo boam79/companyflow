@@ -138,14 +138,17 @@ describe('계약 초안', () => {
         orderId: 'ORD-DEMO-01',
         partnerName: '견본임대',
         currency: 'USD',
+        startAt: '2026-01-01',
         endAt: '2026-12-31',
       }),
-    ).toBe('거래처 견본임대 · 담당 견본 김대리 · 발주 ORD-DEMO-01 · 달러 · 종료 2026-12-31')
+    ).toBe('거래처 견본임대 · 담당 견본 김대리 · 발주 ORD-DEMO-01 · 달러 · 시작 2026-01-01 · 종료 2026-12-31')
     expect(contractListMeta({ ownerName: 'guest:emp', orderId: 'sample:ord', partnerName: 'guest:p' })).toBe('')
     expect(contractDueCaption('2026-11-02', '2026-10-04')).toBe('만료 예정 · 29일 전')
     expect(contractDueCaption('2026-10-04', '2026-10-04')).toBe('만료 예정 · 오늘 종료')
     expect(contractDueCaption('2026-09-01', '2026-10-04')).toBe('만료 · 33일 지남')
     expect(filterContracts(rows, '2024-01-01')).toHaveLength(1)
+    expect(filterContracts(rows, '계약중', '2026-09-19').map((row) => row.title)).toEqual(['인터넷 전용회선'])
+    expect(filterContracts(rows, '만료', '2026-09-19').map((row) => row.title)).toEqual(['본사 임대'])
     expect(contractLife('2026-02-28', '2026-09-19')).toBe('종료')
     expect(contractLife('2026-12-31', '2026-09-19')).toBe('진행')
     const csv = contractListCsv(

@@ -114,6 +114,7 @@ export function filledRosterSections<T extends { employees: unknown[] }>(section
 
 export function filterPeople<
   T extends {
+    id: string
     name: string
     title?: string
     employeeNo?: string
@@ -121,21 +122,30 @@ export function filterPeople<
     hiredAt?: string
     leftAt?: string
   },
->(rows: T[], query: string, departments: { id: string; name: string }[] = []): T[] {
+>(
+  rows: T[],
+  query: string,
+  departments: { id: string; name: string }[] = [],
+  checkRows: CheckRow[] = [],
+): T[] {
   const needle = query.trim().toLowerCase()
   if (!needle) return rows
-  return rows.filter((row) =>
-    [
+  return rows.filter((row) => {
+    const process = onboardingView(row.id, checkRows)
+    const phase = rosterPhase(row, process)
+    return [
       row.name,
       masterOptionalText(row.title) ?? '',
       masterOptionalText(row.employeeNo) ?? '',
       departments.find((dept) => dept.id === row.departmentId)?.name ?? '',
       row.hiredAt ?? '',
       row.leftAt ?? '',
+      ROSTER_SECTIONS.find((section) => section.phase === phase)?.label ?? '',
+      phase === 'joining' && !row.hiredAt ? '입사 전' : '',
     ]
       .filter(Boolean)
-      .some((value) => value.toLowerCase().includes(needle)),
-  )
+      .some((value) => value.toLowerCase().includes(needle))
+  })
 }
 
 export function peopleRosterCsv(

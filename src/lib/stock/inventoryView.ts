@@ -126,10 +126,20 @@ export function stockQtyUnitHint(unit?: string | null) {
   return unit?.trim() || ''
 }
 
-export function stockInboundItemHint(item?: Pick<ItemRecord, 'unit'> | null) {
-  const unit = item?.unit?.trim()
+export function stockInboundItemHint(
+  item?: Pick<ItemRecord, 'unit' | 'code' | 'purchaseKind'> | null,
+) {
+  const extras = item
+    ? [
+        item.unit?.trim() ? `단위 ${item.unit.trim()}` : '',
+        item.code?.trim() ?? '',
+        purchaseKindLabel(item.purchaseKind),
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : ''
   const base = '없는 이름은 입고할 때 비품으로 등록됩니다. 자리의 물건은 자산 메뉴입니다.'
-  return unit ? `${base} 단위 ${unit}.` : base
+  return extras ? `${base} ${extras}.` : base
 }
 
 export function stockAssetsLinkLabel() {
@@ -499,14 +509,21 @@ export function orderQtyText(qty: number) {
 }
 
 export function orderInspectCaption(
-  row: Pick<PurchaseOrderRow, 'receivedQty' | 'rejectedQty' | 'returnedQty' | 'remainingQty'>,
+  row: Pick<PurchaseOrderRow, 'receivedQty' | 'rejectedQty' | 'returnedQty' | 'remainingQty'> &
+    Partial<Pick<PurchaseOrderRow, 'itemName' | 'itemUnit' | 'purchaseKind'>>,
 ) {
   const parts: string[] = []
   if (row.receivedQty > 0) parts.push(`정상 ${row.receivedQty}`)
   if (row.rejectedQty > 0) parts.push(`불량 ${row.rejectedQty}`)
   if (row.returnedQty > 0) parts.push(`반품 ${row.returnedQty}`)
   if (row.remainingQty > 0) parts.push(`미수령 ${row.remainingQty}`)
-  return parts.join(' · ')
+  return [orderItemCaption({
+    itemName: row.itemName ?? '',
+    itemUnit: row.itemUnit,
+    purchaseKind: row.purchaseKind,
+  }), ...parts]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 export const ORDER_CURRENCIES = [
@@ -615,6 +632,7 @@ export function overdueSupplyOrderCaption(row: PurchaseOrderRow, today?: string)
     row.requestId,
     row.fileName,
     publicCaptionPart(row.currencyName),
+    /^\d{4}-\d{2}-\d{2}$/.test(row.orderDate ?? '') ? `발주 ${row.orderDate}` : '',
     `납기 ${row.dueDate}`,
     overdueDaysCaption(row.dueDate, today),
     remain,

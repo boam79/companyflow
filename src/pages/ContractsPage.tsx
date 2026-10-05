@@ -403,8 +403,8 @@ export function ContractsPage() {
 
   const groups = useMemo(() => groupContracts(rows, today), [rows, today])
   const visible = useMemo(
-    () => filterContracts(groups.find((section) => section.phase === lifeTab)?.contracts ?? [], query),
-    [groups, lifeTab, query],
+    () => filterContracts(groups.find((section) => section.phase === lifeTab)?.contracts ?? [], query, today),
+    [groups, lifeTab, query, today],
   )
   const selected = rows.find((row) => row.id === selectedId)
   const dueLead = contractDueNotice(groups.find((section) => section.phase === 'due')?.contracts.length ?? 0)
@@ -552,7 +552,7 @@ export function ContractsPage() {
           <div className="shrink-0 border-b border-line p-3">
             <input
               className="w-full rounded border border-line px-3 py-2 text-sm"
-              placeholder="번호·계약·상대방·담당자·거래처·통화"
+              placeholder="번호·계약·상대방·담당자·거래처·통화·시작"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />

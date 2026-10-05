@@ -78,7 +78,10 @@ export function hireDocumentDoneCaption(row: Pick<HireDocumentCheck, 'doneAt'>) 
 }
 
 export function hireDocumentSummary(docs: HireDocumentCheck[]): string {
-  return `서류 ${docs.filter((row) => row.done).length}/${docs.length}`
+  const done = docs.filter((row) => row.done).length
+  const next = docs.find((row) => !row.done)?.label
+  const base = `서류 ${done}/${docs.length}`
+  return next ? `${base} · ${next}부터` : base
 }
 
 export function isHireDocumentKey(key: string): key is HireDocumentKey {

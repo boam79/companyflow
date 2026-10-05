@@ -229,6 +229,13 @@ describe('입퇴사', () => {
     expect(filterPeople(employees, 'G-101', departments).map((row) => row.name)).toEqual(['견본 김대리'])
     expect(filterPeople(employees, '샘플영업', departments).map((row) => row.name)).toEqual(['데모 이사원'])
     expect(filterPeople(employees, '2026-08-01', departments).map((row) => row.name)).toEqual(['견본 김대리'])
+    expect(filterPeople(employees, '입사 중', departments).map((row) => row.name)).toEqual([
+      '견본 김대리',
+      '데모 이사원',
+    ])
+    expect(filterPeople([{ ...employees[0], leftAt: '2026-07-31' }], '퇴사', departments).map((row) => row.name)).toEqual([
+      '견본 김대리',
+    ])
     expect(peopleRosterCsv(employees, [], departments)).toContain('견본 김대리,대리,샘플총무,G-101,2026-08-01,,0,입사 중')
     expect(peopleRosterCsv(employees, [], departments)).not.toMatch(/단가|emp-a|@/)
   })

@@ -93,6 +93,11 @@ describe('비품 현재고', () => {
     expect(stockInboundItemHint()).toContain('비품으로 등록')
     expect(stockInboundItemHint()).not.toMatch(/책상|컴퓨터/)
     expect(stockInboundItemHint({ unit: '박스' })).toContain('단위 박스')
+    expect(
+      stockInboundItemHint({ unit: '박스', code: 'DEMO-PAPER', purchaseKind: 'supply' }),
+    ).toBe(
+      '없는 이름은 입고할 때 비품으로 등록됩니다. 자리의 물건은 자산 메뉴입니다. 단위 박스 · DEMO-PAPER · 일반 비품.',
+    )
     expect(stockAssetsLinkLabel()).toBe('자리의 물건은 자산')
     expect(stockAssetsLinkLabel()).not.toMatch(/가구|책상/)
     expect(stockIssuePersonName()).toBe('')
@@ -789,9 +794,9 @@ describe('비품 발주 목록', () => {
     expect(orderReceiptProgress(open)).toBe('미수령')
     expect(orderReceiptProgress(part)).toBe('부분수령')
     expect(orderReceiptProgress(done)).toBe('수령완료')
-    expect(orderInspectCaption(open)).toBe('미수령 4')
-    expect(orderInspectCaption(part)).toBe('정상 1 · 불량 1 · 미수령 3')
-    expect(orderInspectCaption(done)).toBe('정상 2')
+    expect(orderInspectCaption(open)).toBe('복사용지 · 미수령 4')
+    expect(orderInspectCaption(part)).toBe('복사용지 · 정상 1 · 불량 1 · 미수령 3')
+    expect(orderInspectCaption(done)).toBe('복사용지 · 정상 2')
     expect(orderQtyText(0)).toBe('—')
     expect(orderQtyText(2)).toBe('2')
     expect(orderInspectCaption(done)).not.toMatch(/미수령 0|잔량 0|불량 0/)
@@ -904,10 +909,10 @@ describe('비품 발주 목록', () => {
     const later = { ...due, orderId: 'ORD-DEMO-02', dueDate: '2026-12-31' }
     expect(overdueSupplyOrders([due, received, later], '2026-10-03')).toEqual([due])
     expect(overdueSupplyOrderCaption(due)).toBe(
-      'ORD-DEMO-01 · 견본임대 · 샘플 복사용지 · 견본발주.pdf · 원 · 납기 2026-01-01 · 미수령 2',
+      'ORD-DEMO-01 · 견본임대 · 샘플 복사용지 · 견본발주.pdf · 원 · 발주 2026-09-01 · 납기 2026-01-01 · 미수령 2',
     )
     expect(overdueSupplyOrderCaption(due, '2026-10-03')).toBe(
-      'ORD-DEMO-01 · 견본임대 · 샘플 복사용지 · 견본발주.pdf · 원 · 납기 2026-01-01 · 275일 · 미수령 2',
+      'ORD-DEMO-01 · 견본임대 · 샘플 복사용지 · 견본발주.pdf · 원 · 발주 2026-09-01 · 납기 2026-01-01 · 275일 · 미수령 2',
     )
     expect(overdueSupplyOrders([due], '2026-01-01')).toEqual([])
     expect(filterOrders([due, later], 'ORD-DEMO-01').map((row) => row.orderId)).toEqual(['ORD-DEMO-01'])

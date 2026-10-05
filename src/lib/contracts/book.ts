@@ -117,18 +117,21 @@ export function contractListMeta(row: {
   orderId?: string
   partnerName?: string
   currency?: string
+  startAt?: string
   endAt?: string
 }) {
   const partner = publicContractRef(row.partnerName)
   const owner = publicContractRef(row.ownerName)
   const order = publicContractRef(row.orderId)
   const currency = contractCurrencyName(row.currency)
+  const start = /^\d{4}-\d{2}-\d{2}$/.test(row.startAt ?? '') ? `시작 ${row.startAt}` : ''
   const end = /^\d{4}-\d{2}-\d{2}$/.test(row.endAt ?? '') ? `종료 ${row.endAt}` : ''
   return [
     partner ? `거래처 ${partner}` : '',
     owner ? `담당 ${owner}` : '',
     order ? `발주 ${order}` : '',
     currency,
+    start,
     end,
   ]
     .filter(Boolean)
@@ -167,7 +170,7 @@ export function contractLife(endAt?: string, today?: string) {
     : '진행'
 }
 
-export function filterContracts(rows: ContractDraft[], query: string) {
+export function filterContracts(rows: ContractDraft[], query: string, today?: string) {
   const needle = query.trim().toLowerCase()
   if (!needle) return rows
   return rows.filter((row) =>
@@ -183,6 +186,7 @@ export function filterContracts(rows: ContractDraft[], query: string) {
       row.endAt,
       row.currency,
       contractCurrencyName(row.currency),
+      contractPhaseCaption(contractPhase(row.endAt, today)),
     ]
       .filter(Boolean)
       .some((value) => value!.toLowerCase().includes(needle)),

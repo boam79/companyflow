@@ -7,6 +7,7 @@ import {
   hireDocumentView,
   hireHistory,
   hireWorkflowCaption,
+  HIRE_DOCUMENTS,
   overdueHireCaption,
   overdueHireNotice,
   overdueHireRows,
@@ -109,11 +110,16 @@ describe('입사 워크플로', () => {
       '통장사본',
       '신분증 사본',
     ])
-    expect(hireDocumentSummary(empty)).toBe('서류 0/5')
+    expect(hireDocumentSummary(empty)).toBe('서류 0/5 · 근로계약서부터')
     const next = applyHireDocument(empty, 'contract', true, '2026-09-20')
     expect(next.find((row) => row.key === 'contract')?.done).toBe(true)
     expect(hireDocumentDoneCaption(next.find((row) => row.key === 'contract')!)).toBe('완료 2026-09-20')
-    expect(hireDocumentSummary(next)).toBe('서류 1/5')
+    expect(hireDocumentSummary(next)).toBe('서류 1/5 · 보안서약서부터')
+    const done = HIRE_DOCUMENTS.reduce(
+      (rows, item) => applyHireDocument(rows, item.key, true, '2026-09-20'),
+      empty,
+    )
+    expect(hireDocumentSummary(done)).toBe('서류 5/5')
     expect(hireHistory([{ kind: 'hire_contract', occurredAt: '2026-09-20' }])).toEqual([
       { at: '2026-09-20', label: '근로계약서' },
     ])
